@@ -1,0 +1,32 @@
+export type Stage = 'Medição' | 'Projeto' | 'Aprovação' | 'Produção' | 'Montagem' | 'Finalizado'
+
+export interface Project {
+  id: string
+  name: string
+  client: string
+  stage: Stage
+  deadline: string
+  progress: number
+  priority: 'Baixa' | 'Média' | 'Alta' | 'Urgente'
+  tags: string[]
+}
+
+export interface Client {
+  id: string
+  name: string
+  email: string
+  phone: string
+  totalProjects: number
+  status: 'Ativo' | 'Inativo'
+  createdAt: string
+}
+
+export interface InventoryItem {
+  id: string
+  name: string
+  category: string
+  quantity: number
+  unit: 'un' | 'm²' | 'litro' | 'kg'
+  minStock: number
+  price: number
+}
