@@ -9,35 +9,168 @@ export type Database = {
   }
   public: {
     Tables: {
+      ambientes: {
+        Row: {
+          cliente_id: string | null
+          criado_em: string
+          descricao: string | null
+          id: string
+          metragem: number | null
+          nome: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          metragem?: number | null
+          nome: string
+        }
+        Update: {
+          cliente_id?: string | null
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          metragem?: number | null
+          nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ambientes_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       clientes: {
         Row: {
           atualizado_em: string
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string | null
           criado_em: string
+          data_nascimento: string | null
           email: string
+          endereco_obra: string | null
+          estado: string | null
           id: string
+          lead_id: string | null
+          metragem_total: number | null
           nome: string
+          numero: string | null
+          profissao: string | null
+          referencia_bancaria: string | null
+          renda: number | null
           status: string
           telefone: string
+          tipo_imovel: string | null
+          usuario_id: string | null
         }
         Insert: {
           atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           criado_em?: string
+          data_nascimento?: string | null
           email: string
+          endereco_obra?: string | null
+          estado?: string | null
           id?: string
+          lead_id?: string | null
+          metragem_total?: number | null
           nome: string
+          numero?: string | null
+          profissao?: string | null
+          referencia_bancaria?: string | null
+          renda?: number | null
           status?: string
           telefone: string
+          tipo_imovel?: string | null
+          usuario_id?: string | null
         }
         Update: {
           atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           criado_em?: string
+          data_nascimento?: string | null
           email?: string
+          endereco_obra?: string | null
+          estado?: string | null
           id?: string
+          lead_id?: string | null
+          metragem_total?: number | null
           nome?: string
+          numero?: string | null
+          profissao?: string | null
+          referencia_bancaria?: string | null
+          renda?: number | null
           status?: string
           telefone?: string
+          tipo_imovel?: string | null
+          usuario_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'clientes_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      documentos_cliente: {
+        Row: {
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          status: string
+          template_id: string | null
+          tipo: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          status?: string
+          template_id?: string | null
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          status?: string
+          template_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documentos_cliente_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documentos_cliente_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'templates'
+            referencedColumns: ['id']
+          },
+        ]
       }
       documentos_obrigatorios: {
         Row: {
@@ -179,6 +312,130 @@ export type Database = {
             columns: ['usuario_id']
             isOneToOne: false
             referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pagamentos: {
+        Row: {
+          cliente_id: string | null
+          criado_em: string
+          data_primeira_parcela: string | null
+          forma_pagamento: string
+          id: string
+          numero_parcelas: number | null
+          valor_total: number
+        }
+        Insert: {
+          cliente_id?: string | null
+          criado_em?: string
+          data_primeira_parcela?: string | null
+          forma_pagamento: string
+          id?: string
+          numero_parcelas?: number | null
+          valor_total: number
+        }
+        Update: {
+          cliente_id?: string | null
+          criado_em?: string
+          data_primeira_parcela?: string | null
+          forma_pagamento?: string
+          id?: string
+          numero_parcelas?: number | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pagamentos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      parcelas: {
+        Row: {
+          criado_em: string
+          data_vencimento: string
+          id: string
+          numero: number
+          pagamento_id: string | null
+          status: string
+          valor: number
+        }
+        Insert: {
+          criado_em?: string
+          data_vencimento: string
+          id?: string
+          numero: number
+          pagamento_id?: string | null
+          status?: string
+          valor: number
+        }
+        Update: {
+          criado_em?: string
+          data_vencimento?: string
+          id?: string
+          numero?: number
+          pagamento_id?: string | null
+          status?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'parcelas_pagamento_id_fkey'
+            columns: ['pagamento_id']
+            isOneToOne: false
+            referencedRelation: 'pagamentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      produtos_servicos: {
+        Row: {
+          ambiente_id: string | null
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          nome: string
+          quantidade: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          ambiente_id?: string | null
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome: string
+          quantidade: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Update: {
+          ambiente_id?: string | null
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          quantidade?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'produtos_servicos_ambiente_id_fkey'
+            columns: ['ambiente_id']
+            isOneToOne: false
+            referencedRelation: 'ambientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'produtos_servicos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
             referencedColumns: ['id']
           },
         ]
@@ -393,6 +650,13 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: ambientes
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   nome: text (not null)
+//   metragem: numeric (nullable)
+//   descricao: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: clientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -401,6 +665,29 @@ export const Constants = {
 //   status: text (not null, default: 'Ativo'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   lead_id: uuid (nullable)
+//   cpf: text (nullable)
+//   endereco_obra: text (nullable)
+//   numero: text (nullable)
+//   complemento: text (nullable)
+//   bairro: text (nullable)
+//   cidade: text (nullable)
+//   estado: text (nullable)
+//   cep: text (nullable)
+//   tipo_imovel: text (nullable)
+//   metragem_total: numeric (nullable)
+//   usuario_id: uuid (nullable)
+//   data_nascimento: date (nullable)
+//   profissao: text (nullable)
+//   renda: numeric (nullable)
+//   referencia_bancaria: text (nullable)
+// Table: documentos_cliente
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   tipo: text (not null)
+//   template_id: uuid (nullable)
+//   status: text (not null, default: 'Pendente'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: documentos_obrigatorios
 //   id: uuid (not null, default: gen_random_uuid())
 //   tipo: text (not null)
@@ -433,6 +720,31 @@ export const Constants = {
 //   modulo: text (not null)
 //   nivel_acesso: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: pagamentos
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   forma_pagamento: text (not null)
+//   numero_parcelas: integer (nullable)
+//   valor_total: numeric (not null)
+//   data_primeira_parcela: date (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+// Table: parcelas
+//   id: uuid (not null, default: gen_random_uuid())
+//   pagamento_id: uuid (nullable)
+//   numero: integer (not null)
+//   data_vencimento: date (not null)
+//   valor: numeric (not null)
+//   status: text (not null, default: 'Pendente'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+// Table: produtos_servicos
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   ambiente_id: uuid (nullable)
+//   nome: text (not null)
+//   quantidade: numeric (not null)
+//   valor_unitario: numeric (not null)
+//   valor_total: numeric (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -452,8 +764,18 @@ export const Constants = {
 //   status: boolean (not null, default: true)
 
 // --- CONSTRAINTS ---
+// Table: ambientes
+//   FOREIGN KEY ambientes_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY ambientes_pkey: PRIMARY KEY (id)
 // Table: clientes
+//   UNIQUE clientes_cpf_key: UNIQUE (cpf)
+//   FOREIGN KEY clientes_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
 //   PRIMARY KEY clientes_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY clientes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: documentos_cliente
+//   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY documentos_cliente_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
 // Table: documentos_obrigatorios
 //   PRIMARY KEY documentos_obrigatorios_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_obrigatorios_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
@@ -466,6 +788,16 @@ export const Constants = {
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: pagamentos
+//   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY pagamentos_pkey: PRIMARY KEY (id)
+// Table: parcelas
+//   FOREIGN KEY parcelas_pagamento_id_fkey: FOREIGN KEY (pagamento_id) REFERENCES pagamentos(id) ON DELETE CASCADE
+//   PRIMARY KEY parcelas_pkey: PRIMARY KEY (id)
+// Table: produtos_servicos
+//   FOREIGN KEY produtos_servicos_ambiente_id_fkey: FOREIGN KEY (ambiente_id) REFERENCES ambientes(id) ON DELETE CASCADE
+//   FOREIGN KEY produtos_servicos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY produtos_servicos_pkey: PRIMARY KEY (id)
 // Table: templates
 //   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
 // Table: users
@@ -474,10 +806,33 @@ export const Constants = {
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
-// Table: clientes
-//   Policy "Clientes all access" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
+// Table: ambientes
+//   Policy "ambientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "ambientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: true
+//   Policy "ambientes_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "ambientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+// Table: clientes
+//   Policy "clientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "clientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "clientes_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+// Table: documentos_cliente
+//   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "doc_cli_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "doc_cli_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "doc_cli_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: documentos_obrigatorios
 //   Policy "Admin Editor Docs" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -500,6 +855,33 @@ export const Constants = {
 //     USING: is_admin(auth.uid())
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: pagamentos
+//   Policy "pagamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "pagamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "pagamentos_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "pagamentos_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+// Table: parcelas
+//   Policy "parcelas_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "parcelas_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "parcelas_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "parcelas_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+// Table: produtos_servicos
+//   Policy "produtos_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "produtos_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "produtos_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "produtos_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: templates
 //   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -585,6 +967,8 @@ export const Constants = {
 //
 
 // --- INDEXES ---
+// Table: clientes
+//   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
 // Table: documentos_obrigatorios
 //   CREATE UNIQUE INDEX documentos_obrigatorios_tipo_key ON public.documentos_obrigatorios USING btree (tipo)
 // Table: users
