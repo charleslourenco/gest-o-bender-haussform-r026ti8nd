@@ -1,0 +1,4 @@
+DO $$
+BEGIN
+  ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status BOOLEAN NOT NULL DEFAULT true;
+END $$;

@@ -7,6 +7,7 @@ import Index from './pages/Index'
 import Projects from './pages/Projects'
 import Clients from './pages/Clients'
 import Inventory from './pages/Inventory'
+import Users from './pages/Users'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
@@ -32,6 +33,7 @@ const App = () => (
               }
             >
               <Route path="/" element={<Index />} />
+              <Route path="/usuarios" element={<Users />} />
               <Route path="/projetos" element={<Projects />} />
               <Route path="/clientes" element={<Clients />} />
               <Route path="/estoque" element={<Inventory />} />

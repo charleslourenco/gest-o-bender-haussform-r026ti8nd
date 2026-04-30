@@ -7,6 +7,7 @@ import {
   Hammer,
   Wallet,
   Settings,
+  UserCog,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -22,6 +23,7 @@ import {
 
 const menuItems = [
   { title: 'Início', icon: LayoutDashboard, url: '/' },
+  { title: 'Usuários', icon: UserCog, url: '/usuarios' },
   { title: 'Projetos', icon: KanbanSquare, url: '/projetos' },
   { title: 'Clientes', icon: Users, url: '/clientes' },
   { title: 'Estoque', icon: PackageSearch, url: '/estoque' },

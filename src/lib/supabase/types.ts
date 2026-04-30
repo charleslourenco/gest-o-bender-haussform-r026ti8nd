@@ -280,6 +280,8 @@ export const Constants = {
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: empresa
+//   Policy "Leitura autenticada empresa" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: matriz_permissoes
@@ -295,7 +297,9 @@ export const Constants = {
 //   Policy "Admin deleta" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
 //   Policy "Usuário edita seus dados" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
+//     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
+//   Policy "Usuário insere sua conta" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = id)
 //   Policy "Usuário vê apenas seus dados ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
 
@@ -313,7 +317,9 @@ export const Constants = {
 //       NEW.email,
 //       COALESCE(NEW.raw_user_meta_data->>'nome', split_part(NEW.email, '@', 1))
 //     )
-//     ON CONFLICT (id) DO NOTHING;
+//     ON CONFLICT (id) DO UPDATE SET
+//       email = EXCLUDED.email,
+//       nome = EXCLUDED.nome;
 //     RETURN NEW;
 //   END;
 //   $function$
