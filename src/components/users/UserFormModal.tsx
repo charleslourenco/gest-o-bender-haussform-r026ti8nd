@@ -99,11 +99,11 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            <CheckCircle2 className="h-5 w-5 text-off-white" />
             <span>{user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!'}</span>
           </div>
         ),
-        className: 'bg-bender-denim text-bender-offwhite border-none',
+        className: 'bg-dark-denim text-off-white border-none',
       })
 
       const savedUser = user || { id: data.user.id, ...values }
@@ -115,12 +115,12 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-red-400" />
+            <XCircle className="h-5 w-5 text-off-white" />
             <span>Erro ao salvar usuário</span>
           </div>
         ),
         description: isAlreadyRegistered ? 'Este e-mail já está cadastrado.' : err.message,
-        className: 'bg-bender-steel text-bender-offwhite border-none',
+        className: 'bg-steel-blue text-off-white border-none',
       })
     } finally {
       setIsSubmitting(false)
@@ -130,11 +130,11 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="sm:max-w-[500px] bg-bender-offwhite border-none shadow-xl"
-        overlayClassName="bg-bender-navy/50"
+        className="sm:max-w-[500px] bg-off-white border-none shadow-xl"
+        overlayClassName="bg-midnight-navy/50"
       >
         <DialogHeader>
-          <DialogTitle className="text-bender-navy text-[24px] font-bold">
+          <DialogTitle className="text-midnight-navy text-[24px] font-bold">
             {user ? 'Editar Usuário' : 'Adicionar Usuário'}
           </DialogTitle>
         </DialogHeader>
@@ -145,17 +145,17 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-bender-navy font-semibold text-base">
+                  <FormLabel className="text-midnight-navy font-semibold text-base">
                     Nome Completo
                   </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="João da Silva"
-                      className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg"
+                      className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
                       {...field}
                     />
                   </FormControl>
-                  <FormMessage className="text-red-500 font-medium" />
+                  <FormMessage className="text-steel-blue font-bold" />
                 </FormItem>
               )}
             />
@@ -164,16 +164,18 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-bender-navy font-semibold text-base">E-mail</FormLabel>
+                  <FormLabel className="text-midnight-navy font-semibold text-base">
+                    E-mail
+                  </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="joao@exemplo.com"
-                      className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                      className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
                       {...field}
                       disabled={!!user}
                     />
                   </FormControl>
-                  <FormMessage className="text-red-500 font-medium" />
+                  <FormMessage className="text-steel-blue font-bold" />
                 </FormItem>
               )}
             />
@@ -183,19 +185,19 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-bender-navy font-semibold text-base">
+                    <FormLabel className="text-midnight-navy font-semibold text-base">
                       Telefone
                     </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="(00) 00000-0000"
-                        className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg"
+                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
                         {...field}
                         onChange={(e) => field.onChange(formatPhone(e.target.value))}
                         maxLength={15}
                       />
                     </FormControl>
-                    <FormMessage className="text-red-500 font-medium" />
+                    <FormMessage className="text-steel-blue font-bold" />
                   </FormItem>
                 )}
               />
@@ -204,7 +206,7 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                 name="funcao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-bender-navy font-semibold text-base">
+                    <FormLabel className="text-midnight-navy font-semibold text-base">
                       Função
                     </FormLabel>
                     <Select
@@ -213,64 +215,64 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                       value={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus:border-bender-denim focus:border-[3px] focus:ring-0 rounded-lg">
+                        <SelectTrigger className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus:border-dark-denim focus:border-[3px] focus:ring-0 rounded-lg">
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent className="bg-bender-offwhite border-2 border-bender-steel">
+                      <SelectContent className="bg-off-white border-2 border-steel-blue">
                         <SelectItem
                           value="Consultor"
-                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
                         >
                           Consultor
                         </SelectItem>
                         <SelectItem
                           value="Analista"
-                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
                         >
                           Analista
                         </SelectItem>
                         <SelectItem
                           value="Gerente"
-                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
                         >
                           Gerente
                         </SelectItem>
                         <SelectItem
                           value="Admin"
-                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
                         >
                           Admin
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage className="text-red-500 font-medium" />
+                    <FormMessage className="text-steel-blue font-bold" />
                   </FormItem>
                 )}
               />
             </div>
 
             <FormItem>
-              <FormLabel className="text-bender-navy font-semibold text-base">
+              <FormLabel className="text-midnight-navy font-semibold text-base">
                 Foto de Perfil (Opcional)
               </FormLabel>
               <FormControl>
                 <Input
                   type="file"
                   accept="image/jpeg, image/png"
-                  className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 file:text-bender-navy file:font-semibold rounded-lg pt-2 cursor-pointer"
+                  className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 file:text-midnight-navy file:font-semibold rounded-lg pt-2 cursor-pointer"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file && file.size > 5 * 1024 * 1024) {
                       toast({
                         title: (
                           <div className="flex items-center gap-2">
-                            <XCircle className="h-5 w-5 text-red-400" />
+                            <XCircle className="h-5 w-5 text-off-white" />
                             <span>Erro</span>
                           </div>
                         ),
                         description: 'Arquivo muito grande. Máximo 5MB.',
-                        className: 'bg-bender-steel text-bender-offwhite border-none',
+                        className: 'bg-steel-blue text-off-white border-none',
                       })
                       e.target.value = ''
                     }
@@ -283,9 +285,9 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               control={form.control}
               name="status"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border-2 border-bender-steel bg-bender-pale p-4">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border-2 border-steel-blue bg-pale-cornflower p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base text-bender-navy font-semibold">
+                    <FormLabel className="text-base text-midnight-navy font-semibold">
                       Status do Usuário (Ativo)
                     </FormLabel>
                   </div>
@@ -293,18 +295,18 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                     <Switch
                       checked={field.value}
                       onCheckedChange={field.onChange}
-                      className="data-[state=checked]:bg-bender-denim data-[state=unchecked]:bg-bender-steel shadow-sm border-2 border-transparent"
+                      className="data-[state=checked]:bg-dark-denim data-[state=unchecked]:bg-steel-blue shadow-sm border-2 border-transparent"
                     />
                   </FormControl>
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-3 pt-6 border-t border-bender-steel/20 mt-6">
+            <div className="flex justify-end gap-3 pt-6 border-t border-steel-blue/20 mt-6">
               <Button
                 type="button"
                 variant="outline"
-                className="bg-bender-steel text-bender-offwhite hover:bg-bender-steel/90 hover:text-bender-offwhite px-6 py-3 h-auto min-h-[44px] border-none rounded-lg"
+                className="bg-steel-blue text-off-white hover:bg-steel-blue hover:opacity-90 hover:text-off-white px-6 py-3 h-auto min-h-[44px] border-none rounded-lg"
                 onClick={onClose}
                 disabled={isSubmitting}
               >
@@ -312,7 +314,7 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               </Button>
               <Button
                 type="submit"
-                className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 h-auto min-h-[44px] rounded-lg"
+                className="bg-dark-denim text-off-white hover:bg-dark-denim hover:opacity-90 px-6 py-3 h-auto min-h-[44px] rounded-lg"
                 disabled={isSubmitting || !form.formState.isValid}
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

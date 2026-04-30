@@ -82,11 +82,11 @@ export function PermissionsModal({
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            <CheckCircle2 className="h-5 w-5 text-off-white" />
             <span>Permissões salvas com sucesso!</span>
           </div>
         ),
-        className: 'bg-bender-denim text-bender-offwhite border-none',
+        className: 'bg-dark-denim text-off-white border-none',
       })
 
       onSuccess()
@@ -95,12 +95,12 @@ export function PermissionsModal({
       toast({
         title: (
           <div className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-red-400" />
+            <XCircle className="h-5 w-5 text-off-white" />
             <span>Erro ao salvar permissões</span>
           </div>
         ),
         description: err.message,
-        className: 'bg-bender-steel text-bender-offwhite border-none',
+        className: 'bg-steel-blue text-off-white border-none',
       })
     } finally {
       setIsSaving(false)
@@ -110,30 +110,30 @@ export function PermissionsModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="sm:max-w-[700px] bg-bender-offwhite border-none shadow-xl"
-        overlayClassName="bg-bender-navy/50"
+        className="sm:max-w-[700px] bg-off-white border-none shadow-xl"
+        overlayClassName="bg-midnight-navy/50"
       >
         <DialogHeader>
-          <DialogTitle className="text-bender-navy text-[24px] font-bold">
+          <DialogTitle className="text-midnight-navy text-[24px] font-bold">
             Definir Permissões
           </DialogTitle>
         </DialogHeader>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-10 h-10 animate-spin text-bender-denim" />
+            <Loader2 className="w-10 h-10 animate-spin text-dark-denim" />
           </div>
         ) : (
           <div className="py-2">
-            <div className="rounded-xl border border-bender-steel/20 overflow-hidden shadow-sm hidden sm:block">
-              <Table className="bg-bender-offwhite">
-                <TableHeader className="bg-bender-denim">
-                  <TableRow className="hover:bg-transparent border-b-bender-steel/20">
-                    <TableHead className="text-bender-offwhite font-semibold p-4">Módulo</TableHead>
+            <div className="rounded-xl border border-steel-blue/20 overflow-hidden shadow-sm hidden sm:block">
+              <Table className="bg-off-white">
+                <TableHeader className="bg-dark-denim">
+                  <TableRow className="hover:bg-transparent border-b-steel-blue/20">
+                    <TableHead className="text-off-white font-semibold p-4">Módulo</TableHead>
                     {LEVELS.map((level) => (
                       <TableHead
                         key={level}
-                        className="text-center text-bender-offwhite font-semibold p-4"
+                        className="text-center text-off-white font-semibold p-4"
                       >
                         {level}
                       </TableHead>
@@ -145,11 +145,11 @@ export function PermissionsModal({
                     <TableRow
                       key={mod}
                       className={cn(
-                        'border-b-bender-steel/20 hover:bg-bender-pale/40 transition-colors',
-                        idx % 2 === 0 ? 'bg-bender-offwhite' : 'bg-bender-pale/20',
+                        'border-b-steel-blue/20 hover:bg-pale-cornflower/40 transition-colors',
+                        idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/20',
                       )}
                     >
-                      <TableCell className="font-semibold text-bender-navy p-4">{mod}</TableCell>
+                      <TableCell className="font-semibold text-midnight-navy p-4">{mod}</TableCell>
                       {LEVELS.map((level) => (
                         <TableCell key={level} className="text-center p-4">
                           <input
@@ -159,7 +159,7 @@ export function PermissionsModal({
                             checked={(perms[mod] || 'Sem Acesso') === level}
                             onChange={() => setPerms({ ...perms, [mod]: level })}
                             disabled={isSuperAdmin}
-                            className="appearance-none w-6 h-6 rounded-full border-2 border-bender-steel checked:border-[7px] checked:border-bender-denim bg-bender-offwhite cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="appearance-none w-6 h-6 rounded-full border-2 border-steel-blue checked:border-[7px] checked:border-dark-denim bg-off-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                           />
                         </TableCell>
                       ))}
@@ -174,11 +174,11 @@ export function PermissionsModal({
                 <div
                   key={mod}
                   className={cn(
-                    'flex flex-col gap-3 p-4 rounded-xl border border-bender-steel/20 shadow-sm',
-                    idx % 2 === 0 ? 'bg-bender-offwhite' : 'bg-bender-pale/20',
+                    'flex flex-col gap-3 p-4 rounded-xl border border-steel-blue/20 shadow-sm',
+                    idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/20',
                   )}
                 >
-                  <h4 className="font-bold text-bender-navy text-lg">{mod}</h4>
+                  <h4 className="font-bold text-midnight-navy text-lg">{mod}</h4>
                   <div className="flex flex-col gap-2 mt-2">
                     {LEVELS.map((level) => (
                       <label
@@ -186,8 +186,8 @@ export function PermissionsModal({
                         className={cn(
                           'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
                           (perms[mod] || 'Sem Acesso') === level
-                            ? 'bg-bender-pale/50 border-bender-denim'
-                            : 'bg-bender-offwhite border-bender-steel/30',
+                            ? 'bg-pale-cornflower/50 border-dark-denim'
+                            : 'bg-off-white border-steel-blue/30',
                           isSuperAdmin && 'opacity-60 cursor-not-allowed',
                         )}
                       >
@@ -198,9 +198,9 @@ export function PermissionsModal({
                           checked={(perms[mod] || 'Sem Acesso') === level}
                           onChange={() => setPerms({ ...perms, [mod]: level })}
                           disabled={isSuperAdmin}
-                          className="appearance-none shrink-0 w-6 h-6 rounded-full border-2 border-bender-steel checked:border-[7px] checked:border-bender-denim bg-bender-offwhite disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          className="appearance-none shrink-0 w-6 h-6 rounded-full border-2 border-steel-blue checked:border-[7px] checked:border-dark-denim bg-off-white disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         />
-                        <span className="text-bender-navy font-medium text-base">{level}</span>
+                        <span className="text-midnight-navy font-medium text-base">{level}</span>
                       </label>
                     ))}
                   </div>
@@ -209,26 +209,26 @@ export function PermissionsModal({
             </div>
 
             {isSuperAdmin && (
-              <p className="text-base text-bender-navy/80 mt-6 text-center bg-bender-pale/50 p-4 rounded-lg font-medium border border-bender-steel/20">
+              <p className="text-base text-midnight-navy/80 mt-6 text-center bg-pale-cornflower/50 p-4 rounded-lg font-medium border border-steel-blue/20">
                 O Super Admin possui nível máximo inalterável em todos os módulos.
               </p>
             )}
           </div>
         )}
 
-        <DialogFooter className="mt-4 pt-6 border-t border-bender-steel/20 gap-3">
+        <DialogFooter className="mt-4 pt-6 border-t border-steel-blue/20 gap-3">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={isSaving}
-            className="bg-bender-steel text-bender-offwhite hover:bg-bender-steel/90 hover:text-bender-offwhite px-6 py-3 h-auto min-h-[44px] border-none rounded-lg mt-0 sm:mt-0"
+            className="bg-steel-blue text-off-white hover:bg-steel-blue hover:opacity-90 hover:text-off-white px-6 py-3 h-auto min-h-[44px] border-none rounded-lg mt-0 sm:mt-0"
           >
             Cancelar
           </Button>
           <Button
             onClick={handleSave}
             disabled={isSaving || isLoading}
-            className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 h-auto min-h-[44px] rounded-lg"
+            className="bg-dark-denim text-off-white hover:opacity-90 hover:bg-dark-denim px-6 py-3 h-auto min-h-[44px] rounded-lg"
           >
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Salvar Permissões
