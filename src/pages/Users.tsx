@@ -33,7 +33,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { HasPermission } from '@/components/HasPermission'
 import { UserFormModal } from '@/components/users/UserFormModal'
-import { PermissionsModal } from '@/components/users/PermissionsModal'
+import { PermissionsMatrix } from '@/components/users/PermissionsMatrix'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -190,18 +191,30 @@ export default function Users() {
       }
     >
       <div className="flex flex-col gap-6 p-4 md:p-8 w-full max-w-[1400px] mx-auto animate-in fade-in duration-300">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-midnight-navy p-6 rounded-xl shadow-sm">
-          <h1 className="text-[32px] font-bold tracking-tight text-off-white">Usuários</h1>
-          <Button
-            onClick={openAdd}
-            className="bg-dark-denim text-off-white hover:opacity-90 hover:bg-dark-denim px-6 py-3 h-auto min-h-[44px] rounded-lg transition-all"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Adicionar Usuário
-          </Button>
-        </div>
+        <Tabs defaultValue="lista" className="w-full space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-midnight-navy p-6 rounded-xl shadow-sm">
+            <h1 className="text-[32px] font-bold tracking-tight text-off-white">Usuários</h1>
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <TabsList className="bg-dark-denim border-none p-1 rounded-lg">
+                <TabsTrigger value="lista" className="data-[state=active]:bg-pale-cornflower data-[state=active]:text-midnight-navy text-off-white rounded-md">
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger value="matriz" className="data-[state=active]:bg-pale-cornflower data-[state=active]:text-midnight-navy text-off-white rounded-md">
+                  Permissões
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                onClick={openAdd}
+                className="bg-steel-blue text-off-white hover:opacity-90 hover:bg-steel-blue px-6 py-3 h-auto min-h-[44px] rounded-lg transition-all whitespace-nowrap"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Adicionar Usuário
+              </Button>
+            </div>
+          </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
+          <TabsContent value="lista" className="space-y-6 m-0">
+            <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-steel-blue" />
             <Input
@@ -527,14 +540,6 @@ export default function Users() {
           onSuccess={handleFormSuccess}
         />
 
-        <PermissionsModal
-          isOpen={isPermOpen}
-          onClose={() => setIsPermOpen(false)}
-          userId={selectedUser?.id || ''}
-          userEmail={selectedUser?.email || ''}
-          onSuccess={() => setRefresh((r) => r + 1)}
-        />
-
         <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
           <AlertDialogContent
             className="bg-off-white border-none shadow-xl"
@@ -562,6 +567,12 @@ export default function Users() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+            </div>
+          </TabsContent>
+          <TabsContent value="matriz" className="m-0">
+            <PermissionsMatrix />
+          </TabsContent>
+        </Tabs>
       </div>
     </HasPermission>
   )

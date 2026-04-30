@@ -1,14 +1,14 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
-import Index from './pages/Index'
-import Projects from './pages/Projects'
-import Clients from './pages/Clients'
-import Inventory from './pages/Inventory'
-import Users from './pages/Users'
+import Dashboard from './pages/Dashboard'
 import Comercial from './pages/Comercial'
+import AreaClientes from './pages/AreaClientes'
+import Financeiro from './pages/Financeiro'
+import DocumentacaoLead from './pages/DocumentacaoLead'
+import Users from './pages/Users'
 import AdminPage from './pages/admin/Admin'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
@@ -34,12 +34,13 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/comercial" element={<Comercial />} />
+              <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
               <Route path="/usuarios" element={<Users />} />
-              <Route path="/projetos" element={<Projects />} />
-              <Route path="/clientes" element={<Clients />} />
-              <Route path="/estoque" element={<Inventory />} />
+              <Route path="/area-clientes" element={<AreaClientes />} />
+              <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/admin" element={<AdminPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

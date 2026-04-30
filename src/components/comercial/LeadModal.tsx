@@ -75,9 +75,14 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             >
               <option value="Instagram">Instagram</option>
               <option value="Google">Google</option>
-              <option value="WhatsApp">WhatsApp</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Parceiros">Parceiros</option>
+              <option value="Corretor">Corretor</option>
+              <option value="Arquiteto">Arquiteto</option>
+              <option value="Outdoor">Outdoor</option>
+              <option value="Recompra">Recompra</option>
               <option value="Indicação">Indicação</option>
-              <option value="Outro">Outro</option>
+              <option value="Porta">Porta</option>
             </select>
           </div>
           <div>

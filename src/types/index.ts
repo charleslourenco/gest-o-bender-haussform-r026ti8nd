@@ -22,6 +22,7 @@ export interface Lead {
   notas: string | null
   ordem: number
   criado_em: string
+  criado_por_nome?: string | null
   consultor?: { nome: string } | null
 }
 

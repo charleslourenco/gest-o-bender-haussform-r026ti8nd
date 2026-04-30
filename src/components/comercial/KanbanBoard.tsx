@@ -16,9 +16,24 @@ import { useToast } from '@/hooks/use-toast'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 
-const COLUMNS = ['Novo Lead', 'Qualificado', 'Proposta Enviada', 'Negociação', 'Vendido/Perdido']
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
+
+const COLUMNS = [
+  'Novo Lead',
+  'Contactado',
+  'Em Nutrição',
+  'Designar Consultor',
+  'Consultoria Inicial',
+  'Projeto',
+  'Apresentação',
+  'Vendido',
+  'Perdido',
+]
 
 export function KanbanBoard() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -78,10 +93,12 @@ export function KanbanBoard() {
           className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
         })
       } else {
+        const userName = user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Desconhecido'
         await createLead({
           ...data,
           status: 'Novo Lead',
           ordem: leads.filter((l) => l.status === 'Novo Lead').length,
+          criado_por_nome: userName,
         })
         toast({
           description: 'Lead criado com sucesso!',
@@ -122,11 +139,7 @@ export function KanbanBoard() {
   const handleConfirmSell = async () => {
     if (!leadToSell) return
     try {
-      await moveLeadToClient(leadToSell)
-      toast({
-        description: 'Venda confirmada e movido para Clientes!',
-        className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
-      })
+      await updateLead(leadToSell.id, { status: 'Vendido' })
       setLeadToSell(null)
       loadData()
     } catch (e: any) {
@@ -149,7 +162,7 @@ export function KanbanBoard() {
     const lead = leads.find((l) => l.id === id)
     if (!lead || lead.status === status) return
 
-    if (status === 'Vendido/Perdido') {
+    if (status === 'Vendido') {
       setLeadToSell(lead)
     } else {
       const newOrder = leads.filter((l) => l.status === status).length
@@ -336,7 +349,11 @@ export function KanbanBoard() {
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
       )}
       {leadToSell && (
-        <ConfirmSellModal onClose={() => setLeadToSell(null)} onConfirm={handleConfirmSell} />
+        <ConfirmSellModal
+          lead={leadToSell}
+          onClose={() => setLeadToSell(null)}
+          onConfirm={handleConfirmSell}
+        />
       )}
     </div>
   )
