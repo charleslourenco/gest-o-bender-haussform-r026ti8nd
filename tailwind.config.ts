@@ -29,6 +29,13 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
+        bender: {
+          navy: '#0A1931',
+          denim: '#1A3D63',
+          steel: '#4A7FA7',
+          pale: '#B3CFE5',
+          offwhite: '#F6FAFD',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',

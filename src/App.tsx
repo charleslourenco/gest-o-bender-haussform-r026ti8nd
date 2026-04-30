@@ -9,25 +9,39 @@ import Clients from './pages/Clients'
 import Inventory from './pages/Inventory'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
+import { AuthProvider } from './hooks/use-auth'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import { ProtectedRoute } from './components/ProtectedRoute'
 
 const App = () => (
-  <AppProvider>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Index />} />
-            <Route path="/projetos" element={<Projects />} />
-            <Route path="/clientes" element={<Clients />} />
-            <Route path="/estoque" element={<Inventory />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
-  </AppProvider>
+  <AuthProvider>
+    <AppProvider>
+      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Index />} />
+              <Route path="/projetos" element={<Projects />} />
+              <Route path="/clientes" element={<Clients />} />
+              <Route path="/estoque" element={<Inventory />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </AppProvider>
+  </AuthProvider>
 )
 
 export default App
