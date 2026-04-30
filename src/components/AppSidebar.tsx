@@ -12,6 +12,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
+import { cn } from '@/lib/utils'
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
@@ -34,38 +35,44 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl">
+    <Sidebar className="border-r border-dark-denim bg-midnight-navy [&>div[data-sidebar=sidebar]]:bg-midnight-navy">
+      <SidebarHeader className="p-4 flex flex-row items-center gap-2 bg-midnight-navy">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-denim text-off-white font-bold text-xl">
           M
         </div>
-        <span className="font-bold text-lg text-sidebar-foreground truncate">Móveis Gestão</span>
+        <span className="font-bold text-lg text-pale-cornflower truncate">Móveis Gestão</span>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="bg-midnight-navy">
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-steel-blue">Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
                 const canAccess = hasAccess(item.module)
+                const isActive = location.pathname === item.url
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild={canAccess}
-                      isActive={location.pathname === item.url}
+                      isActive={isActive}
                       tooltip={item.title}
-                      className={!canAccess ? 'opacity-60 cursor-not-allowed' : ''}
+                      className={cn(
+                        !canAccess ? 'opacity-60 cursor-not-allowed' : '',
+                        isActive
+                          ? 'bg-dark-denim text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-dark-denim data-[active=true]:text-off-white'
+                          : 'text-pale-cornflower hover:bg-dark-denim hover:text-off-white',
+                      )}
                     >
                       {canAccess ? (
                         <Link to={item.url} className="flex items-center gap-3">
-                          <item.icon className="w-5 h-5 text-steel-blue" />
-                          <span className="text-midnight-navy font-medium">{item.title}</span>
+                          <item.icon className="w-5 h-5" />
+                          <span className="font-medium">{item.title}</span>
                         </Link>
                       ) : (
                         <div className="flex items-center gap-3 w-full">
-                          <item.icon className="w-5 h-5 text-steel-blue" />
-                          <span className="text-midnight-navy font-medium">{item.title}</span>
-                          <Lock className="w-4 h-4 ml-auto text-steel-blue" />
+                          <item.icon className="w-5 h-5" />
+                          <span className="font-medium">{item.title}</span>
+                          <Lock className="w-4 h-4 ml-auto" />
                         </div>
                       )}
                     </SidebarMenuButton>
@@ -83,18 +90,24 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild={hasAccess('Administrativo')}
                   tooltip="Administrativo"
-                  className={!hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : ''}
+                  isActive={location.pathname === '/admin'}
+                  className={cn(
+                    !hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : '',
+                    location.pathname === '/admin'
+                      ? 'bg-dark-denim text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-dark-denim data-[active=true]:text-off-white'
+                      : 'text-pale-cornflower hover:bg-dark-denim hover:text-off-white',
+                  )}
                 >
                   {hasAccess('Administrativo') ? (
                     <Link to="/admin" className="flex items-center gap-3">
-                      <Settings className="w-5 h-5 text-steel-blue" />
-                      <span className="text-midnight-navy font-medium">Administrativo</span>
+                      <Settings className="w-5 h-5" />
+                      <span className="font-medium">Administrativo</span>
                     </Link>
                   ) : (
                     <div className="flex items-center gap-3 w-full">
-                      <Settings className="w-5 h-5 text-steel-blue" />
-                      <span className="text-midnight-navy font-medium">Administrativo</span>
-                      <Lock className="w-4 h-4 ml-auto text-steel-blue" />
+                      <Settings className="w-5 h-5" />
+                      <span className="font-medium">Administrativo</span>
+                      <Lock className="w-4 h-4 ml-auto" />
                     </div>
                   )}
                 </SidebarMenuButton>

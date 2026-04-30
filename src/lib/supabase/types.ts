@@ -103,6 +103,7 @@ export type Database = {
           atualizado_em: string
           consultor_id: string | null
           criado_em: string
+          criado_por_nome: string | null
           email: string
           id: string
           nome: string
@@ -116,6 +117,7 @@ export type Database = {
           atualizado_em?: string
           consultor_id?: string | null
           criado_em?: string
+          criado_por_nome?: string | null
           email: string
           id?: string
           nome: string
@@ -129,6 +131,7 @@ export type Database = {
           atualizado_em?: string
           consultor_id?: string | null
           criado_em?: string
+          criado_por_nome?: string | null
           email?: string
           id?: string
           nome?: string
@@ -423,6 +426,7 @@ export const Constants = {
 //   ordem: integer (not null, default: 0)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   criado_por_nome: text (nullable)
 // Table: matriz_permissoes
 //   id: uuid (not null, default: gen_random_uuid())
 //   usuario_id: uuid (not null)
