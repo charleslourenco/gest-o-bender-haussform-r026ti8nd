@@ -9,6 +9,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      documentos_obrigatorios: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          id: string
+          status: boolean
+          template_id: string | null
+          tipo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          status?: boolean
+          template_id?: string | null
+          tipo: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          status?: boolean
+          template_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documentos_obrigatorios_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       empresa: {
         Row: {
           atualizado_em: string
@@ -64,6 +99,33 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      templates: {
+        Row: {
+          arquivo_url: string
+          atualizado_em: string
+          criado_em: string
+          id: string
+          nome: string
+          tipo: string
+        }
+        Insert: {
+          arquivo_url: string
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          nome: string
+          tipo: string
+        }
+        Update: {
+          arquivo_url?: string
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+          tipo?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {
@@ -248,6 +310,13 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: documentos_obrigatorios
+//   id: uuid (not null, default: gen_random_uuid())
+//   tipo: text (not null)
+//   template_id: uuid (nullable)
+//   status: boolean (not null, default: true)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: empresa
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -260,6 +329,13 @@ export const Constants = {
 //   modulo: text (not null)
 //   nivel_acesso: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: templates
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   tipo: text (not null)
+//   arquivo_url: text (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: users
 //   id: uuid (not null)
 //   email: text (not null)
@@ -272,17 +348,27 @@ export const Constants = {
 //   status: boolean (not null, default: true)
 
 // --- CONSTRAINTS ---
+// Table: documentos_obrigatorios
+//   PRIMARY KEY documentos_obrigatorios_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY documentos_obrigatorios_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
+//   UNIQUE documentos_obrigatorios_tipo_key: UNIQUE (tipo)
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: templates
+//   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
 // Table: users
 //   UNIQUE users_email_key: UNIQUE (email)
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: documentos_obrigatorios
+//   Policy "Admin Editor Docs" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: empresa
 //   Policy "Leitura autenticada empresa" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -297,6 +383,10 @@ export const Constants = {
 //     USING: is_admin(auth.uid())
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: templates
+//   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: users
 //   Policy "Admin deleta" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -378,5 +468,7 @@ export const Constants = {
 //
 
 // --- INDEXES ---
+// Table: documentos_obrigatorios
+//   CREATE UNIQUE INDEX documentos_obrigatorios_tipo_key ON public.documentos_obrigatorios USING btree (tipo)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
