@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
 import { supabase } from '@/lib/supabase/client'
-import { inputClass, labelClass } from './styles'
+import { inputClass, readOnlyInputClass, labelClass } from './styles'
+import { AlertCircle } from 'lucide-react'
 
 export function Step1Cliente() {
   const { lead, data, updateData, setCanAdvance } = useComercialForm()
-  const [errorMsg, setErrorMsg] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [generalError, setGeneralError] = useState('')
 
   const cpf = data.cliente.cpf || ''
   const dataNasc = data.cliente.dataNasc || ''
@@ -15,12 +17,12 @@ export function Step1Cliente() {
 
   useEffect(() => {
     let isValid = true
-    let errMsg = ''
+    const newErrors: Record<string, string> = {}
 
     const cpfClean = cpf.replace(/[^\d]/g, '')
     if (cpfClean.length > 0 && cpfClean.length !== 11 && cpfClean.length !== 14) {
       isValid = false
-      errMsg = 'CPF/CNPJ incompleto ou inválido.'
+      newErrors.cpf = 'CPF/CNPJ incompleto ou inválido.'
     } else if (cpfClean.length === 0) {
       isValid = false
     }
@@ -35,7 +37,7 @@ export function Step1Cliente() {
         d.getFullYear() > new Date().getFullYear()
       ) {
         isValid = false
-        if (dataNasc.length >= 10) errMsg = 'Data de nascimento inválida.'
+        if (dataNasc.length >= 10) newErrors.dataNasc = 'Data de nascimento inválida.'
       }
     }
 
@@ -47,12 +49,12 @@ export function Step1Cliente() {
       isValid = false
     } else if (!/^[0-9,.]+$/.test(renda)) {
       isValid = false
-      errMsg = 'Renda mensal deve conter apenas números e vírgula.'
+      newErrors.renda = 'Formato inválido. Use apenas números e vírgula.'
     }
 
-    setErrorMsg(errMsg)
-    setCanAdvance(isValid && errMsg === '')
-  }, [cpf, dataNasc, profissao, renda, setCanAdvance])
+    setErrors(newErrors)
+    setCanAdvance(isValid && Object.keys(newErrors).length === 0 && generalError === '')
+  }, [cpf, dataNasc, profissao, renda, generalError, setCanAdvance])
 
   useEffect(() => {
     const checkCpf = async () => {
@@ -65,9 +67,13 @@ export function Step1Cliente() {
           .maybeSingle()
 
         if (existing && existing.lead_id !== lead?.id) {
-          setErrorMsg('Este CPF/CNPJ já está cadastrado para outro cliente.')
+          setGeneralError('Este CPF/CNPJ já está cadastrado para outro cliente.')
           setCanAdvance(false)
+        } else {
+          setGeneralError('')
         }
+      } else {
+        setGeneralError('')
       }
     }
     const timeout = setTimeout(checkCpf, 500)
@@ -100,17 +106,18 @@ export function Step1Cliente() {
   }
 
   return (
-    <div className="space-y-[24px] animate-fade-in">
+    <div className="animate-fade-in transition-all duration-200">
       <h2 className="text-[24px] font-[700] text-midnight-navy mb-[24px]">1. Dados do Cliente</h2>
 
-      {errorMsg && (
-        <div className="bg-pale-cornflower border-2 border-steel-blue text-steel-blue p-[16px] rounded-[8px] animate-shake font-[600] flex items-center gap-2">
-          <span>{errorMsg}</span>
+      {generalError && (
+        <div className="bg-pale-cornflower border-2 border-steel-blue text-steel-blue p-[16px] rounded-[8px] animate-shake font-[600] flex items-center gap-2 mb-[24px]">
+          <AlertCircle className="w-5 h-5" />
+          <span>{generalError}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-[24px]">
-        <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[24px]">
+        <div className="mb-[16px]">
           <label htmlFor="nomeLead" className={labelClass}>
             Nome Completo (Lead)
           </label>
@@ -119,10 +126,10 @@ export function Step1Cliente() {
             type="text"
             value={lead?.nome || ''}
             readOnly
-            className={`${inputClass} opacity-50 cursor-not-allowed`}
+            className={readOnlyInputClass}
           />
         </div>
-        <div>
+        <div className="mb-[16px]">
           <label htmlFor="emailLead" className={labelClass}>
             E-mail (Lead)
           </label>
@@ -131,10 +138,10 @@ export function Step1Cliente() {
             type="text"
             value={lead?.email || ''}
             readOnly
-            className={`${inputClass} opacity-50 cursor-not-allowed`}
+            className={readOnlyInputClass}
           />
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 mb-[16px]">
           <label htmlFor="telLead" className={labelClass}>
             Telefone (Lead)
           </label>
@@ -143,10 +150,10 @@ export function Step1Cliente() {
             type="text"
             value={lead?.telefone || ''}
             readOnly
-            className={`${inputClass} opacity-50 cursor-not-allowed`}
+            className={readOnlyInputClass}
           />
         </div>
-        <div>
+        <div className="mb-[16px]">
           <label htmlFor="cpf" className={labelClass}>
             CPF / CNPJ *
           </label>
@@ -156,10 +163,15 @@ export function Step1Cliente() {
             placeholder="000.000.000-00"
             value={cpf}
             onChange={(e) => updateData('cliente', { cpf: formatCpfCnpj(e.target.value) })}
-            className={inputClass}
+            className={`${inputClass} ${errors.cpf ? 'border-steel-blue animate-shake' : ''}`}
           />
+          {errors.cpf && (
+            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
+              <AlertCircle className="w-3 h-3" /> {errors.cpf}
+            </p>
+          )}
         </div>
-        <div>
+        <div className="mb-[16px]">
           <label htmlFor="nasc" className={labelClass}>
             Data de Nascimento *
           </label>
@@ -168,10 +180,15 @@ export function Step1Cliente() {
             type="date"
             value={dataNasc}
             onChange={(e) => updateData('cliente', { dataNasc: e.target.value })}
-            className={inputClass}
+            className={`${inputClass} ${errors.dataNasc ? 'border-steel-blue animate-shake' : ''}`}
           />
+          {errors.dataNasc && (
+            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
+              <AlertCircle className="w-3 h-3" /> {errors.dataNasc}
+            </p>
+          )}
         </div>
-        <div>
+        <div className="mb-[16px]">
           <label htmlFor="prof" className={labelClass}>
             Profissão *
           </label>
@@ -184,7 +201,7 @@ export function Step1Cliente() {
             className={inputClass}
           />
         </div>
-        <div>
+        <div className="mb-[16px]">
           <label htmlFor="renda" className={labelClass}>
             Renda Mensal (R$) *
           </label>
@@ -194,10 +211,15 @@ export function Step1Cliente() {
             placeholder="0,00"
             value={renda}
             onChange={(e) => updateData('cliente', { renda: formatRenda(e.target.value) })}
-            className={inputClass}
+            className={`${inputClass} ${errors.renda ? 'border-steel-blue animate-shake' : ''}`}
           />
+          {errors.renda && (
+            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
+              <AlertCircle className="w-3 h-3" /> {errors.renda}
+            </p>
+          )}
         </div>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 mb-[16px]">
           <label htmlFor="ref" className={labelClass}>
             Referência Bancária
           </label>

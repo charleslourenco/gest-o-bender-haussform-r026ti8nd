@@ -231,6 +231,50 @@ export type Database = {
         }
         Relationships: []
       }
+      formulario_comercial: {
+        Row: {
+          atualizado_em: string
+          cpf: string | null
+          criado_em: string
+          data_nascimento: string | null
+          id: string
+          lead_id: string
+          profissao: string | null
+          referencia_bancaria: string | null
+          renda: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cpf?: string | null
+          criado_em?: string
+          data_nascimento?: string | null
+          id?: string
+          lead_id: string
+          profissao?: string | null
+          referencia_bancaria?: string | null
+          renda?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          cpf?: string | null
+          criado_em?: string
+          data_nascimento?: string | null
+          id?: string
+          lead_id?: string
+          profissao?: string | null
+          referencia_bancaria?: string | null
+          renda?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'formulario_comercial_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: true
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       leads: {
         Row: {
           atualizado_em: string
@@ -701,6 +745,16 @@ export const Constants = {
 //   logo_url: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: formulario_comercial
+//   id: uuid (not null, default: gen_random_uuid())
+//   lead_id: uuid (not null)
+//   cpf: text (nullable)
+//   data_nascimento: date (nullable)
+//   profissao: text (nullable)
+//   renda: numeric (nullable)
+//   referencia_bancaria: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -782,6 +836,10 @@ export const Constants = {
 //   UNIQUE documentos_obrigatorios_tipo_key: UNIQUE (tipo)
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
+// Table: formulario_comercial
+//   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+//   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
+//   PRIMARY KEY formulario_comercial_pkey: PRIMARY KEY (id)
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
@@ -842,6 +900,16 @@ export const Constants = {
 //     USING: true
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
+// Table: formulario_comercial
+//   Policy "formulario_comercial_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "formulario_comercial_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "formulario_comercial_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "formulario_comercial_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -971,5 +1039,7 @@ export const Constants = {
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
 // Table: documentos_obrigatorios
 //   CREATE UNIQUE INDEX documentos_obrigatorios_tipo_key ON public.documentos_obrigatorios USING btree (tipo)
+// Table: formulario_comercial
+//   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)

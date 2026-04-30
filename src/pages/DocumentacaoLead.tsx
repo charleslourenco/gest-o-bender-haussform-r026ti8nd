@@ -109,11 +109,6 @@ function FormContainer() {
         description: 'Dados validados com sucesso! Próxima etapa...',
         className: 'bg-dark-denim text-off-white border-none p-[16px] rounded-[8px]',
       })
-
-      toast({
-        description: 'Etapa 2 em desenvolvimento.',
-        className: 'bg-pale-cornflower text-midnight-navy border-none p-[16px] rounded-[8px] mt-2',
-      })
     } catch (err: any) {
       toast({
         description: err.message,
@@ -129,8 +124,8 @@ function FormContainer() {
       <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
         <header className="bg-midnight-navy p-[24px] shrink-0">
           <div className="max-w-[800px] mx-auto w-full">
-            <div className="h-[38px] w-64 bg-pale-cornflower/20 animate-pulse rounded-lg mb-2"></div>
-            <div className="h-[20px] w-32 bg-pale-cornflower/20 animate-pulse rounded-lg mb-4"></div>
+            <div className="h-[38px] w-64 bg-pale-cornflower/20 animate-pulse rounded-lg mb-[8px]"></div>
+            <div className="h-[20px] w-32 bg-pale-cornflower/20 animate-pulse rounded-lg mb-[24px]"></div>
             <div className="h-[8px] bg-pale-cornflower/20 animate-pulse rounded-[4px]"></div>
           </div>
         </header>
@@ -160,7 +155,7 @@ function FormContainer() {
             </p>
             <button
               onClick={() => navigate('/dashboard')}
-              className="mt-[16px] bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full"
+              className="mt-[16px] bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full min-h-[44px]"
             >
               Voltar ao Início
             </button>
@@ -181,12 +176,12 @@ function FormContainer() {
         <main className="flex-1 p-[24px] flex items-center justify-center overflow-y-auto">
           <div className="bg-off-white p-[24px] rounded-[8px] text-center flex flex-col items-center max-w-[400px] w-full">
             <AlertCircle className="w-12 h-12 text-steel-blue mb-4" />
-            <p className="text-steel-blue font-[600] text-[18px] mb-6">
+            <p className="text-midnight-navy font-[600] text-[18px] mb-6">
               {error ? error : "Nenhum lead selecionado. Volte ao Kanban e arraste para 'Vendido'."}
             </p>
             <button
               onClick={() => (error ? window.location.reload() : navigate('/comercial'))}
-              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full"
+              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full min-h-[44px]"
             >
               {error ? 'Tentar Novamente' : 'Voltar ao Kanban'}
             </button>
@@ -201,33 +196,32 @@ function FormContainer() {
       <header className="bg-midnight-navy p-[24px] shrink-0">
         <div className="max-w-[800px] mx-auto w-full">
           <h1 className="text-off-white text-[32px] font-[700] mb-[8px]">Formulário Comercial</h1>
-          <p className="text-steel-blue text-[14px] font-[600]">Etapa {step} de 8</p>
-          <div className="flex gap-[8px] mt-[16px]">
+          <p className="text-steel-blue text-[14px] font-[600] mb-[24px]">Etapa {step} de 8</p>
+          <div className="flex gap-[8px]">
             {Array.from({ length: 8 }).map((_, i) => {
               const s = i + 1
-              let bgClass = 'bg-pale-cornflower opacity-50'
+              let bgClass = 'bg-pale-cornflower/50'
               if (s === step) bgClass = 'bg-dark-denim'
-              else if (s < step) bgClass = 'bg-steel-blue'
               return <div key={s} className={`h-[8px] flex-1 rounded-[4px] ${bgClass}`} />
             })}
           </div>
         </div>
       </header>
       <main className="flex-1 p-[24px] overflow-y-auto">
-        <div className="max-w-[800px] mx-auto bg-off-white w-full">
+        <div className="max-w-[800px] mx-auto bg-off-white w-full rounded-[8px]">
           <Step1Cliente />
 
           <div className="mt-[32px] flex flex-col md:flex-row justify-between gap-[16px]">
             <button
               onClick={() => navigate('/comercial')}
-              className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all duration-200 min-h-[44px] font-bold order-2 md:order-1"
+              className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all duration-200 min-h-[44px] font-bold order-1 md:order-1 w-full md:w-auto"
             >
               Cancelar
             </button>
             <button
               onClick={handleNext}
               disabled={!canAdvance || isSaving}
-              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] font-bold order-1 md:order-2"
+              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] font-bold order-2 md:order-2 w-full md:w-auto"
             >
               {isSaving ? 'Aguarde...' : 'Próximo'}
             </button>
