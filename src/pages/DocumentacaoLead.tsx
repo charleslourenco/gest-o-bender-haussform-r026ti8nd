@@ -21,22 +21,23 @@ function FormWizard() {
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+  const [shake, setShake] = useState(false)
 
   useEffect(() => {
-    if (!user) return
-    supabase
-      .from('matriz_permissoes')
-      .select('nivel_acesso')
-      .eq('usuario_id', user.id)
-      .eq('modulo', 'Comercial')
-      .single()
-      .then(({ data }) => {
-        if (data && (data.nivel_acesso === 'Editor' || data.nivel_acesso === 'Admin')) {
-          setHasPermission(true)
-        } else {
-          setHasPermission(false)
-        }
-      })
+    if (!user)
+      return supabase
+        .from('matriz_permissoes')
+        .select('nivel_acesso')
+        .eq('usuario_id', user.id)
+        .eq('modulo', 'Comercial')
+        .single()
+        .then(({ data }) => {
+          if (data && (data.nivel_acesso === 'Editor' || data.nivel_acesso === 'Admin')) {
+            setHasPermission(true)
+          } else {
+            setHasPermission(false)
+          }
+        })
   }, [user])
 
   useEffect(() => {
@@ -46,6 +47,15 @@ function FormWizard() {
       setLoading(false)
     })
   }, [id, setLead])
+
+  const handleNext = () => {
+    if (!canAdvance) {
+      setShake(true)
+      setTimeout(() => setShake(false), 300)
+      return
+    }
+    setStep(step + 1)
+  }
 
   if (hasPermission === false) {
     return (
@@ -59,11 +69,8 @@ function FormWizard() {
 
   if (loading || hasPermission === null) {
     return (
-      <div className="min-h-screen bg-off-white p-4 md:p-8 flex flex-col">
-        <div className="p-6 text-midnight-navy font-bold text-center m-auto animate-pulse">
-          <div className="w-12 h-12 border-4 border-dark-denim border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          Carregando formulário...
-        </div>
+      <div className="min-h-screen bg-off-white p-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-[800px] h-[400px] bg-pale-cornflower animate-pulse rounded-[8px]"></div>
       </div>
     )
   }
@@ -92,56 +99,63 @@ function FormWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-off-white p-4 md:p-8 animate-in fade-in duration-300">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-off-white p-[24px] animate-in fade-in duration-300">
+      <div className="max-w-[800px] mx-auto mb-[24px]">
         <button
           onClick={() => navigate('/comercial')}
-          className="text-steel-blue hover:text-dark-denim font-bold flex items-center gap-2 mb-6 transition-colors"
+          className="text-steel-blue hover:text-dark-denim font-bold flex items-center gap-[8px] transition-colors min-h-[44px]"
         >
           <ArrowLeft className="w-5 h-5" /> Voltar ao Kanban
         </button>
+      </div>
 
-        <div className="bg-midnight-navy p-8 rounded-t-2xl shadow-md">
-          <h1 className="text-[32px] font-bold text-off-white mb-2">Formulário Comercial</h1>
-          <div className="text-steel-blue font-semibold">Etapa {step} de 8</div>
+      <div className="max-w-[800px] mx-auto bg-midnight-navy p-[24px] rounded-t-[8px]">
+        <h1 className="text-[32px] font-bold text-off-white mb-[8px] leading-tight">
+          Formulário Comercial
+        </h1>
+        <div className="text-steel-blue text-[14px] font-bold mb-[16px]">Etapa {step} de 8</div>
 
-          <div className="flex gap-2 mt-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <div
-                key={i}
-                className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-dark-denim' : 'bg-pale-cornflower/20'}`}
-              />
-            ))}
-          </div>
+        <div className="flex gap-[8px]">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div
+              key={i}
+              className={`h-[8px] flex-1 rounded-[4px] transition-all duration-500 ${
+                step === i
+                  ? 'bg-dark-denim'
+                  : step > i
+                    ? 'bg-steel-blue'
+                    : 'bg-pale-cornflower opacity-50'
+              }`}
+            />
+          ))}
         </div>
+      </div>
 
-        <div className="bg-off-white border-x-2 border-b-2 border-steel-blue/20 p-8 rounded-b-2xl shadow-md min-h-[500px] flex flex-col">
-          <div className="flex-1">{renderStep()}</div>
+      <div className="max-w-[800px] mx-auto bg-off-white p-[24px] rounded-b-[8px] shadow-sm border border-steel-blue min-h-[500px] flex flex-col mb-[48px]">
+        <div className="flex-1">{renderStep()}</div>
 
-          {step < 8 && (
-            <div className="mt-12 pt-6 border-t-2 border-steel-blue/20 flex flex-col sm:flex-row justify-between gap-4">
-              <button className="bg-pale-cornflower text-midnight-navy px-6 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all order-3 sm:order-1">
-                Salvar Rascunho
+        {step < 8 && (
+          <div className="mt-[24px] pt-[24px] border-t-[2px] border-steel-blue flex flex-col md:flex-row justify-between gap-[16px]">
+            <button className="bg-pale-cornflower text-midnight-navy px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 order-2 md:order-1">
+              Salvar Rascunho
+            </button>
+            <div className="flex flex-col md:flex-row gap-[16px] order-1 md:order-2">
+              <button
+                onClick={() => setStep(step - 1)}
+                disabled={step === 1}
+                className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Voltar
               </button>
-              <div className="flex gap-4 order-1 sm:order-2 w-full sm:w-auto">
-                <button
-                  onClick={() => setStep(step - 1)}
-                  disabled={step === 1}
-                  className="flex-1 sm:flex-none bg-steel-blue text-off-white px-6 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Voltar
-                </button>
-                <button
-                  onClick={() => setStep(step + 1)}
-                  disabled={!canAdvance}
-                  className="flex-1 sm:flex-none bg-dark-denim text-off-white px-8 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Próximo
-                </button>
-              </div>
+              <button
+                onClick={handleNext}
+                className={`bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 ${shake && !canAdvance ? 'animate-shake' : ''} ${!canAdvance ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Próximo
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )

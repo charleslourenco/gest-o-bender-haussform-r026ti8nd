@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
+import { inputClass, labelClass, cardClass, tableHeaderClass, tableRowClass } from './styles'
 
 export function Step5Pagamento() {
   const { data, updateData, setCanAdvance } = useComercialForm()
@@ -11,27 +12,28 @@ export function Step5Pagamento() {
     setCanAdvance(!!data.pagamento.forma && total > 0)
   }, [data.pagamento, total, setCanAdvance])
 
-  const inputClass =
-    'w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim transition-all'
-  const labelClass = 'text-midnight-navy font-bold text-[14px] mb-2 block'
-
   const parcelasCalc = total / (data.pagamento.parcelas || 1)
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue pb-2">
+    <div className="space-y-[16px] animate-in fade-in duration-300">
+      <h2 className="text-[24px] font-bold text-midnight-navy mb-[16px]">
         5. Condições de Pagamento
       </h2>
 
-      <div className="bg-dark-denim text-off-white p-6 rounded-xl text-center mb-8">
-        <div className="text-pale-cornflower mb-1">Valor Total a Pagar</div>
-        <div className="text-4xl font-bold">R$ {total.toFixed(2)}</div>
+      <div className="bg-dark-denim text-off-white p-[24px] rounded-[8px] text-center mb-[24px]">
+        <div className="text-pale-cornflower mb-[8px] font-bold text-[14px] uppercase tracking-wider">
+          Valor Total do Projeto
+        </div>
+        <div className="text-[32px] font-bold">R$ {total.toFixed(2)}</div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[24px]">
         <div>
-          <label className={labelClass}>Forma de Pagamento *</label>
+          <label htmlFor="formaPagamento" className={labelClass}>
+            Forma de Pagamento *
+          </label>
           <select
+            id="formaPagamento"
             value={data.pagamento.forma}
             onChange={(e) => updateData('pagamento', { forma: e.target.value })}
             className={inputClass}
@@ -45,8 +47,11 @@ export function Step5Pagamento() {
 
         {data.pagamento.forma && data.pagamento.forma !== 'A_VISTA' && (
           <div>
-            <label className={labelClass}>Número de Parcelas *</label>
+            <label htmlFor="parcelas" className={labelClass}>
+              Número de Parcelas *
+            </label>
             <select
+              id="parcelas"
               value={data.pagamento.parcelas}
               onChange={(e) => updateData('pagamento', { parcelas: Number(e.target.value) })}
               className={inputClass}
@@ -61,23 +66,52 @@ export function Step5Pagamento() {
         )}
 
         {data.pagamento.forma && (
-          <div className="md:col-span-2 mt-4 bg-pale-cornflower/30 p-6 rounded-xl border-2 border-steel-blue/50">
-            <h3 className="text-lg font-bold text-midnight-navy mb-4">Resumo do Pagamento</h3>
+          <div className={`md:col-span-2 ${cardClass} mt-[8px]`}>
+            <h3 className="text-[18px] font-bold text-midnight-navy mb-[16px]">
+              Resumo do Pagamento
+            </h3>
             {data.pagamento.forma === 'A_VISTA' ? (
-              <p className="text-midnight-navy">
-                1 pagamento de <strong className="font-bold">R$ {total.toFixed(2)}</strong>
+              <p className="text-midnight-navy text-[16px]">
+                1 pagamento único de <strong className="font-bold">R$ {total.toFixed(2)}</strong>
               </p>
             ) : (
-              <p className="text-midnight-navy">
+              <p className="text-midnight-navy text-[16px]">
                 {data.pagamento.parcelas} parcelas de{' '}
                 <strong className="font-bold">R$ {parcelasCalc.toFixed(2)}</strong>
               </p>
             )}
 
-            <div className="mt-4">
-              <label className={labelClass}>Data do 1º Pagamento / Vencimento</label>
-              <input type="date" className={`${inputClass} max-w-xs`} />
+            <div className="mt-[16px] max-w-xs">
+              <label htmlFor="vencimento" className={labelClass}>
+                Data do 1º Vencimento *
+              </label>
+              <input id="vencimento" type="date" className={inputClass} />
             </div>
+
+            {data.pagamento.forma !== 'A_VISTA' && (
+              <div className="mt-[24px] overflow-x-auto rounded-[8px] border border-steel-blue">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr>
+                      <th className={tableHeaderClass}>Parcela</th>
+                      <th className={tableHeaderClass}>Vencimento</th>
+                      <th className={`${tableHeaderClass} text-right`}>Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: data.pagamento.parcelas }).map((_, i) => (
+                      <tr key={i} className={tableRowClass}>
+                        <td className="p-[12px]">{i + 1}</td>
+                        <td className="p-[12px] text-steel-blue italic">A definir</td>
+                        <td className="p-[12px] text-right font-bold">
+                          R$ {parcelasCalc.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>

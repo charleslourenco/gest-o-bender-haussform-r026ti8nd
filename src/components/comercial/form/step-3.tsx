@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
 import { Trash2, Plus } from 'lucide-react'
+import { inputClass, btnPrimary } from './styles'
 
 const AMBIENTES_PRE = ['Cozinha', 'Sala', 'Quarto', 'Banheiro', 'Escritório']
 
 export function Step3Ambientes() {
   const { data, updateData, setCanAdvance } = useComercialForm()
   const [custom, setCustom] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
-    setCanAdvance(data.ambientes.length > 0)
+    const hasAmbientes = data.ambientes.length > 0
+    const hasDetails = data.ambientes.every((a) => a.metragem !== '')
+    setCanAdvance(hasAmbientes && hasDetails)
+    if (!hasAmbientes) {
+      setErrorMsg('Selecione pelo menos um ambiente do projeto.')
+    } else if (!hasDetails) {
+      setErrorMsg('Preencha a metragem de todos os ambientes selecionados.')
+    } else {
+      setErrorMsg('')
+    }
   }, [data.ambientes, setCanAdvance])
 
   const toggleAmbiente = (nome: string) => {
@@ -43,28 +54,39 @@ export function Step3Ambientes() {
     )
   }
 
-  const inputClass =
-    'w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-3 py-2 outline-none focus:border-dark-denim transition-all'
-
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue pb-2">
+    <div className="space-y-[16px] animate-in fade-in duration-300">
+      <h2 className="text-[24px] font-bold text-midnight-navy mb-[16px]">
         3. Ambientes do Projeto
       </h2>
 
-      <div className="flex flex-wrap gap-3">
-        {AMBIENTES_PRE.map((amb) => (
-          <button
-            key={amb}
-            onClick={() => toggleAmbiente(amb)}
-            className={`px-4 py-2 rounded-full border-2 font-bold transition-all ${data.ambientes.some((a) => a.nome === amb) ? 'bg-dark-denim border-dark-denim text-off-white' : 'bg-pale-cornflower border-steel-blue text-midnight-navy hover:border-dark-denim'}`}
-          >
-            {amb}
-          </button>
-        ))}
+      {errorMsg && (
+        <div className="bg-steel-blue text-off-white p-[16px] rounded-[8px] font-bold">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-[16px]">
+        {AMBIENTES_PRE.map((amb) => {
+          const checked = data.ambientes.some((a) => a.nome === amb)
+          return (
+            <label
+              key={amb}
+              className="flex items-center gap-[8px] cursor-pointer bg-pale-cornflower/30 px-[16px] py-[12px] rounded-[8px] border-2 border-steel-blue hover:border-dark-denim transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => toggleAmbiente(amb)}
+                className="w-5 h-5 accent-dark-denim border-2 border-steel-blue rounded focus:ring-dark-denim cursor-pointer"
+              />
+              <span className="text-midnight-navy font-bold text-[14px]">{amb}</span>
+            </label>
+          )
+        })}
       </div>
 
-      <div className="flex gap-2 max-w-sm">
+      <div className="flex gap-[16px] max-w-sm mt-[16px]">
         <input
           type="text"
           placeholder="Outro ambiente..."
@@ -72,40 +94,40 @@ export function Step3Ambientes() {
           onChange={(e) => setCustom(e.target.value)}
           className={inputClass}
         />
-        <button
-          onClick={addCustom}
-          className="bg-dark-denim text-off-white px-4 rounded-lg hover:opacity-90 flex items-center justify-center"
-        >
+        <button onClick={addCustom} className={btnPrimary}>
           <Plus className="w-5 h-5" />
         </button>
       </div>
 
       {data.ambientes.length > 0 && (
-        <div className="mt-8 space-y-4">
-          <h3 className="text-xl font-bold text-midnight-navy">Detalhes dos Ambientes</h3>
+        <div className="mt-[24px] space-y-[16px]">
+          <h3 className="text-[18px] font-bold text-midnight-navy">
+            Detalhes dos Ambientes Selecionados
+          </h3>
           {data.ambientes.map((amb) => (
             <div
               key={amb.id}
-              className="bg-pale-cornflower/30 p-4 rounded-lg border-2 border-steel-blue/50 flex flex-col md:flex-row gap-4 items-start md:items-center"
+              className="bg-off-white p-[16px] rounded-[8px] border-2 border-steel-blue flex flex-col md:flex-row gap-[16px] items-start md:items-center"
             >
-              <div className="w-32 font-bold text-midnight-navy">{amb.nome}</div>
+              <div className="w-32 font-bold text-midnight-navy text-[16px]">{amb.nome}</div>
               <input
                 type="number"
-                placeholder="Metragem (m²)"
+                placeholder="Metragem (m²) *"
                 value={amb.metragem}
                 onChange={(e) => updateAmbiente(amb.id, 'metragem', e.target.value)}
-                className={inputClass}
+                className={`${inputClass} w-full md:w-32`}
               />
               <input
                 type="text"
                 placeholder="Descrição (Opcional)"
                 value={amb.descricao}
                 onChange={(e) => updateAmbiente(amb.id, 'descricao', e.target.value)}
-                className={`flex-1 ${inputClass}`}
+                className={`${inputClass} flex-1`}
               />
               <button
                 onClick={() => toggleAmbiente(amb.nome)}
-                className="p-2 text-steel-blue hover:text-dark-denim"
+                className="p-[12px] text-steel-blue hover:text-dark-denim transition-colors"
+                aria-label="Remover Ambiente"
               >
                 <Trash2 className="w-5 h-5" />
               </button>

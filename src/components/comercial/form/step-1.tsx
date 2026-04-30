@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
+import { inputClass, labelClass } from './styles'
 
 export function Step1Cliente() {
   const { lead, data, updateData, setCanAdvance } = useComercialForm()
+  const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
     const isValid =
@@ -13,57 +15,78 @@ export function Step1Cliente() {
     setCanAdvance(isValid)
   }, [data.cliente, setCanAdvance])
 
-  const inputClass =
-    'w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim transition-all'
-  const labelClass = 'text-midnight-navy font-bold text-[14px] mb-2 block'
+  const handleCpfChange = (val: string) => {
+    updateData('cliente', { cpf: val })
+    if (val.length > 0 && val.length < 11) setErrorMsg('CPF/CNPJ incompleto')
+    else setErrorMsg('')
+  }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue pb-2">
-        1. Dados do Cliente
-      </h2>
+    <div className="space-y-[16px] animate-in fade-in duration-300">
+      <h2 className="text-[24px] font-bold text-midnight-navy mb-[16px]">1. Dados do Cliente</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {errorMsg && (
+        <div className="bg-steel-blue text-off-white p-[16px] rounded-[8px] animate-shake font-bold">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
         <div>
-          <label className={labelClass}>Nome Completo (Lead)</label>
+          <label htmlFor="nomeLead" className={labelClass}>
+            Nome Completo (Lead)
+          </label>
           <input
+            id="nomeLead"
             type="text"
             value={lead?.nome || ''}
             readOnly
-            className={`${inputClass} opacity-70 cursor-not-allowed`}
+            className={`${inputClass} opacity-50 cursor-not-allowed`}
           />
         </div>
         <div>
-          <label className={labelClass}>E-mail (Lead)</label>
+          <label htmlFor="emailLead" className={labelClass}>
+            E-mail (Lead)
+          </label>
           <input
+            id="emailLead"
             type="text"
             value={lead?.email || ''}
             readOnly
-            className={`${inputClass} opacity-70 cursor-not-allowed`}
+            className={`${inputClass} opacity-50 cursor-not-allowed`}
           />
         </div>
         <div>
-          <label className={labelClass}>Telefone (Lead)</label>
+          <label htmlFor="telLead" className={labelClass}>
+            Telefone (Lead)
+          </label>
           <input
+            id="telLead"
             type="text"
             value={lead?.telefone || ''}
             readOnly
-            className={`${inputClass} opacity-70 cursor-not-allowed`}
+            className={`${inputClass} opacity-50 cursor-not-allowed`}
           />
         </div>
         <div>
-          <label className={labelClass}>CPF / CNPJ *</label>
+          <label htmlFor="cpf" className={labelClass}>
+            CPF / CNPJ *
+          </label>
           <input
+            id="cpf"
             type="text"
             placeholder="000.000.000-00"
             value={data.cliente.cpf}
-            onChange={(e) => updateData('cliente', { cpf: e.target.value })}
+            onChange={(e) => handleCpfChange(e.target.value)}
             className={inputClass}
           />
         </div>
         <div>
-          <label className={labelClass}>Data de Nascimento *</label>
+          <label htmlFor="nasc" className={labelClass}>
+            Data de Nascimento *
+          </label>
           <input
+            id="nasc"
             type="date"
             value={data.cliente.dataNasc}
             onChange={(e) => updateData('cliente', { dataNasc: e.target.value })}
@@ -71,8 +94,11 @@ export function Step1Cliente() {
           />
         </div>
         <div>
-          <label className={labelClass}>Profissão *</label>
+          <label htmlFor="prof" className={labelClass}>
+            Profissão *
+          </label>
           <input
+            id="prof"
             type="text"
             placeholder="Ex: Engenheiro"
             value={data.cliente.profissao}
@@ -81,8 +107,11 @@ export function Step1Cliente() {
           />
         </div>
         <div>
-          <label className={labelClass}>Renda Mensal (R$) *</label>
+          <label htmlFor="renda" className={labelClass}>
+            Renda Mensal (R$) *
+          </label>
           <input
+            id="renda"
             type="number"
             placeholder="0.00"
             value={data.cliente.renda}
@@ -91,8 +120,11 @@ export function Step1Cliente() {
           />
         </div>
         <div>
-          <label className={labelClass}>Referência Bancária</label>
+          <label htmlFor="ref" className={labelClass}>
+            Referência Bancária
+          </label>
           <input
+            id="ref"
             type="text"
             placeholder="Banco, Agência"
             value={data.cliente.refBancaria}

@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
+import { cardClass } from './styles'
 
 export function Step7Revisao() {
-  const { data, updateData, setCanAdvance } = useComercialForm()
+  const { data, updateData, setCanAdvance, setStep } = useComercialForm()
 
   useEffect(() => {
     setCanAdvance(!!data.confirmado)
@@ -12,63 +13,89 @@ export function Step7Revisao() {
   const total = subtotal - (Number(data.desconto) || 0)
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
-      <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue pb-2">
+    <div className="space-y-[24px] animate-in fade-in duration-300">
+      <h2 className="text-[24px] font-bold text-midnight-navy mb-[16px]">
         7. Revisão e Confirmação
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-pale-cornflower/20 p-5 rounded-xl border-2 border-steel-blue/30">
-          <h3 className="font-bold text-midnight-navy text-lg mb-2">Dados do Cliente</h3>
-          <p className="text-midnight-navy">
-            <strong>CPF:</strong> {data.cliente.cpf}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
+        <div className={cardClass}>
+          <div className="flex justify-between items-start mb-[12px]">
+            <h3 className="font-bold text-midnight-navy text-[16px]">Dados do Cliente</h3>
+            <button
+              onClick={() => setStep(1)}
+              className="bg-dark-denim text-off-white px-[16px] py-[8px] rounded-[6px] text-[12px] font-bold hover:opacity-90"
+            >
+              Editar
+            </button>
+          </div>
+          <p className="text-midnight-navy text-[14px]">
+            <strong>CPF:</strong> {data.cliente.cpf || 'Não informado'}
           </p>
-          <p className="text-midnight-navy">
+          <p className="text-midnight-navy text-[14px]">
             <strong>Profissão:</strong> {data.cliente.profissao}
           </p>
-          <p className="text-midnight-navy">
+          <p className="text-midnight-navy text-[14px]">
             <strong>Renda:</strong> R$ {data.cliente.renda}
           </p>
         </div>
 
-        <div className="bg-pale-cornflower/20 p-5 rounded-xl border-2 border-steel-blue/30">
-          <h3 className="font-bold text-midnight-navy text-lg mb-2">Obra</h3>
-          <p className="text-midnight-navy">
-            {data.obra.endereco}, {data.obra.numero}
+        <div className={cardClass}>
+          <div className="flex justify-between items-start mb-[12px]">
+            <h3 className="font-bold text-midnight-navy text-[16px]">Obra</h3>
+            <button
+              onClick={() => setStep(2)}
+              className="bg-dark-denim text-off-white px-[16px] py-[8px] rounded-[6px] text-[12px] font-bold hover:opacity-90"
+            >
+              Editar
+            </button>
+          </div>
+          <p className="text-midnight-navy text-[14px]">
+            {data.obra.endereco || 'Não informado'}, {data.obra.numero}
           </p>
-          <p className="text-midnight-navy">
+          <p className="text-midnight-navy text-[14px]">
             {data.obra.cidade} - {data.obra.estado}
           </p>
-          <p className="text-midnight-navy">{data.obra.metragem} m²</p>
+          <p className="text-midnight-navy text-[14px]">{data.obra.metragem} m²</p>
         </div>
 
-        <div className="bg-pale-cornflower/20 p-5 rounded-xl border-2 border-steel-blue/30 md:col-span-2">
-          <h3 className="font-bold text-midnight-navy text-lg mb-2">
-            Produtos ({data.produtos.length})
-          </h3>
-          <p className="text-midnight-navy">
-            <strong>Total:</strong> R$ {total.toFixed(2)}
+        <div className={`${cardClass} md:col-span-2`}>
+          <div className="flex justify-between items-start mb-[12px]">
+            <h3 className="font-bold text-midnight-navy text-[16px]">
+              Resumo do Projeto ({data.produtos.length} produtos)
+            </h3>
+            <button
+              onClick={() => setStep(4)}
+              className="bg-dark-denim text-off-white px-[16px] py-[8px] rounded-[6px] text-[12px] font-bold hover:opacity-90"
+            >
+              Editar
+            </button>
+          </div>
+          <p className="text-midnight-navy text-[14px]">
+            <strong>Total Final:</strong> R$ {total.toFixed(2)}
           </p>
-          <p className="text-midnight-navy">
+          <p className="text-midnight-navy text-[14px]">
             <strong>Pagamento:</strong> {data.pagamento.forma.replace('_', ' ')} (
             {data.pagamento.parcelas}x)
           </p>
+          <p className="text-midnight-navy text-[14px]">
+            <strong>Documentos:</strong> {data.documentos.length} selecionados
+          </p>
         </div>
       </div>
 
-      <div className="mt-8 bg-off-white border-2 border-dark-denim p-6 rounded-xl flex items-start gap-4">
+      <label className="bg-off-white border-[2px] border-dark-denim p-[24px] rounded-[8px] flex items-start gap-[16px] cursor-pointer hover:bg-pale-cornflower/10 transition-colors">
         <input
           type="checkbox"
-          id="confirm"
           checked={data.confirmado || false}
           onChange={(e) => updateData('confirmado', e.target.checked)}
-          className="w-6 h-6 mt-1 accent-dark-denim"
+          className="w-6 h-6 mt-1 accent-dark-denim border-[2px] border-steel-blue cursor-pointer"
         />
-        <label htmlFor="confirm" className="text-midnight-navy text-lg font-bold cursor-pointer">
+        <span className="text-midnight-navy text-[16px] font-bold leading-relaxed">
           Confirmo que revisei todos os dados com o cliente e que as informações do projeto,
-          produtos e condições de pagamento estão corretas.
-        </label>
-      </div>
+          produtos, condições de pagamento e documentos estão corretas para a geração do contrato.
+        </span>
+      </label>
     </div>
   )
 }
