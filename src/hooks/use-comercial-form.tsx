@@ -74,12 +74,11 @@ export const FormProvider = ({ children }: { children: ReactNode }) => {
   const [canAdvance, setCanAdvance] = useState(false)
 
   const updateData = (section: keyof FormState, payload: any) => {
-    setData((prev) => ({ ...prev, [section]: { ...prev[section], ...payload } }))
-  }
-
-  // Array replacements
-  const updateArray = (section: 'ambientes' | 'produtos' | 'documentos', payload: any) => {
-    setData((prev) => ({ ...prev, [section]: payload }))
+    if (section === 'ambientes' || section === 'produtos' || section === 'documentos') {
+      setData((prev) => ({ ...prev, [section]: payload }))
+    } else {
+      setData((prev) => ({ ...prev, [section]: { ...(prev[section] as any), ...payload } }))
+    }
   }
 
   return (
@@ -90,10 +89,7 @@ export const FormProvider = ({ children }: { children: ReactNode }) => {
         step,
         setStep,
         data,
-        updateData:
-          section === 'ambientes' || section === 'produtos' || section === 'documentos'
-            ? updateArray
-            : updateData,
+        updateData,
         canAdvance,
         setCanAdvance,
       }}
