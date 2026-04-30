@@ -1,162 +1,239 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
-import { fetchLeads } from '@/services/comercial'
-import { useAuth } from '@/hooks/use-auth'
 import { supabase } from '@/lib/supabase/client'
+import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
 import { Step1Cliente } from '@/components/comercial/form/step-1'
-import { Step2Obra } from '@/components/comercial/form/step-2'
-import { Step3Ambientes } from '@/components/comercial/form/step-3'
-import { Step4Produtos } from '@/components/comercial/form/step-4'
-import { Step5Pagamento } from '@/components/comercial/form/step-5'
-import { Step6Documentos } from '@/components/comercial/form/step-6'
-import { Step7Revisao } from '@/components/comercial/form/step-7'
-import { Step8Contrato } from '@/components/comercial/form/step-8'
+import { AlertCircle } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
-function FormWizard() {
+function FormContainer() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { step, setStep, setLead, canAdvance } = useComercialForm()
-  const [loading, setLoading] = useState(true)
-  const { user } = useAuth()
+  const { toast } = useToast()
+
+  const { lead, setLead, data, updateData, step, canAdvance } = useComercialForm()
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
-  const [shake, setShake] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    if (!user)
-      return supabase
-        .from('matriz_permissoes')
-        .select('nivel_acesso')
-        .eq('usuario_id', user.id)
-        .eq('modulo', 'Comercial')
-        .single()
-        .then(({ data }) => {
-          if (data && (data.nivel_acesso === 'Editor' || data.nivel_acesso === 'Admin')) {
-            setHasPermission(true)
-          } else {
-            setHasPermission(false)
-          }
+    const init = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData.session) {
+          setHasPermission(false)
+          return
+        }
+
+        const res = await supabase.functions.invoke('check-permission', {
+          body: { action: 'read', modulo: 'Comercial' },
         })
-  }, [user])
 
-  useEffect(() => {
-    fetchLeads().then((leads) => {
-      const found = leads.find((l) => l.id === id)
-      if (found) setLead(found)
-      setLoading(false)
-    })
-  }, [id, setLead])
+        if (res.data?.allowed && ['Admin', 'Editor'].includes(res.data?.level)) {
+          setHasPermission(true)
+        } else {
+          setHasPermission(false)
+          return
+        }
 
-  const handleNext = () => {
-    if (!canAdvance) {
-      setShake(true)
-      setTimeout(() => setShake(false), 300)
-      return
+        if (id) {
+          const { data: leadData, error: leadError } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('id', id)
+            .single()
+
+          if (leadError || !leadData) {
+            throw new Error('Lead não encontrado')
+          }
+          setLead(leadData)
+
+          const { data: formData } = await supabase
+            .from('formulario_comercial')
+            .select('*')
+            .eq('lead_id', id)
+            .maybeSingle()
+
+          if (formData) {
+            updateData('cliente', {
+              cpf: formData.cpf || '',
+              dataNasc: formData.data_nascimento ? formData.data_nascimento.split('T')[0] : '',
+              profissao: formData.profissao || '',
+              renda: formData.renda ? String(formData.renda).replace('.', ',') : '',
+              refBancaria: formData.referencia_bancaria || '',
+            })
+          }
+        }
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setStep(step + 1)
+    init()
+  }, [id, setLead, updateData])
+
+  const handleNext = async () => {
+    setIsSaving(true)
+    try {
+      const numericRenda = parseFloat(data.cliente.renda.replace(/\./g, '').replace(',', '.')) || 0
+
+      const payload = {
+        lead_id: id,
+        cpf: data.cliente.cpf,
+        data_nascimento: data.cliente.dataNasc || null,
+        profissao: data.cliente.profissao,
+        renda: numericRenda,
+        referencia_bancaria: data.cliente.refBancaria,
+      }
+
+      const { data: existing } = await supabase
+        .from('formulario_comercial')
+        .select('id')
+        .eq('lead_id', id)
+        .maybeSingle()
+
+      if (existing) {
+        const { error } = await supabase
+          .from('formulario_comercial')
+          .update(payload)
+          .eq('id', existing.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('formulario_comercial').insert([payload])
+        if (error) throw error
+      }
+
+      toast({
+        description: 'Dados validados com sucesso! Próxima etapa...',
+        className: 'bg-dark-denim text-off-white border-none p-[16px] rounded-[8px]',
+      })
+
+      toast({
+        description: 'Etapa 2 em desenvolvimento.',
+        className: 'bg-pale-cornflower text-midnight-navy border-none p-[16px] rounded-[8px] mt-2',
+      })
+    } catch (err: any) {
+      toast({
+        description: err.message,
+        className: 'bg-steel-blue text-off-white border-none p-[16px] rounded-[8px]',
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  if (hasPermission === false) {
+  if (hasPermission === null || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-off-white p-4">
-        <div className="text-midnight-navy font-bold text-2xl text-center max-w-md">
-          Você não tem permissão para acessar este módulo.
-        </div>
+      <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
+        <header className="bg-midnight-navy p-[24px] shrink-0">
+          <div className="max-w-[800px] mx-auto w-full">
+            <div className="h-[38px] w-64 bg-pale-cornflower/20 animate-pulse rounded-lg mb-2"></div>
+            <div className="h-[20px] w-32 bg-pale-cornflower/20 animate-pulse rounded-lg mb-4"></div>
+            <div className="h-[8px] bg-pale-cornflower/20 animate-pulse rounded-[4px]"></div>
+          </div>
+        </header>
+        <main className="flex-1 p-[24px] overflow-y-auto">
+          <div className="max-w-[800px] mx-auto space-y-4 w-full">
+            <div className="h-[44px] bg-pale-cornflower animate-pulse rounded-[8px]"></div>
+            <div className="h-[44px] bg-pale-cornflower animate-pulse rounded-[8px]"></div>
+            <div className="h-[44px] bg-pale-cornflower animate-pulse rounded-[8px]"></div>
+          </div>
+        </main>
       </div>
     )
   }
 
-  if (loading || hasPermission === null) {
+  if (!hasPermission) {
     return (
-      <div className="min-h-screen bg-off-white p-4 flex flex-col items-center justify-center">
-        <div className="w-full max-w-[800px] h-[400px] bg-pale-cornflower animate-pulse rounded-[8px]"></div>
+      <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
+        <header className="bg-midnight-navy p-[24px] shrink-0">
+          <div className="max-w-[800px] mx-auto w-full">
+            <h1 className="text-off-white text-[32px] font-[700]">Formulário Comercial</h1>
+          </div>
+        </header>
+        <main className="flex-1 p-[24px] flex items-center justify-center overflow-y-auto">
+          <div className="bg-pale-cornflower p-[24px] rounded-[8px] text-center border-[2px] border-steel-blue w-full max-w-[400px]">
+            <p className="text-midnight-navy font-[600] text-[18px]">
+              Você não tem permissão para acessar este módulo.
+            </p>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="mt-[16px] bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full"
+            >
+              Voltar ao Início
+            </button>
+          </div>
+        </main>
       </div>
     )
   }
 
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return <Step1Cliente />
-      case 2:
-        return <Step2Obra />
-      case 3:
-        return <Step3Ambientes />
-      case 4:
-        return <Step4Produtos />
-      case 5:
-        return <Step5Pagamento />
-      case 6:
-        return <Step6Documentos />
-      case 7:
-        return <Step7Revisao />
-      case 8:
-        return <Step8Contrato />
-      default:
-        return null
-    }
+  if (error || !lead) {
+    return (
+      <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
+        <header className="bg-midnight-navy p-[24px] shrink-0">
+          <div className="max-w-[800px] mx-auto w-full">
+            <h1 className="text-off-white text-[32px] font-[700]">Formulário Comercial</h1>
+          </div>
+        </header>
+        <main className="flex-1 p-[24px] flex items-center justify-center overflow-y-auto">
+          <div className="bg-off-white p-[24px] rounded-[8px] text-center flex flex-col items-center max-w-[400px] w-full">
+            <AlertCircle className="w-12 h-12 text-steel-blue mb-4" />
+            <p className="text-steel-blue font-[600] text-[18px] mb-6">
+              {error ? error : "Nenhum lead selecionado. Volte ao Kanban e arraste para 'Vendido'."}
+            </p>
+            <button
+              onClick={() => (error ? window.location.reload() : navigate('/comercial'))}
+              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all font-bold w-full"
+            >
+              {error ? 'Tentar Novamente' : 'Voltar ao Kanban'}
+            </button>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-off-white p-[24px] animate-in fade-in duration-300">
-      <div className="max-w-[800px] mx-auto mb-[24px]">
-        <button
-          onClick={() => navigate('/comercial')}
-          className="text-steel-blue hover:text-dark-denim font-bold flex items-center gap-[8px] transition-colors min-h-[44px]"
-        >
-          <ArrowLeft className="w-5 h-5" /> Voltar ao Kanban
-        </button>
-      </div>
-
-      <div className="max-w-[800px] mx-auto bg-midnight-navy p-[24px] rounded-t-[8px]">
-        <h1 className="text-[32px] font-bold text-off-white mb-[8px] leading-tight">
-          Formulário Comercial
-        </h1>
-        <div className="text-steel-blue text-[14px] font-bold mb-[16px]">Etapa {step} de 8</div>
-
-        <div className="flex gap-[8px]">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div
-              key={i}
-              className={`h-[8px] flex-1 rounded-[4px] transition-all duration-500 ${
-                step === i
-                  ? 'bg-dark-denim'
-                  : step > i
-                    ? 'bg-steel-blue'
-                    : 'bg-pale-cornflower opacity-50'
-              }`}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-[800px] mx-auto bg-off-white p-[24px] rounded-b-[8px] shadow-sm border border-steel-blue min-h-[500px] flex flex-col mb-[48px]">
-        <div className="flex-1">{renderStep()}</div>
-
-        {step < 8 && (
-          <div className="mt-[24px] pt-[24px] border-t-[2px] border-steel-blue flex flex-col md:flex-row justify-between gap-[16px]">
-            <button className="bg-pale-cornflower text-midnight-navy px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 order-2 md:order-1">
-              Salvar Rascunho
-            </button>
-            <div className="flex flex-col md:flex-row gap-[16px] order-1 md:order-2">
-              <button
-                onClick={() => setStep(step - 1)}
-                disabled={step === 1}
-                className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={handleNext}
-                className={`bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] font-bold hover:opacity-90 min-h-[44px] transition-all duration-200 ${shake && !canAdvance ? 'animate-shake' : ''} ${!canAdvance ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                Próximo
-              </button>
-            </div>
+    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
+      <header className="bg-midnight-navy p-[24px] shrink-0">
+        <div className="max-w-[800px] mx-auto w-full">
+          <h1 className="text-off-white text-[32px] font-[700] mb-[8px]">Formulário Comercial</h1>
+          <p className="text-steel-blue text-[14px] font-[600]">Etapa {step} de 8</p>
+          <div className="flex gap-[8px] mt-[16px]">
+            {Array.from({ length: 8 }).map((_, i) => {
+              const s = i + 1
+              let bgClass = 'bg-pale-cornflower opacity-50'
+              if (s === step) bgClass = 'bg-dark-denim'
+              else if (s < step) bgClass = 'bg-steel-blue'
+              return <div key={s} className={`h-[8px] flex-1 rounded-[4px] ${bgClass}`} />
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      </header>
+      <main className="flex-1 p-[24px] overflow-y-auto">
+        <div className="max-w-[800px] mx-auto bg-off-white w-full">
+          <Step1Cliente />
+
+          <div className="mt-[32px] flex flex-col md:flex-row justify-between gap-[16px]">
+            <button
+              onClick={() => navigate('/comercial')}
+              className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all duration-200 min-h-[44px] font-bold order-2 md:order-1"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={!canAdvance || isSaving}
+              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] font-bold order-1 md:order-2"
+            >
+              {isSaving ? 'Aguarde...' : 'Próximo'}
+            </button>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
@@ -164,7 +241,7 @@ function FormWizard() {
 export default function DocumentacaoLead() {
   return (
     <FormProvider>
-      <FormWizard />
+      <FormContainer />
     </FormProvider>
   )
 }
