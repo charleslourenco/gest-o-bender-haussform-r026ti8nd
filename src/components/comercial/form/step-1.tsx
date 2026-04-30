@@ -1,19 +1,46 @@
 import { useEffect, useState } from 'react'
 import { useComercialForm } from '@/hooks/use-comercial-form'
 import { supabase } from '@/lib/supabase/client'
-import { inputClass, readOnlyInputClass, labelClass } from './styles'
 import { AlertCircle } from 'lucide-react'
 
-export function Step1Cliente() {
-  const { lead, data, updateData, setCanAdvance } = useComercialForm()
+const inputClass =
+  'w-full bg-pale-cornflower border-[2px] border-steel-blue text-midnight-navy rounded-[8px] px-[16px] py-[12px] min-h-[44px] text-[16px] outline-none focus:border-dark-denim focus:border-[3px] transition-all duration-200 placeholder:text-steel-blue placeholder:opacity-50 mb-[16px]'
+const readOnlyInputClass =
+  'w-full bg-pale-cornflower/50 border-[2px] border-steel-blue text-midnight-navy rounded-[8px] px-[16px] py-[12px] min-h-[44px] text-[16px] outline-none cursor-not-allowed transition-all duration-200 mb-[16px]'
+const labelClass = 'text-midnight-navy font-[600] text-[14px] mb-[8px] block'
+
+export function Step1Cliente({ onClose }: { onClose: () => void }) {
+  const { lead, data, updateData, canAdvance, setCanAdvance } = useComercialForm()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [generalError, setGeneralError] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+  const [toast, setToast] = useState({ show: false, msg: '' })
 
   const cpf = data.cliente.cpf || ''
   const dataNasc = data.cliente.dataNasc || ''
   const profissao = data.cliente.profissao || ''
   const renda = data.cliente.renda || ''
   const refBancaria = data.cliente.refBancaria || ''
+
+  useEffect(() => {
+    const check = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        setHasPermission(false)
+        return
+      }
+      const res = await supabase.functions.invoke('check-permission', {
+        body: { action: 'write', modulo: 'Comercial' },
+      })
+      if (res.data?.allowed && ['Admin', 'Editor'].includes(res.data?.level)) {
+        setHasPermission(true)
+      } else {
+        setHasPermission(false)
+      }
+    }
+    check()
+  }, [])
 
   useEffect(() => {
     let isValid = true
@@ -41,16 +68,8 @@ export function Step1Cliente() {
       }
     }
 
-    if (!profissao.trim()) {
-      isValid = false
-    }
-
-    if (!renda.trim()) {
-      isValid = false
-    } else if (!/^[0-9,.]+$/.test(renda)) {
-      isValid = false
-      newErrors.renda = 'Formato inválido. Use apenas números e vírgula.'
-    }
+    if (!profissao.trim()) isValid = false
+    if (!renda.trim()) isValid = false
 
     setErrors(newErrors)
     setCanAdvance(isValid && Object.keys(newErrors).length === 0 && generalError === '')
@@ -68,7 +87,6 @@ export function Step1Cliente() {
 
         if (existing && existing.lead_id !== lead?.id) {
           setGeneralError('Este CPF/CNPJ já está cadastrado para outro cliente.')
-          setCanAdvance(false)
         } else {
           setGeneralError('')
         }
@@ -78,7 +96,52 @@ export function Step1Cliente() {
     }
     const timeout = setTimeout(checkCpf, 500)
     return () => clearTimeout(timeout)
-  }, [cpf, lead?.id, setCanAdvance])
+  }, [cpf, lead?.id])
+
+  const handleNext = async () => {
+    if (!canAdvance) return
+    setIsSaving(true)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      let clientId = ''
+      const { data: cli } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('lead_id', lead?.id)
+        .single()
+      if (cli) clientId = cli.id
+
+      const formData = {
+        lead_id: lead?.id,
+        cliente_id: clientId || null,
+        cpf: data.cliente.cpf,
+        data_nascimento: data.cliente.dataNasc,
+        profissao: data.cliente.profissao,
+        renda: parseFloat(data.cliente.renda.replace(/\./g, '').replace(',', '.')),
+        referencia_bancaria: data.cliente.refBancaria,
+        etapa_atual: 1,
+        usuario_id: user?.id,
+      }
+
+      const { error } = await supabase
+        .from('formulario_comercial')
+        .upsert(formData, { onConflict: 'lead_id' })
+      if (error) throw error
+
+      setToast({ show: true, msg: 'Dados validados com sucesso! Próxima etapa...' })
+      setTimeout(() => {
+        setToast({ show: false, msg: '' })
+        onClose()
+      }, 3000)
+    } catch (err: any) {
+      setGeneralError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const formatCpfCnpj = (val: string) => {
     const v = val.replace(/\D/g, '')
@@ -97,68 +160,81 @@ export function Step1Cliente() {
   }
 
   const formatRenda = (val: string) => {
-    let v = val.replace(/[^\d,.]/g, '')
+    let v = val.replace(/[^\d,]/g, '')
     const parts = v.split(',')
-    if (parts.length > 2) {
-      v = parts[0] + ',' + parts.slice(1).join('')
-    }
+    if (parts.length > 2) v = parts[0] + ',' + parts.slice(1).join('')
     return v
+  }
+
+  if (hasPermission === false) {
+    return (
+      <div className="flex flex-col items-center justify-center py-[48px] animate-fade-in text-center">
+        <AlertCircle className="w-[48px] h-[48px] text-steel-blue mb-[16px]" />
+        <p className="text-midnight-navy font-[700] text-[18px]">
+          Você não tem permissão para acessar este módulo.
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-[32px] bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-[700] hover:opacity-90"
+        >
+          Voltar ao Kanban
+        </button>
+      </div>
+    )
+  }
+
+  if (hasPermission === null) {
+    return (
+      <div className="space-y-[16px] animate-pulse py-[24px]">
+        <div className="h-[44px] bg-pale-cornflower/50 rounded-[8px] w-full"></div>
+        <div className="h-[44px] bg-pale-cornflower/50 rounded-[8px] w-full"></div>
+        <div className="h-[44px] bg-pale-cornflower/50 rounded-[8px] w-full"></div>
+      </div>
+    )
+  }
+
+  if (!lead) {
+    return (
+      <div className="flex flex-col items-center justify-center py-[48px] animate-fade-in text-center">
+        <AlertCircle className="w-[48px] h-[48px] text-steel-blue mb-[16px]" />
+        <p className="text-midnight-navy font-[700] text-[18px]">
+          Nenhum lead selecionado. Volte ao Kanban e arraste para 'Vendido'.
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-[32px] bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-[700] hover:opacity-90"
+        >
+          Voltar ao Kanban
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="animate-fade-in transition-all duration-200">
-      <h2 className="text-[24px] font-[700] text-midnight-navy mb-[24px]">1. Dados do Cliente</h2>
-
       {generalError && (
-        <div className="bg-pale-cornflower border-2 border-steel-blue text-steel-blue p-[16px] rounded-[8px] animate-shake font-[600] flex items-center gap-2 mb-[24px]">
-          <AlertCircle className="w-5 h-5" />
+        <div className="bg-pale-cornflower border-[2px] border-steel-blue text-steel-blue p-[16px] rounded-[8px] animate-shake font-[700] flex items-center gap-[8px] mb-[24px]">
+          <AlertCircle className="w-[20px] h-[20px]" />
           <span>{generalError}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[24px]">
-        <div className="mb-[16px]">
-          <label htmlFor="nomeLead" className={labelClass}>
-            Nome Completo (Lead)
-          </label>
-          <input
-            id="nomeLead"
-            type="text"
-            value={lead?.nome || ''}
-            readOnly
-            className={readOnlyInputClass}
-          />
+        <div>
+          <label className={labelClass}>Nome Completo (Lead)</label>
+          <input type="text" value={lead.nome} readOnly className={readOnlyInputClass} />
         </div>
-        <div className="mb-[16px]">
-          <label htmlFor="emailLead" className={labelClass}>
-            E-mail (Lead)
-          </label>
-          <input
-            id="emailLead"
-            type="text"
-            value={lead?.email || ''}
-            readOnly
-            className={readOnlyInputClass}
-          />
+        <div>
+          <label className={labelClass}>E-mail (Lead)</label>
+          <input type="text" value={lead.email} readOnly className={readOnlyInputClass} />
         </div>
-        <div className="md:col-span-2 mb-[16px]">
-          <label htmlFor="telLead" className={labelClass}>
-            Telefone (Lead)
-          </label>
-          <input
-            id="telLead"
-            type="text"
-            value={lead?.telefone || ''}
-            readOnly
-            className={readOnlyInputClass}
-          />
+        <div className="md:col-span-2">
+          <label className={labelClass}>Telefone (Lead)</label>
+          <input type="text" value={lead.telefone} readOnly className={readOnlyInputClass} />
         </div>
-        <div className="mb-[16px]">
-          <label htmlFor="cpf" className={labelClass}>
-            CPF / CNPJ *
-          </label>
+        <div>
+          <label className={labelClass}>CPF / CNPJ *</label>
           <input
-            id="cpf"
             type="text"
             placeholder="000.000.000-00"
             value={cpf}
@@ -166,34 +242,28 @@ export function Step1Cliente() {
             className={`${inputClass} ${errors.cpf ? 'border-steel-blue animate-shake' : ''}`}
           />
           {errors.cpf && (
-            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
-              <AlertCircle className="w-3 h-3" /> {errors.cpf}
+            <p className="text-steel-blue text-[12px] mt-[-12px] mb-[16px] font-[700]">
+              {errors.cpf}
             </p>
           )}
         </div>
-        <div className="mb-[16px]">
-          <label htmlFor="nasc" className={labelClass}>
-            Data de Nascimento *
-          </label>
+        <div>
+          <label className={labelClass}>Data de Nascimento *</label>
           <input
-            id="nasc"
             type="date"
             value={dataNasc}
             onChange={(e) => updateData('cliente', { dataNasc: e.target.value })}
             className={`${inputClass} ${errors.dataNasc ? 'border-steel-blue animate-shake' : ''}`}
           />
           {errors.dataNasc && (
-            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
-              <AlertCircle className="w-3 h-3" /> {errors.dataNasc}
+            <p className="text-steel-blue text-[12px] mt-[-12px] mb-[16px] font-[700]">
+              {errors.dataNasc}
             </p>
           )}
         </div>
-        <div className="mb-[16px]">
-          <label htmlFor="prof" className={labelClass}>
-            Profissão *
-          </label>
+        <div>
+          <label className={labelClass}>Profissão *</label>
           <input
-            id="prof"
             type="text"
             placeholder="Ex: Engenheiro"
             value={profissao}
@@ -201,30 +271,19 @@ export function Step1Cliente() {
             className={inputClass}
           />
         </div>
-        <div className="mb-[16px]">
-          <label htmlFor="renda" className={labelClass}>
-            Renda Mensal (R$) *
-          </label>
+        <div>
+          <label className={labelClass}>Renda Mensal (R$) *</label>
           <input
-            id="renda"
             type="text"
             placeholder="0,00"
             value={renda}
             onChange={(e) => updateData('cliente', { renda: formatRenda(e.target.value) })}
-            className={`${inputClass} ${errors.renda ? 'border-steel-blue animate-shake' : ''}`}
+            className={inputClass}
           />
-          {errors.renda && (
-            <p className="text-steel-blue text-[12px] mt-[4px] flex items-center gap-1 font-semibold">
-              <AlertCircle className="w-3 h-3" /> {errors.renda}
-            </p>
-          )}
         </div>
-        <div className="md:col-span-2 mb-[16px]">
-          <label htmlFor="ref" className={labelClass}>
-            Referência Bancária
-          </label>
+        <div className="md:col-span-2">
+          <label className={labelClass}>Referência Bancária</label>
           <input
-            id="ref"
             type="text"
             placeholder="Banco, Agência, etc."
             value={refBancaria}
@@ -233,6 +292,28 @@ export function Step1Cliente() {
           />
         </div>
       </div>
+
+      <div className="flex flex-col md:flex-row gap-[16px] mt-[16px] md:justify-end">
+        <button
+          onClick={onClose}
+          className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 min-h-[44px] font-[700] transition-all duration-200 order-1 md:order-1 w-full md:w-auto"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={!canAdvance || isSaving}
+          className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] font-[700] transition-all duration-200 order-2 md:order-2 w-full md:w-auto"
+        >
+          {isSaving ? 'Salvando...' : 'Próximo'}
+        </button>
+      </div>
+
+      {toast.show && (
+        <div className="fixed bottom-[24px] right-[24px] bg-dark-denim text-off-white p-[16px] rounded-[8px] animate-fade-in-up z-[60] shadow-lg font-[700]">
+          {toast.msg}
+        </div>
+      )}
     </div>
   )
 }

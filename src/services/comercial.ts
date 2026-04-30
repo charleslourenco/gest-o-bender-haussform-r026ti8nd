@@ -38,14 +38,28 @@ export const deleteLead = async (id: string) => {
 }
 
 export const moveLeadToClient = async (lead: any) => {
-  const { error: err1 } = await supabase.from('clientes').insert({
-    nome: lead.nome,
-    email: lead.email,
-    telefone: lead.telefone,
-    status: 'Ativo',
-  })
-  if (err1) throw err1
+  // 1. Create client if not exists to maintain referential integrity
+  const { data: existingClient } = await supabase
+    .from('clientes')
+    .select('id')
+    .eq('lead_id', lead.id)
+    .maybeSingle()
 
-  const { error: err2 } = await supabase.from('leads').delete().eq('id', lead.id)
+  if (!existingClient) {
+    const { error: err1 } = await supabase.from('clientes').insert({
+      lead_id: lead.id,
+      nome: lead.nome,
+      email: lead.email,
+      telefone: lead.telefone,
+      status: 'Ativo',
+    })
+    if (err1) throw err1
+  }
+
+  // 2. Update lead status to "Vendido" instead of deleting it
+  const { error: err2 } = await supabase
+    .from('leads')
+    .update({ status: 'Vendido' })
+    .eq('id', lead.id)
   if (err2) throw err2
 }
