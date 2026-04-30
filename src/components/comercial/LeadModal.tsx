@@ -18,25 +18,28 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-midnight-navy opacity-50" onClick={onClose}></div>
-      <div className="bg-off-white rounded-lg p-6 max-w-xl w-full relative z-10 border-t-4 border-dark-denim max-h-[90vh] overflow-y-auto">
-        <h2 className="text-midnight-navy font-bold text-[24px] mb-4">
+      <div
+        className="fixed inset-0 bg-midnight-navy opacity-50 transition-opacity"
+        onClick={onClose}
+      ></div>
+      <div className="bg-off-white rounded-lg p-6 max-w-xl w-full relative z-10 border-t-4 border-dark-denim max-h-[90vh] overflow-y-auto shadow-xl animate-fade-in-up">
+        <h2 className="text-midnight-navy font-bold text-[24px] mb-6">
           {lead ? 'Editar Lead' : 'Novo Lead'}
         </h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Nome Completo *
             </label>
             <input
               required
               name="nome"
               defaultValue={lead?.nome}
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               E-mail *
             </label>
             <input
@@ -44,11 +47,11 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               type="email"
               name="email"
               defaultValue={lead?.email}
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Telefone *
             </label>
             <input
@@ -57,18 +60,18 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               name="telefone"
               defaultValue={lead?.telefone}
               placeholder="(11) 99999-9999"
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Origem *
             </label>
             <select
               required
               name="origem"
               defaultValue={lead?.origem || 'Instagram'}
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
             >
               <option value="Instagram">Instagram</option>
               <option value="Google">Google</option>
@@ -78,13 +81,13 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             </select>
           </div>
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Consultor Responsável
             </label>
             <select
               name="consultor_id"
               defaultValue={lead?.consultor_id || ''}
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
             >
               <option value="">Selecione...</option>
               {users.map((u) => (
@@ -95,27 +98,27 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             </select>
           </div>
           <div>
-            <label className="block text-midnight-navy font-semibold text-[14px] mb-1">
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Notas Iniciais
             </label>
             <textarea
               name="notas"
               defaultValue={lead?.notas || ''}
               rows={3}
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 resize-none"
             ></textarea>
           </div>
-          <div className="flex justify-end gap-4 mt-4">
+          <div className="flex justify-end gap-4 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="bg-steel-blue text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px]"
+              className="bg-steel-blue text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] font-medium transition-opacity duration-200"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px]"
+              className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] font-medium transition-opacity duration-200"
             >
               Salvar
             </button>

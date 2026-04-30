@@ -6,9 +6,13 @@ interface Props {
   title: string
   leads: Lead[]
   isVisible: boolean
+  isDragOver: boolean
   onDragOver: (e: React.DragEvent) => void
+  onDragLeave: (e: React.DragEvent) => void
   onDrop: (e: React.DragEvent) => void
   onDragStart: (e: React.DragEvent, id: string) => void
+  onDragEnd: (e: React.DragEvent) => void
+  draggingId: string | null
   onEdit: (lead: Lead) => void
   onDelete: (lead: Lead) => void
 }
@@ -17,30 +21,40 @@ export function KanbanColumn({
   title,
   leads,
   isVisible,
+  isDragOver,
   onDragOver,
+  onDragLeave,
   onDrop,
   onDragStart,
+  onDragEnd,
+  draggingId,
   onEdit,
   onDelete,
 }: Props) {
   return (
     <div
       className={cn(
-        'bg-pale-cornflower min-w-[300px] w-full md:w-[300px] rounded-lg p-4 flex flex-col gap-4 min-h-[200px] max-h-full',
+        'min-w-full md:min-w-[300px] md:w-[300px] rounded-lg p-4 flex flex-col gap-4 min-h-[600px] max-h-full transition-all duration-200',
         isVisible ? 'flex' : 'hidden md:flex',
+        isDragOver
+          ? 'bg-dark-denim/10 border-2 border-dashed border-dark-denim'
+          : 'bg-pale-cornflower border-2 border-transparent',
       )}
       onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <h3 className="text-midnight-navy font-bold text-[18px]">
-        {title} ({leads.length})
+      <h3 className="text-midnight-navy font-bold text-[18px] flex items-center gap-2">
+        {title} <span className="text-steel-blue text-[14px] font-normal">({leads.length})</span>
       </h3>
-      <div className="flex flex-col gap-3 flex-1 overflow-y-auto pb-4 pr-1 scrollbar-hide">
+      <div className="flex flex-col flex-1 overflow-y-auto pb-4 pr-1 scrollbar-hide">
         {leads.map((lead) => (
           <KanbanCard
             key={lead.id}
             lead={lead}
+            isDragging={draggingId === lead.id}
             onDragStart={(e) => onDragStart(e, lead.id)}
+            onDragEnd={onDragEnd}
             onEdit={() => onEdit(lead)}
             onDelete={() => onDelete(lead)}
           />

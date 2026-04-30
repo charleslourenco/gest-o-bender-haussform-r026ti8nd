@@ -9,6 +9,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          email: string
+          id: string
+          nome: string
+          status: string
+          telefone: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          email: string
+          id?: string
+          nome: string
+          status?: string
+          telefone: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          email?: string
+          id?: string
+          nome?: string
+          status?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       documentos_obrigatorios: {
         Row: {
           atualizado_em: string
@@ -67,6 +97,56 @@ export type Database = {
           nome?: string
         }
         Relationships: []
+      }
+      leads: {
+        Row: {
+          atualizado_em: string
+          consultor_id: string | null
+          criado_em: string
+          email: string
+          id: string
+          nome: string
+          notas: string | null
+          ordem: number
+          origem: string
+          status: string
+          telefone: string
+        }
+        Insert: {
+          atualizado_em?: string
+          consultor_id?: string | null
+          criado_em?: string
+          email: string
+          id?: string
+          nome: string
+          notas?: string | null
+          ordem?: number
+          origem: string
+          status?: string
+          telefone: string
+        }
+        Update: {
+          atualizado_em?: string
+          consultor_id?: string | null
+          criado_em?: string
+          email?: string
+          id?: string
+          nome?: string
+          notas?: string | null
+          ordem?: number
+          origem?: string
+          status?: string
+          telefone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'leads_consultor_id_fkey'
+            columns: ['consultor_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       matriz_permissoes: {
         Row: {
@@ -310,6 +390,14 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: clientes
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   email: text (not null)
+//   telefone: text (not null)
+//   status: text (not null, default: 'Ativo'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: documentos_obrigatorios
 //   id: uuid (not null, default: gen_random_uuid())
 //   tipo: text (not null)
@@ -321,6 +409,18 @@ export const Constants = {
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
 //   logo_url: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: leads
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   email: text (not null)
+//   telefone: text (not null)
+//   origem: text (not null)
+//   consultor_id: uuid (nullable)
+//   status: text (not null, default: 'Novo Lead'::text)
+//   notas: text (nullable)
+//   ordem: integer (not null, default: 0)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: matriz_permissoes
@@ -348,12 +448,17 @@ export const Constants = {
 //   status: boolean (not null, default: true)
 
 // --- CONSTRAINTS ---
+// Table: clientes
+//   PRIMARY KEY clientes_pkey: PRIMARY KEY (id)
 // Table: documentos_obrigatorios
 //   PRIMARY KEY documentos_obrigatorios_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_obrigatorios_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
 //   UNIQUE documentos_obrigatorios_tipo_key: UNIQUE (tipo)
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
+// Table: leads
+//   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
+//   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
@@ -365,6 +470,10 @@ export const Constants = {
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: clientes
+//   Policy "Clientes all access" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: documentos_obrigatorios
 //   Policy "Admin Editor Docs" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -374,6 +483,10 @@ export const Constants = {
 //     USING: true
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
+// Table: leads
+//   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: matriz_permissoes
 //   Policy "Admin gerencia permissões (Delete)" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())

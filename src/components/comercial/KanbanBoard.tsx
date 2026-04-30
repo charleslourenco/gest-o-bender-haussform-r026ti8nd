@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Target, Search } from 'lucide-react'
 import { KanbanColumn } from './KanbanColumn'
 import { LeadModal } from './LeadModal'
@@ -22,6 +22,7 @@ export function KanbanBoard() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
   const [consultantFilter, setConsultantFilter] = useState('')
   const [activeCol, setActiveCol] = useState(COLUMNS[0])
@@ -32,6 +33,9 @@ export function KanbanBoard() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [leadToSell, setLeadToSell] = useState<Lead | null>(null)
+
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   const { toast } = useToast()
 
@@ -60,13 +64,18 @@ export function KanbanBoard() {
     }
   }, [])
 
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(handler)
+  }, [search])
+
   const handleSaveLead = async (data: any) => {
     try {
       if (editingLead) {
         await updateLead(editingLead.id, data)
         toast({
           description: 'Lead atualizado com sucesso!',
-          className: 'bg-dark-denim text-off-white border-none',
+          className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
         })
       } else {
         await createLead({
@@ -76,7 +85,7 @@ export function KanbanBoard() {
         })
         toast({
           description: 'Lead criado com sucesso!',
-          className: 'bg-dark-denim text-off-white border-none',
+          className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
         })
       }
       setFormOpen(false)
@@ -86,7 +95,7 @@ export function KanbanBoard() {
       toast({
         description: e.message,
         variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none',
+        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
     }
   }
@@ -97,7 +106,7 @@ export function KanbanBoard() {
       await deleteLead(leadToDelete.id)
       toast({
         description: 'Lead deletado com sucesso!',
-        className: 'bg-dark-denim text-off-white border-none',
+        className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
       })
       setLeadToDelete(null)
       loadData()
@@ -105,7 +114,7 @@ export function KanbanBoard() {
       toast({
         description: e.message,
         variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none',
+        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
     }
   }
@@ -116,7 +125,7 @@ export function KanbanBoard() {
       await moveLeadToClient(leadToSell)
       toast({
         description: 'Venda confirmada e movido para Clientes!',
-        className: 'bg-dark-denim text-off-white border-none',
+        className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
       })
       setLeadToSell(null)
       loadData()
@@ -124,13 +133,16 @@ export function KanbanBoard() {
       toast({
         description: e.message,
         variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none',
+        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
     }
   }
 
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
+    setDragOverCol(null)
+    setDraggingId(null)
+
     const id = e.dataTransfer.getData('leadId')
     if (!id) return
 
@@ -146,22 +158,26 @@ export function KanbanBoard() {
     }
   }
 
-  const filteredLeads = leads.filter((l) => {
-    const matchS =
-      l.nome.toLowerCase().includes(search.toLowerCase()) ||
-      l.email.toLowerCase().includes(search.toLowerCase())
-    const matchO = sourceFilter ? l.origem === sourceFilter : true
-    const matchC = consultantFilter ? l.consultor_id === consultantFilter : true
-    return matchS && matchO && matchC
-  })
+  const filteredLeads = useMemo(
+    () =>
+      leads.filter((l) => {
+        const matchS =
+          l.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          l.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+        const matchO = sourceFilter ? l.origem === sourceFilter : true
+        const matchC = consultantFilter ? l.consultor_id === consultantFilter : true
+        return matchS && matchO && matchC
+      }),
+    [leads, debouncedSearch, sourceFilter, consultantFilter],
+  )
 
   if (isLoading) {
     return (
-      <div className="flex gap-4">
+      <div className="flex gap-4 h-full">
         {COLUMNS.map((c) => (
           <div
             key={c}
-            className="flex-1 min-w-[300px] h-[500px] bg-pale-cornflower animate-pulse rounded-lg"
+            className="flex-1 min-w-[300px] h-full bg-pale-cornflower animate-pulse rounded-lg"
           ></div>
         ))}
       </div>
@@ -171,10 +187,10 @@ export function KanbanBoard() {
   if (error) {
     return (
       <div className="bg-pale-cornflower p-6 rounded-lg text-center border-2 border-steel-blue">
-        <p className="text-steel-blue font-bold mb-4">{error}</p>
+        <p className="text-midnight-navy font-bold text-[18px] mb-4">{error}</p>
         <button
           onClick={loadData}
-          className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px]"
+          className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] transition-opacity duration-200"
         >
           Tentar Novamente
         </button>
@@ -184,31 +200,31 @@ export function KanbanBoard() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex flex-col xl:flex-row gap-4 mb-6 shrink-0">
+      <div className="flex flex-col xl:flex-row gap-4 mb-6 shrink-0 items-start">
         <button
           onClick={() => {
             setEditingLead(null)
             setFormOpen(true)
           }}
-          className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] whitespace-nowrap"
+          className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] whitespace-nowrap font-medium transition-opacity duration-200 shadow-sm hover:shadow-md"
         >
           Adicionar Lead
         </button>
-        <div className="flex-1 flex flex-col md:flex-row gap-4">
+        <div className="flex-1 flex flex-col md:flex-row gap-4 w-full">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-steel-blue" />
+            <Search className="absolute left-4 top-3.5 w-5 h-5 text-steel-blue pointer-events-none" />
             <input
               type="text"
               placeholder="Buscar por nome ou e-mail"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full pl-11 bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
           >
             <option value="">Todas as Origens</option>
             <option value="Instagram">Instagram</option>
@@ -220,7 +236,7 @@ export function KanbanBoard() {
           <select
             value={consultantFilter}
             onChange={(e) => setConsultantFilter(e.target.value)}
-            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
           >
             <option value="">Todos os Consultores</option>
             {users.map((u) => (
@@ -235,14 +251,14 @@ export function KanbanBoard() {
               setSourceFilter('')
               setConsultantFilter('')
             }}
-            className="bg-steel-blue text-off-white px-4 py-2 rounded-lg hover:opacity-90 min-h-[44px] whitespace-nowrap"
+            className="bg-steel-blue text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] whitespace-nowrap font-medium transition-opacity duration-200"
           >
             Limpar Filtros
           </button>
         </div>
       </div>
 
-      {leads.length === 0 && !search && !sourceFilter && !consultantFilter ? (
+      {leads.length === 0 && !debouncedSearch && !sourceFilter && !consultantFilter ? (
         <div className="bg-off-white p-12 rounded-lg text-center flex flex-col items-center justify-center border-2 border-steel-blue m-auto max-w-lg w-full">
           <Target className="w-12 h-12 text-steel-blue mb-4" />
           <h2 className="text-midnight-navy font-bold text-[24px] mb-6">Nenhum lead cadastrado</h2>
@@ -251,7 +267,7 @@ export function KanbanBoard() {
               setEditingLead(null)
               setFormOpen(true)
             }}
-            className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px]"
+            className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] font-medium transition-opacity duration-200"
           >
             Adicionar Lead
           </button>
@@ -260,7 +276,7 @@ export function KanbanBoard() {
         <>
           <div className="md:hidden mb-4 shrink-0">
             <select
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-2 min-h-[44px] outline-none focus:border-dark-denim"
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim font-bold transition-all duration-200"
               value={activeCol}
               onChange={(e) => setActiveCol(e.target.value)}
             >
@@ -278,9 +294,22 @@ export function KanbanBoard() {
                 title={col}
                 leads={filteredLeads.filter((l) => l.status === col)}
                 isVisible={activeCol === col}
-                onDragOver={(e) => e.preventDefault()}
+                isDragOver={dragOverCol === col}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (dragOverCol !== col) setDragOverCol(col)
+                }}
+                onDragLeave={() => setDragOverCol(null)}
                 onDrop={(e) => handleDrop(e, col)}
-                onDragStart={(e, id) => e.dataTransfer.setData('leadId', id)}
+                onDragStart={(e, id) => {
+                  e.dataTransfer.setData('leadId', id)
+                  setDraggingId(id)
+                }}
+                onDragEnd={() => {
+                  setDraggingId(null)
+                  setDragOverCol(null)
+                }}
+                draggingId={draggingId}
                 onEdit={(l) => {
                   setEditingLead(l)
                   setFormOpen(true)
