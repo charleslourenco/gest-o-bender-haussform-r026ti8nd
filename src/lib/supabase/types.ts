@@ -234,38 +234,54 @@ export type Database = {
       formulario_comercial: {
         Row: {
           atualizado_em: string
+          cliente_id: string | null
           cpf: string | null
           criado_em: string
           data_nascimento: string | null
+          etapa_atual: number | null
           id: string
           lead_id: string
           profissao: string | null
           referencia_bancaria: string | null
           renda: number | null
+          usuario_id: string | null
         }
         Insert: {
           atualizado_em?: string
+          cliente_id?: string | null
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          etapa_atual?: number | null
           id?: string
           lead_id: string
           profissao?: string | null
           referencia_bancaria?: string | null
           renda?: number | null
+          usuario_id?: string | null
         }
         Update: {
           atualizado_em?: string
+          cliente_id?: string | null
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          etapa_atual?: number | null
           id?: string
           lead_id?: string
           profissao?: string | null
           referencia_bancaria?: string | null
           renda?: number | null
+          usuario_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: 'formulario_comercial_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'formulario_comercial_lead_id_fkey'
             columns: ['lead_id']
@@ -755,6 +771,9 @@ export const Constants = {
 //   referencia_bancaria: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   cliente_id: uuid (nullable)
+//   etapa_atual: integer (nullable, default: 1)
+//   usuario_id: uuid (nullable)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -837,9 +856,11 @@ export const Constants = {
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
 // Table: formulario_comercial
+//   FOREIGN KEY formulario_comercial_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
 //   PRIMARY KEY formulario_comercial_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY formulario_comercial_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
@@ -879,9 +900,9 @@ export const Constants = {
 //   Policy "clientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: true
 //   Policy "clientes_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 // Table: documentos_cliente
 //   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -902,14 +923,13 @@ export const Constants = {
 //     USING: true
 // Table: formulario_comercial
 //   Policy "formulario_comercial_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: true
+//     USING: is_admin(auth.uid())
 //   Policy "formulario_comercial_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: true
 //   Policy "formulario_comercial_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //   Policy "formulario_comercial_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true

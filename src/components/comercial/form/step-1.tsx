@@ -131,7 +131,7 @@ export function Step1Cliente({ onClose }: { onClose: () => void }) {
         .upsert(formData, { onConflict: 'lead_id' })
       if (error) throw error
 
-      setToast({ show: true, msg: 'Dados validados com sucesso! Próxima etapa...' })
+      setToast({ show: true, msg: 'Etapa 1 concluída! Próxima etapa será adicionada em breve.' })
       setTimeout(() => {
         setToast({ show: false, msg: '' })
         onClose()
@@ -296,14 +296,14 @@ export function Step1Cliente({ onClose }: { onClose: () => void }) {
       <div className="flex flex-col md:flex-row gap-[16px] mt-[16px] md:justify-end">
         <button
           onClick={onClose}
-          className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 min-h-[44px] font-[700] transition-all duration-200 order-1 md:order-1 w-full md:w-auto"
+          className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 min-h-[44px] font-[700] transition-all duration-200 order-1 md:order-1 w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-steel-blue focus:ring-offset-2"
         >
           Cancelar
         </button>
         <button
           onClick={handleNext}
           disabled={!canAdvance || isSaving}
-          className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] font-[700] transition-all duration-200 order-2 md:order-2 w-full md:w-auto"
+          className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] font-[700] transition-all duration-200 order-2 md:order-2 w-full md:w-auto focus:outline-none focus:ring-2 focus:ring-dark-denim focus:ring-offset-2"
         >
           {isSaving ? 'Salvando...' : 'Próximo'}
         </button>

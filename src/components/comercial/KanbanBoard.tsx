@@ -136,21 +136,6 @@ export function KanbanBoard() {
     }
   }
 
-  const handleConfirmSell = async () => {
-    if (!leadToSell) return
-    try {
-      await updateLead(leadToSell.id, { status: 'Vendido' })
-      setLeadToSell(null)
-      loadData()
-    } catch (e: any) {
-      toast({
-        description: e.message,
-        variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
-      })
-    }
-  }
-
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
     setDragOverCol(null)
@@ -162,12 +147,12 @@ export function KanbanBoard() {
     const lead = leads.find((l) => l.id === id)
     if (!lead || lead.status === status) return
 
+    const newOrder = leads.filter((l) => l.status === status).length
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status, ordem: newOrder } : l)))
+    await updateLead(id, { status, ordem: newOrder })
+
     if (status === 'Vendido') {
-      setLeadToSell(lead)
-    } else {
-      const newOrder = leads.filter((l) => l.status === status).length
-      setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status, ordem: newOrder } : l)))
-      await updateLead(id, { status, ordem: newOrder })
+      setLeadToSell({ ...lead, status: 'Vendido' })
     }
   }
 
@@ -348,13 +333,7 @@ export function KanbanBoard() {
       {leadToDelete && (
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
       )}
-      {leadToSell && (
-        <ConfirmSellModal
-          lead={leadToSell}
-          onClose={() => setLeadToSell(null)}
-          onConfirm={handleConfirmSell}
-        />
-      )}
+      {leadToSell && <ConfirmSellModal lead={leadToSell} onClose={() => setLeadToSell(null)} />}
     </div>
   )
 }
