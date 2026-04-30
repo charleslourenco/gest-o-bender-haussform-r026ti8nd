@@ -70,10 +70,10 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Configurações">
-                  <a href="#" className="flex items-center gap-3">
+                  <Link to="/admin" className="flex items-center gap-3">
                     <Settings className="w-5 h-5" />
                     <span>Configurações</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
