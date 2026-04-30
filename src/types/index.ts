@@ -11,6 +11,20 @@ export interface Project {
   tags: string[]
 }
 
+export interface Lead {
+  id: string
+  nome: string
+  email: string
+  telefone: string
+  origem: string
+  consultor_id: string | null
+  status: string
+  notas: string | null
+  ordem: number
+  criado_em: string
+  consultor?: { nome: string } | null
+}
+
 export interface Client {
   id: string
   name: string

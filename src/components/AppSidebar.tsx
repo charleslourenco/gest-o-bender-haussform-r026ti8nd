@@ -8,6 +8,7 @@ import {
   Wallet,
   Settings,
   UserCog,
+  Target,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -23,6 +24,7 @@ import {
 
 const menuItems = [
   { title: 'Início', icon: LayoutDashboard, url: '/' },
+  { title: 'Comercial', icon: Target, url: '/comercial' },
   { title: 'Usuários', icon: UserCog, url: '/usuarios' },
   { title: 'Projetos', icon: KanbanSquare, url: '/projetos' },
   { title: 'Clientes', icon: Users, url: '/clientes' },

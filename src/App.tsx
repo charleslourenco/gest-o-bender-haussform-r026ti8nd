@@ -8,6 +8,7 @@ import Projects from './pages/Projects'
 import Clients from './pages/Clients'
 import Inventory from './pages/Inventory'
 import Users from './pages/Users'
+import Comercial from './pages/Comercial'
 import AdminPage from './pages/admin/Admin'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
@@ -34,6 +35,7 @@ const App = () => (
               }
             >
               <Route path="/" element={<Index />} />
+              <Route path="/comercial" element={<Comercial />} />
               <Route path="/usuarios" element={<Users />} />
               <Route path="/projetos" element={<Projects />} />
               <Route path="/clientes" element={<Clients />} />
