@@ -74,6 +74,7 @@ export type Database = {
           funcao: string | null
           id: string
           nome: string
+          status: boolean
           telefone: string | null
         }
         Insert: {
@@ -84,6 +85,7 @@ export type Database = {
           funcao?: string | null
           id: string
           nome: string
+          status?: boolean
           telefone?: string | null
         }
         Update: {
@@ -94,6 +96,7 @@ export type Database = {
           funcao?: string | null
           id?: string
           nome?: string
+          status?: boolean
           telefone?: string | null
         }
         Relationships: []
@@ -266,6 +269,7 @@ export const Constants = {
 //   foto_perfil: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   status: boolean (not null, default: true)
 
 // --- CONSTRAINTS ---
 // Table: empresa

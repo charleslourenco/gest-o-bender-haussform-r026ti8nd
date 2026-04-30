@@ -24,7 +24,7 @@ import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 import { AppUser } from '@/types/user'
 import { supabase } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 const formSchema = z.object({
   nome: z.string().min(3, 'Mínimo de 3 caracteres'),
@@ -97,7 +97,13 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
       if (error) throw error
 
       toast({
-        title: user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!',
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            <span>{user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!'}</span>
+          </div>
+        ),
+        className: 'bg-bender-denim text-bender-offwhite border-none',
       })
 
       const savedUser = user || { id: data.user.id, ...values }
@@ -107,9 +113,14 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
       const isAlreadyRegistered =
         err.message?.includes('already registered') || err.message?.includes('já existe')
       toast({
-        title: 'Erro ao salvar usuário',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-5 w-5 text-red-400" />
+            <span>Erro ao salvar usuário</span>
+          </div>
+        ),
         description: isAlreadyRegistered ? 'Este e-mail já está cadastrado.' : err.message,
-        variant: 'destructive',
+        className: 'bg-bender-steel text-bender-offwhite border-none',
       })
     } finally {
       setIsSubmitting(false)
@@ -118,22 +129,33 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent
+        className="sm:max-w-[500px] bg-bender-offwhite border-none shadow-xl"
+        overlayClassName="bg-bender-navy/50"
+      >
         <DialogHeader>
-          <DialogTitle>{user ? 'Editar Usuário' : 'Adicionar Usuário'}</DialogTitle>
+          <DialogTitle className="text-bender-navy text-[24px] font-bold">
+            {user ? 'Editar Usuário' : 'Adicionar Usuário'}
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome Completo</FormLabel>
+                  <FormLabel className="text-bender-navy font-semibold text-base">
+                    Nome Completo
+                  </FormLabel>
                   <FormControl>
-                    <Input placeholder="João da Silva" {...field} />
+                    <Input
+                      placeholder="João da Silva"
+                      className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg"
+                      {...field}
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-red-500 font-medium" />
                 </FormItem>
               )}
             />
@@ -142,30 +164,38 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>E-mail</FormLabel>
+                  <FormLabel className="text-bender-navy font-semibold text-base">E-mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="joao@exemplo.com" {...field} disabled={!!user} />
+                    <Input
+                      placeholder="joao@exemplo.com"
+                      className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                      {...field}
+                      disabled={!!user}
+                    />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-red-500 font-medium" />
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <FormField
                 control={form.control}
                 name="telefone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Telefone</FormLabel>
+                    <FormLabel className="text-bender-navy font-semibold text-base">
+                      Telefone
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="(00) 00000-0000"
+                        className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-bender-navy/60 rounded-lg"
                         {...field}
                         onChange={(e) => field.onChange(formatPhone(e.target.value))}
                         maxLength={15}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-500 font-medium" />
                   </FormItem>
                 )}
               />
@@ -174,43 +204,73 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                 name="funcao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Função</FormLabel>
+                    <FormLabel className="text-bender-navy font-semibold text-base">
+                      Função
+                    </FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                       value={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus:border-bender-denim focus:border-[3px] focus:ring-0 rounded-lg">
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Consultor">Consultor</SelectItem>
-                        <SelectItem value="Analista">Analista</SelectItem>
-                        <SelectItem value="Gerente">Gerente</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectContent className="bg-bender-offwhite border-2 border-bender-steel">
+                        <SelectItem
+                          value="Consultor"
+                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                        >
+                          Consultor
+                        </SelectItem>
+                        <SelectItem
+                          value="Analista"
+                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                        >
+                          Analista
+                        </SelectItem>
+                        <SelectItem
+                          value="Gerente"
+                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                        >
+                          Gerente
+                        </SelectItem>
+                        <SelectItem
+                          value="Admin"
+                          className="focus:bg-bender-pale focus:text-bender-navy text-base"
+                        >
+                          Admin
+                        </SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
+                    <FormMessage className="text-red-500 font-medium" />
                   </FormItem>
                 )}
               />
             </div>
 
             <FormItem>
-              <FormLabel>Foto de Perfil (Opcional)</FormLabel>
+              <FormLabel className="text-bender-navy font-semibold text-base">
+                Foto de Perfil (Opcional)
+              </FormLabel>
               <FormControl>
                 <Input
                   type="file"
                   accept="image/jpeg, image/png"
+                  className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-base min-h-[44px] focus-visible:border-bender-denim focus-visible:border-[3px] focus-visible:ring-0 file:text-bender-navy file:font-semibold rounded-lg pt-2 cursor-pointer"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
                     if (file && file.size > 5 * 1024 * 1024) {
                       toast({
-                        title: 'Erro',
+                        title: (
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-5 w-5 text-red-400" />
+                            <span>Erro</span>
+                          </div>
+                        ),
                         description: 'Arquivo muito grande. Máximo 5MB.',
-                        variant: 'destructive',
+                        className: 'bg-bender-steel text-bender-offwhite border-none',
                       })
                       e.target.value = ''
                     }
@@ -223,22 +283,38 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
               control={form.control}
               name="status"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border-2 border-bender-steel bg-bender-pale p-4">
                   <div className="space-y-0.5">
-                    <FormLabel className="text-base">Status do Usuário</FormLabel>
+                    <FormLabel className="text-base text-bender-navy font-semibold">
+                      Status do Usuário (Ativo)
+                    </FormLabel>
                   </div>
                   <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className="data-[state=checked]:bg-bender-denim data-[state=unchecked]:bg-bender-steel shadow-sm border-2 border-transparent"
+                    />
                   </FormControl>
                 </FormItem>
               )}
             />
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <div className="flex justify-end gap-3 pt-6 border-t border-bender-steel/20 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="bg-bender-steel text-bender-offwhite hover:bg-bender-steel/90 hover:text-bender-offwhite px-6 py-3 h-auto min-h-[44px] border-none rounded-lg"
+                onClick={onClose}
+                disabled={isSubmitting}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSubmitting || !form.formState.isValid}>
+              <Button
+                type="submit"
+                className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 h-auto min-h-[44px] rounded-lg"
+                disabled={isSubmitting || !form.formState.isValid}
+              >
                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Salvar
               </Button>
