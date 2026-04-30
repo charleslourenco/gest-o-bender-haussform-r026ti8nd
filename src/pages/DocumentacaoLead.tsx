@@ -1,141 +1,156 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileText, ArrowLeft, Calendar } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
+import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
+import { fetchLeads } from '@/services/comercial'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
+import { Step1Cliente } from '@/components/comercial/form/step-1'
+import { Step2Obra } from '@/components/comercial/form/step-2'
+import { Step3Ambientes } from '@/components/comercial/form/step-3'
+import { Step4Produtos } from '@/components/comercial/form/step-4'
+import { Step5Pagamento } from '@/components/comercial/form/step-5'
+import { Step6Documentos } from '@/components/comercial/form/step-6'
+import { Step7Revisao } from '@/components/comercial/form/step-7'
+import { Step8Contrato } from '@/components/comercial/form/step-8'
 
-export default function DocumentacaoLead() {
+function FormWizard() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [dataLiberacao, setDataLiberacao] = useState('')
-  const [dataMedidaFina, setDataMedidaFina] = useState('')
+  const { step, setStep, setLead, canAdvance } = useComercialForm()
+  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const dataStr = e.target.value
-    setDataLiberacao(dataStr)
-    if (dataStr) {
-      const date = new Date(dataStr + 'T12:00:00Z') // prevent timezone shift
-      let count = 0
-      while (count < 5) {
-        date.setDate(date.getDate() + 1)
-        if (date.getDay() !== 0 && date.getDay() !== 6) {
-          count++
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('matriz_permissoes')
+      .select('nivel_acesso')
+      .eq('usuario_id', user.id)
+      .eq('modulo', 'Comercial')
+      .single()
+      .then(({ data }) => {
+        if (data && (data.nivel_acesso === 'Editor' || data.nivel_acesso === 'Admin')) {
+          setHasPermission(true)
+        } else {
+          setHasPermission(false)
         }
-      }
-      setDataMedidaFina(date.toISOString().split('T')[0])
-    } else {
-      setDataMedidaFina('')
+      })
+  }, [user])
+
+  useEffect(() => {
+    fetchLeads().then((leads) => {
+      const found = leads.find((l) => l.id === id)
+      if (found) setLead(found)
+      setLoading(false)
+    })
+  }, [id, setLead])
+
+  if (hasPermission === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-off-white p-4">
+        <div className="text-midnight-navy font-bold text-2xl text-center max-w-md">
+          Você não tem permissão para acessar este módulo.
+        </div>
+      </div>
+    )
+  }
+
+  if (loading || hasPermission === null) {
+    return (
+      <div className="min-h-screen bg-off-white p-4 md:p-8 flex flex-col">
+        <div className="p-6 text-midnight-navy font-bold text-center m-auto animate-pulse">
+          <div className="w-12 h-12 border-4 border-dark-denim border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          Carregando formulário...
+        </div>
+      </div>
+    )
+  }
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return <Step1Cliente />
+      case 2:
+        return <Step2Obra />
+      case 3:
+        return <Step3Ambientes />
+      case 4:
+        return <Step4Produtos />
+      case 5:
+        return <Step5Pagamento />
+      case 6:
+        return <Step6Documentos />
+      case 7:
+        return <Step7Revisao />
+      case 8:
+        return <Step8Contrato />
+      default:
+        return null
     }
   }
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-300 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
+    <div className="min-h-screen bg-off-white p-4 md:p-8 animate-in fade-in duration-300">
+      <div className="max-w-5xl mx-auto">
+        <button
           onClick={() => navigate('/comercial')}
-          className="text-steel-blue hover:text-dark-denim hover:bg-pale-cornflower/50"
+          className="text-steel-blue hover:text-dark-denim font-bold flex items-center gap-2 mb-6 transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Voltar ao Kanban
-        </Button>
-      </div>
+          <ArrowLeft className="w-5 h-5" /> Voltar ao Kanban
+        </button>
 
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm">
-        <div className="flex items-center gap-3 mb-2">
-          <FileText className="w-8 h-8 text-pale-cornflower" />
-          <h1 className="text-[32px] font-bold text-off-white">Documentação Pós-Venda</h1>
-        </div>
-        <p className="text-pale-cornflower">
-          Preencha as 8 seções obrigatórias para formalizar a venda do Lead ID:{' '}
-          {id?.substring(0, 8)}...
-        </p>
-      </div>
+        <div className="bg-midnight-navy p-8 rounded-t-2xl shadow-md">
+          <h1 className="text-[32px] font-bold text-off-white mb-2">Formulário Comercial</h1>
+          <div className="text-steel-blue font-semibold">Etapa {step} de 8</div>
 
-      <div className="bg-off-white border-2 border-steel-blue/20 p-6 rounded-xl shadow-sm space-y-8">
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue/20 pb-2">
-            1. Dados do Cliente
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-midnight-navy font-bold">Nome Completo</Label>
-              <Input
-                className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy focus-visible:border-dark-denim"
-                placeholder="Nome do cliente"
+          <div className="flex gap-2 mt-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div
+                key={i}
+                className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-dark-denim' : 'bg-pale-cornflower/20'}`}
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-midnight-navy font-bold">CPF / CNPJ</Label>
-              <Input
-                className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy focus-visible:border-dark-denim"
-                placeholder="000.000.000-00"
-              />
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-midnight-navy border-b-2 border-steel-blue/20 pb-2">
-            2. Datas Críticas
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-midnight-navy font-bold">Data de Liberação</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-steel-blue" />
-                <Input
-                  type="date"
-                  value={dataLiberacao}
-                  onChange={handleDateChange}
-                  className="pl-10 bg-pale-cornflower border-2 border-steel-blue text-midnight-navy focus-visible:border-dark-denim"
-                />
+        <div className="bg-off-white border-x-2 border-b-2 border-steel-blue/20 p-8 rounded-b-2xl shadow-md min-h-[500px] flex flex-col">
+          <div className="flex-1">{renderStep()}</div>
+
+          {step < 8 && (
+            <div className="mt-12 pt-6 border-t-2 border-steel-blue/20 flex flex-col sm:flex-row justify-between gap-4">
+              <button className="bg-pale-cornflower text-midnight-navy px-6 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all order-3 sm:order-1">
+                Salvar Rascunho
+              </button>
+              <div className="flex gap-4 order-1 sm:order-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setStep(step - 1)}
+                  disabled={step === 1}
+                  className="flex-1 sm:flex-none bg-steel-blue text-off-white px-6 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={() => setStep(step + 1)}
+                  disabled={!canAdvance}
+                  className="flex-1 sm:flex-none bg-dark-denim text-off-white px-8 py-3 rounded-lg font-bold hover:opacity-90 min-h-[44px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próximo
+                </button>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-midnight-navy font-bold">
-                Data Medida Fina (+5 dias úteis)
-              </Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-steel-blue/50" />
-                <Input
-                  type="date"
-                  readOnly
-                  value={dataMedidaFina}
-                  className="pl-10 bg-pale-cornflower/50 border-2 border-steel-blue/50 text-midnight-navy font-bold focus-visible:ring-0 cursor-not-allowed"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-pale-cornflower/30 border-2 border-dashed border-steel-blue/50 rounded-xl p-8 text-center mt-8">
-          <h3 className="text-xl font-bold text-midnight-navy mb-2">
-            Restante das 8 Seções em Desenvolvimento
-          </h3>
-          <p className="text-midnight-navy/70">
-            A tabela de produtos e modalidades de pagamento serão integrados em breve com os
-            templates dinâmicos.
-          </p>
-        </div>
-
-        <div className="flex justify-end gap-4 pt-4 border-t-2 border-steel-blue/20">
-          <Button
-            variant="outline"
-            className="bg-steel-blue text-off-white hover:bg-steel-blue/90 border-none min-h-[44px] px-8 text-base font-bold"
-            onClick={() => navigate('/comercial')}
-          >
-            Cancelar
-          </Button>
-          <Button
-            className="bg-dark-denim text-off-white hover:bg-dark-denim/90 min-h-[44px] px-8 text-base font-bold"
-            onClick={() => navigate('/comercial')}
-          >
-            Salvar e Gerar Documentos
-          </Button>
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DocumentacaoLead() {
+  return (
+    <FormProvider>
+      <FormWizard />
+    </FormProvider>
   )
 }

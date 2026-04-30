@@ -25,8 +25,8 @@ export function ConfirmSellModal({ lead, onClose, onConfirm }: Props) {
         </p>
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => {
-              onConfirm()
+            onClick={async () => {
+              await onConfirm()
               navigate(`/comercial/documentacao/${lead.id}`)
             }}
             className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] font-semibold transition-opacity duration-200 w-full"
