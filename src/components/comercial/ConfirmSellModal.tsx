@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Lead } from '@/types'
-import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
 import { moveLeadToClient } from '@/services/comercial'
+import { ComercialForm } from './ComercialForm'
 
 interface Props {
   lead: Lead
@@ -64,47 +64,9 @@ export function ConfirmSellModal({ lead, onClose }: Props) {
   }
 
   return (
-    <FormProvider>
-      <FormModalWrapper lead={lead} onClose={onClose} />
-    </FormProvider>
-  )
-}
-
-function FormModalWrapper({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { setLead } = useComercialForm()
-
-  useEffect(() => {
-    setLead(lead)
-  }, [lead, setLead])
-
-  return (
     <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-midnight-navy/80 overflow-y-auto p-0 md:p-4">
-      <div className="w-full min-h-screen md:min-h-0 md:max-w-[800px] bg-off-white md:rounded-[8px] flex flex-col shadow-2xl relative animate-fade-in-up">
-        {/* HEADER */}
-        <div className="bg-midnight-navy p-[24px] md:rounded-t-[8px] shrink-0">
-          <h2 className="text-off-white text-[32px] font-[700] leading-tight mb-1">
-            Formulário Comercial
-          </h2>
-          <p className="text-steel-blue text-[14px] font-[600]">Documentação do Cliente</p>
-        </div>
-
-        {/* CONTENT */}
-        <div className="p-[24px] flex-1">
-          <div className="bg-pale-cornflower/30 border-2 border-dashed border-steel-blue rounded-[8px] p-[48px] text-center">
-            <h3 className="text-midnight-navy font-[700] text-[20px] mb-[8px]">
-              Novo Formulário (Em Breve)
-            </h3>
-            <p className="text-steel-blue text-[16px]">
-              O ambiente está pronto para receber a nova versão de página única.
-            </p>
-            <button
-              onClick={onClose}
-              className="mt-[24px] bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-[700] hover:opacity-90"
-            >
-              Fechar e Voltar ao Kanban
-            </button>
-          </div>
-        </div>
+      <div className="w-full min-h-screen md:min-h-0 md:max-w-[1000px] md:max-h-[90vh] bg-off-white md:rounded-[8px] flex flex-col shadow-2xl relative animate-fade-in-up overflow-hidden">
+        <ComercialForm leadId={lead.id} onClose={onClose} isModal={true} />
       </div>
     </div>
   )
