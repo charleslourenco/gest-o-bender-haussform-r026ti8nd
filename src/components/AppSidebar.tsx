@@ -1,5 +1,14 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Wallet, Settings, UserCog, Target, Lock } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Users,
+  Wallet,
+  Settings,
+  UserCog,
+  Target,
+  Lock,
+  ClipboardList,
+} from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +27,12 @@ const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
   { title: 'Área de Clientes', icon: Users, url: '/area-clientes', module: 'Área de Clientes' },
+  {
+    title: 'Análise Técnica',
+    icon: ClipboardList,
+    url: '/analise-tecnica',
+    module: 'Análise Técnica',
+  },
   { title: 'Financeiro', icon: Wallet, url: '/financeiro', module: 'Financeiro' },
   { title: 'Usuários', icon: UserCog, url: '/usuarios', module: 'Usuários' },
 ]
