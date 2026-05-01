@@ -62,68 +62,68 @@ export function ClientesList({ onSelect }: { onSelect: (id: string) => void }) {
   })
 
   return (
-    <div className="p-4 md:p-6 space-y-6 flex-1 overflow-auto animate-in fade-in duration-300 bg-midnight-navy">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center bg-dark-denim p-6 rounded-xl text-off-white gap-4 shadow-sm border border-pale-cornflower">
+    <div className="p-4 md:p-6 space-y-6 flex-1 overflow-auto animate-in fade-in duration-300 bg-background">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center bg-card p-6 rounded-xl text-card-foreground gap-4 shadow-sm border border-border">
         <div>
           <h1 className="text-2xl font-bold">Clientes</h1>
-          <p className="text-off-white/80">Gerencie seus projetos e clientes</p>
+          <p className="text-muted-foreground">Gerencie seus projetos e clientes</p>
         </div>
-        <Button className="bg-steel-blue hover:bg-midnight-navy hover:border hover:border-steel-blue text-off-white border-none w-full md:w-auto">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground border-none w-full md:w-auto">
           <Plus className="w-4 h-4 mr-2" /> Novo Cliente
         </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-navy" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome do cliente..."
-            className="pl-9 bg-pale-cornflower text-midnight-navy border border-steel-blue focus-visible:border-2 focus-visible:border-steel-blue placeholder:text-midnight-navy/60"
+            className="pl-9 bg-background text-foreground border-border focus-visible:ring-2 focus-visible:ring-primary placeholder:text-muted-foreground"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <div className="flex-1 relative">
-          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-navy" />
+          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="date"
-            className="pl-9 bg-pale-cornflower text-midnight-navy border border-steel-blue focus-visible:border-2 focus-visible:border-steel-blue"
+            className="pl-9 bg-background text-foreground border-border focus-visible:ring-2 focus-visible:ring-primary"
             value={dateTerm}
             onChange={(e) => setDateTerm(e.target.value)}
           />
         </div>
         <div className="flex-1 relative">
-          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-navy" />
+          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Usuário/Consultor"
-            className="pl-9 bg-pale-cornflower text-midnight-navy border border-steel-blue focus-visible:border-2 focus-visible:border-steel-blue placeholder:text-midnight-navy/60"
+            className="pl-9 bg-background text-foreground border-border focus-visible:ring-2 focus-visible:ring-primary placeholder:text-muted-foreground"
             value={userTerm}
             onChange={(e) => setUserTerm(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="bg-dark-denim rounded-xl border border-pale-cornflower overflow-x-auto shadow-sm">
+      <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
         <Table className="min-w-[800px]">
-          <TableHeader className="bg-midnight-navy border-b border-pale-cornflower">
-            <TableRow className="hover:bg-transparent border-pale-cornflower">
-              <TableHead className="text-off-white font-bold">Número</TableHead>
-              <TableHead className="text-off-white font-bold">Nome do cliente</TableHead>
-              <TableHead className="text-off-white font-bold">Data da venda</TableHead>
-              <TableHead className="text-off-white font-bold">Valor da venda</TableHead>
-              <TableHead className="text-off-white font-bold">Vendedor</TableHead>
+          <TableHeader className="bg-muted/50 border-b border-border">
+            <TableRow className="hover:bg-transparent border-border">
+              <TableHead className="text-foreground font-bold">Número</TableHead>
+              <TableHead className="text-foreground font-bold">Nome do cliente</TableHead>
+              <TableHead className="text-foreground font-bold">Data da venda</TableHead>
+              <TableHead className="text-foreground font-bold">Valor da venda</TableHead>
+              <TableHead className="text-foreground font-bold">Vendedor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow className="border-pale-cornflower hover:bg-transparent">
-                <TableCell colSpan={5} className="text-center py-8 text-off-white/70">
+              <TableRow className="border-border hover:bg-transparent">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : filteredForms.length === 0 ? (
-              <TableRow className="border-pale-cornflower hover:bg-transparent">
-                <TableCell colSpan={5} className="text-center py-8 text-off-white/70">
+              <TableRow className="border-border hover:bg-transparent">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Nenhum cliente encontrado.
                 </TableCell>
               </TableRow>
@@ -131,24 +131,24 @@ export function ClientesList({ onSelect }: { onSelect: (id: string) => void }) {
               filteredForms.map((f, i) => (
                 <TableRow
                   key={f.id}
-                  className="cursor-pointer bg-dark-denim text-off-white border-pale-cornflower hover:bg-pale-cornflower hover:text-midnight-navy group"
+                  className="cursor-pointer bg-card text-card-foreground border-border hover:bg-muted group transition-colors"
                   onClick={() => onSelect(f.id)}
                 >
-                  <TableCell className="font-medium group-hover:text-midnight-navy">
+                  <TableCell className="font-medium group-hover:text-primary">
                     #{String(forms.length - i).padStart(3, '0')}
                   </TableCell>
-                  <TableCell className="group-hover:text-midnight-navy">{f.cliente_nome}</TableCell>
-                  <TableCell className="group-hover:text-midnight-navy">
+                  <TableCell>{f.cliente_nome}</TableCell>
+                  <TableCell>
                     {f.data_venda !== '-'
                       ? new Date(f.data_venda).toLocaleDateString('pt-BR')
                       : '-'}
                   </TableCell>
-                  <TableCell className="font-medium group-hover:text-midnight-navy">
+                  <TableCell className="font-medium">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                       f.valor,
                     )}
                   </TableCell>
-                  <TableCell className="group-hover:text-midnight-navy">{f.vendedor}</TableCell>
+                  <TableCell>{f.vendedor}</TableCell>
                 </TableRow>
               ))
             )}

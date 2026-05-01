@@ -37,25 +37,25 @@ const MOCK_EVENTS = [
 
 export function Timeline() {
   return (
-    <div className="space-y-6 bg-dark-denim">
-      <h3 className="font-bold text-off-white text-lg border-b border-pale-cornflower pb-3">
+    <div className="space-y-6 bg-card">
+      <h3 className="font-bold text-card-foreground text-lg border-b border-border pb-3">
         Timeline de Ações
       </h3>
       <div className="space-y-6 pt-2">
         {MOCK_EVENTS.map((event, idx) => (
           <div key={event.id} className="relative flex gap-4">
             {idx !== MOCK_EVENTS.length - 1 && (
-              <div className="absolute top-8 bottom-[-24px] left-[15px] w-[2px] bg-pale-cornflower" />
+              <div className="absolute top-8 bottom-[-24px] left-[15px] w-[2px] bg-border" />
             )}
-            <div className="relative z-10 w-8 h-8 rounded-full bg-midnight-navy flex items-center justify-center text-steel-blue shrink-0 border border-pale-cornflower shadow-sm">
-              <event.icon className="w-4 h-4 text-steel-blue" />
+            <div className="relative z-10 w-8 h-8 rounded-full bg-background flex items-center justify-center text-primary shrink-0 border border-border shadow-sm">
+              <event.icon className="w-4 h-4 text-primary" />
             </div>
             <div className="pt-1 pb-2">
               <div className="flex items-baseline gap-2 mb-1">
-                <span className="text-xs font-semibold text-steel-blue">{event.date}</span>
-                <span className="text-xs text-off-white/70">{event.time}</span>
+                <span className="text-xs font-semibold text-primary">{event.date}</span>
+                <span className="text-xs text-muted-foreground">{event.time}</span>
               </div>
-              <p className="text-sm text-off-white">
+              <p className="text-sm text-foreground">
                 <span className="font-semibold">{event.user}</span> {event.action}
               </p>
             </div>

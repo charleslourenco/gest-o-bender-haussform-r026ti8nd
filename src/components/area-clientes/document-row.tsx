@@ -15,14 +15,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
   const restTitle = restPart.join(' | ')
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between py-3 px-4 border border-pale-cornflower bg-dark-denim text-off-white hover:bg-pale-cornflower hover:text-midnight-navy rounded-md transition-colors group gap-3">
+    <div className="flex flex-col md:flex-row md:items-center justify-between py-3 px-4 border border-border bg-card text-card-foreground hover:bg-muted/50 rounded-md transition-colors group gap-3">
       <span className="font-medium flex-1 text-sm md:text-base flex gap-2">
         {restTitle ? (
           <>
-            <span className="text-steel-blue font-bold group-hover:text-midnight-navy">
-              {numberPart}
-            </span>
-            <span className="text-pale-cornflower group-hover:text-midnight-navy">|</span>
+            <span className="text-primary font-bold">{numberPart}</span>
+            <span className="text-muted-foreground/50">|</span>
             <span>{restTitle}</span>
           </>
         ) : (
@@ -36,12 +34,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
+                className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Upload className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+            <TooltipContent className="bg-card text-card-foreground border border-border">
               Substituir
             </TooltipContent>
           </Tooltip>
@@ -52,12 +50,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
+                className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Edit2 className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+            <TooltipContent className="bg-card text-card-foreground border border-border">
               Editar
             </TooltipContent>
           </Tooltip>
@@ -68,12 +66,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
+                className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Eye className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+            <TooltipContent className="bg-card text-card-foreground border border-border">
               Ler
             </TooltipContent>
           </Tooltip>
@@ -84,12 +82,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
+                className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Download className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+            <TooltipContent className="bg-card text-card-foreground border border-border">
               Baixar
             </TooltipContent>
           </Tooltip>
@@ -100,12 +98,12 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
+                className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <PenTool className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+            <TooltipContent className="bg-card text-card-foreground border border-border">
               Enviar p/ assinatura
             </TooltipContent>
           </Tooltip>

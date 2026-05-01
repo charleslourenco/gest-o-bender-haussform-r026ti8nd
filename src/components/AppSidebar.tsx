@@ -50,21 +50,23 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="border-r border-dark-denim bg-midnight-navy [&>div[data-sidebar=sidebar]]:bg-midnight-navy">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2 bg-midnight-navy">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-denim text-off-white font-bold text-xl">
+    <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
+      <SidebarHeader className="p-4 flex flex-row items-center gap-2">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm">
           M
         </div>
-        <span className="font-bold text-lg text-off-white truncate">Móveis Gestão</span>
+        <span className="font-bold text-lg text-sidebar-foreground truncate">Móveis Gestão</span>
       </SidebarHeader>
-      <SidebarContent className="bg-midnight-navy">
+      <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-off-white">Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sidebar-foreground/70">
+            Menu Principal
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
                 const canAccess = hasAccess(item.module)
-                const isActive = location.pathname === item.url
+                const isActive = location.pathname.startsWith(item.url)
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
@@ -74,8 +76,8 @@ export function AppSidebar() {
                       className={cn(
                         !canAccess ? 'opacity-60 cursor-not-allowed' : '',
                         isActive
-                          ? 'bg-steel-blue text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-steel-blue data-[active=true]:text-off-white'
-                          : 'text-off-white hover:bg-dark-denim hover:text-off-white',
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground'
+                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
                       {canAccess ? (
@@ -87,7 +89,7 @@ export function AppSidebar() {
                         <div className="flex items-center gap-3 w-full">
                           <item.icon className="w-5 h-5" />
                           <span className="font-medium">{item.title}</span>
-                          <Lock className="w-4 h-4 ml-auto" />
+                          <Lock className="w-4 h-4 ml-auto text-sidebar-foreground/50" />
                         </div>
                       )}
                     </SidebarMenuButton>
@@ -109,8 +111,8 @@ export function AppSidebar() {
                   className={cn(
                     !hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : '',
                     location.pathname === '/admin'
-                      ? 'bg-steel-blue text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-steel-blue data-[active=true]:text-off-white'
-                      : 'text-off-white hover:bg-dark-denim hover:text-off-white',
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   )}
                 >
                   {hasAccess('Administrativo') ? (
@@ -122,7 +124,7 @@ export function AppSidebar() {
                     <div className="flex items-center gap-3 w-full">
                       <Settings className="w-5 h-5" />
                       <span className="font-medium">Administrativo</span>
-                      <Lock className="w-4 h-4 ml-auto" />
+                      <Lock className="w-4 h-4 ml-auto text-sidebar-foreground/50" />
                     </div>
                   )}
                 </SidebarMenuButton>

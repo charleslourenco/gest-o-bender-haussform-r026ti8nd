@@ -21,7 +21,7 @@ export default function AreaClientes() {
   }, [id])
 
   return (
-    <div className="h-full flex flex-col bg-midnight-navy">
+    <div className="h-full flex flex-col bg-background">
       {activeTab === 'lista' ? (
         <ClientesList
           onSelect={(formId) => {

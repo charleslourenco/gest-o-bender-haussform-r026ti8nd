@@ -37,9 +37,9 @@ export function Header() {
   const userName = user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário'
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-steel-blue bg-midnight-navy px-4 shadow-sm">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-card px-4 shadow-sm">
       <div className="flex items-center gap-4">
-        <SidebarTrigger className="text-off-white hover:text-pale-cornflower" />
+        <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
         {empresa?.logo_url && (
           <img
             src={empresa.logo_url}
@@ -48,11 +48,11 @@ export function Header() {
           />
         )}
         <div className="hidden md:flex relative w-96">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-midnight-navy/60" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Buscar projetos, clientes ou itens..."
-            className="w-full bg-pale-cornflower pl-9 border-steel-blue text-midnight-navy placeholder:text-midnight-navy/60 focus-visible:ring-0 focus-visible:border-dark-denim focus-visible:border-[3px]"
+            className="w-full bg-muted/30 pl-9 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent"
           />
         </div>
       </div>
@@ -61,29 +61,29 @@ export function Header() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-off-white hover:text-pale-cornflower hover:bg-dark-denim/50"
+          className="relative text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           <Bell className="h-5 w-5" />
           {totalAlerts > 0 && (
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 rounded-full bg-steel-blue text-off-white text-[10px] border-none">
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 rounded-full bg-destructive text-destructive-foreground text-[10px] border-none">
               {totalAlerts}
             </Badge>
           )}
         </Button>
-        <div className="flex items-center gap-4 border-l pl-4 border-steel-blue">
+        <div className="flex items-center gap-4 border-l pl-4 border-border">
           <div className="flex items-center gap-2">
             <div className="hidden md:flex flex-col text-right">
-              <span className="text-sm font-medium leading-none text-off-white">{userName}</span>
-              <span className="text-xs text-pale-cornflower">
+              <span className="text-sm font-medium leading-none text-foreground">{userName}</span>
+              <span className="text-xs text-muted-foreground">
                 {empresa?.nome || 'Bender Haussform'}
               </span>
             </div>
-            <Avatar className="h-9 w-9 border-2 border-steel-blue">
+            <Avatar className="h-9 w-9 border border-border">
               <AvatarImage
                 src={`https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${user?.id || 1}`}
                 alt={userName}
               />
-              <AvatarFallback className="bg-dark-denim text-off-white">
+              <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
               </AvatarFallback>
             </Avatar>
@@ -93,7 +93,7 @@ export function Header() {
             size="icon"
             onClick={() => signOut()}
             title="Sair"
-            className="text-pale-cornflower hover:text-off-white hover:bg-dark-denim/50"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <LogOut className="h-5 w-5" />
           </Button>
