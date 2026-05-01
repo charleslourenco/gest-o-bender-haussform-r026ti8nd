@@ -11,10 +11,23 @@ interface DocumentRowProps {
 }
 
 export function DocumentRow({ doc }: DocumentRowProps) {
+  const [numberPart, ...restPart] = doc.title.split(' | ')
+  const restTitle = restPart.join(' | ')
+
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between py-3 border-b border-steel-blue/10 last:border-0 hover:bg-off-white/50 px-2 rounded-md transition-colors group gap-3">
-      <span className="font-medium text-midnight-navy flex-1 text-sm md:text-base">
-        {doc.title}
+    <div className="flex flex-col md:flex-row md:items-center justify-between py-3 px-4 border border-pale-cornflower bg-dark-denim text-off-white hover:bg-pale-cornflower hover:text-midnight-navy rounded-md transition-colors group gap-3">
+      <span className="font-medium flex-1 text-sm md:text-base flex gap-2">
+        {restTitle ? (
+          <>
+            <span className="text-steel-blue font-bold group-hover:text-midnight-navy">
+              {numberPart}
+            </span>
+            <span className="text-pale-cornflower group-hover:text-midnight-navy">|</span>
+            <span>{restTitle}</span>
+          </>
+        ) : (
+          <span>{doc.title}</span>
+        )}
       </span>
       <div className="flex flex-wrap gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {doc.actions.includes('trocar') && (
@@ -23,12 +36,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 text-steel-blue border-steel-blue/20 hover:bg-pale-cornflower hover:text-dark-denim"
+                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
               >
                 <Upload className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Substituir</TooltipContent>
+            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+              Substituir
+            </TooltipContent>
           </Tooltip>
         )}
         {doc.actions.includes('editar') && (
@@ -37,12 +52,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 text-steel-blue border-steel-blue/20 hover:bg-pale-cornflower hover:text-dark-denim"
+                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
               >
                 <Edit2 className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
+            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+              Editar
+            </TooltipContent>
           </Tooltip>
         )}
         {doc.actions.includes('ler') && (
@@ -51,12 +68,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 text-steel-blue border-steel-blue/20 hover:bg-pale-cornflower hover:text-dark-denim"
+                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
               >
                 <Eye className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Ler</TooltipContent>
+            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+              Ler
+            </TooltipContent>
           </Tooltip>
         )}
         {doc.actions.includes('baixar') && (
@@ -65,12 +84,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 text-steel-blue border-steel-blue/20 hover:bg-pale-cornflower hover:text-dark-denim"
+                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
               >
                 <Download className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Baixar</TooltipContent>
+            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+              Baixar
+            </TooltipContent>
           </Tooltip>
         )}
         {doc.actions.includes('enviar') && (
@@ -79,12 +100,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                className="w-8 h-8 text-white bg-dark-denim hover:bg-midnight-navy border-none shadow-sm"
+                className="w-8 h-8 bg-transparent border-none text-steel-blue hover:bg-pale-cornflower hover:text-midnight-navy cursor-pointer shadow-none"
               >
                 <PenTool className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Enviar p/ assinatura</TooltipContent>
+            <TooltipContent className="bg-dark-denim text-off-white border border-pale-cornflower">
+              Enviar p/ assinatura
+            </TooltipContent>
           </Tooltip>
         )}
       </div>

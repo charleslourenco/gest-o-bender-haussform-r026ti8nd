@@ -55,11 +55,11 @@ export function AppSidebar() {
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-dark-denim text-off-white font-bold text-xl">
           M
         </div>
-        <span className="font-bold text-lg text-pale-cornflower truncate">Móveis Gestão</span>
+        <span className="font-bold text-lg text-off-white truncate">Móveis Gestão</span>
       </SidebarHeader>
       <SidebarContent className="bg-midnight-navy">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-steel-blue">Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-off-white">Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
@@ -74,8 +74,8 @@ export function AppSidebar() {
                       className={cn(
                         !canAccess ? 'opacity-60 cursor-not-allowed' : '',
                         isActive
-                          ? 'bg-dark-denim text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-dark-denim data-[active=true]:text-off-white'
-                          : 'text-pale-cornflower hover:bg-dark-denim hover:text-off-white',
+                          ? 'bg-steel-blue text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-steel-blue data-[active=true]:text-off-white'
+                          : 'text-off-white hover:bg-dark-denim hover:text-off-white',
                       )}
                     >
                       {canAccess ? (
@@ -109,8 +109,8 @@ export function AppSidebar() {
                   className={cn(
                     !hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : '',
                     location.pathname === '/admin'
-                      ? 'bg-dark-denim text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-dark-denim data-[active=true]:text-off-white'
-                      : 'text-pale-cornflower hover:bg-dark-denim hover:text-off-white',
+                      ? 'bg-steel-blue text-off-white hover:bg-dark-denim hover:text-off-white data-[active=true]:bg-steel-blue data-[active=true]:text-off-white'
+                      : 'text-off-white hover:bg-dark-denim hover:text-off-white',
                   )}
                 >
                   {hasAccess('Administrativo') ? (
