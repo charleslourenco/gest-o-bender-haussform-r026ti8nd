@@ -854,6 +854,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_module_access: {
+        Args: { mod: string; user_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
@@ -1373,9 +1377,14 @@ export const Constants = {
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 //   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_select_analise" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 //   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_update_analise" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 // Table: templates
 //   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1408,6 +1417,23 @@ export const Constants = {
 //       email = EXCLUDED.email,
 //       nome = EXCLUDED.nome;
 //     RETURN NEW;
+//   END;
+//   $function$
+//
+// FUNCTION has_module_access(uuid, text)
+//   CREATE OR REPLACE FUNCTION public.has_module_access(user_id uuid, mod text)
+//    RETURNS boolean
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   DECLARE
+//     has_access boolean;
+//   BEGIN
+//     SELECT EXISTS(
+//       SELECT 1 FROM public.matriz_permissoes
+//       WHERE usuario_id = user_id AND modulo = mod AND nivel_acesso IN ('Admin', 'Editor', 'Leitor')
+//     ) INTO has_access;
+//     RETURN has_access;
 //   END;
 //   $function$
 //
