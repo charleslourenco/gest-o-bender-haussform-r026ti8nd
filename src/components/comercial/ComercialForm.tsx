@@ -85,7 +85,7 @@ export function ComercialForm({
           telefone: cliente?.telefone || lead?.telefone || '',
           email: cliente?.email || lead?.email || '',
           profissao: form.profissao || '',
-          estado_civil: form.estado_civil || 'solteiro / solteira',
+          estado_civil: form.estado_civil || 'solteiro',
           end_cep: form.cep || '',
           end_municipio: form.municipio || '',
           end_estado: form.estado || '',

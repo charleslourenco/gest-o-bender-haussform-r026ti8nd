@@ -50,7 +50,7 @@ export const defaultState: FormState = {
   telefone: '',
   email: '',
   profissao: '',
-  estado_civil: 'solteiro / solteira',
+  estado_civil: 'solteiro',
   end_cep: '',
   end_municipio: '',
   end_estado: '',
