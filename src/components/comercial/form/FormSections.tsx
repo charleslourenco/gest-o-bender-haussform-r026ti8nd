@@ -75,10 +75,14 @@ export function SectionPessoal({ data, update }: Props) {
             value={data.estado_civil}
             onChange={(e) => update('estado_civil', e.target.value)}
           >
-            <option value="solteiro">Solteiro(a)</option>
-            <option value="casado">Casado(a)</option>
-            <option value="divorciado">Divorciado(a)</option>
-            <option value="viuvo">Viúvo(a)</option>
+            <option value="solteiro / solteira">solteiro / solteira</option>
+            <option value="casado / casada">casado / casada</option>
+            <option value="divorciado / divorciada">divorciado / divorciada</option>
+            <option value="viúvo / viúva">viúvo / viúva</option>
+            <option value="separado judicialmente / separada judicialmente">
+              separado judicialmente / separada judicialmente
+            </option>
+            <option value="união estável">união estável</option>
           </select>
         </div>
       </div>
@@ -585,14 +589,37 @@ export function SectionPagamento({
 }
 
 export function SectionDatas({ data, update }: Props) {
-  const dataVenda = useMemo(() => new Date().toISOString().split('T')[0], [])
-  const dataEntregaStr = useMemo(() => {
-    if (!data.data_medida) return ''
-    const base = new Date(data.data_medida)
-    if (isNaN(base.getTime())) return ''
-    const formatD = (d: Date) => d.toLocaleDateString('pt-BR')
-    return `Entrega entre dia ${formatD(addBusinessDays(base, 50))} e dia ${formatD(addBusinessDays(base, 70))}`
+  const dataVenda = useMemo(() => {
+    const today = new Date()
+    const m = String(today.getMonth() + 1).padStart(2, '0')
+    const d = String(today.getDate()).padStart(2, '0')
+    return `${today.getFullYear()}-${m}-${d}`
+  }, [])
+
+  const formatDate = (isoStr: string) => {
+    if (!isoStr) return ''
+    const [y, m, d] = isoStr.split('-')
+    return `${d}/${m}/${y}`
+  }
+
+  const isPast = (dateStr: string) => {
+    if (!dateStr) return false
+    return dateStr < dataVenda
+  }
+
+  const formatD = (d: Date) => d.toLocaleDateString('pt-BR')
+
+  const medidaFinaDate = useMemo(() => {
+    if (!data.data_medida) return null
+    const base = new Date(data.data_medida + 'T12:00:00')
+    if (isNaN(base.getTime())) return null
+    return addBusinessDays(base, 5)
   }, [data.data_medida])
+
+  const entregaStr = useMemo(() => {
+    if (!medidaFinaDate) return ''
+    return `Entrega entre dia ${formatD(addBusinessDays(medidaFinaDate, 50))} e dia ${formatD(addBusinessDays(medidaFinaDate, 70))}`
+  }, [medidaFinaDate])
 
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
@@ -601,15 +628,15 @@ export function SectionDatas({ data, update }: Props) {
         <div>
           <label className="block text-[14px] font-semibold mb-[4px]">Data da venda</label>
           <input
-            type="date"
+            type="text"
             readOnly
             className={inputClass + ' opacity-50 cursor-not-allowed'}
-            value={dataVenda}
+            value={`Data da venda: ${formatDate(dataVenda)}`}
           />
         </div>
         <div>
           <label className="block text-[14px] font-semibold mb-[4px]">
-            Data estimada p/ medida fina *
+            Data estimada que o imóvel estará livre para medida fina *
           </label>
           <input
             type="date"
@@ -617,15 +644,32 @@ export function SectionDatas({ data, update }: Props) {
             value={data.data_medida}
             onChange={(e) => update('data_medida', e.target.value)}
           />
+          {isPast(data.data_medida) && (
+            <span className="text-steel-blue text-[12px] font-semibold mt-[4px] block">
+              A data não pode ser no passado.
+            </span>
+          )}
         </div>
-        <div className="md:col-span-2">
-          <label className="block text-[14px] font-semibold mb-[4px]">Previsão de entrega</label>
+        <div>
+          <label className="block text-[14px] font-semibold mb-[4px]">Data da medida fina</label>
           <input
             type="text"
             readOnly
             className={inputClass + ' opacity-50 cursor-not-allowed'}
-            value={dataEntregaStr}
-            placeholder="Preencha a data de medida fina"
+            value={medidaFinaDate ? `Data da medida fina: ${formatD(medidaFinaDate)}` : ''}
+            placeholder="Preencha a data estimada"
+          />
+        </div>
+        <div>
+          <label className="block text-[14px] font-semibold mb-[4px]">
+            Data de entrega dos móveis sob medida
+          </label>
+          <input
+            type="text"
+            readOnly
+            className={inputClass + ' opacity-50 cursor-not-allowed'}
+            value={entregaStr}
+            placeholder="Preencha a data estimada"
           />
         </div>
       </div>
@@ -669,6 +713,36 @@ export function SectionResumo({ data, update, total }: Props & { total: number }
           )}
         </div>
         <div>
+          <h3 className="font-semibold mb-[4px]">Datas importantes:</h3>
+          <p>Data da venda: {new Date().toLocaleDateString('pt-BR')}</p>
+          <p>
+            Data estimada de acesso ao imóvel:{' '}
+            {data.data_medida
+              ? new Date(data.data_medida + 'T12:00:00').toLocaleDateString('pt-BR')
+              : '-'}
+          </p>
+          <p>
+            Data da medida fina:{' '}
+            {data.data_medida
+              ? (() => {
+                  const base = new Date(data.data_medida + 'T12:00:00')
+                  return addBusinessDays(base, 5).toLocaleDateString('pt-BR')
+                })()
+              : '-'}
+          </p>
+          <p>
+            {data.data_medida
+              ? (() => {
+                  const base = new Date(data.data_medida + 'T12:00:00')
+                  const medidaFina = addBusinessDays(base, 5)
+                  const ini = addBusinessDays(medidaFina, 50).toLocaleDateString('pt-BR')
+                  const fim = addBusinessDays(medidaFina, 70).toLocaleDateString('pt-BR')
+                  return `Entrega entre dia ${ini} e dia ${fim}`
+                })()
+              : 'Entrega: -'}
+          </p>
+        </div>
+        <div>
           <h3 className="font-semibold mb-[4px]">Nome de quem vendeu:</h3>
           <input
             type="text"
@@ -676,10 +750,6 @@ export function SectionResumo({ data, update, total }: Props & { total: number }
             value={data.vendedor_nome}
             onChange={(e) => update('vendedor_nome', e.target.value)}
           />
-        </div>
-        <div>
-          <h3 className="font-semibold mb-[4px]">Data da venda:</h3>
-          <p>{new Date().toLocaleDateString('pt-BR')}</p>
         </div>
       </div>
     </div>

@@ -85,7 +85,7 @@ export function ComercialForm({
           telefone: cliente?.telefone || lead?.telefone || '',
           email: cliente?.email || lead?.email || '',
           profissao: form.profissao || '',
-          estado_civil: form.estado_civil || 'solteiro',
+          estado_civil: form.estado_civil || 'solteiro / solteira',
           end_cep: form.cep || '',
           end_municipio: form.municipio || '',
           end_estado: form.estado || '',
@@ -178,6 +178,13 @@ export function ComercialForm({
     if (!data.end_cep || !data.end_numero || !data.obra_cep || !data.obra_numero) return false
     if (data.produtos.length === 0 || data.produtos[0].valor_unitario <= 0) return false
     if (!data.data_medida) return false
+
+    const today = new Date()
+    const m = String(today.getMonth() + 1).padStart(2, '0')
+    const d = String(today.getDate()).padStart(2, '0')
+    const todayStr = `${today.getFullYear()}-${m}-${d}`
+    if (data.data_medida < todayStr) return false
+
     if (data.forma_pagamento === 'PARCELADO' && !parcelasBatem) return false
     return true
   }, [data, parcelasBatem])
