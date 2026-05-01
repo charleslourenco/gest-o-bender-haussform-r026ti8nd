@@ -44,6 +44,65 @@ export type Database = {
           },
         ]
       }
+      assinaturas: {
+        Row: {
+          cliente_id: string | null
+          codigo_confirmacao: string
+          criado_em: string
+          data_assinatura: string | null
+          documento_id: string
+          documento_nome: string
+          expira_em: string
+          id: string
+          signatario_cpf: string | null
+          signatario_email: string | null
+          signatario_nome: string
+          signatario_telefone: string | null
+          signatario_tipo: string
+          status: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          codigo_confirmacao: string
+          criado_em?: string
+          data_assinatura?: string | null
+          documento_id: string
+          documento_nome: string
+          expira_em: string
+          id?: string
+          signatario_cpf?: string | null
+          signatario_email?: string | null
+          signatario_nome: string
+          signatario_telefone?: string | null
+          signatario_tipo: string
+          status?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          codigo_confirmacao?: string
+          criado_em?: string
+          data_assinatura?: string | null
+          documento_id?: string
+          documento_nome?: string
+          expira_em?: string
+          id?: string
+          signatario_cpf?: string | null
+          signatario_email?: string | null
+          signatario_nome?: string
+          signatario_telefone?: string | null
+          signatario_tipo?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assinaturas_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       clientes: {
         Row: {
           atualizado_em: string
@@ -393,6 +452,7 @@ export type Database = {
           referencia_bancaria: string | null
           renda: number | null
           rua: string | null
+          user_id: string
           usuario_id: string | null
         }
         Insert: {
@@ -430,6 +490,7 @@ export type Database = {
           referencia_bancaria?: string | null
           renda?: number | null
           rua?: string | null
+          user_id?: string
           usuario_id?: string | null
         }
         Update: {
@@ -467,6 +528,7 @@ export type Database = {
           referencia_bancaria?: string | null
           renda?: number | null
           rua?: string | null
+          user_id?: string
           usuario_id?: string | null
         }
         Relationships: [
@@ -813,6 +875,41 @@ export type Database = {
         }
         Relationships: []
       }
+      timeline_eventos: {
+        Row: {
+          acao: string
+          cliente_id: string | null
+          criado_em: string
+          icone: string | null
+          id: string
+          usuario_nome: string
+        }
+        Insert: {
+          acao: string
+          cliente_id?: string | null
+          criado_em?: string
+          icone?: string | null
+          id?: string
+          usuario_nome: string
+        }
+        Update: {
+          acao?: string
+          cliente_id?: string | null
+          criado_em?: string
+          icone?: string | null
+          id?: string
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'timeline_eventos_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       users: {
         Row: {
           atualizado_em: string
@@ -1007,6 +1104,21 @@ export const Constants = {
 //   metragem: numeric (nullable)
 //   descricao: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: assinaturas
+//   id: uuid (not null, default: gen_random_uuid())
+//   documento_id: text (not null)
+//   documento_nome: text (not null)
+//   cliente_id: uuid (nullable)
+//   signatario_tipo: text (not null)
+//   signatario_nome: text (not null)
+//   signatario_cpf: text (nullable)
+//   signatario_email: text (nullable)
+//   signatario_telefone: text (nullable)
+//   codigo_confirmacao: text (not null)
+//   status: text (not null, default: 'pendente'::text)
+//   data_assinatura: timestamp with time zone (nullable)
+//   expira_em: timestamp with time zone (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: clientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1115,6 +1227,7 @@ export const Constants = {
 //   dados_etapa_2: jsonb (nullable, default: '{}'::jsonb)
 //   dados_etapa_3: jsonb (nullable, default: '{}'::jsonb)
 //   dados_etapa_4: jsonb (nullable, default: '{}'::jsonb)
+//   user_id: uuid (not null, default: auth.uid())
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1187,6 +1300,13 @@ export const Constants = {
 //   arquivo_url: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: timeline_eventos
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   usuario_nome: text (not null)
+//   acao: text (not null)
+//   icone: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: users
 //   id: uuid (not null)
 //   email: text (not null)
@@ -1202,6 +1322,9 @@ export const Constants = {
 // Table: ambientes
 //   FOREIGN KEY ambientes_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY ambientes_pkey: PRIMARY KEY (id)
+// Table: assinaturas
+//   FOREIGN KEY assinaturas_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY assinaturas_pkey: PRIMARY KEY (id)
 // Table: clientes
 //   UNIQUE clientes_cpf_key: UNIQUE (cpf)
 //   FOREIGN KEY clientes_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
@@ -1228,6 +1351,7 @@ export const Constants = {
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
 // Table: formulario_comercial
+//   FOREIGN KEY fk_formulario_user: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
@@ -1256,6 +1380,9 @@ export const Constants = {
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
 // Table: templates
 //   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
+// Table: timeline_eventos
+//   FOREIGN KEY timeline_eventos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY timeline_eventos_pkey: PRIMARY KEY (id)
 // Table: users
 //   UNIQUE users_email_key: UNIQUE (email)
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -1271,6 +1398,10 @@ export const Constants = {
 //     USING: true
 //   Policy "ambientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: assinaturas
+//   Policy "Assinaturas All Access" (ALL, PERMISSIVE) roles={public}
+//     USING: true
+//     WITH CHECK: true
 // Table: clientes
 //   Policy "clientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -1328,6 +1459,15 @@ export const Constants = {
 //   Policy "Enable update for own forms" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (usuario_id = auth.uid())
 //     WITH CHECK: (usuario_id = auth.uid())
+//   Policy "Users can delete own formulario_comercial" (DELETE, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can insert own formulario_comercial" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Users can select own formulario_comercial" (SELECT, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
+//   Policy "Users can update own formulario_comercial" (UPDATE, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1387,6 +1527,10 @@ export const Constants = {
 //     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 // Table: templates
 //   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: timeline_eventos
+//   Policy "Timeline All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true
 // Table: users
@@ -1493,5 +1637,6 @@ export const Constants = {
 //   CREATE UNIQUE INDEX documentos_obrigatorios_tipo_key ON public.documentos_obrigatorios USING btree (tipo)
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
+//   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)

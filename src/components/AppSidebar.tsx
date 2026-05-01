@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
-  { title: 'Área de Clientes', icon: Users, url: '/area-clientes', module: 'Área de Clientes' },
+  { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
     title: 'Análise Técnica',
     icon: ClipboardList,

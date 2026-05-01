@@ -29,7 +29,7 @@ export default function AreaClientes() {
           }}
         />
       ) : (
-        <ClienteFolder formId={selectedFormId!} onBack={() => navigate('/area-clientes')} />
+        <ClienteFolder formId={selectedFormId!} onBack={() => navigate('/clientes')} />
       )}
     </div>
   )
