@@ -2,20 +2,16 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
-import { Step1Cliente } from '@/components/comercial/form/step-1'
 import { AlertCircle } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
 
 function FormContainer() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { toast } = useToast()
 
-  const { lead, setLead, data, updateData, step, canAdvance } = useComercialForm()
+  const { lead, setLead, updateData } = useComercialForm()
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -74,51 +70,6 @@ function FormContainer() {
     init()
   }, [id, setLead, updateData])
 
-  const handleNext = async () => {
-    setIsSaving(true)
-    try {
-      const numericRenda = parseFloat(data.cliente.renda.replace(/\./g, '').replace(',', '.')) || 0
-
-      const payload = {
-        lead_id: id,
-        cpf: data.cliente.cpf,
-        data_nascimento: data.cliente.dataNasc || null,
-        profissao: data.cliente.profissao,
-        renda: numericRenda,
-        referencia_bancaria: data.cliente.refBancaria,
-      }
-
-      const { data: existing } = await supabase
-        .from('formulario_comercial')
-        .select('id')
-        .eq('lead_id', id)
-        .maybeSingle()
-
-      if (existing) {
-        const { error } = await supabase
-          .from('formulario_comercial')
-          .update(payload)
-          .eq('id', existing.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('formulario_comercial').insert([payload])
-        if (error) throw error
-      }
-
-      toast({
-        description: 'Dados validados com sucesso! Próxima etapa...',
-        className: 'bg-dark-denim text-off-white border-none p-[16px] rounded-[8px]',
-      })
-    } catch (err: any) {
-      toast({
-        description: err.message,
-        className: 'bg-steel-blue text-off-white border-none p-[16px] rounded-[8px]',
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   if (hasPermission === null || isLoading) {
     return (
       <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white overflow-hidden">
@@ -126,7 +77,6 @@ function FormContainer() {
           <div className="max-w-[800px] mx-auto w-full">
             <div className="h-[38px] w-64 bg-pale-cornflower/20 animate-pulse rounded-lg mb-[8px]"></div>
             <div className="h-[20px] w-32 bg-pale-cornflower/20 animate-pulse rounded-lg mb-[24px]"></div>
-            <div className="h-[8px] bg-pale-cornflower/20 animate-pulse rounded-[4px]"></div>
           </div>
         </header>
         <main className="flex-1 p-[24px] overflow-y-auto">
@@ -196,35 +146,26 @@ function FormContainer() {
       <header className="bg-midnight-navy p-[24px] shrink-0">
         <div className="max-w-[800px] mx-auto w-full">
           <h1 className="text-off-white text-[32px] font-[700] mb-[8px]">Formulário Comercial</h1>
-          <p className="text-steel-blue text-[14px] font-[600] mb-[24px]">Etapa {step} de 8</p>
-          <div className="flex gap-[8px]">
-            {Array.from({ length: 8 }).map((_, i) => {
-              const s = i + 1
-              let bgClass = 'bg-pale-cornflower/50'
-              if (s === step) bgClass = 'bg-dark-denim'
-              return <div key={s} className={`h-[8px] flex-1 rounded-[4px] ${bgClass}`} />
-            })}
-          </div>
+          <p className="text-steel-blue text-[14px] font-[600]">Documentação do Cliente</p>
         </div>
       </header>
       <main className="flex-1 p-[24px] overflow-y-auto">
         <div className="max-w-[800px] mx-auto bg-off-white w-full rounded-[8px]">
-          <Step1Cliente />
-
-          <div className="mt-[32px] flex flex-col md:flex-row justify-between gap-[16px]">
-            <button
-              onClick={() => navigate('/comercial')}
-              className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all duration-200 min-h-[44px] font-bold order-1 md:order-1 w-full md:w-auto"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={!canAdvance || isSaving}
-              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 min-h-[44px] font-bold order-2 md:order-2 w-full md:w-auto"
-            >
-              {isSaving ? 'Aguarde...' : 'Próximo'}
-            </button>
+          <div className="bg-pale-cornflower/30 border-2 border-dashed border-steel-blue rounded-[8px] p-[48px] text-center">
+            <h3 className="text-midnight-navy font-[700] text-[20px] mb-[8px]">
+              Novo Formulário (Em Breve)
+            </h3>
+            <p className="text-steel-blue text-[16px]">
+              O ambiente está pronto para receber a nova versão de página única.
+            </p>
+            <div className="mt-[32px] flex justify-center">
+              <button
+                onClick={() => navigate('/comercial')}
+                className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] hover:opacity-90 transition-all duration-200 min-h-[44px] font-bold"
+              >
+                Voltar ao Kanban
+              </button>
+            </div>
           </div>
         </div>
       </main>

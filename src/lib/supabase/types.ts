@@ -234,44 +234,113 @@ export type Database = {
       formulario_comercial: {
         Row: {
           atualizado_em: string
+          bairro: string | null
+          cep: string | null
           cliente_id: string | null
+          complemento: string | null
           cpf: string | null
           criado_em: string
+          dados_etapa_1: Json | null
+          dados_etapa_2: Json | null
+          dados_etapa_3: Json | null
+          dados_etapa_4: Json | null
           data_nascimento: string | null
+          datas: Json | null
+          desconto: number | null
+          estado: string | null
+          estado_civil: string | null
           etapa_atual: number | null
           id: string
           lead_id: string
+          municipio: string | null
+          numero: string | null
+          obra_bairro: string | null
+          obra_cep: string | null
+          obra_complemento: string | null
+          obra_estado: string | null
+          obra_municipio: string | null
+          obra_numero: string | null
+          obra_rua: string | null
+          pagamentos: Json | null
+          produtos_servicos: Json | null
           profissao: string | null
           referencia_bancaria: string | null
           renda: number | null
+          rua: string | null
           usuario_id: string | null
         }
         Insert: {
           atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
           cliente_id?: string | null
+          complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          dados_etapa_1?: Json | null
+          dados_etapa_2?: Json | null
+          dados_etapa_3?: Json | null
+          dados_etapa_4?: Json | null
           data_nascimento?: string | null
+          datas?: Json | null
+          desconto?: number | null
+          estado?: string | null
+          estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
           lead_id: string
+          municipio?: string | null
+          numero?: string | null
+          obra_bairro?: string | null
+          obra_cep?: string | null
+          obra_complemento?: string | null
+          obra_estado?: string | null
+          obra_municipio?: string | null
+          obra_numero?: string | null
+          obra_rua?: string | null
+          pagamentos?: Json | null
+          produtos_servicos?: Json | null
           profissao?: string | null
           referencia_bancaria?: string | null
           renda?: number | null
+          rua?: string | null
           usuario_id?: string | null
         }
         Update: {
           atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
           cliente_id?: string | null
+          complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          dados_etapa_1?: Json | null
+          dados_etapa_2?: Json | null
+          dados_etapa_3?: Json | null
+          dados_etapa_4?: Json | null
           data_nascimento?: string | null
+          datas?: Json | null
+          desconto?: number | null
+          estado?: string | null
+          estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
           lead_id?: string
+          municipio?: string | null
+          numero?: string | null
+          obra_bairro?: string | null
+          obra_cep?: string | null
+          obra_complemento?: string | null
+          obra_estado?: string | null
+          obra_municipio?: string | null
+          obra_numero?: string | null
+          obra_rua?: string | null
+          pagamentos?: Json | null
+          produtos_servicos?: Json | null
           profissao?: string | null
           referencia_bancaria?: string | null
           renda?: number | null
+          rua?: string | null
           usuario_id?: string | null
         }
         Relationships: [
@@ -378,30 +447,45 @@ export type Database = {
       }
       pagamentos: {
         Row: {
+          atualizado_em: string | null
           cliente_id: string | null
           criado_em: string
+          data_pagamento: string | null
           data_primeira_parcela: string | null
           forma_pagamento: string
+          formulario_id: string | null
           id: string
+          meio_pagamento: string | null
           numero_parcelas: number | null
+          tipo_pagamento: string | null
           valor_total: number
         }
         Insert: {
+          atualizado_em?: string | null
           cliente_id?: string | null
           criado_em?: string
+          data_pagamento?: string | null
           data_primeira_parcela?: string | null
           forma_pagamento: string
+          formulario_id?: string | null
           id?: string
+          meio_pagamento?: string | null
           numero_parcelas?: number | null
+          tipo_pagamento?: string | null
           valor_total: number
         }
         Update: {
+          atualizado_em?: string | null
           cliente_id?: string | null
           criado_em?: string
+          data_pagamento?: string | null
           data_primeira_parcela?: string | null
           forma_pagamento?: string
+          formulario_id?: string | null
           id?: string
+          meio_pagamento?: string | null
           numero_parcelas?: number | null
+          tipo_pagamento?: string | null
           valor_total?: number
         }
         Relationships: [
@@ -412,35 +496,54 @@ export type Database = {
             referencedRelation: 'clientes'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'pagamentos_formulario_id_fkey'
+            columns: ['formulario_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
+            referencedColumns: ['id']
+          },
         ]
       }
       parcelas: {
         Row: {
+          atualizado_em: string | null
           criado_em: string
           data_vencimento: string
           id: string
+          meio_pagamento: string | null
           numero: number
+          numero_parcela: number | null
           pagamento_id: string | null
           status: string
           valor: number
+          valor_parcela: number | null
         }
         Insert: {
+          atualizado_em?: string | null
           criado_em?: string
           data_vencimento: string
           id?: string
+          meio_pagamento?: string | null
           numero: number
+          numero_parcela?: number | null
           pagamento_id?: string | null
           status?: string
           valor: number
+          valor_parcela?: number | null
         }
         Update: {
+          atualizado_em?: string | null
           criado_em?: string
           data_vencimento?: string
           id?: string
+          meio_pagamento?: string | null
           numero?: number
+          numero_parcela?: number | null
           pagamento_id?: string | null
           status?: string
           valor?: number
+          valor_parcela?: number | null
         }
         Relationships: [
           {
@@ -774,6 +877,29 @@ export const Constants = {
 //   cliente_id: uuid (nullable)
 //   etapa_atual: integer (nullable, default: 1)
 //   usuario_id: uuid (nullable)
+//   estado_civil: text (nullable)
+//   cep: text (nullable)
+//   rua: text (nullable)
+//   numero: text (nullable)
+//   bairro: text (nullable)
+//   municipio: text (nullable)
+//   estado: text (nullable)
+//   complemento: text (nullable)
+//   obra_cep: text (nullable)
+//   obra_municipio: text (nullable)
+//   obra_estado: text (nullable)
+//   obra_rua: text (nullable)
+//   obra_numero: text (nullable)
+//   obra_bairro: text (nullable)
+//   obra_complemento: text (nullable)
+//   produtos_servicos: jsonb (nullable, default: '[]'::jsonb)
+//   desconto: numeric (nullable, default: 0)
+//   pagamentos: jsonb (nullable, default: '[]'::jsonb)
+//   datas: jsonb (nullable, default: '{}'::jsonb)
+//   dados_etapa_1: jsonb (nullable, default: '{}'::jsonb)
+//   dados_etapa_2: jsonb (nullable, default: '{}'::jsonb)
+//   dados_etapa_3: jsonb (nullable, default: '{}'::jsonb)
+//   dados_etapa_4: jsonb (nullable, default: '{}'::jsonb)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -801,6 +927,11 @@ export const Constants = {
 //   valor_total: numeric (not null)
 //   data_primeira_parcela: date (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
+//   formulario_id: uuid (nullable)
+//   tipo_pagamento: text (nullable)
+//   data_pagamento: date (nullable)
+//   meio_pagamento: text (nullable)
+//   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: parcelas
 //   id: uuid (not null, default: gen_random_uuid())
 //   pagamento_id: uuid (nullable)
@@ -809,6 +940,10 @@ export const Constants = {
 //   valor: numeric (not null)
 //   status: text (not null, default: 'Pendente'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
+//   numero_parcela: integer (nullable)
+//   valor_parcela: numeric (nullable)
+//   meio_pagamento: text (nullable)
+//   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: produtos_servicos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -869,6 +1004,7 @@ export const Constants = {
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
 // Table: pagamentos
 //   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY pagamentos_formulario_id_fkey: FOREIGN KEY (formulario_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY pagamentos_pkey: PRIMARY KEY (id)
 // Table: parcelas
 //   FOREIGN KEY parcelas_pagamento_id_fkey: FOREIGN KEY (pagamento_id) REFERENCES pagamentos(id) ON DELETE CASCADE
@@ -922,14 +1058,15 @@ export const Constants = {
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: formulario_comercial
-//   Policy "formulario_comercial_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: is_admin(auth.uid())
-//   Policy "formulario_comercial_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: true
-//   Policy "formulario_comercial_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
-//   Policy "formulario_comercial_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+//   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
+//   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (usuario_id = auth.uid())
+//   Policy "Enable read access for own forms" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
+//   Policy "Enable update for own forms" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
+//     WITH CHECK: (usuario_id = auth.uid())
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -944,23 +1081,25 @@ export const Constants = {
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 // Table: pagamentos
-//   Policy "pagamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: is_admin(auth.uid())
-//   Policy "pagamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: true
-//   Policy "pagamentos_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "pagamentos_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
+//   Policy "Enable delete for own payments" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable read access for own payments" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable update for own payments" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 // Table: parcelas
-//   Policy "parcelas_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: is_admin(auth.uid())
-//   Policy "parcelas_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: true
-//   Policy "parcelas_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "parcelas_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
+//   Policy "Enable delete for own parcels" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable insert for own parcels" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable read access for own parcels" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable update for own parcels" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 // Table: produtos_servicos
 //   Policy "produtos_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())

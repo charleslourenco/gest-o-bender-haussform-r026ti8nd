@@ -31,8 +31,6 @@ export type FormState = {
 interface FormContextType {
   lead: Lead | null
   setLead: (lead: Lead) => void
-  step: number
-  setStep: (step: number) => void
   data: FormState
   updateData: (section: keyof FormState, payload: any) => void
   canAdvance: boolean
@@ -69,7 +67,6 @@ export const useComercialForm = () => {
 
 export const FormProvider = ({ children }: { children: ReactNode }) => {
   const [lead, setLead] = useState<Lead | null>(null)
-  const [step, setStep] = useState(1)
   const [data, setData] = useState<FormState>(defaultData)
   const [canAdvance, setCanAdvance] = useState(false)
 
@@ -86,8 +83,6 @@ export const FormProvider = ({ children }: { children: ReactNode }) => {
       value={{
         lead,
         setLead,
-        step,
-        setStep,
         data,
         updateData,
         canAdvance,

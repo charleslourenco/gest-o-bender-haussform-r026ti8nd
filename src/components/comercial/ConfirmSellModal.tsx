@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Lead } from '@/types'
-import { Step1Cliente } from './form/step-1'
 import { FormProvider, useComercialForm } from '@/hooks/use-comercial-form'
 import { moveLeadToClient } from '@/services/comercial'
 
@@ -86,22 +85,25 @@ function FormModalWrapper({ lead, onClose }: { lead: Lead; onClose: () => void }
           <h2 className="text-off-white text-[32px] font-[700] leading-tight mb-1">
             Formulário Comercial
           </h2>
-          <p className="text-steel-blue text-[14px] font-[600]">Etapa 1 de 8</p>
-        </div>
-
-        {/* PROGRESS BAR */}
-        <div className="px-[24px] pt-[24px] shrink-0">
-          <div className="flex gap-[8px] mb-[24px]">
-            <div className="h-[8px] rounded-[4px] bg-dark-denim flex-1" />
-            {[...Array(7)].map((_, i) => (
-              <div key={i} className="h-[8px] rounded-[4px] bg-pale-cornflower opacity-50 flex-1" />
-            ))}
-          </div>
+          <p className="text-steel-blue text-[14px] font-[600]">Documentação do Cliente</p>
         </div>
 
         {/* CONTENT */}
-        <div className="px-[24px] pb-[24px] flex-1">
-          <Step1Cliente onClose={onClose} />
+        <div className="p-[24px] flex-1">
+          <div className="bg-pale-cornflower/30 border-2 border-dashed border-steel-blue rounded-[8px] p-[48px] text-center">
+            <h3 className="text-midnight-navy font-[700] text-[20px] mb-[8px]">
+              Novo Formulário (Em Breve)
+            </h3>
+            <p className="text-steel-blue text-[16px]">
+              O ambiente está pronto para receber a nova versão de página única.
+            </p>
+            <button
+              onClick={onClose}
+              className="mt-[24px] bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-[700] hover:opacity-90"
+            >
+              Fechar e Voltar ao Kanban
+            </button>
+          </div>
         </div>
       </div>
     </div>
