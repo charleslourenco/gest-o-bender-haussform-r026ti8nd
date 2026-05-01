@@ -130,6 +130,63 @@ export type Database = {
           },
         ]
       }
+      contas_receber: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          data_pagamento: string | null
+          data_vencimento: string
+          formulario_comercial_id: string | null
+          id: string
+          numero_parcela: string
+          status_pagamento: string
+          user_id: string | null
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          formulario_comercial_id?: string | null
+          id?: string
+          numero_parcela: string
+          status_pagamento?: string
+          user_id?: string | null
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          formulario_comercial_id?: string | null
+          id?: string
+          numero_parcela?: string
+          status_pagamento?: string
+          user_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contas_receber_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_receber_formulario_comercial_id_fkey'
+            columns: ['formulario_comercial_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       documentos_cliente: {
         Row: {
           cliente_id: string | null
@@ -203,6 +260,75 @@ export type Database = {
             columns: ['template_id']
             isOneToOne: false
             referencedRelation: 'templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      dossies: {
+        Row: {
+          arquivo_projeto_url: string | null
+          ata_reuniao_url: string | null
+          atualizado_em: string
+          caderno_tecnico_url: string | null
+          cliente_id: string | null
+          contrato_url: string | null
+          criado_em: string
+          drafts_medida_url: string | null
+          formulario_comercial_id: string | null
+          id: string
+          renders_url: string | null
+          status: string
+          termo_conclusao_url: string | null
+          termo_garantia_url: string | null
+          user_id: string | null
+        }
+        Insert: {
+          arquivo_projeto_url?: string | null
+          ata_reuniao_url?: string | null
+          atualizado_em?: string
+          caderno_tecnico_url?: string | null
+          cliente_id?: string | null
+          contrato_url?: string | null
+          criado_em?: string
+          drafts_medida_url?: string | null
+          formulario_comercial_id?: string | null
+          id?: string
+          renders_url?: string | null
+          status?: string
+          termo_conclusao_url?: string | null
+          termo_garantia_url?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          arquivo_projeto_url?: string | null
+          ata_reuniao_url?: string | null
+          atualizado_em?: string
+          caderno_tecnico_url?: string | null
+          cliente_id?: string | null
+          contrato_url?: string | null
+          criado_em?: string
+          drafts_medida_url?: string | null
+          formulario_comercial_id?: string | null
+          id?: string
+          renders_url?: string | null
+          status?: string
+          termo_conclusao_url?: string | null
+          termo_garantia_url?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'dossies_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'dossies_formulario_comercial_id_fkey'
+            columns: ['formulario_comercial_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
             referencedColumns: ['id']
           },
         ]
@@ -603,6 +729,63 @@ export type Database = {
           },
         ]
       }
+      produtos_servicos_projeto: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          descricao: string | null
+          formulario_comercial_id: string | null
+          id: string
+          nome_produto: string
+          qtd: number
+          status_analise: string
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          descricao?: string | null
+          formulario_comercial_id?: string | null
+          id?: string
+          nome_produto: string
+          qtd: number
+          status_analise?: string
+          valor_total: number
+          valor_unitario: number
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          descricao?: string | null
+          formulario_comercial_id?: string | null
+          id?: string
+          nome_produto?: string
+          qtd?: number
+          status_analise?: string
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'produtos_servicos_projeto_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'produtos_servicos_projeto_formulario_comercial_id_fkey'
+            columns: ['formulario_comercial_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       templates: {
         Row: {
           arquivo_url: string
@@ -844,6 +1027,18 @@ export const Constants = {
 //   profissao: text (nullable)
 //   renda: numeric (nullable)
 //   referencia_bancaria: text (nullable)
+// Table: contas_receber
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (nullable)
+//   cliente_id: uuid (nullable)
+//   formulario_comercial_id: uuid (nullable)
+//   numero_parcela: text (not null)
+//   data_vencimento: date (not null)
+//   valor: numeric (not null)
+//   status_pagamento: text (not null, default: 'aguardando'::text)
+//   data_pagamento: date (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: documentos_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -856,6 +1051,22 @@ export const Constants = {
 //   tipo: text (not null)
 //   template_id: uuid (nullable)
 //   status: boolean (not null, default: true)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: dossies
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (nullable)
+//   cliente_id: uuid (nullable)
+//   formulario_comercial_id: uuid (nullable)
+//   contrato_url: text (nullable)
+//   termo_conclusao_url: text (nullable)
+//   termo_garantia_url: text (nullable)
+//   ata_reuniao_url: text (nullable)
+//   caderno_tecnico_url: text (nullable)
+//   renders_url: text (nullable)
+//   arquivo_projeto_url: text (nullable)
+//   drafts_medida_url: text (nullable)
+//   status: text (not null, default: 'em_documentacao'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: empresa
@@ -953,6 +1164,18 @@ export const Constants = {
 //   valor_unitario: numeric (not null)
 //   valor_total: numeric (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: produtos_servicos_projeto
+//   id: uuid (not null, default: gen_random_uuid())
+//   formulario_comercial_id: uuid (nullable)
+//   cliente_id: uuid (nullable)
+//   nome_produto: text (not null)
+//   qtd: integer (not null)
+//   descricao: text (nullable)
+//   valor_unitario: numeric (not null)
+//   valor_total: numeric (not null)
+//   status_analise: text (not null, default: 'iniciar'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -980,6 +1203,11 @@ export const Constants = {
 //   FOREIGN KEY clientes_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
 //   PRIMARY KEY clientes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY clientes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: contas_receber
+//   FOREIGN KEY contas_receber_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY contas_receber_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
+//   PRIMARY KEY contas_receber_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY contas_receber_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: documentos_cliente
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
@@ -988,6 +1216,11 @@ export const Constants = {
 //   PRIMARY KEY documentos_obrigatorios_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_obrigatorios_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
 //   UNIQUE documentos_obrigatorios_tipo_key: UNIQUE (tipo)
+// Table: dossies
+//   FOREIGN KEY dossies_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY dossies_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
+//   PRIMARY KEY dossies_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY dossies_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
 // Table: formulario_comercial
@@ -1013,6 +1246,10 @@ export const Constants = {
 //   FOREIGN KEY produtos_servicos_ambiente_id_fkey: FOREIGN KEY (ambiente_id) REFERENCES ambientes(id) ON DELETE CASCADE
 //   FOREIGN KEY produtos_servicos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_pkey: PRIMARY KEY (id)
+// Table: produtos_servicos_projeto
+//   FOREIGN KEY produtos_servicos_projeto_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY produtos_servicos_projeto_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
+//   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
 // Table: templates
 //   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
 // Table: users
@@ -1039,6 +1276,16 @@ export const Constants = {
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: contas_receber
+//   Policy "contas_receber_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//   Policy "contas_receber_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (user_id = auth.uid())
+//   Policy "contas_receber_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//   Policy "contas_receber_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//     WITH CHECK: (user_id = auth.uid())
 // Table: documentos_cliente
 //   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -1052,6 +1299,16 @@ export const Constants = {
 //   Policy "Admin Editor Docs" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: dossies
+//   Policy "dossies_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//   Policy "dossies_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (user_id = auth.uid())
+//   Policy "dossies_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//   Policy "dossies_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//     WITH CHECK: (user_id = auth.uid())
 // Table: empresa
 //   Policy "Leitura autenticada empresa" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -1109,6 +1366,16 @@ export const Constants = {
 //     USING: true
 //   Policy "produtos_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: produtos_servicos_projeto
+//   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 // Table: templates
 //   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
