@@ -189,45 +189,49 @@ export function ComercialForm({
     return true
   }, [data, parcelasBatem])
 
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = async (isGenerate = false) => {
     setSaving(true)
     try {
-      const { error } = await supabase.from('formulario_comercial').upsert(
-        {
-          lead_id: leadId,
-          cliente_id: clienteId,
-          cpf: data.cpf,
-          profissao: data.profissao,
-          estado_civil: data.estado_civil,
-          cep: data.end_cep,
-          municipio: data.end_municipio,
-          estado: data.end_estado,
-          rua: data.end_rua,
-          numero: data.end_numero,
-          bairro: data.end_bairro,
-          complemento: data.end_complemento,
-          obra_cep: data.obra_cep,
-          obra_municipio: data.obra_municipio,
-          obra_estado: data.obra_estado,
-          obra_rua: data.obra_rua,
-          obra_numero: data.obra_numero,
-          obra_bairro: data.obra_bairro,
-          obra_complemento: data.obra_complemento,
-          produtos_servicos: data.produtos as any,
-          desconto: data.desconto,
-          pagamentos: {
-            forma: data.forma_pagamento,
-            a_vista:
-              data.forma_pagamento === 'A_VISTA'
-                ? { data: data.pagamento_a_vista_data, meio: data.pagamento_a_vista_meio }
-                : null,
-            parcelado: data.forma_pagamento === 'PARCELADO' ? data.pagamento_parcelado : [],
+      const { data: savedForm, error } = await supabase
+        .from('formulario_comercial')
+        .upsert(
+          {
+            lead_id: leadId,
+            cliente_id: clienteId,
+            cpf: data.cpf,
+            profissao: data.profissao,
+            estado_civil: data.estado_civil,
+            cep: data.end_cep,
+            municipio: data.end_municipio,
+            estado: data.end_estado,
+            rua: data.end_rua,
+            numero: data.end_numero,
+            bairro: data.end_bairro,
+            complemento: data.end_complemento,
+            obra_cep: data.obra_cep,
+            obra_municipio: data.obra_municipio,
+            obra_estado: data.obra_estado,
+            obra_rua: data.obra_rua,
+            obra_numero: data.obra_numero,
+            obra_bairro: data.obra_bairro,
+            obra_complemento: data.obra_complemento,
+            produtos_servicos: data.produtos as any,
+            desconto: data.desconto,
+            pagamentos: {
+              forma: data.forma_pagamento,
+              a_vista:
+                data.forma_pagamento === 'A_VISTA'
+                  ? { data: data.pagamento_a_vista_data, meio: data.pagamento_a_vista_meio }
+                  : null,
+              parcelado: data.forma_pagamento === 'PARCELADO' ? data.pagamento_parcelado : [],
+            },
+            datas: { medida: data.data_medida },
+            dados_etapa_1: { vendedor_nome: data.vendedor_nome },
           },
-          datas: { medida: data.data_medida },
-          dados_etapa_1: { vendedor_nome: data.vendedor_nome },
-        },
-        { onConflict: 'lead_id' },
-      )
+          { onConflict: 'lead_id' },
+        )
+        .select()
+        .single()
       if (error) throw error
       if (clienteId)
         await supabase
@@ -240,21 +244,63 @@ export function ComercialForm({
             profissao: data.profissao,
           })
           .eq('id', clienteId)
-      toast.success('Rascunho salvo com sucesso!')
+
+      if (!isGenerate) {
+        toast.success('Rascunho salvo com sucesso!')
+      }
+      return savedForm
     } catch (e: any) {
-      toast.error(e.message)
+      if (!isGenerate) {
+        toast.error(e.message)
+      }
+      throw e
     } finally {
       setSaving(false)
     }
   }
 
+  const [generating, setGenerating] = useState(false)
+  const [validationError, setValidationError] = useState(false)
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [apiErrorMessage, setApiErrorMessage] = useState('')
+
   const handleGenerate = async () => {
-    await handleSaveDraft()
-    toast.success('Dossiê finalizado! Redirecionando para Onboarding...')
-    setTimeout(() => {
-      if (onClose) onClose()
-      navigate('/area-clientes')
-    }, 2000)
+    if (!isValid) {
+      setValidationError(true)
+      return
+    }
+    setValidationError(false)
+    setGenerating(true)
+
+    try {
+      const savedForm = await handleSaveDraft(true)
+      if (!savedForm) throw new Error('Erro ao salvar rascunho.')
+
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) throw new Error('Usuário não autenticado.')
+
+      const { data: responseData, error } = await supabase.functions.invoke('gerar-dossie', {
+        body: {
+          formulario_comercial_id: savedForm.id,
+          cliente_id: clienteId,
+          user_id: userData.user.id,
+        },
+      })
+
+      if (error || responseData?.error) {
+        throw new Error(
+          error?.message || responseData?.error || 'Erro desconhecido na geração do dossiê.',
+        )
+      }
+
+      setShowSuccessModal(true)
+    } catch (e: any) {
+      setApiErrorMessage(e.message || 'Ocorreu um erro ao gerar o dossiê.')
+      setShowErrorModal(true)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   if (loading)
@@ -273,11 +319,11 @@ export function ComercialForm({
         </div>
         <div className="flex items-center gap-[12px]">
           <button
-            onClick={handleSaveDraft}
-            disabled={saving}
+            onClick={() => handleSaveDraft(false)}
+            disabled={saving || generating}
             className="bg-steel-blue text-off-white px-[16px] py-[8px] rounded-[4px] font-bold hover:opacity-90 disabled:opacity-50 transition-colors"
           >
-            {saving ? 'Salvando...' : 'Salvar Rascunho'}
+            {saving && !generating ? 'Salvando...' : 'Salvar Rascunho'}
           </button>
           {isModal && (
             <button
@@ -318,22 +364,101 @@ export function ComercialForm({
           <SectionResumo data={data} update={update} updateViaCep={updateViaCep} total={total} />
           <div className="flex flex-col md:flex-row justify-between gap-[16px] mt-[32px]">
             <button
-              onClick={handleSaveDraft}
-              disabled={saving}
+              onClick={() => handleSaveDraft(false)}
+              disabled={saving || generating}
               className="bg-steel-blue text-off-white px-[24px] py-[12px] rounded-[8px] font-bold min-h-[44px] hover:opacity-90 transition-colors disabled:opacity-50"
             >
-              {saving ? 'Salvando...' : 'Salvar Rascunho'}
+              {saving && !generating ? 'Salvando...' : 'Salvar Rascunho'}
             </button>
-            <button
-              onClick={handleGenerate}
-              disabled={!isValid || saving}
-              className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] font-bold min-h-[44px] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Gerar Dossiê
-            </button>
+
+            <div className="flex flex-col items-end gap-2">
+              {validationError && (
+                <span className="text-steel-blue text-[14px] font-medium">
+                  Preencha todos os campos obrigatórios corretamente.
+                </span>
+              )}
+              <button
+                onClick={handleGenerate}
+                disabled={saving || generating}
+                className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] font-bold min-h-[44px] hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {generating ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-off-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Gerando...
+                  </>
+                ) : (
+                  'Gerar Dossiê'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </main>
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+            <h2 className="text-xl font-bold text-midnight-navy mb-4">FORMULÁRIO FINALIZADO!</h2>
+            <p className="text-steel-blue mb-4 font-medium">
+              Agora você precisa finalizar a documentação:
+            </p>
+            <ul className="list-disc pl-5 text-steel-blue mb-6 space-y-2">
+              <li>Revise o contrato e encaminhe para assinatura</li>
+              <li>Prepare a Ata de reunião de análise</li>
+              <li>Faça upload dos renders e do arquivo do projeto</li>
+            </ul>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false)
+                  if (onClose) onClose()
+                  navigate(`/clientes/${clienteId}`)
+                }}
+                className="bg-dark-denim text-white px-4 py-2 rounded font-bold hover:bg-opacity-90 transition-colors"
+              >
+                IR PARA CLIENTES
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showErrorModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl text-center">
+            <h2 className="text-xl font-bold text-red-600 mb-4">Erro ao gerar dossiê</h2>
+            <p className="text-steel-blue mb-6">{apiErrorMessage}</p>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="bg-steel-blue text-white px-4 py-2 rounded font-bold hover:bg-opacity-90 transition-colors"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
