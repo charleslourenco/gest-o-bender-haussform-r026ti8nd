@@ -37,20 +37,20 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6 bg-bender-offwhite min-h-screen">
-        <Skeleton className="h-[80px] w-full bg-bender-pale rounded-none" />
-        <Skeleton className="h-[60px] w-full max-w-md bg-bender-pale rounded-lg" />
-        <Skeleton className="h-64 w-full bg-bender-pale rounded-lg" />
+      <div className="p-6 space-y-6 bg-background min-h-screen">
+        <Skeleton className="h-[80px] w-full bg-muted rounded-none" />
+        <Skeleton className="h-[60px] w-full max-w-md bg-muted rounded-lg" />
+        <Skeleton className="h-64 w-full bg-muted rounded-lg" />
       </div>
     )
   }
 
   if (permission !== 'Editor' && permission !== 'Admin') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bender-offwhite p-6">
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
         <div className="flex flex-col items-center justify-center text-center space-y-4">
-          <ShieldAlert className="h-16 w-16 text-bender-steel" />
-          <h2 className="text-[24px] font-bold text-bender-navy">
+          <ShieldAlert className="h-16 w-16 text-muted-foreground" />
+          <h2 className="text-2xl font-semibold text-foreground">
             Você não tem permissão para acessar este módulo.
           </h2>
         </div>
@@ -59,28 +59,28 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex-1 bg-bender-offwhite min-h-full pb-12">
-      <div className="bg-bender-navy p-6">
-        <h1 className="text-[32px] font-bold text-bender-offwhite">Administrativo</h1>
+    <div className="flex-1 bg-muted/20 min-h-full pb-12">
+      <div className="bg-background border-b p-6">
+        <h1 className="text-2xl font-bold text-foreground">Administrativo</h1>
       </div>
       <div className="p-6">
         <Tabs defaultValue="branding" className="w-full">
-          <TabsList className="bg-bender-pale w-full flex flex-col sm:flex-row h-auto p-0 rounded-lg sm:rounded-t-lg sm:rounded-b-none gap-2 sm:gap-0 mb-6 overflow-hidden">
+          <TabsList className="bg-muted w-full flex flex-col sm:flex-row h-auto p-1 rounded-lg gap-2 sm:gap-1 mb-6">
             <TabsTrigger
               value="branding"
-              className="w-full sm:w-auto bg-bender-steel text-bender-offwhite data-[state=active]:bg-bender-denim data-[state=active]:text-bender-offwhite hover:bg-bender-denim/80 px-6 py-3 rounded-lg sm:rounded-t-lg sm:rounded-b-none transition-colors text-base font-semibold min-h-[44px]"
+              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
             >
               Branding
             </TabsTrigger>
             <TabsTrigger
               value="templates"
-              className="w-full sm:w-auto bg-bender-steel text-bender-offwhite data-[state=active]:bg-bender-denim data-[state=active]:text-bender-offwhite hover:bg-bender-denim/80 px-6 py-3 rounded-lg sm:rounded-t-lg sm:rounded-b-none transition-colors text-base font-semibold min-h-[44px]"
+              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
             >
               Templates
             </TabsTrigger>
             <TabsTrigger
               value="documentos"
-              className="w-full sm:w-auto bg-bender-steel text-bender-offwhite data-[state=active]:bg-bender-denim data-[state=active]:text-bender-offwhite hover:bg-bender-denim/80 px-6 py-3 rounded-lg sm:rounded-t-lg sm:rounded-b-none transition-colors text-base font-semibold min-h-[44px]"
+              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
             >
               Documentos Obrigatórios
             </TabsTrigger>

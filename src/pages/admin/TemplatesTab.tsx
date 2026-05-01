@@ -11,15 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  FileEdit,
-  Trash2,
-  Download,
-  Search,
-  PlusCircle,
-  FileText,
-  CheckCircle2,
-} from 'lucide-react'
+import { FileEdit, Trash2, Download, Search, PlusCircle, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { TemplateModal } from './TemplateModal'
 
@@ -52,10 +44,7 @@ export function TemplatesTab() {
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja deletar este template?')) {
       await supabase.from('templates').delete().eq('id', id)
-      toast.success('Template deletado com sucesso!', {
-        style: { background: '#B3CFE5', color: '#1A3D63', border: 'none' },
-        icon: <CheckCircle2 className="text-green-600 h-5 w-5" />,
-      })
+      toast.success('Template deletado com sucesso!')
       fetchTemplates()
     }
   }
@@ -64,15 +53,15 @@ export function TemplatesTab() {
   const totalPages = Math.ceil(templates.length / itemsPerPage)
 
   return (
-    <div className="bg-bender-offwhite p-6 space-y-6 rounded-b-lg">
+    <div className="bg-card border text-card-foreground p-6 space-y-6 rounded-lg shadow-sm">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-3.5 h-5 w-5 text-bender-steel" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar template..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-[16px] min-h-[44px] pl-10 focus-visible:ring-0 focus-visible:border-[3px] focus-visible:border-bender-denim transition-all"
+            className="pl-9 bg-background"
           />
         </div>
         <Button
@@ -80,9 +69,9 @@ export function TemplatesTab() {
             setSelectedTemplate(null)
             setModalOpen(true)
           }}
-          className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 min-h-[44px] rounded-lg w-full sm:w-auto text-base font-semibold"
+          className="w-full sm:w-auto"
         >
-          <PlusCircle className="mr-2 h-5 w-5" />
+          <PlusCircle className="mr-2 h-4 w-4" />
           Adicionar Template
         </Button>
       </div>
@@ -90,17 +79,15 @@ export function TemplatesTab() {
       <div className="w-full">
         {loading ? (
           <div className="space-y-4">
-            <Skeleton className="h-12 w-full bg-bender-pale rounded-lg" />
-            <Skeleton className="h-12 w-full bg-bender-pale rounded-lg" />
-            <Skeleton className="h-12 w-full bg-bender-pale rounded-lg" />
+            <Skeleton className="h-12 w-full bg-muted rounded-lg" />
+            <Skeleton className="h-12 w-full bg-muted rounded-lg" />
+            <Skeleton className="h-12 w-full bg-muted rounded-lg" />
           </div>
         ) : templates.length === 0 ? (
-          <div className="p-12 flex flex-col items-center justify-center text-center bg-bender-offwhite border-2 border-bender-steel/20 rounded-lg">
-            <FileText className="h-16 w-16 text-bender-steel mb-4" />
-            <h3 className="text-[24px] font-bold text-bender-navy mb-2">
-              Nenhum template cadastrado
-            </h3>
-            <p className="text-bender-navy mb-6 text-base">
+          <div className="p-12 flex flex-col items-center justify-center text-center bg-muted/30 border border-dashed rounded-lg">
+            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Nenhum template cadastrado</h3>
+            <p className="text-muted-foreground mb-6 text-sm">
               Clique em 'Adicionar Template' para começar.
             </p>
             <Button
@@ -108,7 +95,6 @@ export function TemplatesTab() {
                 setSelectedTemplate(null)
                 setModalOpen(true)
               }}
-              className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 min-h-[44px] rounded-lg text-base font-semibold"
             >
               Adicionar Template
             </Button>
@@ -120,44 +106,44 @@ export function TemplatesTab() {
               {paginatedTemplates.map((t) => (
                 <div
                   key={t.id}
-                  className="bg-bender-offwhite border-2 border-bender-steel/20 p-4 rounded-lg flex flex-col gap-3 shadow-sm"
+                  className="bg-background border p-4 rounded-lg flex flex-col gap-3 shadow-sm"
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-bender-navy font-bold text-base">{t.nome}</span>
-                    <span className="text-bender-navy text-sm font-semibold px-2 py-1 bg-bender-pale rounded-md border border-bender-steel/30">
+                    <span className="font-medium text-foreground text-sm">{t.nome}</span>
+                    <span className="text-muted-foreground text-xs font-medium px-2 py-1 bg-muted rounded-md border">
                       {t.tipo}
                     </span>
                   </div>
-                  <div className="text-bender-navy text-sm">
+                  <div className="text-muted-foreground text-xs">
                     Criado em: {new Date(t.criado_em).toLocaleDateString('pt-BR')}
                   </div>
-                  <div className="flex justify-end gap-2 mt-2 pt-4 border-t-2 border-bender-steel/20">
+                  <div className="flex justify-end gap-2 mt-2 pt-4 border-t">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       onClick={() => window.open(t.arquivo_url)}
                     >
-                      <Download className="h-5 w-5" />
+                      <Download className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       onClick={() => {
                         setSelectedTemplate(t)
                         setModalOpen(true)
                       }}
                     >
-                      <FileEdit className="h-5 w-5" />
+                      <FileEdit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
                       onClick={() => handleDelete(t.id)}
                     >
-                      <Trash2 className="h-5 w-5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -165,20 +151,20 @@ export function TemplatesTab() {
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto border-2 border-bender-steel/20 rounded-lg">
+            <div className="hidden md:block overflow-x-auto border rounded-lg bg-background">
               <Table className="min-w-[800px] w-full">
-                <TableHeader className="bg-bender-denim">
-                  <TableRow className="border-b-0 hover:bg-transparent">
-                    <TableHead className="text-bender-offwhite font-bold p-4 text-base">
+                <TableHeader className="bg-muted">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="font-medium p-4 text-sm text-muted-foreground">
                       Nome
                     </TableHead>
-                    <TableHead className="text-bender-offwhite font-bold p-4 text-base">
+                    <TableHead className="font-medium p-4 text-sm text-muted-foreground">
                       Tipo
                     </TableHead>
-                    <TableHead className="text-bender-offwhite font-bold p-4 text-base">
+                    <TableHead className="font-medium p-4 text-sm text-muted-foreground">
                       Data de Criação
                     </TableHead>
-                    <TableHead className="text-bender-offwhite font-bold p-4 text-base text-right">
+                    <TableHead className="font-medium p-4 text-sm text-muted-foreground text-right">
                       Ações
                     </TableHead>
                   </TableRow>
@@ -187,13 +173,11 @@ export function TemplatesTab() {
                   {paginatedTemplates.map((t) => (
                     <TableRow
                       key={t.id}
-                      className="border-b border-bender-steel/20 even:bg-bender-pale/30 odd:bg-bender-offwhite hover:bg-bender-pale/50 transition-colors"
+                      className="border-b hover:bg-muted/50 transition-colors last:border-0"
                     >
-                      <TableCell className="text-bender-navy font-semibold p-4 text-base">
-                        {t.nome}
-                      </TableCell>
-                      <TableCell className="text-bender-navy p-4 text-base">{t.tipo}</TableCell>
-                      <TableCell className="text-bender-navy p-4 text-base">
+                      <TableCell className="font-medium p-4 text-sm">{t.nome}</TableCell>
+                      <TableCell className="p-4 text-sm">{t.tipo}</TableCell>
+                      <TableCell className="p-4 text-sm text-muted-foreground">
                         {new Date(t.criado_em).toLocaleDateString('pt-BR')}
                       </TableCell>
                       <TableCell className="p-4 text-right">
@@ -201,32 +185,32 @@ export function TemplatesTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => window.open(t.arquivo_url)}
                             title="Download"
                           >
-                            <Download className="h-5 w-5" />
+                            <Download className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => {
                               setSelectedTemplate(t)
                               setModalOpen(true)
                             }}
                             title="Editar"
                           >
-                            <FileEdit className="h-5 w-5" />
+                            <FileEdit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-bender-steel hover:text-bender-denim hover:bg-bender-pale/50 min-h-[44px] min-w-[44px]"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => handleDelete(t.id)}
                             title="Excluir"
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -236,22 +220,24 @@ export function TemplatesTab() {
               </Table>
             </div>
 
-            <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span className="text-bender-navy font-semibold text-sm">
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-muted-foreground text-sm">
                 Página {page} de {totalPages || 1}
               </span>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex gap-2">
                 <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page === 1}
                   onClick={() => setPage((p) => p - 1)}
-                  className="bg-bender-steel text-bender-offwhite hover:bg-bender-steel/90 min-h-[44px] px-6 py-3 rounded-lg flex-1 sm:flex-none font-semibold"
                 >
                   Anterior
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
                   disabled={page === totalPages || totalPages === 0}
                   onClick={() => setPage((p) => p + 1)}
-                  className="bg-bender-steel text-bender-offwhite hover:bg-bender-steel/90 min-h-[44px] px-6 py-3 rounded-lg flex-1 sm:flex-none font-semibold"
                 >
                   Próximo
                 </Button>

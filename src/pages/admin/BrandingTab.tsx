@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
 
 export function BrandingTab() {
   const [empresa, setEmpresa] = useState<any>(null)
@@ -31,10 +30,7 @@ export function BrandingTab() {
     const selected = e.target.files?.[0]
     if (!selected) return
     if (selected.size > 5 * 1024 * 1024) {
-      toast.error('O arquivo deve ter no máximo 5MB.', {
-        style: { background: '#B3CFE5', color: '#4A7FA7', border: 'none' },
-        icon: <AlertCircle className="text-red-600 h-5 w-5" />,
-      })
+      toast.error('O arquivo deve ter no máximo 5MB.')
       return
     }
     setFile(selected)
@@ -43,10 +39,7 @@ export function BrandingTab() {
 
   const handleSave = async () => {
     if (!nome.trim() || nome.length > 100) {
-      toast.error('Nome da empresa inválido.', {
-        style: { background: '#B3CFE5', color: '#4A7FA7', border: 'none' },
-        icon: <AlertCircle className="text-red-600 h-5 w-5" />,
-      })
+      toast.error('Nome da empresa inválido.')
       return
     }
 
@@ -75,36 +68,29 @@ export function BrandingTab() {
         await supabase.from('empresa').insert({ nome, logo_url: finalLogoUrl })
       }
 
-      toast.success('Branding salvo com sucesso!', {
-        style: { background: '#B3CFE5', color: '#1A3D63', border: 'none' },
-        icon: <CheckCircle2 className="text-green-600 h-5 w-5" />,
-      })
-
+      toast.success('Branding salvo com sucesso!')
       window.dispatchEvent(new Event('branding_updated'))
     } catch (err: any) {
-      toast.error(err.message || 'Erro ao salvar branding.', {
-        style: { background: '#B3CFE5', color: '#4A7FA7', border: 'none' },
-        icon: <AlertCircle className="text-red-600 h-5 w-5" />,
-      })
+      toast.error(err.message || 'Erro ao salvar branding.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="bg-bender-offwhite p-6 space-y-6 rounded-b-lg">
+    <div className="bg-card border text-card-foreground p-6 space-y-6 rounded-lg shadow-sm">
       <div className="space-y-2 max-w-xl">
-        <Label className="text-bender-navy font-semibold text-[14px]">Nome da Empresa *</Label>
+        <Label className="text-foreground font-medium text-sm">Nome da Empresa *</Label>
         <Input
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           maxLength={100}
-          className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-[16px] min-h-[44px] focus-visible:ring-0 focus-visible:border-[3px] focus-visible:border-bender-denim transition-all"
+          className="bg-background text-foreground"
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-bender-navy font-semibold text-[14px]">
+        <Label className="text-foreground font-medium text-sm">
           Logo (JPG, PNG, SVG - Máx 5MB) *
         </Label>
         <div className="flex items-center gap-4 flex-wrap">
@@ -112,7 +98,7 @@ export function BrandingTab() {
             <img
               src={logoUrl}
               alt="Preview"
-              className="w-24 h-24 object-contain border-2 border-bender-steel bg-bender-offwhite rounded-lg p-2"
+              className="w-24 h-24 object-contain border rounded-md bg-background p-2"
             />
           )}
           <Input
@@ -120,17 +106,13 @@ export function BrandingTab() {
             accept=".jpg,.jpeg,.png,.svg"
             onChange={handleFileChange}
             ref={fileInputRef}
-            className="bg-bender-pale border-2 border-bender-steel text-bender-navy text-[16px] min-h-[44px] focus-visible:ring-0 focus-visible:border-[3px] focus-visible:border-bender-denim transition-all max-w-sm file:text-bender-navy file:font-semibold cursor-pointer"
+            className="bg-background max-w-sm cursor-pointer file:font-medium"
           />
         </div>
       </div>
 
       <div className="pt-4">
-        <Button
-          onClick={handleSave}
-          disabled={loading || !nome}
-          className="bg-bender-denim text-bender-offwhite hover:bg-bender-denim/90 px-6 py-3 min-h-[44px] rounded-lg text-base w-full sm:w-auto"
-        >
+        <Button onClick={handleSave} disabled={loading || !nome} className="w-full sm:w-auto">
           {loading ? 'Salvando...' : 'Salvar Branding'}
         </Button>
       </div>
