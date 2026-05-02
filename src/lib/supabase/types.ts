@@ -743,6 +743,36 @@ export type Database = {
           },
         ]
       }
+      placeholders: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          descricao: string
+          id: string
+          origem: string
+          placeholder: string
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao: string
+          id?: string
+          origem: string
+          placeholder: string
+          user_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          descricao?: string
+          id?: string
+          origem?: string
+          placeholder?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       produtos_servicos: {
         Row: {
           ambiente_id: string | null
@@ -1278,6 +1308,14 @@ export const Constants = {
 //   valor_parcela: numeric (nullable)
 //   meio_pagamento: text (nullable)
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+// Table: placeholders
+//   id: uuid (not null, default: gen_random_uuid())
+//   placeholder: text (not null)
+//   descricao: text (not null)
+//   origem: text (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+//   user_id: uuid (not null)
 // Table: produtos_servicos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1378,6 +1416,10 @@ export const Constants = {
 // Table: parcelas
 //   FOREIGN KEY parcelas_pagamento_id_fkey: FOREIGN KEY (pagamento_id) REFERENCES pagamentos(id) ON DELETE CASCADE
 //   PRIMARY KEY parcelas_pkey: PRIMARY KEY (id)
+// Table: placeholders
+//   PRIMARY KEY placeholders_pkey: PRIMARY KEY (id)
+//   UNIQUE placeholders_placeholder_user_id_key: UNIQUE (placeholder, user_id)
+//   FOREIGN KEY placeholders_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: produtos_servicos
 //   FOREIGN KEY produtos_servicos_ambiente_id_fkey: FOREIGN KEY (ambiente_id) REFERENCES ambientes(id) ON DELETE CASCADE
 //   FOREIGN KEY produtos_servicos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
@@ -1510,6 +1552,16 @@ export const Constants = {
 //   Policy "Enable update for own parcels" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+// Table: placeholders
+//   Policy "placeholders_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "placeholders_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "placeholders_select_own" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "placeholders_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: produtos_servicos
 //   Policy "produtos_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -1535,14 +1587,15 @@ export const Constants = {
 //     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 //     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 // Table: templates
-//   Policy "Usuário autenticado consegue criar templates" (INSERT, PERMISSIVE) roles={authenticated}
+//   Policy "templates_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "templates_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Usuário autenticado consegue deletar templates criados por ele" (DELETE, PERMISSIVE) roles={authenticated}
+//   Policy "templates_select_own" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
-//   Policy "Usuário autenticado consegue editar templates criados por ele" (UPDATE, PERMISSIVE) roles={authenticated}
+//   Policy "templates_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
-//   Policy "Usuário autenticado consegue ver templates criados por ele" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
 // Table: timeline_eventos
 //   Policy "Timeline All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
@@ -1656,6 +1709,8 @@ export const Constants = {
 //
 
 // --- TRIGGERS ---
+// Table: placeholders
+//   set_placeholders_atualizado_em: CREATE TRIGGER set_placeholders_atualizado_em BEFORE UPDATE ON public.placeholders FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: templates
 //   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 
@@ -1667,6 +1722,8 @@ export const Constants = {
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)
+// Table: placeholders
+//   CREATE UNIQUE INDEX placeholders_placeholder_user_id_key ON public.placeholders USING btree (placeholder, user_id)
 // Table: templates
 //   CREATE INDEX idx_templates_user_id_tipo ON public.templates USING btree (user_id, tipo)
 // Table: users
