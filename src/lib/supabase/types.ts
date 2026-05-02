@@ -864,6 +864,7 @@ export type Database = {
           id: string
           nome: string
           placeholders_customizados: Json | null
+          status: string
           tipo: string
           user_id: string | null
         }
@@ -875,6 +876,7 @@ export type Database = {
           id?: string
           nome: string
           placeholders_customizados?: Json | null
+          status?: string
           tipo: string
           user_id?: string | null
         }
@@ -886,6 +888,7 @@ export type Database = {
           id?: string
           nome?: string
           placeholders_customizados?: Json | null
+          status?: string
           tipo?: string
           user_id?: string | null
         }
@@ -1324,6 +1327,7 @@ export const Constants = {
 //   descricao: text (nullable)
 //   user_id: uuid (nullable, default: auth.uid())
 //   placeholders_customizados: jsonb (nullable, default: '[]'::jsonb)
+//   status: text (not null, default: 'ativo'::text)
 // Table: timeline_eventos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)

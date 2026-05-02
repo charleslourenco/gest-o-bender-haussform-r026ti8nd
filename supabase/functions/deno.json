@@ -1,8 +1,8 @@
 {
   "_versions": {
-    "check-permission": 1,
-    "admin-users": 1,
-    "gerar-dossie": 2,
-    "gerar_documento_cliente": 3
+    "check-permission": 2,
+    "admin-users": 2,
+    "gerar-dossie": 3,
+    "gerar_documento_cliente": 10
   }
 }

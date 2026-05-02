@@ -1,6 +1,9 @@
 import { Lead } from '@/types'
-import { Edit2, Trash2, Calendar, User } from 'lucide-react'
+import { Edit2, Trash2, Calendar, User, FileText, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 
 interface Props {
   lead: Lead
@@ -12,6 +15,38 @@ interface Props {
 }
 
 export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, onDelete }: Props) {
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const handleGerarDossie = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsGenerating(true)
+
+    toast.loading('Iniciando geração do dossiê... Preparando 7 templates.', {
+      id: `dossie-${lead.id}`,
+    })
+
+    setTimeout(() => {
+      toast.loading('Gerando templates... Processando em paralelo...', { id: `dossie-${lead.id}` })
+    }, 1500)
+
+    const result = await gerarDocumentoCliente({
+      cliente_id: lead.id,
+      dados_formulario: {
+        Cliente: lead.nome,
+        'Valor total': 'A Definir',
+        'Nome de quem vendeu': lead.consultor?.nome || 'Não informado',
+      },
+    })
+
+    if (result.error) {
+      toast.error(`Falha ao gerar dossiê: ${result.error.message}`, { id: `dossie-${lead.id}` })
+    } else {
+      toast.success('Dossiê completo! 7/7 templates gerados.', { id: `dossie-${lead.id}` })
+    }
+
+    setIsGenerating(false)
+  }
+
   return (
     <div
       draggable
@@ -62,6 +97,26 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
             </span>
           )}
         </div>
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-steel-blue/20">
+        <button
+          onClick={handleGerarDossie}
+          disabled={isGenerating}
+          className="w-full flex items-center justify-center gap-2 bg-midnight-navy hover:bg-dark-denim text-off-white py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Gerando...
+            </>
+          ) : (
+            <>
+              <FileText className="w-4 h-4" />
+              Gerar Dossiê
+            </>
+          )}
+        </button>
       </div>
     </div>
   )
