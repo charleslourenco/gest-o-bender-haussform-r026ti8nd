@@ -268,6 +268,7 @@ export function ComercialForm({
   const handleGenerate = async () => {
     if (!isValid) {
       setValidationError(true)
+      toast.error('Preencha todos os campos obrigatórios')
       return
     }
     setValidationError(false)
@@ -280,24 +281,202 @@ export function ComercialForm({
       const { data: userData } = await supabase.auth.getUser()
       if (!userData.user) throw new Error('Usuário não autenticado.')
 
-      const { data: responseData, error } = await supabase.functions.invoke('gerar-dossie', {
-        body: {
-          formulario_comercial_id: savedForm.id,
-          cliente_id: clienteId,
-          user_id: userData.user.id,
-        },
-      })
-
-      if (error || responseData?.error) {
-        throw new Error(
-          error?.message || responseData?.error || 'Erro desconhecido na geração do dossiê.',
-        )
+      const { data: templates, error: tempError } = await supabase.from('templates').select('*')
+      if (tempError) throw tempError
+      if (!templates || templates.length === 0) {
+        toast.error('Nenhum template encontrado no sistema.')
+        setGenerating(false)
+        return
       }
 
-      setShowSuccessModal(true)
+      toast.info(`Gerando ${templates.length} documentos...`, { id: 'gerando-doc' })
+
+      const projeto_id = savedForm.id
+
+      const dados_formulario = {
+        // Original fields expected by the edge function
+        nome: data.nome,
+        cpf: data.cpf,
+        profissao: data.profissao,
+        estado_civil: data.estado_civil,
+        telefone: data.telefone,
+        email: data.email,
+        cep: data.end_cep,
+        rua: data.end_rua,
+        numero: data.end_numero,
+        complemento: data.end_complemento,
+        bairro: data.end_bairro,
+        municipio: data.end_municipio,
+        estado: data.end_estado,
+
+        // Required exactly by User Story specifications
+        cliente_nome: data.nome || null,
+        cliente_cpf_cnpj: data.cpf || null,
+        cliente_profissao: data.profissao || null,
+        cliente_estado_civil: data.estado_civil || null,
+        cliente_telefone: data.telefone || null,
+        cliente_email: data.email || null,
+
+        cliente_cep: data.end_cep || null,
+        cliente_rua: data.end_rua || null,
+        cliente_numero: data.end_numero || null,
+        cliente_complemento: data.end_complemento || null,
+        cliente_bairro: data.end_bairro || null,
+        cliente_cidade: data.end_municipio || null,
+        cliente_estado: data.end_estado || null,
+
+        obra_cep: data.obra_cep || null,
+        obra_rua: data.obra_rua || null,
+        obra_numero: data.obra_numero || null,
+        obra_complemento: data.obra_complemento || null,
+        obra_bairro: data.obra_bairro || null,
+        obra_cidade: data.obra_municipio || null,
+        obra_estado: data.obra_estado || null,
+
+        datas: {
+          acesso_movel: data.data_medida,
+          assinatura_contrato: new Date().toISOString().split('T')[0],
+        },
+        data_acesso_movel: data.data_medida || null,
+        data_assinatura_contrato: new Date().toISOString().split('T')[0],
+
+        testemunha_01_nome: null,
+        testemunha_01_cpf: null,
+        testemunha_02_nome: null,
+        testemunha_02_cpf: null,
+        assinante_nome: data.nome || null,
+        assinante_cpf: data.cpf || null,
+
+        produtos_servicos: data.produtos.map((p) => ({
+          ...p,
+          nome_produto: p.nome,
+          valor_total: p.qtd * p.valor_unitario,
+        })),
+        bloco_produtos_servicos: data.produtos.map((p) => ({
+          nome: p.nome,
+          descricao: p.descricao,
+          valor: p.qtd * p.valor_unitario,
+        })),
+        ...data.produtos.reduce(
+          (acc, p, i) => {
+            if (i < 12) {
+              acc[`produto_linha_${i + 1}_nome`] = p.nome || null
+              acc[`produto_linha_${i + 1}_descricao`] = p.descricao || null
+              acc[`produto_linha_${i + 1}_valor`] = p.qtd * p.valor_unitario || null
+            }
+            return acc
+          },
+          {} as Record<string, any>,
+        ),
+
+        forma_pagamento: data.forma_pagamento === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+        metodo_pagamento: data.forma_pagamento === 'A_VISTA' ? data.pagamento_a_vista_meio : null,
+        data_pagamento: data.forma_pagamento === 'A_VISTA' ? data.pagamento_a_vista_data : null,
+        pagamentos:
+          data.forma_pagamento === 'PARCELADO'
+            ? data.pagamento_parcelado.map((p, i) => ({
+                numero: i + 1,
+                valor: p.valor,
+                data_vencimento: p.data,
+              }))
+            : [],
+        bloco_parcelas:
+          data.forma_pagamento === 'PARCELADO'
+            ? data.pagamento_parcelado.map((p, i) => ({
+                numero: i + 1,
+                valor: p.valor,
+                data_vencimento: p.data,
+              }))
+            : [],
+        ...(data.forma_pagamento === 'PARCELADO'
+          ? data.pagamento_parcelado.reduce(
+              (acc, p, i) => {
+                if (i < 12) {
+                  acc[`parcela_${i + 1}_numero`] = i + 1
+                  acc[`parcela_${i + 1}_valor`] = p.valor || null
+                  acc[`parcela_${i + 1}_data_vencimento`] = p.data || null
+                }
+                return acc
+              },
+              {} as Record<string, any>,
+            )
+          : {}),
+
+        empresa_nome: 'Minha Empresa de Móveis',
+        empresa_cnpj: '00.000.000/0001-00',
+        empresa_endereco: 'Rua Exemplo, 123',
+        empresa_telefone: '(00) 0000-0000',
+        empresa_email: 'contato@empresa.com',
+
+        vendedor_nome: data.vendedor_nome || null,
+        vendedor_cpf: null,
+        vendedor_email: userData.user.email || null,
+        vendedor_telefone: null,
+
+        numero_projeto: projeto_id.substring(0, 8).toUpperCase(),
+        valor_total: total,
+        desconto: data.desconto || null,
+        data_venda: new Date().toISOString().split('T')[0],
+      }
+
+      const promises = templates.map((t) =>
+        supabase.functions
+          .invoke('gerar_documento_cliente', {
+            body: {
+              template_nome: t.nome,
+              cliente_id: clienteId,
+              projeto_id,
+              dados_formulario,
+            },
+          })
+          .then((res) => {
+            if (res.error) throw res.error
+            if (!res.data?.sucesso)
+              throw new Error(res.data?.mensagem || `Falha no template ${t.nome}`)
+            return { template: t.nome, url: res.data.arquivo_url, avisos: res.data.avisos }
+          })
+          .catch((err) => {
+            throw new Error(`Erro em ${t.nome}: ${err.message}`)
+          }),
+      )
+
+      const results = await Promise.allSettled(promises)
+
+      const failed = results.filter((r) => r.status === 'rejected')
+
+      toast.dismiss('gerando-doc')
+
+      // Garante que o dossiê exista no banco
+      const { data: existingDossie } = await supabase
+        .from('dossies')
+        .select('id')
+        .eq('formulario_comercial_id', projeto_id)
+        .maybeSingle()
+      if (!existingDossie) {
+        await supabase.from('dossies').insert({
+          user_id: userData.user.id,
+          cliente_id: clienteId,
+          formulario_comercial_id: projeto_id,
+          status: 'em_documentacao',
+        })
+      }
+
+      if (failed.length === templates.length) {
+        toast.error('Não foi possível gerar o dossiê. Tente novamente.')
+        setApiErrorMessage('Todos os templates falharam. Verifique a configuração dos documentos.')
+      } else if (failed.length > 0) {
+        const failedNames = failed.map((f: any) => f.reason?.message).join(', ')
+        toast.warning('Dossiê gerado com avisos. Verifique os documentos.')
+        toast.error(`Falhas: ${failedNames}`)
+        setShowSuccessModal(true)
+      } else {
+        toast.success('Dossiê gerado com sucesso!')
+        setShowSuccessModal(true)
+      }
     } catch (e: any) {
+      toast.dismiss('gerando-doc')
+      toast.error('Erro no servidor. Tente novamente em alguns instantes.')
       setApiErrorMessage(e.message || 'Ocorreu um erro ao gerar o dossiê.')
-      setShowErrorModal(true)
     } finally {
       setGenerating(false)
     }
@@ -404,7 +583,7 @@ export function ComercialForm({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Gerando...
+                    Gerando dossiê...
                   </>
                 ) : (
                   'Gerar Dossiê'
@@ -453,7 +632,7 @@ export function ComercialForm({
                 onClick={() => setShowErrorModal(false)}
                 className="bg-steel-blue text-white px-4 py-2 rounded font-bold hover:bg-opacity-90 transition-colors"
               >
-                Tentar novamente
+                Tentar Novamente
               </button>
             </div>
           </div>

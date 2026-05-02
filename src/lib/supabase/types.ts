@@ -248,27 +248,36 @@ export type Database = {
       }
       documentos_cliente: {
         Row: {
+          arquivo_url: string | null
           cliente_id: string | null
           criado_em: string
           id: string
+          projeto_id: string | null
           status: string
           template_id: string | null
+          template_nome: string | null
           tipo: string
         }
         Insert: {
+          arquivo_url?: string | null
           cliente_id?: string | null
           criado_em?: string
           id?: string
+          projeto_id?: string | null
           status?: string
           template_id?: string | null
+          template_nome?: string | null
           tipo: string
         }
         Update: {
+          arquivo_url?: string | null
           cliente_id?: string | null
           criado_em?: string
           id?: string
+          projeto_id?: string | null
           status?: string
           template_id?: string | null
+          template_nome?: string | null
           tipo?: string
         }
         Relationships: [
@@ -1198,6 +1207,9 @@ export const Constants = {
 //   template_id: uuid (nullable)
 //   status: text (not null, default: 'Pendente'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
+//   projeto_id: uuid (nullable)
+//   arquivo_url: text (nullable)
+//   template_nome: text (nullable)
 // Table: documentos_obrigatorios
 //   id: uuid (not null, default: gen_random_uuid())
 //   tipo: text (not null)
