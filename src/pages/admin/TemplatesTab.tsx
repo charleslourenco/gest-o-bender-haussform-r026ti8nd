@@ -109,7 +109,12 @@ export function TemplatesTab() {
                   className="bg-background border p-4 rounded-lg flex flex-col gap-3 shadow-sm"
                 >
                   <div className="flex justify-between items-start">
-                    <span className="font-medium text-foreground text-sm">{t.nome}</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-foreground text-sm">{t.nome}</span>
+                      {t.descricao && (
+                        <span className="text-muted-foreground text-xs">{t.descricao}</span>
+                      )}
+                    </div>
                     <span className="text-muted-foreground text-xs font-medium px-2 py-1 bg-muted rounded-md border">
                       {t.tipo}
                     </span>
@@ -159,6 +164,9 @@ export function TemplatesTab() {
                       Nome
                     </TableHead>
                     <TableHead className="font-medium p-4 text-sm text-muted-foreground">
+                      Descrição
+                    </TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-muted-foreground">
                       Tipo
                     </TableHead>
                     <TableHead className="font-medium p-4 text-sm text-muted-foreground">
@@ -176,6 +184,9 @@ export function TemplatesTab() {
                       className="border-b hover:bg-muted/50 transition-colors last:border-0"
                     >
                       <TableCell className="font-medium p-4 text-sm">{t.nome}</TableCell>
+                      <TableCell className="p-4 text-sm text-muted-foreground">
+                        {t.descricao || '-'}
+                      </TableCell>
                       <TableCell className="p-4 text-sm">{t.tipo}</TableCell>
                       <TableCell className="p-4 text-sm text-muted-foreground">
                         {new Date(t.criado_em).toLocaleDateString('pt-BR')}

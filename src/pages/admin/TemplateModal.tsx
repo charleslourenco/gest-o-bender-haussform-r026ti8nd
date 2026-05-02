@@ -26,6 +26,7 @@ const TIPOS = [
 export function TemplateModal({ template, onClose, onSuccess }: any) {
   const [nome, setNome] = useState(template?.nome || '')
   const [tipo, setTipo] = useState(template?.tipo || '')
+  const [descricao, setDescricao] = useState(template?.descricao || '')
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -62,9 +63,12 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
       }
 
       if (template) {
-        await supabase.from('templates').update({ nome, tipo, arquivo_url }).eq('id', template.id)
+        await supabase
+          .from('templates')
+          .update({ nome, tipo, descricao, arquivo_url })
+          .eq('id', template.id)
       } else {
-        await supabase.from('templates').insert({ nome, tipo, arquivo_url })
+        await supabase.from('templates').insert({ nome, tipo, descricao, arquivo_url })
       }
 
       toast.success('Template salvo com sucesso!')
@@ -91,6 +95,15 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               maxLength={100}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-foreground font-medium text-sm">Descrição (Opcional)</Label>
+            <Input
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              maxLength={255}
               className="bg-background"
             />
           </div>
