@@ -19,9 +19,18 @@ import {
   FileText,
   AlertCircle,
   RefreshCcw,
+  Eye,
+  MoreVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TemplateModal } from './TemplateModal'
+import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function TemplatesList() {
   const [templates, setTemplates] = useState<any[]>([])
@@ -42,8 +51,13 @@ export function TemplatesList() {
     setLoading(true)
     setError(null)
     try {
-      let query = supabase.from('templates').select('*').order('criado_em', { ascending: false })
+      let query = supabase
+        .from('templates')
+        .select('id, nome, tipo, arquivo_url, status, criado_em, descricao')
+        .order('criado_em', { ascending: false })
+
       if (search) query = query.ilike('nome', `%${search}%`)
+
       const { data, error: fetchErr } = await query
       if (fetchErr) throw fetchErr
       setTemplates(data || [])
@@ -75,14 +89,29 @@ export function TemplatesList() {
     }
   }
 
+  const getFileUrl = (url: string) => {
+    if (!url) return '#'
+    if (url.startsWith('http')) return url
+    const { data } = supabase.storage.from('templates').getPublicUrl(url)
+    return data.publicUrl
+  }
+
   const formatTipo = (tipo: string) => {
     switch (tipo) {
       case 'contrato':
         return 'Contrato'
       case 'termo_conclusao':
-        return 'Termo de Conclusão'
+        return 'Termo de Conclusão e Vistoria'
       case 'termo_garantia':
         return 'Termo de Garantia'
+      case 'termo_alteracao':
+        return 'Termo de Alteração'
+      case 'termo_nao_conformidade':
+        return 'Termo de Não Conformidade'
+      case 'termo_recusa':
+        return 'Termo de Recusa'
+      case 'termo_representacao':
+        return 'Termo de Representação'
       default:
         return tipo
     }
@@ -116,8 +145,8 @@ export function TemplatesList() {
         {loading ? (
           <div className="space-y-4">
             <Skeleton className="h-12 w-full bg-white/50 rounded-lg" />
-            <Skeleton className="h-12 w-full bg-white/50 rounded-lg" />
-            <Skeleton className="h-12 w-full bg-white/50 rounded-lg" />
+            <Skeleton className="h-24 w-full bg-white/50 rounded-lg" />
+            <Skeleton className="h-24 w-full bg-white/50 rounded-lg" />
           </div>
         ) : error ? (
           <div className="p-12 flex flex-col items-center justify-center text-center bg-white/50 border border-steel-blue border-dashed rounded-lg">
@@ -146,69 +175,169 @@ export function TemplatesList() {
                 setModalOpen(true)
               }}
             >
+              <PlusCircle className="mr-2 h-4 w-4" />
               Adicionar Template
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto border border-steel-blue rounded-lg bg-white">
-            <Table className="min-w-[800px] w-full">
-              <TableHeader className="bg-steel-blue/10">
-                <TableRow className="hover:bg-transparent border-steel-blue">
-                  <TableHead className="font-medium p-4 text-sm text-midnight-navy">Nome</TableHead>
-                  <TableHead className="font-medium p-4 text-sm text-midnight-navy">Tipo</TableHead>
-                  <TableHead className="font-medium p-4 text-sm text-midnight-navy">
-                    Data de Criação
-                  </TableHead>
-                  <TableHead className="font-medium p-4 text-sm text-midnight-navy text-right">
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((t) => (
-                  <TableRow
-                    key={t.id}
-                    className="border-b border-steel-blue/20 hover:bg-steel-blue/5 transition-colors"
-                  >
-                    <TableCell className="font-medium p-4 text-sm">{t.nome}</TableCell>
-                    <TableCell className="p-4 text-sm">
-                      <span className="px-2 py-1 bg-pale-cornflower text-midnight-navy rounded-md text-xs font-medium border border-steel-blue/30">
-                        {formatTipo(t.tipo)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="p-4 text-sm text-midnight-navy/80">
-                      {new Date(t.criado_em).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell className="p-4 text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-steel-blue hover:text-midnight-navy hover:bg-pale-cornflower"
+          <>
+            {/* Mobile View */}
+            <div className="grid grid-cols-1 gap-4 sm:hidden">
+              {templates.map((t) => (
+                <div
+                  key={t.id}
+                  className="bg-white p-4 rounded-lg border border-steel-blue/20 shadow-sm space-y-3"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-midnight-navy">{t.nome}</h4>
+                      <p className="text-xs text-midnight-navy/60 mb-1">{formatTipo(t.tipo)}</p>
+                      <a
+                        href={getFileUrl(t.arquivo_url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-steel-blue hover:underline truncate inline-block max-w-[200px]"
+                      >
+                        {t.arquivo_url?.startsWith('http') ? 'Ver URL Externa' : 'Ver Arquivo'}
+                      </a>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4 text-midnight-navy" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => window.open(getFileUrl(t.arquivo_url), '_blank')}
+                        >
+                          <Eye className="mr-2 h-4 w-4" /> Visualizar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => {
                             setSelectedTemplate(t)
                             setModalOpen(true)
                           }}
-                          title="Editar"
                         >
-                          <FileEdit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(t)}
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                          <FileEdit className="mr-2 h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(t)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Deletar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-steel-blue/10">
+                    <Badge
+                      variant={t.status === 'ativo' ? 'default' : 'secondary'}
+                      className={
+                        t.status === 'ativo' ? 'bg-green-500 hover:bg-green-600 text-white' : ''
+                      }
+                    >
+                      {t.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                    </Badge>
+                    <span className="text-xs text-midnight-navy/60">
+                      {new Date(t.criado_em).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop View */}
+            <div className="hidden sm:block overflow-x-auto border border-steel-blue rounded-lg bg-white">
+              <Table className="min-w-[800px] w-full">
+                <TableHeader className="bg-steel-blue/10">
+                  <TableRow className="hover:bg-transparent border-steel-blue">
+                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
+                      Nome
+                    </TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
+                      Tipo
+                    </TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-midnight-navy max-w-[200px]">
+                      URL/Arquivo
+                    </TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
+                      Status
+                    </TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-midnight-navy text-right">
+                      Ações
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {templates.map((t) => (
+                    <TableRow
+                      key={t.id}
+                      className="border-b border-steel-blue/20 hover:bg-steel-blue/5 transition-colors"
+                    >
+                      <TableCell className="font-medium p-4 text-sm">{t.nome}</TableCell>
+                      <TableCell className="p-4 text-sm">
+                        <span className="px-2 py-1 bg-pale-cornflower text-midnight-navy rounded-md text-xs font-medium border border-steel-blue/30">
+                          {formatTipo(t.tipo)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="p-4 text-sm max-w-[200px] truncate">
+                        <a
+                          href={getFileUrl(t.arquivo_url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-steel-blue hover:underline"
+                        >
+                          {t.arquivo_url?.startsWith('http') ? t.arquivo_url : t.arquivo_url}
+                        </a>
+                      </TableCell>
+                      <TableCell className="p-4 text-sm">
+                        <Badge
+                          variant={t.status === 'ativo' ? 'default' : 'secondary'}
+                          className={
+                            t.status === 'ativo' ? 'bg-green-500 hover:bg-green-600 text-white' : ''
+                          }
+                        >
+                          {t.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="p-4 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-steel-blue hover:text-midnight-navy hover:bg-pale-cornflower"
+                            onClick={() => window.open(getFileUrl(t.arquivo_url), '_blank')}
+                            title="Visualizar"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-steel-blue hover:text-midnight-navy hover:bg-pale-cornflower"
+                            onClick={() => {
+                              setSelectedTemplate(t)
+                              setModalOpen(true)
+                            }}
+                            title="Editar"
+                          >
+                            <FileEdit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handleDelete(t)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </div>
 

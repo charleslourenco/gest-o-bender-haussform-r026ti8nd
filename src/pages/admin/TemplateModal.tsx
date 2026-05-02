@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -16,15 +17,23 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 const TIPOS = [
-  { value: 'contrato', label: 'Contrato' },
-  { value: 'termo_conclusao', label: 'Termo de Conclusão' },
-  { value: 'termo_garantia', label: 'Termo de Garantia' },
+  { value: 'Contrato', label: 'Contrato' },
+  { value: 'Termo de Alteração', label: 'Termo de Alteração' },
+  { value: 'Termo de Conclusão e Vistoria', label: 'Termo de Conclusão e Vistoria' },
+  { value: 'Termo de Garantia', label: 'Termo de Garantia' },
+  { value: 'Termo de Não Conformidade', label: 'Termo de Não Conformidade' },
+  { value: 'Termo de Recusa', label: 'Termo de Recusa' },
+  { value: 'Termo de Representação', label: 'Termo de Representação' },
 ]
 
 export function TemplateModal({ template, onClose, onSuccess }: any) {
   const [nome, setNome] = useState(template?.nome || '')
   const [tipo, setTipo] = useState(template?.tipo || '')
   const [descricao, setDescricao] = useState(template?.descricao || '')
+  const [status, setStatus] = useState(template?.status || 'ativo')
+  const [arquivoUrlTexto, setArquivoUrlTexto] = useState(
+    template?.arquivo_url?.startsWith('http') ? template.arquivo_url : '',
+  )
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -36,7 +45,10 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
 
     if (!tipo) newErrors.tipo = 'Tipo é obrigatório.'
 
-    if (!template && !file) newErrors.file = 'Arquivo é obrigatório.'
+    if (!template && !file && !arquivoUrlTexto.trim()) {
+      newErrors.file = 'Arquivo ou URL é obrigatório.'
+    }
+
     if (file) {
       const ext = file.name.split('.').pop()?.toLowerCase()
       if (ext !== 'pdf' && ext !== 'docx' && ext !== 'doc') {
@@ -57,10 +69,11 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
     try {
       let arquivo_url = template?.arquivo_url
 
-      if (!template && file) {
+      if (file) {
         const ext = file.name.split('.').pop()
         const safeNome = nome.replace(/[^a-z0-9]/gi, '_').toLowerCase()
-        const fileName = `${tipo}_${safeNome}_${Date.now()}.${ext}`
+        const safeTipo = tipo.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+        const fileName = `${safeTipo}_${safeNome}_${Date.now()}.${ext}`
 
         const { error: uploadError } = await supabase.storage
           .from('templates')
@@ -68,19 +81,21 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
 
         if (uploadError) throw new Error('Falha no upload do arquivo.')
         arquivo_url = fileName
+      } else if (arquivoUrlTexto.trim()) {
+        arquivo_url = arquivoUrlTexto.trim()
       }
 
       if (template) {
         const { error } = await supabase
           .from('templates')
-          .update({ nome, tipo, descricao })
+          .update({ nome, tipo, descricao, status, arquivo_url })
           .eq('id', template.id)
         if (error) throw error
         toast.success('Template atualizado com sucesso!')
       } else {
         const { error } = await supabase
           .from('templates')
-          .insert({ nome, tipo, descricao, arquivo_url })
+          .insert({ nome, tipo, descricao, status, arquivo_url })
         if (error) throw error
         toast.success('Template salvo com sucesso!')
       }
@@ -95,7 +110,7 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg p-6 bg-midnight-navy text-off-white border-steel-blue">
+      <DialogContent className="sm:max-w-lg p-6 bg-midnight-navy text-off-white border-steel-blue max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-off-white">
             {template ? 'Editar Template' : 'Adicionar Template'}
@@ -144,31 +159,68 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
           </div>
 
           <div className="space-y-1">
+            <Label className="text-off-white font-medium text-sm">Arquivo URL (Texto)</Label>
+            <Input
+              value={arquivoUrlTexto}
+              onChange={(e) => {
+                setArquivoUrlTexto(e.target.value)
+                setFile(null)
+              }}
+              placeholder="https://exemplo.com/template.docx"
+              className={cn(
+                'bg-dark-denim border-steel-blue text-off-white placeholder:text-off-white/40',
+                errors.file && !file && 'border-red-500',
+              )}
+            />
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-steel-blue/30" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-midnight-navy px-2 text-off-white/50">Ou faça upload</span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-off-white font-medium text-sm">Arquivo (.pdf, .docx)</Label>
+            <Input
+              type="file"
+              accept=".pdf,.docx,.doc"
+              onChange={(e) => {
+                setFile(e.target.files?.[0] || null)
+                if (e.target.files?.[0]) setArquivoUrlTexto('')
+              }}
+              className={cn(
+                'bg-dark-denim border-steel-blue text-off-white file:text-off-white file:font-medium cursor-pointer',
+                errors.file && !arquivoUrlTexto && 'border-red-500',
+              )}
+            />
+            {errors.file && <p className="text-red-400 text-xs mt-1">{errors.file}</p>}
+          </div>
+
+          <div className="space-y-1">
             <Label className="text-off-white font-medium text-sm">Descrição (Opcional)</Label>
             <Textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Ex: Contrato padrão de prestação de serviços"
               className="bg-dark-denim border-steel-blue text-off-white placeholder:text-off-white/40 resize-none"
-              rows={3}
+              rows={2}
             />
           </div>
 
-          {!template && (
-            <div className="space-y-1">
-              <Label className="text-off-white font-medium text-sm">Arquivo (.pdf, .docx) *</Label>
-              <Input
-                type="file"
-                accept=".pdf,.docx,.doc"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className={cn(
-                  'bg-dark-denim border-steel-blue text-off-white file:text-off-white file:font-medium cursor-pointer',
-                  errors.file && 'border-red-500',
-                )}
-              />
-              {errors.file && <p className="text-red-400 text-xs mt-1">{errors.file}</p>}
-            </div>
-          )}
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+              id="status-toggle"
+              checked={status === 'ativo'}
+              onCheckedChange={(checked) => setStatus(checked ? 'ativo' : 'inativo')}
+            />
+            <Label htmlFor="status-toggle" className="text-off-white cursor-pointer font-medium">
+              Template {status === 'ativo' ? 'Ativo' : 'Inativo'}
+            </Label>
+          </div>
         </div>
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-steel-blue/30">
           <Button
