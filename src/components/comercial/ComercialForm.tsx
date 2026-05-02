@@ -11,6 +11,7 @@ import {
   SectionPagamento,
   SectionDatas,
   SectionResumo,
+  SectionPlaceholdersCustomizados,
 } from './form/FormSections'
 
 export function ComercialForm({
@@ -28,6 +29,9 @@ export function ComercialForm({
   const [data, setData] = useState<FormState>(defaultState)
   const [clienteNome, setClienteNome] = useState('')
   const [clienteId, setClienteId] = useState('')
+  const [customPlaceholders, setCustomPlaceholders] = useState<
+    { id: string; key: string; value: string }[]
+  >([])
 
   useEffect(() => {
     async function fetch() {
@@ -78,6 +82,15 @@ export function ComercialForm({
       }
 
       if (form) {
+        if (form.placeholders_customizados) {
+          setCustomPlaceholders(
+            Object.entries(form.placeholders_customizados).map(([k, v], i) => ({
+              id: i.toString(),
+              key: k,
+              value: String(v),
+            })),
+          )
+        }
         setData((p) => ({
           ...p,
           nome: cliente?.nome || lead?.nome || '',
@@ -227,6 +240,13 @@ export function ComercialForm({
             },
             datas: { medida: data.data_medida },
             dados_etapa_1: { vendedor_nome: data.vendedor_nome },
+            placeholders_customizados: customPlaceholders.reduce(
+              (acc, curr) => {
+                if (curr.key.trim()) acc[curr.key.trim()] = curr.value
+                return acc
+              },
+              {} as Record<string, string>,
+            ),
           },
           { onConflict: 'lead_id' },
         )
@@ -417,6 +437,13 @@ export function ComercialForm({
         valor_total: total,
         desconto: data.desconto || null,
         data_venda: new Date().toISOString().split('T')[0],
+        placeholders_customizados: customPlaceholders.reduce(
+          (acc, curr) => {
+            if (curr.key.trim()) acc[curr.key.trim()] = curr.value
+            return acc
+          },
+          {} as Record<string, string>,
+        ),
       }
 
       const promises = templates.map((t) =>
@@ -540,6 +567,10 @@ export function ComercialForm({
             parcelasBatem={parcelasBatem}
           />
           <SectionDatas data={data} update={update} updateViaCep={updateViaCep} />
+          <SectionPlaceholdersCustomizados
+            customPlaceholders={customPlaceholders}
+            setCustomPlaceholders={setCustomPlaceholders}
+          />
           <SectionResumo data={data} update={update} updateViaCep={updateViaCep} total={total} />
           <div className="flex flex-col md:flex-row justify-between gap-[16px] mt-[32px]">
             <button

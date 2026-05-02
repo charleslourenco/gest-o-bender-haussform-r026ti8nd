@@ -680,6 +680,84 @@ export function SectionDatas({ data, update }: Props) {
   )
 }
 
+export function SectionPlaceholdersCustomizados({
+  customPlaceholders,
+  setCustomPlaceholders,
+}: {
+  customPlaceholders: { id: string; key: string; value: string }[]
+  setCustomPlaceholders: (v: { id: string; key: string; value: string }[]) => void
+}) {
+  const add = () => {
+    setCustomPlaceholders([
+      ...customPlaceholders,
+      { id: Math.random().toString(36).substring(2), key: '', value: '' },
+    ])
+  }
+  const rem = (id: string) => {
+    setCustomPlaceholders(customPlaceholders.filter((p) => p.id !== id))
+  }
+  const updateField = (id: string, field: 'key' | 'value', val: string) => {
+    setCustomPlaceholders(customPlaceholders.map((p) => (p.id === id ? { ...p, [field]: val } : p)))
+  }
+
+  return (
+    <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
+      <h2 className="font-bold text-[18px] mb-[12px]">SEÇÃO EXTRA — PLACEHOLDERS CUSTOMIZADOS</h2>
+      <p className="text-[14px] text-steel-blue mb-[16px]">
+        Adicione variáveis personalizadas (ex: DESCONTO_ESPECIAL) que você configurou nos seus
+        templates. Não precisa digitar as chaves {'{{'}
+        {'}}'}.
+      </p>
+      <button
+        type="button"
+        onClick={add}
+        className="bg-dark-denim text-off-white px-[24px] py-[12px] rounded-[8px] font-bold mb-[16px] flex items-center gap-[8px] hover:opacity-90"
+      >
+        <Plus className="w-4 h-4" /> Adicionar Customizado
+      </button>
+      {customPlaceholders.length > 0 && (
+        <div className="space-y-[12px]">
+          {customPlaceholders.map((p) => (
+            <div key={p.id} className="flex gap-[12px] items-center">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Nome (ex: OBSERVACOES)"
+                  className="w-full bg-off-white border-2 border-steel-blue rounded-[4px] px-[12px] py-[8px] focus:outline-none"
+                  value={p.key}
+                  onChange={(e) =>
+                    updateField(
+                      p.id,
+                      'key',
+                      e.target.value.replace(/[^A-Z0-9_]/gi, '').toUpperCase(),
+                    )
+                  }
+                />
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Valor para este documento"
+                  className="w-full bg-off-white border-2 border-steel-blue rounded-[4px] px-[12px] py-[8px] focus:outline-none"
+                  value={p.value}
+                  onChange={(e) => updateField(p.id, 'value', e.target.value)}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => rem(p.id)}
+                className="text-steel-blue hover:text-dark-denim p-[8px]"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SectionResumo({ data, update, total }: Props & { total: number }) {
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">

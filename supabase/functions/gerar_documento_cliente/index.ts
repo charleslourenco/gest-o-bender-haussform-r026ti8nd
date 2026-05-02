@@ -9,6 +9,61 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const PLACEHOLDERS_52 = [
+  'CLIENTE_NOME',
+  'CLIENTE_CPF_CNPJ',
+  'CLIENTE_PROFISSAO',
+  'CLIENTE_ESTADO_CIVIL',
+  'CLIENTE_TELEFONE',
+  'CLIENTE_EMAIL',
+  'CLIENTE_CEP',
+  'CLIENTE_RUA',
+  'CLIENTE_NUMERO',
+  'CLIENTE_COMPLEMENTO',
+  'CLIENTE_BAIRRO',
+  'CLIENTE_CIDADE',
+  'CLIENTE_ESTADO',
+  'OBRA_CEP',
+  'OBRA_RUA',
+  'OBRA_NUMERO',
+  'OBRA_COMPLEMENTO',
+  'OBRA_BAIRRO',
+  'OBRA_CIDADE',
+  'OBRA_ESTADO',
+  'DATA_ACESSO_MOVEL',
+  'DATA_ASSINATURA_CONTRATO',
+  'TESTEMUNHA_01_NOME',
+  'TESTEMUNHA_01_CPF',
+  'TESTEMUNHA_02_NOME',
+  'TESTEMUNHA_02_CPF',
+  'ASSINANTE_NOME',
+  'ASSINANTE_CPF',
+  'BLOCO_PRODUTOS_SERVICOS',
+  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_NOME`),
+  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_DESCRICAO`),
+  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_VALOR`),
+  'FORMA_PAGAMENTO',
+  'METODO_PAGAMENTO',
+  'DATA_PAGAMENTO',
+  'BLOCO_PARCELAS',
+  'BLOCO_PARCELAS_TEXTO',
+  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_NUMERO`),
+  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_VALOR`),
+  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_DATA_VENCIMENTO`),
+  'EMPRESA_NOME',
+  'EMPRESA_CNPJ',
+  'EMPRESA_ENDERECO',
+  'EMPRESA_TELEFONE',
+  'EMPRESA_EMAIL',
+  'VENDEDOR_NOME',
+  'VENDEDOR_CPF',
+  'VENDEDOR_EMAIL',
+  'VENDEDOR_TELEFONE',
+  'NUMERO_PROJETO',
+  'VALOR_TOTAL',
+  'DATA_VENDA',
+]
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -121,6 +176,17 @@ Deno.serve(async (req: Request) => {
     }
 
     const zip = new PizZip(arrayBuffer)
+
+    const xmlContent = zip.file('word/document.xml')?.asText() || ''
+    const cleanText = xmlContent.replace(/<[^>]+>/g, '')
+    const matches = cleanText.match(/\{\{([a-zA-Z0-9_]+)\}\}/g) || []
+    const placeholdersFound = new Set<string>()
+    matches.forEach((m) => placeholdersFound.add(m.replace(/[{}]/g, '')))
+
+    const hasBlocoProdutos = placeholdersFound.has('BLOCO_PRODUTOS_SERVICOS')
+    const hasBlocoParcelas = placeholdersFound.has('BLOCO_PARCELAS')
+    const hasBlocoParcelasText = placeholdersFound.has('BLOCO_PARCELAS_TEXTO')
+
     const missingPlaceholders = new Set<string>()
 
     const doc = new Docxtemplater(zip, {
@@ -139,28 +205,36 @@ Deno.serve(async (req: Request) => {
     const val = (v: any) => (v === null || v === undefined || v === '' ? undefined : String(v))
 
     const docData: Record<string, any> = {
-      CLIENTE_NOME: val(dados_formulario.nome),
-      CLIENTE_CPF_CNPJ: val(dados_formulario.cpf),
-      CLIENTE_TELEFONE: val(dados_formulario.telefone),
-      CLIENTE_EMAIL: val(dados_formulario.email),
-      CLIENTE_PROFISSAO: val(dados_formulario.profissao),
-      CLIENTE_ESTADO_CIVIL: val(dados_formulario.estado_civil),
-      CLIENTE_CEP: val(dados_formulario.cep),
-      CLIENTE_RUA: val(dados_formulario.rua),
-      CLIENTE_NUMERO: val(dados_formulario.numero),
-      CLIENTE_COMPLEMENTO: val(dados_formulario.complemento),
-      CLIENTE_BAIRRO: val(dados_formulario.bairro),
-      CLIENTE_CIDADE: val(dados_formulario.municipio),
-      CLIENTE_ESTADO: val(dados_formulario.estado),
+      CLIENTE_NOME: val(dados_formulario.cliente_nome || dados_formulario.nome),
+      CLIENTE_CPF_CNPJ: val(dados_formulario.cliente_cpf_cnpj || dados_formulario.cpf),
+      CLIENTE_TELEFONE: val(dados_formulario.cliente_telefone || dados_formulario.telefone),
+      CLIENTE_EMAIL: val(dados_formulario.cliente_email || dados_formulario.email),
+      CLIENTE_PROFISSAO: val(dados_formulario.cliente_profissao || dados_formulario.profissao),
+      CLIENTE_ESTADO_CIVIL: val(
+        dados_formulario.cliente_estado_civil || dados_formulario.estado_civil,
+      ),
+      CLIENTE_CEP: val(dados_formulario.cliente_cep || dados_formulario.cep),
+      CLIENTE_RUA: val(dados_formulario.cliente_rua || dados_formulario.rua),
+      CLIENTE_NUMERO: val(dados_formulario.cliente_numero || dados_formulario.numero),
+      CLIENTE_COMPLEMENTO: val(
+        dados_formulario.cliente_complemento || dados_formulario.complemento,
+      ),
+      CLIENTE_BAIRRO: val(dados_formulario.cliente_bairro || dados_formulario.bairro),
+      CLIENTE_CIDADE: val(dados_formulario.cliente_cidade || dados_formulario.municipio),
+      CLIENTE_ESTADO: val(dados_formulario.cliente_estado || dados_formulario.estado),
       OBRA_CEP: val(dados_formulario.obra_cep),
       OBRA_RUA: val(dados_formulario.obra_rua),
       OBRA_NUMERO: val(dados_formulario.obra_numero),
       OBRA_COMPLEMENTO: val(dados_formulario.obra_complemento),
       OBRA_BAIRRO: val(dados_formulario.obra_bairro),
-      OBRA_CIDADE: val(dados_formulario.obra_municipio),
+      OBRA_CIDADE: val(dados_formulario.obra_cidade || dados_formulario.obra_municipio),
       OBRA_ESTADO: val(dados_formulario.obra_estado),
-      DATA_ACESSO_MOVEL: val(dados_formulario.datas?.acesso_movel),
-      DATA_ASSINATURA_CONTRATO: val(dados_formulario.datas?.assinatura_contrato),
+      DATA_ACESSO_MOVEL: val(
+        dados_formulario.data_acesso_movel || dados_formulario.datas?.acesso_movel,
+      ),
+      DATA_ASSINATURA_CONTRATO: val(
+        dados_formulario.data_assinatura_contrato || dados_formulario.datas?.assinatura_contrato,
+      ),
       TESTEMUNHA_01_NOME: val(dados_formulario.testemunha_01_nome),
       TESTEMUNHA_01_CPF: val(dados_formulario.testemunha_01_cpf),
       TESTEMUNHA_02_NOME: val(dados_formulario.testemunha_02_nome),
@@ -190,37 +264,102 @@ Deno.serve(async (req: Request) => {
 
     const produtos = Array.isArray(dados_formulario.produtos_servicos)
       ? dados_formulario.produtos_servicos
-      : []
+      : dados_formulario.bloco_produtos_servicos || []
     const blocoProdutos = produtos
       .map(
         (p: any, i: number) =>
-          `${i + 1}. ${p.nome || p.nome_produto || ''} - Qtd: ${p.qtd || p.quantidade || 1} - R$ ${p.valor_total || p.valor || 0}`,
+          `${i + 1}. ${p.nome || p.nome_produto || ''} - Qtd: ${p.qtd || p.quantidade || 1} - R$ ${p.valor_total || p.valor || p.valor_unitario || 0}`,
       )
       .join('\n')
-    docData['BLOCO_PRODUTOS_SERVICOS'] = val(blocoProdutos)
 
-    for (let i = 1; i <= 20; i++) {
-      const p = produtos[i - 1]
-      docData[`PRODUTO_LINHA_${i}_NOME`] = p ? val(p.nome || p.nome_produto) : undefined
-      docData[`PRODUTO_LINHA_${i}_DESCRICAO`] = p ? val(p.descricao) : undefined
-      docData[`PRODUTO_LINHA_${i}_VALOR`] = p ? val(p.valor_total || p.valor) : undefined
+    if (hasBlocoProdutos) {
+      docData['BLOCO_PRODUTOS_SERVICOS'] = val(blocoProdutos)
+      for (let i = 1; i <= 12; i++) {
+        docData[`PRODUTO_LINHA_${i}_NOME`] = ''
+        docData[`PRODUTO_LINHA_${i}_DESCRICAO`] = ''
+        docData[`PRODUTO_LINHA_${i}_VALOR`] = ''
+      }
+    } else {
+      docData['BLOCO_PRODUTOS_SERVICOS'] = ''
+      for (let i = 1; i <= 12; i++) {
+        const p = produtos[i - 1]
+        docData[`PRODUTO_LINHA_${i}_NOME`] = p ? val(p.nome || p.nome_produto) : undefined
+        docData[`PRODUTO_LINHA_${i}_DESCRICAO`] = p ? val(p.descricao) : undefined
+        docData[`PRODUTO_LINHA_${i}_VALOR`] = p
+          ? val(p.valor_total || p.valor || p.valor_unitario)
+          : undefined
+      }
     }
 
-    const pagamentos = Array.isArray(dados_formulario.pagamentos) ? dados_formulario.pagamentos : []
+    const pagamentos = Array.isArray(dados_formulario.pagamentos)
+      ? dados_formulario.pagamentos
+      : dados_formulario.bloco_parcelas || []
     const blocoParcelas = pagamentos
       .map(
         (p: any, i: number) =>
           `Parcela ${p.numero || i + 1}: R$ ${p.valor || 0} - Venc: ${p.data_vencimento || ''}`,
       )
       .join('\n')
-    docData['BLOCO_PARCELAS'] = val(blocoParcelas)
-    docData['BLOCO_PARCELAS_TEXTO'] = val(blocoParcelas)
 
-    for (let i = 1; i <= 24; i++) {
-      const p = pagamentos[i - 1]
-      docData[`PARCELA_${i}_NUMERO`] = p ? val(p.numero) : undefined
-      docData[`PARCELA_${i}_VALOR`] = p ? val(p.valor) : undefined
-      docData[`PARCELA_${i}_DATA_VENCIMENTO`] = p ? val(p.data_vencimento) : undefined
+    const formatCurrency = (n: any) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(n) || 0)
+    const blocoParcelasTextFormatado = pagamentos
+      .map(
+        (p: any, i: number) =>
+          `${i + 1}ª parcela de ${formatCurrency(p.valor)} com vencimento para ${p.data_vencimento ? p.data_vencimento.split('-').reverse().join('/') : ''}`,
+      )
+      .join(', ')
+
+    if (hasBlocoParcelasText) {
+      docData['BLOCO_PARCELAS_TEXTO'] = val(blocoParcelasTextFormatado)
+      docData['BLOCO_PARCELAS'] = ''
+      for (let i = 1; i <= 12; i++) {
+        docData[`PARCELA_${i}_NUMERO`] = ''
+        docData[`PARCELA_${i}_VALOR`] = ''
+        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
+      }
+    } else if (hasBlocoParcelas) {
+      docData['BLOCO_PARCELAS'] = val(blocoParcelas)
+      docData['BLOCO_PARCELAS_TEXTO'] = ''
+      for (let i = 1; i <= 12; i++) {
+        docData[`PARCELA_${i}_NUMERO`] = ''
+        docData[`PARCELA_${i}_VALOR`] = ''
+        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
+      }
+    } else {
+      docData['BLOCO_PARCELAS'] = ''
+      docData['BLOCO_PARCELAS_TEXTO'] = ''
+      for (let i = 1; i <= 12; i++) {
+        const p = pagamentos[i - 1]
+        docData[`PARCELA_${i}_NUMERO`] = p ? val(p.numero || i) : undefined
+        docData[`PARCELA_${i}_VALOR`] = p ? val(p.valor) : undefined
+        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = p ? val(p.data_vencimento) : undefined
+      }
+    }
+
+    const customPayload = dados_formulario.placeholders_customizados || {}
+    for (const [key, value] of Object.entries(customPayload)) {
+      docData[key] = val(value)
+    }
+
+    const customFound = new Set<string>()
+    for (const p of placeholdersFound) {
+      if (!PLACEHOLDERS_52.includes(p)) {
+        customFound.add(p)
+      }
+    }
+
+    if (customFound.size > 0) {
+      const existingCustoms = template.placeholders_customizados || []
+      const newCustoms = Array.from(customFound).filter((c) => !existingCustoms.includes(c))
+      if (newCustoms.length > 0) {
+        await supabaseAdmin
+          .from('templates')
+          .update({
+            placeholders_customizados: [...existingCustoms, ...newCustoms],
+          })
+          .eq('id', template.id)
+      }
     }
 
     try {
@@ -282,26 +421,20 @@ Deno.serve(async (req: Request) => {
       console.error('Error inserting into documentos_cliente:', dbError)
     }
 
-    if (missingPlaceholders.size > 0) {
-      const avisos = Array.from(missingPlaceholders).map(
-        (p) => `Placeholder {{${p}}} não preenchido`,
-      )
-      return new Response(
-        JSON.stringify({
-          sucesso: true,
-          arquivo_url,
-          mensagem: 'Documento gerado com avisos',
-          avisos,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
     return new Response(
       JSON.stringify({
         sucesso: true,
         arquivo_url,
-        mensagem: 'Documento gerado com sucesso',
+        mensagem:
+          missingPlaceholders.size > 0
+            ? 'Documento gerado com avisos'
+            : 'Documento gerado com sucesso',
+        relatorio: {
+          encontrados: Array.from(placeholdersFound),
+          faltantes: Array.from(missingPlaceholders),
+          customizados: Array.from(customFound),
+        },
+        avisos: Array.from(missingPlaceholders).map((p) => `Placeholder {{${p}}} não preenchido`),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
