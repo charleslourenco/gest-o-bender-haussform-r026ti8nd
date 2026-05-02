@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { DocumentRow } from './document-row'
 import { Timeline } from './timeline'
-import { useToast } from '@/components/ui/use-toast'
+import { toast as sonnerToast } from 'sonner'
 import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 
 const SECTIONS = [
@@ -85,7 +85,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
   const [data, setData] = useState<any>(null)
   const [documents, setDocuments] = useState<any[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const { toast } = useToast()
 
   const loadDocuments = async () => {
     if (!formId) return
@@ -100,45 +99,55 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
 
   const handleGerarDossie = async () => {
     if (!data?.id || !data?.cliente_id) {
-      toast({
-        title: 'Erro',
-        description: 'Dados do projeto não encontrados.',
-        variant: 'destructive',
-      })
+      sonnerToast.error('Erro: Dados do projeto não encontrados.')
       return
     }
 
     setIsGenerating(true)
+    const toastId = sonnerToast.loading('Iniciando geração do dossiê... Preparando 7 templates.')
+
     try {
+      const progressTimeout = setTimeout(() => {
+        sonnerToast.loading('Processando em paralelo...', { id: toastId })
+      }, 2000)
+
       const res = await gerarDocumentoCliente({
         cliente_id: data.cliente_id,
         projeto_id: data.id,
       })
 
+      clearTimeout(progressTimeout)
+
       if (res.error) throw res.error
 
       const result = res.data
+      sonnerToast.dismiss(toastId)
 
-      if (result.erros && result.erros.length > 0) {
-        toast({
-          title: 'Atenção',
-          description: `Dossiê gerado com sucesso para ${result.gerados?.length || 0} templates. Erros em: ${result.erros.map((e: any) => e.template || e.tipo).join(', ')}`,
-          variant: 'default',
+      const gerados = result.gerados || []
+      const erros = result.erros || []
+
+      gerados.forEach((g: any) => {
+        sonnerToast.success(`Template ${g.template} gerado: Salvo no storage`, { duration: 5000 })
+      })
+
+      erros.forEach((e: any) => {
+        sonnerToast.error(`Falha em ${e.template}: ${e.erro || 'Erro desconhecido'}`, {
+          duration: 5000,
         })
-      } else {
-        toast({
-          title: 'Sucesso!',
-          description: 'Dossiê gerado com sucesso para todos os templates.',
-        })
-      }
+      })
+
+      sonnerToast.success(
+        `Dossiê completo! ${gerados.length}/7 templates gerados. Baixe na lista abaixo.`,
+        { duration: 6000 },
+      )
 
       await loadDocuments()
     } catch (err: any) {
-      toast({
-        title: 'Erro ao gerar dossiê',
-        description: err.message || 'Tente novamente em alguns instantes.',
-        variant: 'destructive',
-      })
+      sonnerToast.dismiss(toastId)
+      sonnerToast.error(
+        `Erro ao gerar dossiê: ${err.message || 'Tente novamente em alguns instantes.'}`,
+        { duration: 5000 },
+      )
     } finally {
       setIsGenerating(false)
     }
