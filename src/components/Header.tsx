@@ -23,6 +23,20 @@ export function Header() {
     return () => window.removeEventListener('branding_updated', fetchEmpresa)
   }, [])
   const { user, signOut } = useAuth()
+  const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user?.id) {
+      supabase
+        .from('users')
+        .select('foto_perfil')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.foto_perfil) setFotoPerfil(data.foto_perfil)
+        })
+    }
+  }, [user?.id])
 
   const lowStockCount = inventory.filter((i) => i.quantity <= i.minStock).length
   const urgentProjects = projects.filter(
@@ -80,7 +94,10 @@ export function Header() {
             </div>
             <Avatar className="h-9 w-9 border border-border">
               <AvatarImage
-                src={`https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${user?.id || 1}`}
+                src={
+                  fotoPerfil ||
+                  `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${user?.id || 1}`
+                }
                 alt={userName}
               />
               <AvatarFallback className="bg-primary text-primary-foreground">

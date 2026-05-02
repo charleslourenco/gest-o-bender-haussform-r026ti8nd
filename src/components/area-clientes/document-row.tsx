@@ -1,18 +1,42 @@
 import { Upload, Edit2, Eye, Download, PenTool } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { supabase } from '@/lib/supabase/client'
 
 interface DocumentRowProps {
   doc: {
     id: string
     title: string
     actions: string[]
+    path?: string
   }
 }
 
 export function DocumentRow({ doc }: DocumentRowProps) {
   const [numberPart, ...restPart] = doc.title.split(' | ')
   const restTitle = restPart.join(' | ')
+
+  const handleDownload = async () => {
+    if (!doc.path) return
+    const { data, error } = await supabase.storage.from('dossiers').download(doc.path)
+    if (data) {
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = doc.title
+      a.click()
+    } else if (error) {
+      console.error('Erro ao baixar arquivo:', error)
+    }
+  }
+
+  const handleOpen = () => {
+    if (!doc.path) return
+    const { data } = supabase.storage.from('dossiers').getPublicUrl(doc.path)
+    if (data?.publicUrl) {
+      window.open(data.publicUrl, '_blank')
+    }
+  }
 
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between py-3 px-4 border border-border bg-card text-card-foreground hover:bg-muted/50 rounded-md transition-colors group gap-3">
@@ -66,6 +90,7 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={handleOpen}
                 className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Eye className="w-4 h-4" />
@@ -82,6 +107,7 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={handleDownload}
                 className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <Download className="w-4 h-4" />
@@ -98,13 +124,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={handleOpen}
                 className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <PenTool className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent className="bg-card text-card-foreground border border-border">
-              Enviar p/ assinatura
+              Assinar / Enviar
             </TooltipContent>
           </Tooltip>
         )}

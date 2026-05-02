@@ -1,264 +1,143 @@
-import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, FileText, Loader2, Download } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, Folder } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DocumentRow } from './document-row'
+import { supabase } from '@/lib/supabase/client'
 import { Timeline } from './timeline'
-
-const SECTIONS = [
-  {
-    title: 'SEÇÃO 1 — DOCS OBRIGATÓRIOS VINDOS DE TEMPLATES',
-    docs: [
-      {
-        id: 'contrato',
-        title: '01 | Contrato',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-      {
-        id: 'termo_conclusao',
-        title: '02 | Termo de conclusão e vistoria',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-      {
-        id: 'termo_garantia',
-        title: '03 | Termo de garantia',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-    ],
-  },
-  {
-    title: 'SEÇÃO 2 — DOCS OBRIGATÓRIOS QUE PRECISAM SER SUBIDOS E ASSINADOS',
-    docs: [
-      {
-        id: 'ata_reuniao',
-        title: '04 | Ata de reunião de Análise',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-      {
-        id: 'caderno_tecnico',
-        title: '05 | Caderno Técnico',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-    ],
-  },
-  {
-    title: 'SEÇÃO 3 — DOCS OBRIGATÓRIOS QUE NÃO PRECISAM DE ASSINATURA',
-    docs: [
-      { id: 'renders', title: '06 | Renders', actions: ['trocar', 'ler', 'baixar'] },
-      {
-        id: 'arquivo_projeto',
-        title: '07 | Arquivo do projeto',
-        actions: ['trocar', 'ler', 'baixar'],
-      },
-      {
-        id: 'drafts_medida',
-        title: '08 | Drafts de medida fina',
-        actions: ['trocar', 'ler', 'baixar'],
-      },
-    ],
-  },
-  {
-    title: 'SEÇÃO 4 — DOCS ÚTEIS VINDOS DE TEMPLATES E NÃO OBRIGATÓRIOS',
-    docs: [
-      {
-        id: 'termo_recusa',
-        title: '09 | Termo de Recusa de participação em reunião de análise',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-      {
-        id: 'termo_representacao',
-        title: '10 | Termo de Representação em Reunião de Análise',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-      {
-        id: 'termo_nao_conformidade',
-        title: '11 | Termo de Não conformidade',
-        actions: ['trocar', 'editar', 'ler', 'baixar', 'enviar'],
-      },
-    ],
-  },
-]
+import { DocumentRow } from './document-row'
 
 export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () => void }) {
-  const [data, setData] = useState<any>(null)
-  const [documents, setDocuments] = useState<any[]>([])
-
-  const loadDocuments = async () => {
-    if (!formId) return
-    const { data: docs } = await supabase
-      .from('documentos_cliente')
-      .select('*')
-      .eq('projeto_id', formId)
-      .order('criado_em', { ascending: false })
-
-    setDocuments(docs || [])
-  }
+  const [form, setForm] = useState<any>(null)
+  const [files, setFiles] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const { data: form } = await supabase
-        .from('formulario_comercial')
-        .select('id, cliente_id, datas, produtos_servicos, cliente:clientes(id, nome), usuario_id')
-        .or(`id.eq.${formId},cliente_id.eq.${formId}`)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+    const load = async () => {
+      setLoading(true)
 
-      if (form) {
-        const { data: user } = await supabase
-          .from('users')
-          .select('nome')
-          .eq('id', form.usuario_id)
-          .maybeSingle()
-        const valor = Array.isArray(form.produtos_servicos)
-          ? form.produtos_servicos.reduce((acc, p) => acc + (Number(p.valor_total) || 0), 0)
-          : 0
+      try {
+        const { data: formData } = await supabase
+          .from('formulario_comercial')
+          .select('*, cliente:clientes(*)')
+          .eq('id', formId)
+          .single()
 
-        setData({
-          id: form.id,
-          cliente_id:
-            form.cliente_id ||
-            (Array.isArray(form.cliente) && form.cliente[0]
-              ? form.cliente[0].id
-              : form.cliente?.id),
-          numero: form.id.slice(0, 8),
-          cliente: form.cliente
-            ? Array.isArray(form.cliente)
-              ? form.cliente[0].nome
-              : form.cliente.nome
-            : 'Sem Nome',
-          data_venda: form.datas?.data_venda || '-',
-          valor,
-          vendedor: user?.nome || '-',
-        })
+        if (formData) {
+          const uid = formData.usuario_id || formData.user_id
+          let vendedor = 'Vendedor não definido'
+          if (uid) {
+            const { data: uData } = await supabase
+              .from('users')
+              .select('nome')
+              .eq('id', uid)
+              .single()
+            if (uData?.nome) vendedor = uData.nome
+          }
+          formData.vendedorNome = vendedor
+
+          const dossierId = formData.cliente?.nome || formData.cliente_id || formId
+          const { data: storageFiles } = await supabase.storage.from('dossiers').list(dossierId)
+
+          if (storageFiles && storageFiles.length > 0) {
+            setFiles(
+              storageFiles
+                .filter((f) => f.name !== '.emptyFolderPlaceholder')
+                .map((f) => ({
+                  id: f.id,
+                  title: f.name,
+                  actions: ['ler', 'baixar', 'enviar'],
+                  path: `${dossierId}/${f.name}`,
+                })),
+            )
+          }
+          setForm(formData)
+        }
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err)
+      } finally {
+        setLoading(false)
       }
     }
-    if (formId) {
-      load()
-      loadDocuments()
-    }
+    load()
   }, [formId])
 
+  if (loading)
+    return (
+      <div className="p-8 text-center text-muted-foreground animate-pulse">
+        Carregando dados reais do banco...
+      </div>
+    )
+  if (!form)
+    return (
+      <div className="p-8 text-center text-destructive">
+        Formulário não encontrado ou sem permissão.
+      </div>
+    )
+
+  let produtos = form.produtos_servicos || []
+  if (typeof produtos === 'string') {
+    try {
+      produtos = JSON.parse(produtos)
+    } catch (e) {
+      produtos = []
+    }
+  }
+
+  const valorTotal = Array.isArray(produtos)
+    ? produtos.reduce(
+        (acc: number, p: any) =>
+          acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
+        0,
+      )
+    : 0
+
+  const valorFormatado = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(valorTotal - (Number(form.desconto) || 0))
+
   return (
-    <div className="p-4 md:p-6 flex flex-col h-full overflow-hidden space-y-6 animate-in fade-in duration-300 bg-background">
-      <div className="bg-card p-4 md:p-6 rounded-xl flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 shrink-0 text-card-foreground shadow-sm border border-border">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 border-b border-border pb-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={onBack}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground shrink-0"
+          className="hover:bg-muted transition-colors"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="flex-1 grid grid-cols-2 md:flex md:flex-row gap-4 md:gap-8 w-full">
-          <div className="border-r border-border pr-4 md:pr-8">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Projeto</p>
-            <p className="text-sm md:text-lg font-bold text-foreground">#{data?.numero || '-'}</p>
-          </div>
-          <div className="border-r border-border pr-4 md:pr-8">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Cliente</p>
-            <p className="text-sm md:text-lg font-bold text-foreground">{data?.cliente || '-'}</p>
-          </div>
-          <div className="border-r border-border pr-4 md:pr-8">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Data Venda</p>
-            <p className="text-sm md:text-lg font-bold text-foreground">
-              {data?.data_venda && data.data_venda !== '-'
-                ? new Date(data.data_venda).toLocaleDateString('pt-BR')
-                : '-'}
-            </p>
-          </div>
-          <div className="border-r border-border pr-4 md:pr-8">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Valor</p>
-            <p className="text-sm md:text-lg font-bold text-foreground">
-              {data
-                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    data.valor,
-                  )
-                : '-'}
-            </p>
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <p className="text-xs text-muted-foreground uppercase font-semibold">Vendedor</p>
-            <p className="text-sm md:text-lg font-bold text-foreground">{data?.vendedor || '-'}</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            {form.cliente?.nome || 'Cliente não identificado'}
+          </h1>
+          <p className="text-muted-foreground text-sm font-medium mt-1">
+            Vendedor: <span className="text-foreground">{form.vendedorNome}</span> | Valor do
+            Projeto: <span className="text-foreground">{valorFormatado}</span>
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row flex-1 gap-6 min-h-0">
-        <div className="flex-1 bg-background rounded-xl shadow-sm border border-border overflow-y-auto p-4 md:p-6 space-y-8">
-          {documents.length > 0 && (
-            <div>
-              <h3 className="text-xs md:text-sm font-bold text-foreground mb-4 bg-muted/30 border-b border-border p-3 rounded-t-md flex items-center justify-between">
-                <span>DOCUMENTOS GERADOS NO DOSSIÊ</span>
-                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
-                  {documents.length}
-                </span>
-              </h3>
-              <div className="space-y-2 pl-2">
-                {documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg bg-card shadow-sm hover:border-primary/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {doc.template_nome || doc.tipo || 'Documento'}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          Status: {doc.status.replace('_', ' ')}
-                        </p>
-                      </div>
-                    </div>
-                    {doc.arquivo_url && (
-                      <a href={doc.arquivo_url} target="_blank" rel="noreferrer">
-                        <Button size="sm" variant="outline" className="h-8 gap-2">
-                          <Download className="w-3.5 h-3.5" /> Baixar
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {SECTIONS.map((section, idx) => (
-            <div key={idx}>
-              <h3 className="text-xs md:text-sm font-bold text-foreground mb-4 bg-muted/30 border-b border-border p-3 rounded-t-md">
-                {section.title}
-              </h3>
-              <div className="space-y-2 pl-2">
-                {section.docs.map((doc) => (
-                  <DocumentRow key={doc.id} doc={doc} />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          <div>
-            <div className="flex items-center justify-between bg-muted/30 border-b border-border p-3 rounded-t-md mb-4">
-              <h3 className="text-xs md:text-sm font-bold text-foreground">
-                SEÇÃO 5 — DOCS EXTRAS
-              </h3>
-              <Button
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 h-8"
-              >
-                <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" /> Adicionar Documento
-              </Button>
-            </div>
-            <div className="pl-2 text-sm text-muted-foreground italic">
-              Nenhum documento extra adicionado.
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-card p-5 rounded-lg border border-border shadow-sm">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-card-foreground">
+              <Folder className="w-5 h-5 text-primary" /> Arquivos do Dossiê
+            </h2>
+            <div className="space-y-3">
+              {files.length === 0 ? (
+                <div className="text-center py-8 bg-muted/30 rounded-md border border-dashed border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum documento gerado ou enviado ainda no Storage.
+                  </p>
+                </div>
+              ) : (
+                files.map((f) => <DocumentRow key={f.id} doc={f} />)
+              )}
             </div>
           </div>
         </div>
-
-        <div className="w-full lg:w-[350px] bg-card rounded-xl shadow-sm border border-border overflow-y-auto p-4 md:p-6">
-          <Timeline />
+        <div>
+          <Timeline clienteId={form.cliente?.id} />
         </div>
       </div>
     </div>
