@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { Lead } from '@/types'
+import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 
 interface Props {
   lead: Lead | null
@@ -8,6 +11,40 @@ interface Props {
 }
 
 export function LeadModal({ lead, users, onClose, onSave }: Props) {
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const handleGerarDossie = async () => {
+    setIsGenerating(true)
+    toast.info('Iniciando geração do dossiê... Preparando 7 templates.')
+    toast.loading('Processando em paralelo...', { id: 'gerar-dossie' })
+
+    const clienteNome = lead?.nome || 'Cliente Desconhecido'
+    const vendedorNome = users.find((u) => u.id === lead?.consultor_id)?.nome || 'Não informado'
+
+    try {
+      const { data, error } = await gerarDocumentoCliente({
+        cliente_id: clienteNome,
+        dados_formulario: {
+          Cliente: clienteNome,
+          'Valor total': 'A Definir',
+          'Nome de quem vendeu': vendedorNome,
+        },
+      })
+
+      if (error) {
+        throw new Error(error.message || 'Erro desconhecido')
+      }
+
+      toast.success('Dossiê completo! 7/7 templates gerados. Baixe na Área de Clientes.', {
+        id: 'gerar-dossie',
+      })
+    } catch (error: any) {
+      toast.error(`Falha na geração: ${error.message}`, { id: 'gerar-dossie' })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
@@ -114,6 +151,16 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             ></textarea>
           </div>
           <div className="flex justify-end gap-4 mt-2">
+            {lead && (
+              <button
+                type="button"
+                onClick={handleGerarDossie}
+                disabled={isGenerating}
+                className="bg-green-600 text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] font-medium transition-opacity duration-200 disabled:opacity-50"
+              >
+                {isGenerating ? 'Gerando...' : 'Gerar Dossiê'}
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
