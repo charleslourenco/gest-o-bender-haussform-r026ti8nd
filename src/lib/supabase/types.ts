@@ -853,25 +853,31 @@ export type Database = {
           arquivo_url: string
           atualizado_em: string
           criado_em: string
+          descricao: string | null
           id: string
           nome: string
           tipo: string
+          user_id: string | null
         }
         Insert: {
           arquivo_url: string
           atualizado_em?: string
           criado_em?: string
+          descricao?: string | null
           id?: string
           nome: string
           tipo: string
+          user_id?: string | null
         }
         Update: {
           arquivo_url?: string
           atualizado_em?: string
           criado_em?: string
+          descricao?: string | null
           id?: string
           nome?: string
           tipo?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1300,6 +1306,8 @@ export const Constants = {
 //   arquivo_url: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   descricao: text (nullable)
+//   user_id: uuid (nullable, default: auth.uid())
 // Table: timeline_eventos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1380,6 +1388,7 @@ export const Constants = {
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
 // Table: templates
 //   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY templates_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: timeline_eventos
 //   FOREIGN KEY timeline_eventos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY timeline_eventos_pkey: PRIMARY KEY (id)
@@ -1526,9 +1535,14 @@ export const Constants = {
 //     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 //     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 // Table: templates
-//   Policy "Admin Editor Templates" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//   Policy "Usuário autenticado consegue criar templates" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Usuário autenticado consegue deletar templates criados por ele" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Usuário autenticado consegue editar templates criados por ele" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//   Policy "Usuário autenticado consegue ver templates criados por ele" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
 // Table: timeline_eventos
 //   Policy "Timeline All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
@@ -1560,6 +1574,17 @@ export const Constants = {
 //     ON CONFLICT (id) DO UPDATE SET
 //       email = EXCLUDED.email,
 //       nome = EXCLUDED.nome;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
+// FUNCTION handle_updated_at()
+//   CREATE OR REPLACE FUNCTION public.handle_updated_at()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     NEW.atualizado_em = NOW();
 //     RETURN NEW;
 //   END;
 //   $function$
@@ -1630,6 +1655,10 @@ export const Constants = {
 //   $function$
 //
 
+// --- TRIGGERS ---
+// Table: templates
+//   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
+
 // --- INDEXES ---
 // Table: clientes
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
@@ -1638,5 +1667,7 @@ export const Constants = {
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)
+// Table: templates
+//   CREATE INDEX idx_templates_user_id_tipo ON public.templates USING btree (user_id, tipo)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
