@@ -297,14 +297,42 @@ export function ComercialForm({
 
       toast.info('Gerando dossiê...', { id: 'gerando-doc' })
 
-      const templateData: Record<string, string> = {
+      const replacements: Record<string, string> = {
         Cliente: data.nome || '',
         'Valor total': new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL',
         }).format(total),
         'Nome de quem vendeu': data.vendedor_nome || '',
+        CPF: data.cpf || '',
+        Telefone: data.telefone || '',
+        Email: data.email || '',
+        Profissão: data.profissao || '',
+        'Estado Civil': data.estado_civil || '',
+        CEP: data.end_cep || '',
+        Município: data.end_municipio || '',
+        Estado: data.end_estado || '',
+        Rua: data.end_rua || '',
+        Número: data.end_numero || '',
+        Bairro: data.end_bairro || '',
+        Complemento: data.end_complemento || '',
+        'Obra CEP': data.obra_cep || '',
+        'Obra Município': data.obra_municipio || '',
+        'Obra Estado': data.obra_estado || '',
+        'Obra Rua': data.obra_rua || '',
+        'Obra Número': data.obra_numero || '',
+        'Obra Bairro': data.obra_bairro || '',
+        'Obra Complemento': data.obra_complemento || '',
+        Desconto: data.desconto.toString(),
+        'Forma de Pagamento': data.forma_pagamento,
+        'Data Medida': data.data_medida || '',
       }
+
+      customPlaceholders.forEach((p) => {
+        if (p.key.trim()) {
+          replacements[p.key.trim()] = p.value
+        }
+      })
 
       const response = await fetch(
         'https://igsdtxyopeiecpxwovgh.supabase.co/functions/v1/gerar_documento_cliente',
@@ -316,28 +344,24 @@ export function ComercialForm({
               'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc2R0eHlvcGVpZWNweHdvdmdoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzUwOTY5MywiZXhwIjoyMDkzMDg1NjkzfQ.Y0P4NxXog1gcFW91maVshuG2pQSArLh4qKq1m9zOT-8',
           },
           body: JSON.stringify({
+            template: 'Contrato.docx',
             dossierId: data.nome || '',
-            templateData,
+            replacements,
           }),
         },
       )
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(errorText || `Erro ${response.status}`)
-      }
-
       const result = await response.json()
       toast.dismiss('gerando-doc')
 
-      if (result.success) {
+      if (response.ok && result.success) {
         toast.success('Dossiê gerado com sucesso!')
       } else {
-        throw new Error('Falha ao gerar documentos.')
+        throw new Error(result.error || 'Falha ao gerar documentos.')
       }
     } catch (e: any) {
       toast.dismiss('gerando-doc')
-      toast.error('Erro ao gerar dossiê. Tente novamente em alguns instantes.')
+      toast.error(e.message || 'Erro ao gerar dossiê. Tente novamente em alguns instantes.')
     } finally {
       setGenerating(false)
     }

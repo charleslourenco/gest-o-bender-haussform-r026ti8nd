@@ -2,93 +2,112 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import JSZip from 'npm:jszip@3'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve({ port: 54321 }, async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 405,
+    })
+  }
+
   try {
-    if (req.method !== 'POST') {
-      throw new Error('Only POST method allowed')
-    }
-
     const body = (await req.json()) as {
-      template_path: string
-      dossier_path: string
-      data: Record<string, any>
+      template: string
+      dossierId: string
+      replacements: Record<string, string>
+    }
+    const { template, dossierId, replacements } = body
+
+    if (!template || !dossierId || typeof replacements !== 'object') {
+      throw new Error('Missing or invalid parameters: template, dossierId, replacements')
     }
 
-    const { template_path, dossier_path, data } = body
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
 
-    if (!template_path || !dossier_path || !data) {
-      throw new Error('Missing required fields: template_path, dossier_path, data')
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Missing environment variables: SUPABASE_URL, SERVICE_ROLE_KEY')
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SERVICE_ROLE_KEY') ?? '',
-    )
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
 
     // Download template ZIP
-    const { data: fileData, error: downloadError } = await supabase.storage
+    const { data: templateFile, error: downloadError } = await supabase.storage
       .from('bender_templates')
-      .download(template_path)
+      .download(template)
 
-    if (downloadError || !fileData) {
+    if (downloadError || !templateFile) {
       throw new Error(`Failed to download template: ${downloadError?.message || 'Unknown error'}`)
     }
 
-    const buffer = fileData as Uint8Array
-    const templateZip = await JSZip.loadAsync(buffer)
+    const templateBuffer = await templateFile.arrayBuffer()
+    const zip = await JSZip.loadAsync(templateBuffer)
+
+    // Process files
+    const newFiles: Record<string, Uint8Array> = {}
+    await Promise.all(
+      Object.entries(zip.files).map(async ([fileName, file]) => {
+        if (file.dir) return
+
+        try {
+          let content = await file.async('text')
+          for (const [key, value] of Object.entries(replacements)) {
+            const placeholder = `{{${key}}}`
+            content = content.replaceAll(placeholder, value || '')
+          }
+          newFiles[fileName] = new TextEncoder().encode(content)
+        } catch (e) {
+          console.warn(`Non-text file ${fileName}, copying binary:`, e)
+          newFiles[fileName] = await file.async('uint8array')
+        }
+      }),
+    )
 
     // Create new ZIP
-    const outputZip = new JSZip()
-
-    // Process each file in the template
-    for (const [fileName, file] of Object.entries(templateZip.files)) {
-      if (!file.dir) {
-        let content = await file.async('string')
-
-        // Universal replacement loop
-        for (const [key, value] of Object.entries(data)) {
-          const placeholder = `{{${key}}}`
-          const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          content = content.replace(new RegExp(escapedPlaceholder, 'g'), String(value ?? ''))
-        }
-
-        outputZip.file(fileName, content)
-      }
+    const newZip = new JSZip()
+    for (const [name, content] of Object.entries(newFiles)) {
+      newZip.file(name, content)
     }
 
-    // Generate output buffer
-    const outputBuffer = await outputZip.generateAsync({ type: 'uint8array' })
+    const newZipBuffer = await newZip.generateAsync({ type: 'uint8array' })
 
     // Upload to dossiers bucket
+    const outputPath = `${dossierId}/${template}`
     const { error: uploadError } = await supabase.storage
       .from('dossiers')
-      .upload(dossier_path, outputBuffer, {
-        contentType: 'application/zip',
+      .upload(outputPath, newZipBuffer, {
         upsert: true,
       })
 
     if (uploadError) {
-      throw new Error(`Upload failed: ${uploadError.message}`)
+      throw new Error(`Failed to upload: ${uploadError.message}`)
     }
+
+    console.log(`Successfully generated and uploaded ${outputPath}`)
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
     })
   } catch (error) {
-    console.error('Edge Function error:', error)
+    console.error('Bender Haussform Error:', error)
     return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500,
     })
   }
 })
