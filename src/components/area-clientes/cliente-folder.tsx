@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, FileText, Loader2 } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Loader2, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { DocumentRow } from './document-row'
@@ -83,8 +83,20 @@ const SECTIONS = [
 
 export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () => void }) {
   const [data, setData] = useState<any>(null)
+  const [documents, setDocuments] = useState<any[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const { toast } = useToast()
+
+  const loadDocuments = async () => {
+    if (!formId) return
+    const { data: docs } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('projeto_id', formId)
+      .order('criado_em', { ascending: false })
+
+    setDocuments(docs || [])
+  }
 
   const handleGerarDossie = async () => {
     if (!data?.id || !data?.cliente_id) {
@@ -101,7 +113,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       const res = await gerarDocumentoCliente({
         cliente_id: data.cliente_id,
         projeto_id: data.id,
-        dados_formulario: {},
       })
 
       if (res.error) throw res.error
@@ -110,8 +121,8 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
 
       if (result.erros && result.erros.length > 0) {
         toast({
-          title: 'Dossiê gerado com avisos.',
-          description: `Sucesso para ${result.gerados?.length || 0} templates. Erros em: ${result.erros.map((e: any) => e.template).join(', ')}`,
+          title: 'Atenção',
+          description: `Dossiê gerado com sucesso para ${result.gerados?.length || 0} templates. Erros em: ${result.erros.map((e: any) => e.template || e.tipo).join(', ')}`,
           variant: 'default',
         })
       } else {
@@ -120,6 +131,8 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           description: 'Dossiê gerado com sucesso para todos os templates.',
         })
       }
+
+      await loadDocuments()
     } catch (err: any) {
       toast({
         title: 'Erro ao gerar dossiê',
@@ -170,7 +183,10 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
         })
       }
     }
-    if (formId) load()
+    if (formId) {
+      load()
+      loadDocuments()
+    }
   }, [formId])
 
   return (
@@ -238,6 +254,46 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
 
       <div className="flex flex-col lg:flex-row flex-1 gap-6 min-h-0">
         <div className="flex-1 bg-background rounded-xl shadow-sm border border-border overflow-y-auto p-4 md:p-6 space-y-8">
+          {documents.length > 0 && (
+            <div>
+              <h3 className="text-xs md:text-sm font-bold text-foreground mb-4 bg-muted/30 border-b border-border p-3 rounded-t-md flex items-center justify-between">
+                <span>DOCUMENTOS GERADOS NO DOSSIÊ</span>
+                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
+                  {documents.length}
+                </span>
+              </h3>
+              <div className="space-y-2 pl-2">
+                {documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between p-3 border border-border rounded-lg bg-card shadow-sm hover:border-primary/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {doc.template_nome || doc.tipo || 'Documento'}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          Status: {doc.status.replace('_', ' ')}
+                        </p>
+                      </div>
+                    </div>
+                    {doc.arquivo_url && (
+                      <a href={doc.arquivo_url} target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="outline" className="h-8 gap-2">
+                          <Download className="w-3.5 h-3.5" /> Baixar
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {SECTIONS.map((section, idx) => (
             <div key={idx}>
               <h3 className="text-xs md:text-sm font-bold text-foreground mb-4 bg-muted/30 border-b border-border p-3 rounded-t-md">
