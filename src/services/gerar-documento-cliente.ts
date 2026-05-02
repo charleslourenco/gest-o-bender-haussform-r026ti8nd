@@ -1,10 +1,10 @@
 import { supabase } from '@/lib/supabase/client'
 
 export interface GerarDocumentoParams {
-  template_nome: string
   cliente_id: string
   projeto_id: string
-  dados_formulario: any
+  dados_formulario?: any
+  template_nome?: string
 }
 
 export const gerarDocumentoCliente = async (params: GerarDocumentoParams) => {

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { DocumentRow } from './document-row'
 import { Timeline } from './timeline'
+import { useToast } from '@/components/ui/use-toast'
+import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 
 const SECTIONS = [
   {
@@ -81,12 +83,59 @@ const SECTIONS = [
 
 export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () => void }) {
   const [data, setData] = useState<any>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const { toast } = useToast()
+
+  const handleGerarDossie = async () => {
+    if (!data?.id || !data?.cliente_id) {
+      toast({
+        title: 'Erro',
+        description: 'Dados do projeto não encontrados.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsGenerating(true)
+    try {
+      const res = await gerarDocumentoCliente({
+        cliente_id: data.cliente_id,
+        projeto_id: data.id,
+        dados_formulario: {},
+      })
+
+      if (res.error) throw res.error
+
+      const result = res.data
+
+      if (result.erros && result.erros.length > 0) {
+        toast({
+          title: 'Dossiê gerado com avisos.',
+          description: `Sucesso para ${result.gerados?.length || 0} templates. Erros em: ${result.erros.map((e: any) => e.template).join(', ')}`,
+          variant: 'default',
+        })
+      } else {
+        toast({
+          title: 'Sucesso!',
+          description: 'Dossiê gerado com sucesso para todos os templates.',
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao gerar dossiê',
+        description: err.message || 'Tente novamente em alguns instantes.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsGenerating(false)
+    }
+  }
 
   useEffect(() => {
     async function load() {
       const { data: form } = await supabase
         .from('formulario_comercial')
-        .select('id, datas, produtos_servicos, cliente:clientes(id, nome), usuario_id')
+        .select('id, cliente_id, datas, produtos_servicos, cliente:clientes(id, nome), usuario_id')
         .or(`id.eq.${formId},cliente_id.eq.${formId}`)
         .order('criado_em', { ascending: false })
         .limit(1)
@@ -103,6 +152,12 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           : 0
 
         setData({
+          id: form.id,
+          cliente_id:
+            form.cliente_id ||
+            (Array.isArray(form.cliente) && form.cliente[0]
+              ? form.cliente[0].id
+              : form.cliente?.id),
           numero: form.id.slice(0, 8),
           cliente: form.cliente
             ? Array.isArray(form.cliente)
@@ -159,6 +214,24 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           <div className="col-span-2 md:col-span-1">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Vendedor</p>
             <p className="text-sm md:text-lg font-bold text-foreground">{data?.vendedor || '-'}</p>
+          </div>
+          <div className="col-span-2 md:col-span-1 md:ml-auto self-end md:self-center pt-2 md:pt-0">
+            <Button
+              id="gerar-dossie"
+              className="gerar-dossie w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handleGerarDossie}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4 h-4 mr-2" /> Gerar Dossiê
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>

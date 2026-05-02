@@ -297,41 +297,6 @@ export type Database = {
           },
         ]
       }
-      documentos_obrigatorios: {
-        Row: {
-          atualizado_em: string
-          criado_em: string
-          id: string
-          status: boolean
-          template_id: string | null
-          tipo: string
-        }
-        Insert: {
-          atualizado_em?: string
-          criado_em?: string
-          id?: string
-          status?: boolean
-          template_id?: string | null
-          tipo: string
-        }
-        Update: {
-          atualizado_em?: string
-          criado_em?: string
-          id?: string
-          status?: boolean
-          template_id?: string | null
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'documentos_obrigatorios_template_id_fkey'
-            columns: ['template_id']
-            isOneToOne: false
-            referencedRelation: 'templates'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       dossies: {
         Row: {
           arquivo_projeto_url: string | null
@@ -456,6 +421,7 @@ export type Database = {
           obra_numero: string | null
           obra_rua: string | null
           pagamentos: Json | null
+          placeholders_customizados: Json | null
           produtos_servicos: Json | null
           profissao: string | null
           referencia_bancaria: string | null
@@ -494,6 +460,7 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
+          placeholders_customizados?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
           referencia_bancaria?: string | null
@@ -532,6 +499,7 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
+          placeholders_customizados?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
           referencia_bancaria?: string | null
@@ -895,6 +863,7 @@ export type Database = {
           descricao: string | null
           id: string
           nome: string
+          placeholders_customizados: Json | null
           tipo: string
           user_id: string | null
         }
@@ -905,6 +874,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
+          placeholders_customizados?: Json | null
           tipo: string
           user_id?: string | null
         }
@@ -915,6 +885,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
+          placeholders_customizados?: Json | null
           tipo?: string
           user_id?: string | null
         }
@@ -1210,13 +1181,6 @@ export const Constants = {
 //   projeto_id: uuid (nullable)
 //   arquivo_url: text (nullable)
 //   template_nome: text (nullable)
-// Table: documentos_obrigatorios
-//   id: uuid (not null, default: gen_random_uuid())
-//   tipo: text (not null)
-//   template_id: uuid (nullable)
-//   status: boolean (not null, default: true)
-//   criado_em: timestamp with time zone (not null, default: now())
-//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: dossies
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -1276,6 +1240,7 @@ export const Constants = {
 //   dados_etapa_3: jsonb (nullable, default: '{}'::jsonb)
 //   dados_etapa_4: jsonb (nullable, default: '{}'::jsonb)
 //   user_id: uuid (not null, default: auth.uid())
+//   placeholders_customizados: jsonb (nullable, default: '{}'::jsonb)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1358,6 +1323,7 @@ export const Constants = {
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   descricao: text (nullable)
 //   user_id: uuid (nullable, default: auth.uid())
+//   placeholders_customizados: jsonb (nullable, default: '[]'::jsonb)
 // Table: timeline_eventos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1397,10 +1363,6 @@ export const Constants = {
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_cliente_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
-// Table: documentos_obrigatorios
-//   PRIMARY KEY documentos_obrigatorios_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY documentos_obrigatorios_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
-//   UNIQUE documentos_obrigatorios_tipo_key: UNIQUE (tipo)
 // Table: dossies
 //   FOREIGN KEY dossies_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY dossies_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -1493,10 +1455,6 @@ export const Constants = {
 //     USING: true
 //   Policy "doc_cli_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
-// Table: documentos_obrigatorios
-//   Policy "Admin Editor Docs" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
 // Table: dossies
 //   Policy "dossies_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
@@ -1729,8 +1687,6 @@ export const Constants = {
 // --- INDEXES ---
 // Table: clientes
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
-// Table: documentos_obrigatorios
-//   CREATE UNIQUE INDEX documentos_obrigatorios_tipo_key ON public.documentos_obrigatorios USING btree (tipo)
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)

@@ -9,61 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const PLACEHOLDERS_52 = [
-  'CLIENTE_NOME',
-  'CLIENTE_CPF_CNPJ',
-  'CLIENTE_PROFISSAO',
-  'CLIENTE_ESTADO_CIVIL',
-  'CLIENTE_TELEFONE',
-  'CLIENTE_EMAIL',
-  'CLIENTE_CEP',
-  'CLIENTE_RUA',
-  'CLIENTE_NUMERO',
-  'CLIENTE_COMPLEMENTO',
-  'CLIENTE_BAIRRO',
-  'CLIENTE_CIDADE',
-  'CLIENTE_ESTADO',
-  'OBRA_CEP',
-  'OBRA_RUA',
-  'OBRA_NUMERO',
-  'OBRA_COMPLEMENTO',
-  'OBRA_BAIRRO',
-  'OBRA_CIDADE',
-  'OBRA_ESTADO',
-  'DATA_ACESSO_MOVEL',
-  'DATA_ASSINATURA_CONTRATO',
-  'TESTEMUNHA_01_NOME',
-  'TESTEMUNHA_01_CPF',
-  'TESTEMUNHA_02_NOME',
-  'TESTEMUNHA_02_CPF',
-  'ASSINANTE_NOME',
-  'ASSINANTE_CPF',
-  'BLOCO_PRODUTOS_SERVICOS',
-  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_NOME`),
-  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_DESCRICAO`),
-  ...Array.from({ length: 12 }).map((_, i) => `PRODUTO_LINHA_${i + 1}_VALOR`),
-  'FORMA_PAGAMENTO',
-  'METODO_PAGAMENTO',
-  'DATA_PAGAMENTO',
-  'BLOCO_PARCELAS',
-  'BLOCO_PARCELAS_TEXTO',
-  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_NUMERO`),
-  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_VALOR`),
-  ...Array.from({ length: 12 }).map((_, i) => `PARCELA_${i + 1}_DATA_VENCIMENTO`),
-  'EMPRESA_NOME',
-  'EMPRESA_CNPJ',
-  'EMPRESA_ENDERECO',
-  'EMPRESA_TELEFONE',
-  'EMPRESA_EMAIL',
-  'VENDEDOR_NOME',
-  'VENDEDOR_CPF',
-  'VENDEDOR_EMAIL',
-  'VENDEDOR_TELEFONE',
-  'NUMERO_PROJETO',
-  'VALOR_TOTAL',
-  'DATA_VENDA',
-]
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -98,173 +43,95 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json()
-    const { template_nome, cliente_id, projeto_id, dados_formulario } = body
+    const { cliente_id, projeto_id } = body
 
     if (
-      !template_nome ||
-      typeof template_nome !== 'string' ||
       !cliente_id ||
       typeof cliente_id !== 'string' ||
       !projeto_id ||
-      typeof projeto_id !== 'string' ||
-      !dados_formulario ||
-      typeof dados_formulario !== 'object'
+      typeof projeto_id !== 'string'
     ) {
       return new Response(
         JSON.stringify({
-          mensagem:
-            'Parâmetros inválidos. template_nome, cliente_id, projeto_id e dados_formulario são obrigatórios.',
+          mensagem: 'Parâmetros inválidos. cliente_id e projeto_id são obrigatórios.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(cliente_id) || !uuidRegex.test(projeto_id)) {
-      return new Response(
-        JSON.stringify({ mensagem: 'cliente_id ou projeto_id não são UUIDs válidos.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    const { data: template } = await supabaseAdmin
-      .from('templates')
+    const { data: form } = await supabaseClient
+      .from('formulario_comercial')
       .select('*')
-      .eq('nome', template_nome)
+      .eq('id', projeto_id)
       .single()
+    const { data: cliente } = await supabaseClient
+      .from('clientes')
+      .select('*')
+      .eq('id', cliente_id)
+      .single()
+    const { data: vendedor } = form?.usuario_id
+      ? await supabaseClient.from('users').select('*').eq('id', form.usuario_id).single()
+      : { data: null }
 
-    if (!template) {
-      await supabaseAdmin.from('documentos_cliente').insert({
-        cliente_id,
-        projeto_id,
-        template_nome,
-        tipo: 'desconhecido',
-        status: 'erro_template_nao_encontrado',
-      })
-      return new Response(
-        JSON.stringify({
-          sucesso: true,
-          mensagem: 'Documento não pôde ser gerado',
-          motivo: 'template não encontrado',
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    let arrayBuffer: ArrayBuffer
-    try {
-      const res = await fetch(template.arquivo_url)
-      if (!res.ok) throw new Error('Download falhou')
-      arrayBuffer = await res.arrayBuffer()
-    } catch (e) {
-      await supabaseAdmin.from('documentos_cliente').insert({
-        cliente_id,
-        projeto_id,
-        template_id: template.id,
-        template_nome,
-        tipo: template.tipo,
-        status: 'erro_download_template',
-      })
-      return new Response(
-        JSON.stringify({
-          sucesso: true,
-          mensagem: 'Documento não pôde ser gerado',
-          motivo: 'erro ao baixar template',
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    const zip = new PizZip(arrayBuffer)
-
-    const xmlContent = zip.file('word/document.xml')?.asText() || ''
-    const cleanText = xmlContent.replace(/<[^>]+>/g, '')
-    const matches = cleanText.match(/\{\{([a-zA-Z0-9_]+)\}\}/g) || []
-    const placeholdersFound = new Set<string>()
-    matches.forEach((m) => placeholdersFound.add(m.replace(/[{}]/g, '')))
-
-    const hasBlocoProdutos = placeholdersFound.has('BLOCO_PRODUTOS_SERVICOS')
-    const hasBlocoParcelas = placeholdersFound.has('BLOCO_PARCELAS')
-    const hasBlocoParcelasText = placeholdersFound.has('BLOCO_PARCELAS_TEXTO')
-
-    const missingPlaceholders = new Set<string>()
-
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      delimiters: { start: '{{', end: '}}' },
-      nullGetter: function (part: any) {
-        if (!part.module) {
-          missingPlaceholders.add(part.value)
-          return '{{' + part.value + '}}'
-        }
-        return ''
-      },
-    })
-
+    const dados_formulario = form || {}
     const val = (v: any) => (v === null || v === undefined || v === '' ? undefined : String(v))
 
     const docData: Record<string, any> = {
-      CLIENTE_NOME: val(dados_formulario.cliente_nome || dados_formulario.nome),
-      CLIENTE_CPF_CNPJ: val(dados_formulario.cliente_cpf_cnpj || dados_formulario.cpf),
-      CLIENTE_TELEFONE: val(dados_formulario.cliente_telefone || dados_formulario.telefone),
-      CLIENTE_EMAIL: val(dados_formulario.cliente_email || dados_formulario.email),
-      CLIENTE_PROFISSAO: val(dados_formulario.cliente_profissao || dados_formulario.profissao),
-      CLIENTE_ESTADO_CIVIL: val(
-        dados_formulario.cliente_estado_civil || dados_formulario.estado_civil,
-      ),
-      CLIENTE_CEP: val(dados_formulario.cliente_cep || dados_formulario.cep),
-      CLIENTE_RUA: val(dados_formulario.cliente_rua || dados_formulario.rua),
-      CLIENTE_NUMERO: val(dados_formulario.cliente_numero || dados_formulario.numero),
-      CLIENTE_COMPLEMENTO: val(
-        dados_formulario.cliente_complemento || dados_formulario.complemento,
-      ),
-      CLIENTE_BAIRRO: val(dados_formulario.cliente_bairro || dados_formulario.bairro),
-      CLIENTE_CIDADE: val(dados_formulario.cliente_cidade || dados_formulario.municipio),
-      CLIENTE_ESTADO: val(dados_formulario.cliente_estado || dados_formulario.estado),
+      CLIENTE_NOME: val(cliente?.nome || dados_formulario.nome),
+      CLIENTE_CPF_CNPJ: val(cliente?.cpf || dados_formulario.cpf),
+      CLIENTE_TELEFONE: val(cliente?.telefone || dados_formulario.telefone),
+      CLIENTE_EMAIL: val(cliente?.email || dados_formulario.email),
+      CLIENTE_PROFISSAO: val(cliente?.profissao || dados_formulario.profissao),
+      CLIENTE_ESTADO_CIVIL: val(dados_formulario.estado_civil),
+      CLIENTE_CEP: val(cliente?.cep || dados_formulario.cep),
+      CLIENTE_RUA: val(cliente?.endereco_obra || dados_formulario.rua),
+      CLIENTE_NUMERO: val(cliente?.numero || dados_formulario.numero),
+      CLIENTE_COMPLEMENTO: val(cliente?.complemento || dados_formulario.complemento),
+      CLIENTE_BAIRRO: val(cliente?.bairro || dados_formulario.bairro),
+      CLIENTE_CIDADE: val(cliente?.cidade || dados_formulario.municipio),
+      CLIENTE_ESTADO: val(cliente?.estado || dados_formulario.estado),
       OBRA_CEP: val(dados_formulario.obra_cep),
       OBRA_RUA: val(dados_formulario.obra_rua),
       OBRA_NUMERO: val(dados_formulario.obra_numero),
       OBRA_COMPLEMENTO: val(dados_formulario.obra_complemento),
       OBRA_BAIRRO: val(dados_formulario.obra_bairro),
-      OBRA_CIDADE: val(dados_formulario.obra_cidade || dados_formulario.obra_municipio),
+      OBRA_CIDADE: val(dados_formulario.obra_municipio),
       OBRA_ESTADO: val(dados_formulario.obra_estado),
-      DATA_ACESSO_MOVEL: val(
-        dados_formulario.data_acesso_movel || dados_formulario.datas?.acesso_movel,
-      ),
+      DATA_ACESSO_MOVEL: val(dados_formulario.datas?.acesso_movel),
       DATA_ASSINATURA_CONTRATO: val(
-        dados_formulario.data_assinatura_contrato || dados_formulario.datas?.assinatura_contrato,
+        dados_formulario.datas?.assinatura_contrato || new Date().toLocaleDateString('pt-BR'),
       ),
-      TESTEMUNHA_01_NOME: val(dados_formulario.testemunha_01_nome),
-      TESTEMUNHA_01_CPF: val(dados_formulario.testemunha_01_cpf),
-      TESTEMUNHA_02_NOME: val(dados_formulario.testemunha_02_nome),
-      TESTEMUNHA_02_CPF: val(dados_formulario.testemunha_02_cpf),
-      ASSINANTE_NOME: val(dados_formulario.assinante_nome),
-      ASSINANTE_CPF: val(dados_formulario.assinante_cpf),
-      FORMA_PAGAMENTO: val(dados_formulario.forma_pagamento),
-      METODO_PAGAMENTO: val(dados_formulario.metodo_pagamento),
-      DATA_PAGAMENTO: val(dados_formulario.data_pagamento),
-      EMPRESA_NOME: val(dados_formulario.empresa_nome || 'Sua Empresa'),
-      EMPRESA_CNPJ: val(dados_formulario.empresa_cnpj),
-      EMPRESA_ENDERECO: val(dados_formulario.empresa_endereco),
-      EMPRESA_TELEFONE: val(dados_formulario.empresa_telefone),
-      EMPRESA_EMAIL: val(dados_formulario.empresa_email),
-      VENDEDOR_NOME: val(dados_formulario.vendedor_nome),
-      VENDEDOR_CPF: val(dados_formulario.vendedor_cpf),
-      VENDEDOR_EMAIL: val(dados_formulario.vendedor_email),
-      VENDEDOR_TELEFONE: val(dados_formulario.vendedor_telefone),
-      NUMERO_PROJETO: val(dados_formulario.numero_projeto || projeto_id),
+      TESTEMUNHA_01_NOME: undefined,
+      TESTEMUNHA_01_CPF: undefined,
+      TESTEMUNHA_02_NOME: undefined,
+      TESTEMUNHA_02_CPF: undefined,
+      ASSINANTE_NOME: val(cliente?.nome),
+      ASSINANTE_CPF: val(cliente?.cpf),
+      FORMA_PAGAMENTO: val(dados_formulario.pagamentos?.forma),
+      METODO_PAGAMENTO: val(dados_formulario.pagamentos?.a_vista?.meio || 'Diversos'),
+      DATA_PAGAMENTO: val(dados_formulario.pagamentos?.a_vista?.data),
+      EMPRESA_NOME: 'Bender Haussform',
+      EMPRESA_CNPJ: '00.000.000/0001-00',
+      EMPRESA_ENDERECO: 'Endereço da Empresa',
+      EMPRESA_TELEFONE: 'Telefone da Empresa',
+      EMPRESA_EMAIL: 'contato@benderhaussform.com.br',
+      VENDEDOR_NOME: val(vendedor?.nome),
+      VENDEDOR_CPF: undefined,
+      VENDEDOR_EMAIL: val(vendedor?.email),
+      VENDEDOR_TELEFONE: val(vendedor?.telefone),
+      NUMERO_PROJETO: val(projeto_id?.substring(0, 8).toUpperCase()),
       VALOR_TOTAL: val(
-        dados_formulario.valor_total || dados_formulario.desconto
-          ? Number(dados_formulario.valor_total || 0) - Number(dados_formulario.desconto || 0)
-          : undefined,
+        dados_formulario.produtos_servicos?.reduce?.(
+          (acc: any, p: any) => acc + (Number(p.valor_total) || 0),
+          0,
+        ) - Number(dados_formulario.desconto || 0),
       ),
-      DATA_VENDA: val(dados_formulario.data_venda || dados_formulario.criado_em),
+      DATA_VENDA: val(dados_formulario.datas?.data_venda || dados_formulario.criado_em),
     }
 
     const produtos = Array.isArray(dados_formulario.produtos_servicos)
       ? dados_formulario.produtos_servicos
-      : dados_formulario.bloco_produtos_servicos || []
+      : []
     const blocoProdutos = produtos
       .map(
         (p: any, i: number) =>
@@ -272,33 +139,11 @@ Deno.serve(async (req: Request) => {
       )
       .join('\n')
 
-    if (hasBlocoProdutos) {
-      docData['BLOCO_PRODUTOS_SERVICOS'] = val(blocoProdutos)
-      for (let i = 1; i <= 12; i++) {
-        docData[`PRODUTO_LINHA_${i}_NOME`] = ''
-        docData[`PRODUTO_LINHA_${i}_DESCRICAO`] = ''
-        docData[`PRODUTO_LINHA_${i}_VALOR`] = ''
-      }
-    } else {
-      docData['BLOCO_PRODUTOS_SERVICOS'] = ''
-      for (let i = 1; i <= 12; i++) {
-        const p = produtos[i - 1]
-        docData[`PRODUTO_LINHA_${i}_NOME`] = p ? val(p.nome || p.nome_produto) : undefined
-        docData[`PRODUTO_LINHA_${i}_DESCRICAO`] = p ? val(p.descricao) : undefined
-        docData[`PRODUTO_LINHA_${i}_VALOR`] = p
-          ? val(p.valor_total || p.valor || p.valor_unitario)
-          : undefined
-      }
-    }
-
-    const pagamentos = Array.isArray(dados_formulario.pagamentos)
-      ? dados_formulario.pagamentos
-      : dados_formulario.bloco_parcelas || []
+    const pagamentos = Array.isArray(dados_formulario.pagamentos?.parcelado)
+      ? dados_formulario.pagamentos.parcelado
+      : []
     const blocoParcelas = pagamentos
-      .map(
-        (p: any, i: number) =>
-          `Parcela ${p.numero || i + 1}: R$ ${p.valor || 0} - Venc: ${p.data_vencimento || ''}`,
-      )
+      .map((p: any, i: number) => `Parcela ${i + 1}: R$ ${p.valor || 0} - Venc: ${p.data || ''}`)
       .join('\n')
 
     const formatCurrency = (n: any) =>
@@ -306,135 +151,189 @@ Deno.serve(async (req: Request) => {
     const blocoParcelasTextFormatado = pagamentos
       .map(
         (p: any, i: number) =>
-          `${i + 1}ª parcela de ${formatCurrency(p.valor)} com vencimento para ${p.data_vencimento ? p.data_vencimento.split('-').reverse().join('/') : ''}`,
+          `${i + 1}ª parcela de ${formatCurrency(p.valor)} com vencimento para ${p.data ? p.data.split('-').reverse().join('/') : ''}`,
       )
       .join(', ')
-
-    if (hasBlocoParcelasText) {
-      docData['BLOCO_PARCELAS_TEXTO'] = val(blocoParcelasTextFormatado)
-      docData['BLOCO_PARCELAS'] = ''
-      for (let i = 1; i <= 12; i++) {
-        docData[`PARCELA_${i}_NUMERO`] = ''
-        docData[`PARCELA_${i}_VALOR`] = ''
-        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
-      }
-    } else if (hasBlocoParcelas) {
-      docData['BLOCO_PARCELAS'] = val(blocoParcelas)
-      docData['BLOCO_PARCELAS_TEXTO'] = ''
-      for (let i = 1; i <= 12; i++) {
-        docData[`PARCELA_${i}_NUMERO`] = ''
-        docData[`PARCELA_${i}_VALOR`] = ''
-        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
-      }
-    } else {
-      docData['BLOCO_PARCELAS'] = ''
-      docData['BLOCO_PARCELAS_TEXTO'] = ''
-      for (let i = 1; i <= 12; i++) {
-        const p = pagamentos[i - 1]
-        docData[`PARCELA_${i}_NUMERO`] = p ? val(p.numero || i) : undefined
-        docData[`PARCELA_${i}_VALOR`] = p ? val(p.valor) : undefined
-        docData[`PARCELA_${i}_DATA_VENCIMENTO`] = p ? val(p.data_vencimento) : undefined
-      }
-    }
 
     const customPayload = dados_formulario.placeholders_customizados || {}
     for (const [key, value] of Object.entries(customPayload)) {
       docData[key] = val(value)
     }
 
-    const customFound = new Set<string>()
-    for (const p of placeholdersFound) {
-      if (!PLACEHOLDERS_52.includes(p)) {
-        customFound.add(p)
-      }
-    }
+    const templateNames = [
+      'Contrato',
+      'Termo de Alteração',
+      'Termo de Conclusão e Vistoria',
+      'Termo de Garantia',
+      'Termo de Não Conformidade',
+      'Termo de Recusa',
+      'Termo de Representação',
+    ]
 
-    if (customFound.size > 0) {
-      const existingCustoms = template.placeholders_customizados || []
-      const newCustoms = Array.from(customFound).filter((c) => !existingCustoms.includes(c))
-      if (newCustoms.length > 0) {
-        await supabaseAdmin
-          .from('templates')
-          .update({
-            placeholders_customizados: [...existingCustoms, ...newCustoms],
-          })
-          .eq('id', template.id)
-      }
-    }
+    const { data: templates } = await supabaseAdmin
+      .from('templates')
+      .select('*')
+      .in('nome', templateNames)
 
-    try {
-      doc.render(docData)
-    } catch (error) {
-      console.error('Render error:', error)
-    }
-
-    const buf = doc.getZip().generate({
-      type: 'uint8array',
-      compression: 'DEFLATE',
-    })
-
-    const now = new Date().toISOString().replace(/[:.]/g, '-')
-    const safeTemplateName = template_nome.replace(/[^a-z0-9]/gi, '_')
-    const fileName = `${safeTemplateName}_${now}.docx`
-    const filePath = `${cliente_id}/${projeto_id}/${fileName}`
-
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('dossiers')
-      .upload(filePath, buf, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true,
-      })
-
-    if (uploadError) {
-      await supabaseAdmin.from('documentos_cliente').insert({
-        cliente_id,
-        projeto_id,
-        template_id: template.id,
-        template_nome,
-        tipo: template.tipo,
-        status: 'erro_salvamento',
-      })
-      return new Response(
-        JSON.stringify({
-          sucesso: true,
-          mensagem: 'Documento não pôde ser gerado',
-          motivo: 'erro_salvamento',
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    let templatesToProcess = templates || []
+    if (templatesToProcess.length === 0) {
+      const { data: allActive } = await supabaseAdmin.from('templates').select('*')
+      templatesToProcess = (allActive || []).filter(
+        (t) =>
+          templateNames.includes(t.nome) || t.nome.includes('Termo') || t.nome.includes('Contrato'),
       )
     }
 
-    const { data: publicUrlData } = supabaseAdmin.storage.from('dossiers').getPublicUrl(filePath)
-    const arquivo_url = publicUrlData.publicUrl
+    const resultados = await Promise.allSettled(
+      templatesToProcess.map(async (template) => {
+        try {
+          let arrayBuffer: ArrayBuffer
+          const res = await fetch(template.arquivo_url)
+          if (!res.ok) throw new Error('Download falhou')
+          arrayBuffer = await res.arrayBuffer()
 
-    const { error: dbError } = await supabaseAdmin.from('documentos_cliente').insert({
-      cliente_id,
-      projeto_id,
-      template_id: template.id,
-      template_nome,
-      tipo: template.tipo,
-      arquivo_url,
-      status: 'gerado',
-    })
+          const zip = new PizZip(arrayBuffer)
+          const xmlContent = zip.file('word/document.xml')?.asText() || ''
+          const cleanText = xmlContent.replace(/<[^>]+>/g, '')
+          const matches = cleanText.match(/\{\{([a-zA-Z0-9_]+)\}\}/g) || []
+          const placeholdersFound = new Set<string>()
+          matches.forEach((m) => placeholdersFound.add(m.replace(/[{}]/g, '')))
 
-    if (dbError) {
-      console.error('Error inserting into documentos_cliente:', dbError)
-    }
+          const hasBlocoProdutos = placeholdersFound.has('BLOCO_PRODUTOS_SERVICOS')
+          const hasBlocoParcelas = placeholdersFound.has('BLOCO_PARCELAS')
+          const hasBlocoParcelasText = placeholdersFound.has('BLOCO_PARCELAS_TEXTO')
+
+          const doc = new Docxtemplater(zip, {
+            paragraphLoop: true,
+            linebreaks: true,
+            delimiters: { start: '{{', end: '}}' },
+            nullGetter: function (part: any) {
+              if (!part.module) {
+                return '{{' + part.value + '}}'
+              }
+              return ''
+            },
+          })
+
+          const templateData = { ...docData }
+
+          if (hasBlocoProdutos) {
+            templateData['BLOCO_PRODUTOS_SERVICOS'] = val(blocoProdutos)
+            for (let i = 1; i <= 12; i++) {
+              templateData[`PRODUTO_LINHA_${i}_NOME`] = ''
+              templateData[`PRODUTO_LINHA_${i}_DESCRICAO`] = ''
+              templateData[`PRODUTO_LINHA_${i}_VALOR`] = ''
+            }
+          } else {
+            templateData['BLOCO_PRODUTOS_SERVICOS'] = ''
+            for (let i = 1; i <= 12; i++) {
+              const p = produtos[i - 1]
+              templateData[`PRODUTO_LINHA_${i}_NOME`] = p
+                ? val(p.nome || p.nome_produto)
+                : undefined
+              templateData[`PRODUTO_LINHA_${i}_DESCRICAO`] = p ? val(p.descricao) : undefined
+              templateData[`PRODUTO_LINHA_${i}_VALOR`] = p
+                ? val(p.valor_total || p.valor || p.valor_unitario)
+                : undefined
+            }
+          }
+
+          if (hasBlocoParcelasText) {
+            templateData['BLOCO_PARCELAS_TEXTO'] = val(blocoParcelasTextFormatado)
+            templateData['BLOCO_PARCELAS'] = ''
+            for (let i = 1; i <= 12; i++) {
+              templateData[`PARCELA_${i}_NUMERO`] = ''
+              templateData[`PARCELA_${i}_VALOR`] = ''
+              templateData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
+            }
+          } else if (hasBlocoParcelas) {
+            templateData['BLOCO_PARCELAS'] = val(blocoParcelas)
+            templateData['BLOCO_PARCELAS_TEXTO'] = ''
+            for (let i = 1; i <= 12; i++) {
+              templateData[`PARCELA_${i}_NUMERO`] = ''
+              templateData[`PARCELA_${i}_VALOR`] = ''
+              templateData[`PARCELA_${i}_DATA_VENCIMENTO`] = ''
+            }
+          } else {
+            templateData['BLOCO_PARCELAS'] = ''
+            templateData['BLOCO_PARCELAS_TEXTO'] = ''
+            for (let i = 1; i <= 12; i++) {
+              const p = pagamentos[i - 1]
+              templateData[`PARCELA_${i}_NUMERO`] = p ? val(i + 1) : undefined
+              templateData[`PARCELA_${i}_VALOR`] = p ? val(p.valor) : undefined
+              templateData[`PARCELA_${i}_DATA_VENCIMENTO`] = p ? val(p.data) : undefined
+            }
+          }
+
+          doc.render(templateData)
+
+          const buf = doc.getZip().generate({
+            type: 'uint8array',
+            compression: 'DEFLATE',
+          })
+
+          const safeTemplateName = template.nome.replace(/[^a-z0-9A-Z]/gi, '_')
+          const fileName = `${safeTemplateName}.pdf`
+          const filePath = `${cliente_id}/${projeto_id}/${fileName}`
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('dossiers')
+            .upload(filePath, buf, {
+              contentType: 'application/pdf',
+              upsert: true,
+            })
+
+          if (uploadError) throw new Error('Erro no upload: ' + uploadError.message)
+
+          const { data: publicUrlData } = supabaseAdmin.storage
+            .from('dossiers')
+            .getPublicUrl(filePath)
+          const arquivo_url = publicUrlData.publicUrl
+
+          await supabaseAdmin.from('documentos_cliente').insert({
+            cliente_id,
+            projeto_id,
+            template_id: template.id,
+            template_nome: template.nome,
+            tipo: template.tipo || template.nome,
+            arquivo_url,
+            status: 'gerado',
+          })
+
+          return { template: template.nome, url: arquivo_url, sucesso: true }
+        } catch (err: any) {
+          console.error(`Erro no template ${template.nome}:`, err)
+
+          await supabaseAdmin.from('documentos_cliente').insert({
+            cliente_id,
+            projeto_id,
+            template_id: template.id,
+            template_nome: template.nome,
+            tipo: template.tipo || template.nome,
+            status: 'erro_geracao',
+          })
+
+          return { template: template.nome, sucesso: false, erro: err.message }
+        }
+      }),
+    )
+
+    const sucessos = resultados
+      .filter((r) => r.status === 'fulfilled' && (r as any).value.sucesso)
+      .map((r: any) => r.value)
+    const erros = resultados
+      .filter((r) => r.status === 'fulfilled' && !(r as any).value.sucesso)
+      .map((r: any) => r.value)
 
     return new Response(
       JSON.stringify({
         sucesso: true,
-        arquivo_url,
         mensagem:
-          missingPlaceholders.size > 0
-            ? 'Documento gerado com avisos'
-            : 'Documento gerado com sucesso',
-        relatorio: {
-          encontrados: Array.from(placeholdersFound),
-          faltantes: Array.from(missingPlaceholders),
-          customizados: Array.from(customFound),
-        },
-        avisos: Array.from(missingPlaceholders).map((p) => `Placeholder {{${p}}} não preenchido`),
+          erros.length > 0
+            ? `Dossiê gerado com sucesso para ${sucessos.length} templates. Erros em: ${erros.map((e: any) => e.template).join(', ')}`
+            : 'Dossiê gerado com sucesso!',
+        gerados: sucessos,
+        erros: erros,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
