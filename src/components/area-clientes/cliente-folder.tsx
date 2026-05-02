@@ -4,8 +4,6 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { DocumentRow } from './document-row'
 import { Timeline } from './timeline'
-import { toast as sonnerToast } from 'sonner'
-import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 
 const SECTIONS = [
   {
@@ -84,7 +82,6 @@ const SECTIONS = [
 export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () => void }) {
   const [data, setData] = useState<any>(null)
   const [documents, setDocuments] = useState<any[]>([])
-  const [isGenerating, setIsGenerating] = useState(false)
 
   const loadDocuments = async () => {
     if (!formId) return
@@ -95,62 +92,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       .order('criado_em', { ascending: false })
 
     setDocuments(docs || [])
-  }
-
-  const handleGerarDossie = async () => {
-    if (!data?.id || !data?.cliente_id) {
-      sonnerToast.error('Erro: Dados do projeto não encontrados.')
-      return
-    }
-
-    setIsGenerating(true)
-    const toastId = sonnerToast.loading('Iniciando geração do dossiê... Preparando 7 templates.')
-
-    try {
-      const progressTimeout = setTimeout(() => {
-        sonnerToast.loading('Processando em paralelo...', { id: toastId })
-      }, 2000)
-
-      const res = await gerarDocumentoCliente({
-        cliente_id: data.cliente_id,
-        projeto_id: data.id,
-      })
-
-      clearTimeout(progressTimeout)
-
-      if (res.error) throw res.error
-
-      const result = res.data
-      sonnerToast.dismiss(toastId)
-
-      const gerados = result.gerados || []
-      const erros = result.erros || []
-
-      gerados.forEach((g: any) => {
-        sonnerToast.success(`Template ${g.template} gerado: Salvo no storage`, { duration: 5000 })
-      })
-
-      erros.forEach((e: any) => {
-        sonnerToast.error(`Falha em ${e.template}: ${e.erro || 'Erro desconhecido'}`, {
-          duration: 5000,
-        })
-      })
-
-      sonnerToast.success(
-        `Dossiê completo! ${gerados.length}/7 templates gerados. Baixe na lista abaixo.`,
-        { duration: 6000 },
-      )
-
-      await loadDocuments()
-    } catch (err: any) {
-      sonnerToast.dismiss(toastId)
-      sonnerToast.error(
-        `Erro ao gerar dossiê: ${err.message || 'Tente novamente em alguns instantes.'}`,
-        { duration: 5000 },
-      )
-    } finally {
-      setIsGenerating(false)
-    }
   }
 
   useEffect(() => {
@@ -239,24 +180,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           <div className="col-span-2 md:col-span-1">
             <p className="text-xs text-muted-foreground uppercase font-semibold">Vendedor</p>
             <p className="text-sm md:text-lg font-bold text-foreground">{data?.vendedor || '-'}</p>
-          </div>
-          <div className="col-span-2 md:col-span-1 md:ml-auto self-end md:self-center pt-2 md:pt-0">
-            <Button
-              id="gerar-dossie"
-              className="gerar-dossie w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={handleGerarDossie}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4 mr-2" /> Gerar Dossiê
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </div>

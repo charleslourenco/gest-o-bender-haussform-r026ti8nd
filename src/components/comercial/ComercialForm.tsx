@@ -281,9 +281,6 @@ export function ComercialForm({
 
   const [generating, setGenerating] = useState(false)
   const [validationError, setValidationError] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [showErrorModal, setShowErrorModal] = useState(false)
-  const [apiErrorMessage, setApiErrorMessage] = useState('')
 
   const handleGenerate = async () => {
     if (!isValid) {
@@ -307,46 +304,7 @@ export function ComercialForm({
           currency: 'BRL',
         }).format(total),
         'Nome de quem vendeu': data.vendedor_nome || '',
-        cpf: data.cpf || '',
-        profissao: data.profissao || '',
-        estado_civil: data.estado_civil || '',
-        telefone: data.telefone || '',
-        email: data.email || '',
-        end_cep: data.end_cep || '',
-        end_rua: data.end_rua || '',
-        end_numero: data.end_numero || '',
-        end_complemento: data.end_complemento || '',
-        end_bairro: data.end_bairro || '',
-        end_municipio: data.end_municipio || '',
-        end_estado: data.end_estado || '',
-        obra_cep: data.obra_cep || '',
-        obra_rua: data.obra_rua || '',
-        obra_numero: data.obra_numero || '',
-        obra_complemento: data.obra_complemento || '',
-        obra_bairro: data.obra_bairro || '',
-        obra_municipio: data.obra_municipio || '',
-        obra_estado: data.obra_estado || '',
-        data_medida: data.data_medida || '',
-        forma_pagamento: data.forma_pagamento || '',
-        pagamento_a_vista_data: data.pagamento_a_vista_data || '',
-        pagamento_a_vista_meio: data.pagamento_a_vista_meio || '',
       }
-
-      data.produtos.forEach((p, i) => {
-        templateData[`produto_${i + 1}_nome`] = p.nome || ''
-        templateData[`produto_${i + 1}_descricao`] = p.descricao || ''
-        templateData[`produto_${i + 1}_qtd`] = p.qtd?.toString() || '0'
-        templateData[`produto_${i + 1}_valor_unitario`] = p.valor_unitario?.toString() || '0'
-      })
-
-      data.pagamento_parcelado.forEach((p, i) => {
-        templateData[`parcela_${i + 1}_valor`] = p.valor?.toString() || '0'
-        templateData[`parcela_${i + 1}_data`] = p.data || ''
-      })
-
-      customPlaceholders.forEach((p) => {
-        if (p.key.trim()) templateData[p.key.trim()] = p.value
-      })
 
       const response = await fetch(
         'https://igsdtxyopeiecpxwovgh.supabase.co/functions/v1/gerar_documento_cliente',
@@ -358,7 +316,7 @@ export function ComercialForm({
               'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc2R0eHlvcGVpZWNweHdvdmdoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzUwOTY5MywiZXhwIjoyMDkzMDg1NjkzfQ.Y0P4NxXog1gcFW91maVshuG2pQSArLh4qKq1m9zOT-8',
           },
           body: JSON.stringify({
-            dossierId: data.nome || 'Cliente',
+            dossierId: data.nome || '',
             templateData,
           }),
         },
@@ -374,15 +332,12 @@ export function ComercialForm({
 
       if (result.success) {
         toast.success('Dossiê gerado com sucesso!')
-        setShowSuccessModal(true)
       } else {
         throw new Error('Falha ao gerar documentos.')
       }
     } catch (e: any) {
       toast.dismiss('gerando-doc')
       toast.error('Erro ao gerar dossiê. Tente novamente em alguns instantes.')
-      setApiErrorMessage(e.message || 'Ocorreu um erro ao gerar o dossiê.')
-      setShowErrorModal(true)
     } finally {
       setGenerating(false)
     }
@@ -503,51 +458,6 @@ export function ComercialForm({
           </div>
         </div>
       </main>
-
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-            <h2 className="text-xl font-bold text-midnight-navy mb-4">FORMULÁRIO FINALIZADO!</h2>
-            <p className="text-steel-blue mb-4 font-medium">
-              Agora você precisa finalizar a documentação:
-            </p>
-            <ul className="list-disc pl-5 text-steel-blue mb-6 space-y-2">
-              <li>Revise o contrato e encaminhe para assinatura</li>
-              <li>Prepare a Ata de reunião de análise</li>
-              <li>Faça upload dos renders e do arquivo do projeto</li>
-            </ul>
-            <div className="flex justify-end">
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false)
-                  if (onClose) onClose()
-                  navigate(`/clientes/${clienteId}`)
-                }}
-                className="bg-dark-denim text-white px-4 py-2 rounded font-bold hover:bg-opacity-90 transition-colors"
-              >
-                IR PARA CLIENTES
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showErrorModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl text-center">
-            <h2 className="text-xl font-bold text-red-600 mb-4">Erro ao gerar dossiê</h2>
-            <p className="text-steel-blue mb-6">{apiErrorMessage}</p>
-            <div className="flex justify-center">
-              <button
-                onClick={() => setShowErrorModal(false)}
-                className="bg-steel-blue text-white px-4 py-2 rounded font-bold hover:bg-opacity-90 transition-colors"
-              >
-                Tentar Novamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
