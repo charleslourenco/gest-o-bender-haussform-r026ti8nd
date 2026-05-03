@@ -326,7 +326,10 @@ export function ComercialForm({
 
       if (response.ok && result.success) {
         setGenerating(false)
-        toast.success('Dossiê gerado com sucesso!')
+        toast.success(
+          'Dossiê gerado com sucesso! Agora, revise os documentos na lista abaixo e clique no ícone de caneta para enviar para assinatura via ZapSign.',
+          { duration: 8000 },
+        )
       } else {
         throw new Error(result.error || 'Falha ao gerar documentos.')
       }

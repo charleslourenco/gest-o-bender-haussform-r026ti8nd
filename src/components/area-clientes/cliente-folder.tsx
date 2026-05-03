@@ -23,7 +23,7 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
 
         if (formData) {
           const uid = formData.usuario_id || formData.user_id
-          let vendedor = 'Vendedor não definido'
+          let vendedor = '-'
           if (uid) {
             const { data: uData } = await supabase
               .from('users')
@@ -31,6 +31,9 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
               .eq('id', uid)
               .single()
             if (uData?.nome) vendedor = uData.nome
+          }
+          if (vendedor === '-' && formData.dados_etapa_1?.vendedor_nome) {
+            vendedor = formData.dados_etapa_1.vendedor_nome
           }
           formData.vendedorNome = vendedor
 
@@ -90,10 +93,14 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       )
     : 0
 
-  const valorFormatado = new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(valorTotal - (Number(form.desconto) || 0))
+  const finalValue = valorTotal - (Number(form.desconto) || 0)
+  const valorFormatado =
+    finalValue > 0
+      ? new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        }).format(finalValue)
+      : '-'
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in">
@@ -107,12 +114,13 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {form.cliente?.nome || 'Cliente não identificado'}
-          </h1>
+          <h1 className="text-2xl font-bold text-foreground">{form.cliente?.nome || '-'}</h1>
           <p className="text-muted-foreground text-sm font-medium mt-1">
             Vendedor: <span className="text-foreground">{form.vendedorNome}</span> | Valor do
-            Projeto: <span className="text-foreground">{valorFormatado}</span>
+            Projeto: <span className="text-foreground">{valorFormatado}</span> | Data:{' '}
+            <span className="text-foreground">
+              {form.criado_em ? new Date(form.criado_em).toLocaleDateString('pt-BR') : '-'}
+            </span>
           </p>
         </div>
       </div>
@@ -126,9 +134,7 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
             <div className="space-y-3">
               {files.length === 0 ? (
                 <div className="text-center py-8 bg-muted/30 rounded-md border border-dashed border-border">
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum documento gerado ou enviado ainda no Storage.
-                  </p>
+                  <p className="text-sm text-muted-foreground">-</p>
                 </div>
               ) : (
                 files.map((f) => <DocumentRow key={f.id} doc={f} />)

@@ -47,7 +47,7 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
       </h3>
       <div className="space-y-6 pt-2">
         {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma ação registrada ainda.</p>
+          <p className="text-sm text-muted-foreground">-</p>
         ) : (
           events.map((event, idx) => (
             <div key={event.id} className="relative flex gap-4">

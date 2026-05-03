@@ -1,114 +1,105 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'npm:@supabase/supabase-js@2'
 import JSZip from 'npm:jszip@3'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+export default async function (request: Request): Promise<Response> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')!
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+
+  function replacePlaceholders(xml: string): string {
+    return xml.replace(/\{\{[\s\S]*?\}\}/g, '')
   }
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const pathsToProcess = [
+    'word/document.xml',
+    'word/header1.xml',
+    'word/header2.xml',
+    'word/header3.xml',
+    'word/footer1.xml',
+    'word/footer2.xml',
+    'word/footer3.xml',
+  ]
 
-  try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseServiceKey = Deno.env.get('SERVICE_ROLE_KEY') ?? ''
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+  // List DOCX files in origin bucket
+  const { data: filesData, error: listError } = await supabase.storage
+    .from('bender_templates')
+    .list('', {
+      limit: 100,
     })
 
-    const body = await req.json()
-    const { dossierId, templateData } = body
+  if (listError) {
+    console.error('List error:', listError)
+    return new Response(JSON.stringify({ success: false, error: listError.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
-    const sourceBucket = 'bender_templates'
-    const destBucket = 'dossiers'
-    const files = [
-      'Contrato.docx',
-      'Termo de Alteracao.docx',
-      'Termo de Conclusao e Vistoria.docx',
-      'Termo de Garantia.docx',
-      'Termo de N Conformidade.docx',
-      'Termo de Recusa.docx',
-      'Termo de Representacao.docx',
-    ]
+  const docxFiles = (filesData ?? []).filter(
+    (file) => file.name.endsWith('.docx') && !file.name.includes('/'),
+  )
 
-    const cleanPlaceholders = (xmlContent: string): string => {
-      let content = xmlContent
+  for (const file of docxFiles) {
+    // Check if already exists in destination
+    const { data: destData, error: destError } = await supabase.storage
+      .from('dossiers')
+      .download(file.name)
 
-      content = content.replace(/\{\{(.*?)\}\}/gs, (match: string, inner: string) => {
-        let cleanedInner = inner
-          .replace(/<[^>]*>/g, '')
-          .replace(/<\/[^>]*>/g, '')
-          .replace(/&lt;[^&gt;]*&gt;/g, '')
-          .replace(/&[^;]+;/g, (entity: string) => {
-            if (entity.match(/^&(?:lt|gt|amp|#x?)/i)) return ''
-            return entity
-          })
-          .trim()
-        return `{{${cleanedInner}}}`
+    if (!destError && destData) {
+      console.log(`Skipped (already exists): ${file.name}`)
+      continue
+    }
+
+    // Download original file
+    const { data: originData, error: originError } = await supabase.storage
+      .from('bender_templates')
+      .download(file.name)
+
+    if (originError || !originData) {
+      console.error(`Download error for ${file.name}:`, originError)
+      continue
+    }
+
+    const arrayBuffer = await originData.arrayBuffer()
+    const zip = new JSZip()
+    await zip.loadAsync(arrayBuffer)
+
+    // Process placeholders in key XML files
+    for (const relPath of pathsToProcess) {
+      const zipFile = zip.file(relPath)
+      if (zipFile) {
+        const content = await zipFile.async('string')
+        const newContent = replacePlaceholders(content)
+        zip.file(relPath, newContent)
+      }
+    }
+
+    // Generate new DOCX
+    const newArrayBuffer = await zip.generateAsync({ type: 'arraybuffer' })
+
+    // Upload to destination
+    const { error: uploadError } = await supabase.storage
+      .from('dossiers')
+      .upload(file.name, new Uint8Array(newArrayBuffer), {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        upsert: true,
       })
 
-      if (templateData) {
-        for (const [key, value] of Object.entries(templateData)) {
-          const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g')
-          content = content.replace(regex, String(value))
-        }
-      }
-
-      return content
+    if (uploadError) {
+      console.error(`Upload error for ${file.name}:`, uploadError)
+    } else {
+      console.log(`Successfully processed: ${file.name}`)
     }
-
-    const processTemplate = async (fileName: string) => {
-      const { data, error: downloadError } = await supabase.storage
-        .from(sourceBucket)
-        .download(fileName)
-
-      if (downloadError) {
-        console.warn(`File ${fileName} not found, skipping...`)
-        return
-      }
-
-      const buffer = await data!.arrayBuffer()
-      const zip = await JSZip.loadAsync(buffer)
-
-      for (const relPath in zip.files) {
-        const entry = zip.files[relPath]
-        if (entry.dir || !relPath.match(/\.xml$/i)) continue
-
-        let content = await entry.async('text')
-        content = cleanPlaceholders(content)
-        zip.file(relPath, content)
-      }
-
-      const processedBuffer = await zip.generateAsync({ type: 'uint8array' })
-
-      const destPath = dossierId ? `${dossierId}/${fileName}` : fileName
-
-      const { error: uploadError } = await supabase.storage
-        .from(destBucket)
-        .upload(destPath, processedBuffer, {
-          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          upsert: true,
-        })
-      if (uploadError) throw uploadError
-    }
-
-    for (const fileName of files) {
-      await processTemplate(fileName)
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  } catch (error) {
-    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
   }
-})
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
