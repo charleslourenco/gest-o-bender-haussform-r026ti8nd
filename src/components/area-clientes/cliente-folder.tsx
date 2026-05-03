@@ -62,12 +62,15 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
         setFiles(
           storageFiles
             .filter((f) => f.name !== '.emptyFolderPlaceholder')
-            .map((f) => ({
-              id: f.id,
-              title: f.name,
-              actions: ['ler', 'baixar', 'enviar'],
-              path: `${dossierId}/${f.name}`,
-            })),
+            .map((f) => {
+              const isContrato = f.name.toLowerCase().includes('contrato')
+              return {
+                id: f.id,
+                title: f.name,
+                actions: isContrato ? ['ler', 'baixar', 'enviar'] : ['ler', 'baixar'],
+                path: `${dossierId}/${f.name}`,
+              }
+            }),
         )
       }
       setForm(formData)
@@ -92,10 +95,29 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       if (dErr) throw dErr
       const dId = form.cliente?.nome || form.cliente_id || formId
       const e = tmpl.arquivo_url.split('.').pop()
+      const fileName = `${tmpl.nome}_Template.${e}`
       const { error: uErr } = await supabase.storage
         .from('dossiers')
-        .upload(`${dId}/${tmpl.nome}_Template.${e}`, fData, { upsert: true })
+        .upload(`${dId}/${fileName}`, fData, { upsert: true })
       if (uErr) throw uErr
+
+      const user = (await supabase.auth.getUser()).data.user
+      let userName = 'Sistema'
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('nome')
+          .eq('id', user.id)
+          .single()
+        if (profile?.nome) userName = profile.nome
+      }
+
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: form.cliente?.id || form.cliente_id,
+        usuario_nome: userName,
+        acao: `Documento Adicionado: ${tmpl.nome}`,
+      })
+
       toast.success('Adicionado com sucesso!')
       setIsAddTmplOpen(false)
       load()
@@ -113,6 +135,24 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
         .from('dossiers')
         .upload(`${dId}/${manFileName}.${e}`, manFile, { upsert: true })
       if (uErr) throw uErr
+
+      const user = (await supabase.auth.getUser()).data.user
+      let userName = 'Sistema'
+      if (user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('nome')
+          .eq('id', user.id)
+          .single()
+        if (profile?.nome) userName = profile.nome
+      }
+
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: form.cliente?.id || form.cliente_id,
+        usuario_nome: userName,
+        acao: `Documento Adicionado: ${manFileName}`,
+      })
+
       toast.success('Enviado com sucesso!')
       setIsAddManOpen(false)
       setManFile(null)
@@ -149,7 +189,7 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
         <div>
           <h1 className="text-2xl font-bold">{form.cliente?.nome || '-'}</h1>
           <p className="text-muted-foreground text-sm">
-            Vendedor: {form.vendedorNome} | Valor:{' '}
+            Vendedor: {form.vendedorNome} | Valor da Venda:{' '}
             {valTot > 0
               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                   valTot,

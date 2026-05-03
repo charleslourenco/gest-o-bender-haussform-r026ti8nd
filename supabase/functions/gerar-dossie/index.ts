@@ -375,6 +375,12 @@ Deno.serve(async (req) => {
       if (dossieError) throw new Error(`Erro ao criar dossiê: ${dossieError.message}`)
     }
 
+    await supabase.from('timeline_eventos').insert({
+      cliente_id,
+      usuario_nome: 'Sistema',
+      acao: 'Contrato Gerado a partir de templates da fábrica',
+    })
+
     return new Response(
       JSON.stringify({
         success: true,

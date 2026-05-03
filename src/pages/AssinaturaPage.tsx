@@ -77,6 +77,12 @@ export default function AssinaturaPage() {
 
       if (updateError) throw updateError
 
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: assinatura.cliente_id,
+        usuario_nome: assinatura.signatario_nome,
+        acao: `Assinatura Realizada no documento ${assinatura.documento_nome}`,
+      })
+
       toast.success('Documento assinado com sucesso!')
       setAssinatura({
         ...assinatura,
