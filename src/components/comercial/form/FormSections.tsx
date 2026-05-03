@@ -338,12 +338,15 @@ export function SectionProdutos({ data, update, total }: Props & { total: number
                 </td>
                 <td className="p-[8px] border border-steel-blue">
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     className="w-full bg-off-white p-2 rounded"
-                    value={p.valor_unitario}
+                    value={formatCurrency(p.valor_unitario)}
                     onChange={(e) =>
-                      upProd(p.id, 'valor_unitario', parseFloat(e.target.value) || 0)
+                      upProd(
+                        p.id,
+                        'valor_unitario',
+                        Number(e.target.value.replace(/\D/g, '')) / 100,
+                      )
                     }
                   />
                 </td>
@@ -367,11 +370,10 @@ export function SectionProdutos({ data, update, total }: Props & { total: number
         <div className="flex items-center gap-[8px]">
           <span className="font-semibold">DESCONTO:</span>
           <input
-            type="number"
-            step="0.01"
+            type="text"
             className={inputClass + ' w-[150px]'}
-            value={data.desconto}
-            onChange={(e) => update('desconto', parseFloat(e.target.value) || 0)}
+            value={formatCurrency(data.desconto)}
+            onChange={(e) => update('desconto', Number(e.target.value.replace(/\D/g, '')) / 100)}
           />
         </div>
         <div className="bg-dark-denim text-off-white font-bold text-[18px] px-[24px] py-[12px] rounded-[8px]">
@@ -552,11 +554,12 @@ export function SectionPagamento({
                     </td>
                     <td className="p-[8px] border border-steel-blue">
                       <input
-                        type="number"
-                        step="0.01"
+                        type="text"
                         className={inputClass}
-                        value={p.valor}
-                        onChange={(e) => upParc(p.id, 'valor', parseFloat(e.target.value) || 0)}
+                        value={formatCurrency(p.valor)}
+                        onChange={(e) =>
+                          upParc(p.id, 'valor', Number(e.target.value.replace(/\D/g, '')) / 100)
+                        }
                       />
                     </td>
                     <td className="p-[8px] border border-steel-blue">

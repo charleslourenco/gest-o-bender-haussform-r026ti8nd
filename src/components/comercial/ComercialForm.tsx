@@ -183,6 +183,7 @@ export function ComercialForm({
       !data.nome ||
       !data.cpf ||
       !data.telefone ||
+      data.telefone.length < 14 ||
       !data.email ||
       !data.profissao ||
       !data.estado_civil
