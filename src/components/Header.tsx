@@ -93,13 +93,7 @@ export function Header() {
               </span>
             </div>
             <Avatar className="h-9 w-9 border border-border">
-              <AvatarImage
-                src={
-                  fotoPerfil ||
-                  `https://img.usecurling.com/ppl/thumbnail?gender=male&seed=${user?.id || 1}`
-                }
-                alt={userName}
-              />
+              {fotoPerfil && <AvatarImage src={fotoPerfil} alt={userName} />}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
               </AvatarFallback>

@@ -17,8 +17,9 @@ export function DocumentRow({ doc }: DocumentRowProps) {
   const restTitle = restPart.join(' | ')
 
   const handleDownload = async () => {
-    if (!doc.path) return
-    const { data, error } = await supabase.storage.from('dossiers').download(doc.path)
+    const filePath = doc.path || doc.title
+    if (!filePath) return
+    const { data, error } = await supabase.storage.from('dossiers').download(filePath)
     if (data) {
       const url = URL.createObjectURL(data)
       const a = document.createElement('a')
@@ -31,8 +32,9 @@ export function DocumentRow({ doc }: DocumentRowProps) {
   }
 
   const handleOpen = () => {
-    if (!doc.path) return
-    const { data } = supabase.storage.from('dossiers').getPublicUrl(doc.path)
+    const filePath = doc.path || doc.title
+    if (!filePath) return
+    const { data } = supabase.storage.from('dossiers').getPublicUrl(filePath)
     if (data?.publicUrl) {
       window.open(data.publicUrl, '_blank')
     }

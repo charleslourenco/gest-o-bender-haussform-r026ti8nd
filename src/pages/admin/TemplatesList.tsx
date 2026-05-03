@@ -51,40 +51,45 @@ export function TemplatesList() {
     setLoading(true)
     setError(null)
     try {
-      let query = supabase
-        .from('templates')
-        .select('id, nome, tipo, arquivo_url, status, criado_em, descricao')
-        .order('criado_em', { ascending: false })
-
-      if (search) query = query.ilike('nome', `%${search}%`)
-
-      const { data, error: fetchErr } = await query
+      const { data, error: fetchErr } = await supabase.storage.from('bender_templates').list()
       if (fetchErr) throw fetchErr
-      setTemplates(data || [])
+
+      let filtered = data || []
+      const mapped = filtered
+        .filter((f) => f.name !== '.emptyFolderPlaceholder')
+        .map((f) => ({
+          id: f.id || f.name,
+          nome: f.name,
+          tipo: f.name.toLowerCase().includes('contrato') ? 'contrato' : 'documento',
+          arquivo_url: f.name,
+          status: 'ativo',
+          criado_em: f.created_at || new Date().toISOString(),
+          descricao: '',
+        }))
+
+      if (search) {
+        setTemplates(mapped.filter((t) => t.nome.toLowerCase().includes(search.toLowerCase())))
+      } else {
+        setTemplates(mapped)
+      }
     } catch (err: any) {
-      setError('Erro ao carregar templates.')
+      setError('Erro ao carregar templates do bucket.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleDelete = async (t: any) => {
-    if (confirm('Tem certeza que deseja deletar este template?')) {
+    if (confirm('Tem certeza que deseja deletar este arquivo?')) {
       try {
-        if (t.arquivo_url && !t.arquivo_url.startsWith('http')) {
-          await supabase.storage.from('templates').remove([t.arquivo_url])
-        } else if (t.arquivo_url && t.arquivo_url.startsWith('http')) {
-          const urlParts = t.arquivo_url.split('/storage/v1/object/public/templates/')
-          if (urlParts.length > 1) {
-            await supabase.storage.from('templates').remove([urlParts[1]])
-          }
-        }
-        const { error: delErr } = await supabase.from('templates').delete().eq('id', t.id)
+        const { error: delErr } = await supabase.storage
+          .from('bender_templates')
+          .remove([t.arquivo_url])
         if (delErr) throw delErr
-        toast.success('Template deletado com sucesso!')
+        toast.success('Arquivo deletado com sucesso!')
         fetchTemplates()
       } catch (err: any) {
-        toast.error('Erro ao deletar template.')
+        toast.error('Erro ao deletar arquivo.')
       }
     }
   }
@@ -92,7 +97,7 @@ export function TemplatesList() {
   const getFileUrl = (url: string) => {
     if (!url) return '#'
     if (url.startsWith('http')) return url
-    const { data } = supabase.storage.from('templates').getPublicUrl(url)
+    const { data } = supabase.storage.from('bender_templates').getPublicUrl(url)
     return data.publicUrl
   }
 
@@ -162,11 +167,9 @@ export function TemplatesList() {
         ) : templates.length === 0 ? (
           <div className="p-12 flex flex-col items-center justify-center text-center bg-white/50 border border-steel-blue border-dashed rounded-lg">
             <FileText className="h-12 w-12 text-steel-blue mb-4" />
-            <h3 className="text-lg font-medium text-midnight-navy mb-2">
-              Nenhum template encontrado
-            </h3>
+            <h3 className="text-lg font-medium text-midnight-navy mb-2">Aguardando ação</h3>
             <p className="text-midnight-navy/70 mb-6 text-sm">
-              Clique em 'Adicionar Template' para começar.
+              Faça o upload dos arquivos no bucket 'bender_templates' no Supabase.
             </p>
             <Button
               className="bg-steel-blue text-off-white hover:bg-steel-blue/90"

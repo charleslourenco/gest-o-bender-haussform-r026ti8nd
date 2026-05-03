@@ -297,43 +297,6 @@ export function ComercialForm({
 
       toast.info('Gerando dossiê...', { id: 'gerando-doc' })
 
-      const replacements: Record<string, string> = {
-        Cliente: data.nome || '',
-        'Valor total': new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        }).format(total),
-        'Nome de quem vendeu': data.vendedor_nome || '',
-        CPF: data.cpf || '',
-        Telefone: data.telefone || '',
-        Email: data.email || '',
-        Profissão: data.profissao || '',
-        'Estado Civil': data.estado_civil || '',
-        CEP: data.end_cep || '',
-        Município: data.end_municipio || '',
-        Estado: data.end_estado || '',
-        Rua: data.end_rua || '',
-        Número: data.end_numero || '',
-        Bairro: data.end_bairro || '',
-        Complemento: data.end_complemento || '',
-        'Obra CEP': data.obra_cep || '',
-        'Obra Município': data.obra_municipio || '',
-        'Obra Estado': data.obra_estado || '',
-        'Obra Rua': data.obra_rua || '',
-        'Obra Número': data.obra_numero || '',
-        'Obra Bairro': data.obra_bairro || '',
-        'Obra Complemento': data.obra_complemento || '',
-        Desconto: data.desconto.toString(),
-        'Forma de Pagamento': data.forma_pagamento,
-        'Data Medida': data.data_medida || '',
-      }
-
-      customPlaceholders.forEach((p) => {
-        if (p.key.trim()) {
-          replacements[p.key.trim()] = p.value
-        }
-      })
-
       const response = await fetch(
         'https://igsdtxyopeiecpxwovgh.supabase.co/functions/v1/gerar_documento_cliente',
         {
@@ -346,7 +309,14 @@ export function ComercialForm({
           body: JSON.stringify({
             template: 'Contrato.docx',
             dossierId: data.nome || '',
-            replacements,
+            templateData: {
+              Cliente: data.nome || '',
+              'Valor total': new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              }).format(total),
+              'Nome de quem vendeu': data.vendedor_nome || '',
+            },
           }),
         },
       )
@@ -355,6 +325,7 @@ export function ComercialForm({
       toast.dismiss('gerando-doc')
 
       if (response.ok && result.success) {
+        setGenerating(false)
         toast.success('Dossiê gerado com sucesso!')
       } else {
         throw new Error(result.error || 'Falha ao gerar documentos.')
@@ -362,7 +333,6 @@ export function ComercialForm({
     } catch (e: any) {
       toast.dismiss('gerando-doc')
       toast.error(e.message || 'Erro ao gerar dossiê. Tente novamente em alguns instantes.')
-    } finally {
       setGenerating(false)
     }
   }
