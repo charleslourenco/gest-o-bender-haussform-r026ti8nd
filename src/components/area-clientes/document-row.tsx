@@ -10,9 +10,10 @@ interface DocumentRowProps {
     actions: string[]
     path?: string
   }
+  onSign?: (doc: any) => void
 }
 
-export function DocumentRow({ doc }: DocumentRowProps) {
+export function DocumentRow({ doc, onSign }: DocumentRowProps) {
   const [numberPart, ...restPart] = doc.title.split(' | ')
   const restTitle = restPart.join(' | ')
 
@@ -126,14 +127,14 @@ export function DocumentRow({ doc }: DocumentRowProps) {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={handleOpen}
+                onClick={() => onSign?.(doc)}
                 className="w-8 h-8 bg-background border-border text-muted-foreground hover:text-primary hover:border-primary cursor-pointer shadow-sm"
               >
                 <PenTool className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent className="bg-card text-card-foreground border border-border">
-              Assinar / Enviar
+              Gerenciar Assinaturas
             </TooltipContent>
           </Tooltip>
         )}

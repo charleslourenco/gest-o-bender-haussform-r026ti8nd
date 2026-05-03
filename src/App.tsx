@@ -16,6 +16,7 @@ import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import AssinaturaPage from './pages/AssinaturaPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 const App = () => (
@@ -28,6 +29,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/assinatura/:id" element={<AssinaturaPage />} />
             <Route
               element={
                 <ProtectedRoute>
