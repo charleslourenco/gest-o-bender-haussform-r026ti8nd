@@ -26,6 +26,7 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
   const [form, setForm] = useState<any>(null)
   const [files, setFiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [generatingContract, setGeneratingContract] = useState(false)
   const [selectedDocForSig, setSelectedDocForSig] = useState<any>(null)
 
   const [isAddTmplOpen, setIsAddTmplOpen] = useState(false)
@@ -163,20 +164,65 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
     }
   }
 
-  if (loading && !form) return <div className="p-8 text-center animate-pulse">Carregando...</div>
-  if (!form) return <div className="p-8 text-center text-destructive">Não encontrado.</div>
-
   let prods =
-    typeof form.produtos_servicos === 'string'
+    form && typeof form.produtos_servicos === 'string'
       ? JSON.parse(form.produtos_servicos || '[]')
-      : form.produtos_servicos || []
+      : form?.produtos_servicos || []
   const valTot = Array.isArray(prods)
     ? prods.reduce(
         (a: number, p: any) =>
           a + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
         0,
-      ) - (Number(form.desconto) || 0)
+      ) - (Number(form?.desconto) || 0)
     : 0
+
+  const handleGerarContrato = async () => {
+    try {
+      setGeneratingContract(true)
+      const payload = {
+        cliente_id: form.cliente?.id || form.cliente_id,
+        cliente: form.cliente?.nome || '-',
+        valor: valTot.toString(),
+        vendedor: form.vendedorNome || '-',
+        signatario_tipo: 'Cliente',
+        signatario_nome: form.cliente?.nome || '-',
+        signatario_cpf: form.cliente?.cpf || form.cpf || '000.000.000-00',
+        signatario_email: form.cliente?.email || '',
+        signatario_telefone: form.cliente?.telefone || '',
+      }
+
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
+        body: payload,
+      })
+
+      if (error) throw error
+
+      if (data) {
+        const dId = form.cliente?.nome || form.cliente_id || formId
+        const sanitizedNome = form.cliente?.nome?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente'
+        const fileName = `Contrato_Bender_Haussform_${sanitizedNome}.docx`
+
+        await supabase.storage.from('dossiers').upload(`${dId}/${fileName}`, data, { upsert: true })
+
+        await supabase.from('timeline_eventos').insert({
+          cliente_id: form.cliente?.id || form.cliente_id,
+          usuario_nome: 'Sistema',
+          acao: 'Contrato Gerado',
+        })
+
+        toast.success('Contrato gerado com sucesso!')
+        load()
+      }
+    } catch (e: any) {
+      toast.error('Erro ao gerar contrato: ' + e.message)
+    } finally {
+      setGeneratingContract(false)
+    }
+  }
+
+  if (loading && !form) return <div className="p-8 text-center animate-pulse">Carregando...</div>
+  if (!form) return <div className="p-8 text-center text-destructive">Não encontrado.</div>
+
   const contratos = files.filter((f) => f.title.toLowerCase().includes('contrato'))
   const outros = files.filter((f) => !f.title.toLowerCase().includes('contrato'))
 
@@ -202,25 +248,36 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-card p-5 rounded-lg border shadow-sm">
-            <div className="flex justify-between mb-4">
-              <h2 className="text-lg font-semibold flex gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-lg font-semibold flex gap-2 items-center">
                 <Folder className="w-5 h-5 text-primary" /> Arquivos
               </h2>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="w-4 h-4 mr-2" /> Adicionar Documento
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setIsAddTmplOpen(true)}>
-                    Usar Template da Fábrica
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsAddManOpen(true)}>
-                    Upload Manual
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleGerarContrato}
+                  disabled={generatingContract}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  {generatingContract ? 'Gerando...' : 'Gerar Contrato'}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" className="gap-2">
+                      <Plus className="w-4 h-4" /> Adicionar Documento
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setIsAddTmplOpen(true)}>
+                      Usar Template da Fábrica
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsAddManOpen(true)}>
+                      Upload Manual
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
             <div className="space-y-3">
               {files.length === 0 ? (
@@ -255,13 +312,13 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
           </div>
         </div>
         <div>
-          <Timeline clienteId={form.cliente?.id} />
+          <Timeline clienteId={form.cliente?.id || form.cliente_id} />
         </div>
       </div>
 
       <SignatureModal
         doc={selectedDocForSig}
-        clienteId={form.cliente?.id}
+        clienteId={form.cliente?.id || form.cliente_id}
         onClose={() => setSelectedDocForSig(null)}
       />
 

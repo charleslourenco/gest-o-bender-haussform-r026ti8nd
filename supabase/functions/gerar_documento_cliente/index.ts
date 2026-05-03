@@ -1,98 +1,122 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import JSZip from 'https://esm.sh/jszip'
+import { Document, Packer, Paragraph, TextRun } from 'https://esm.sh/docx@8.5.0'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
-serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
+interface Env {
+  SUPABASE_URL: string
+  SUPABASE_SERVICE_ROLE_KEY: string
+}
 
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+interface RequestBody {
+  cliente_id: string
+  cliente: string
+  valor: string
+  vendedor: string
+  signatario_tipo: string
+  signatario_nome: string
+  signatario_cpf: string
+  signatario_email: string
+  signatario_telefone: string
+}
 
-  try {
-    const input = await req.json()
-    const {
-      cliente_id,
-      signatario_tipo,
-      signatario_nome,
-      signatario_cpf,
-      signatario_email,
-      signatario_telefone,
-    } = input as any
-
-    const documento_id = crypto.randomUUID()
-    const codigo_confirmacao = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join(
-      '',
-    )
-    const expira_em = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    const documento_nome = 'Contrato_Bender_Haussform.docx'
-
-    const placeholders: Record<string, string> = {
-      cliente_id,
-      signatario_tipo,
-      signatario_nome,
-      signatario_cpf,
-      signatario_email,
-      signatario_telefone,
-      codigo_confirmacao,
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+async function generateDocx(
+  cliente: string,
+  valor: string,
+  vendedor: string,
+  dataStr: string,
+): Promise<ArrayBuffer> {
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: 'CONTRATO BENDER HAUSSFORM',
+                bold: true,
+                size: 32,
+              }),
+            ],
+          }),
+          new Paragraph({
+            children: [new TextRun(`Cliente: ${cliente}`)],
+          }),
+          new Paragraph({
+            children: [new TextRun(`Valor: R$ ${valor}`)],
+          }),
+          new Paragraph({
+            children: [new TextRun(`Vendedor: ${vendedor}`)],
+          }),
+          new Paragraph({
+            children: [new TextRun(`Data: ${dataStr}`)],
+          }),
+          new Paragraph({
+            children: [new TextRun('Assinatura do Cliente: ______________________________')],
+            spacing: { after: 400 },
+          }),
+          new Paragraph({
+            children: [new TextRun('Assinatura do Vendedor: ______________________________')],
+          }),
+        ],
       },
-    })
+    ],
+  })
 
-    // Fetch template
-    const { data: templateData, error: templateError } = await supabase.storage
-      .from('documents')
-      .download('templates/Bender_Haussform.docx')
+  const blob = await Packer.toBlob(doc)
+  return await blob.arrayBuffer()
+}
 
-    if (templateError || !templateData) {
-      throw new Error('Template not found')
-    }
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    try {
+      if (request.method !== 'POST') {
+        return new Response('Method not allowed', { status: 405 })
+      }
 
-    const arrayBuffer = await templateData.arrayBuffer()
-    const zip = new JSZip()
-    await zip.loadAsync(arrayBuffer)
+      const body: RequestBody = await request.json()
 
-    let xml = await zip.file('word/document.xml')!.async('string')
+      const {
+        cliente_id,
+        cliente,
+        valor,
+        vendedor,
+        signatario_tipo,
+        signatario_nome,
+        signatario_cpf,
+        signatario_email,
+        signatario_telefone,
+      } = body
 
-    // Advanced regex replacement for placeholders, even with extra spaces
-    for (const [key, value] of Object.entries(placeholders)) {
-      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const regex = new RegExp(`{{\\s*${escapedKey}\\s*}}`, 'gi')
-      xml = xml.replace(regex, value)
-    }
+      if (
+        !cliente_id ||
+        !cliente ||
+        !valor ||
+        !vendedor ||
+        !signatario_tipo ||
+        !signatario_nome ||
+        !signatario_cpf ||
+        !signatario_email ||
+        !signatario_telefone
+      ) {
+        return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
 
-    zip.file('word/document.xml', xml)
+      const dataStr = new Date().toLocaleDateString('pt-BR')
+      const documento_id = crypto.randomUUID()
+      const documento_nome = 'Contrato Bender Haussform'
+      const codigo_confirmacao = Math.floor(100000 + Math.random() * 900000).toString()
+      const status = 'assinado'
+      const expira_em = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
-    const docBuffer = await zip.generateAsync({
-      type: 'uint8array',
-      compression: 'DEFLATE',
-    })
+      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
 
-    // Upload to storage
-    const storagePath = `contratos/${cliente_id}/${documento_id}.docx`
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(storagePath, docBuffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true,
-      })
+      // Generate DOCX
+      const docBuffer = await generateDocx(cliente, valor, vendedor, dataStr)
 
-    if (uploadError) throw uploadError
-
-    // Insert into database
-    const { data: inserted, error: insertError } = await supabase
-      .from('assinaturas')
-      .insert({
+      // Insert assinatura
+      const { error: assError } = await supabase.from('assinaturas').insert({
         documento_id,
         documento_nome,
         cliente_id,
@@ -102,29 +126,44 @@ serve(async (req) => {
         signatario_email,
         signatario_telefone,
         codigo_confirmacao,
-        status: 'pendente',
+        status,
         expira_em,
       })
-      .select()
-      .single()
 
-    if (insertError) throw insertError
+      if (assError) {
+        console.error('Assinatura insert error:', assError)
+        return new Response(JSON.stringify({ error: 'Failed to register signature' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('documents').getPublicUrl(storagePath)
+      // Insert timeline event
+      const { error: timeError } = await supabase.from('timeline_eventos').insert({
+        cliente_id,
+        usuario_nome: signatario_nome,
+        acao: 'Contrato assinado eletronicamente',
+        icone: '✍️',
+      })
 
-    return new Response(
-      JSON.stringify({ success: true, assinatura: inserted, documento_url: publicUrl }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
-  } catch (error) {
-    console.error(error)
-    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-})
+      if (timeError) {
+        console.error('Timeline insert error:', timeError)
+      }
+
+      // Return DOCX
+      const sanitizedCliente = cliente.replace(/[^a-zA-Z0-9]/g, '_')
+      const headers = new Headers({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="Contrato_Bender_Haussform_${sanitizedCliente}.docx"`,
+      })
+
+      return new Response(docBuffer, { headers })
+    } catch (error) {
+      console.error('Worker error:', error)
+      return new Response(JSON.stringify({ error: 'Internal server error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+  },
+}

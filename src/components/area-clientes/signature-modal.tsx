@@ -16,9 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Copy, Plus, Trash2, CheckCircle, Clock } from 'lucide-react'
+import { Copy, Plus, Trash2, CheckCircle, Clock, PenTool } from 'lucide-react'
 
 export function SignatureModal({
   doc,
@@ -32,6 +33,9 @@ export function SignatureModal({
   const [signatures, setSignatures] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [assinandoId, setAssinandoId] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [validating, setValidating] = useState(false)
 
   const [newSig, setNewSig] = useState({
     nome: '',
@@ -40,19 +44,30 @@ export function SignatureModal({
   })
 
   useEffect(() => {
-    if (doc?.path) {
+    if (doc?.path || clienteId) {
       loadSignatures()
     }
-  }, [doc])
+  }, [doc, clienteId])
 
   const loadSignatures = async () => {
+    if (!clienteId) return
     setLoading(true)
     const { data } = await supabase
       .from('assinaturas')
       .select('*')
-      .eq('documento_id', doc.path)
+      .eq('cliente_id', clienteId)
       .order('criado_em', { ascending: true })
-    if (data) setSignatures(data)
+
+    if (data) {
+      const filtered = data.filter(
+        (s) =>
+          s.documento_id === doc?.path ||
+          doc?.title?.includes(s.documento_nome) ||
+          (s.documento_nome?.toLowerCase().includes('contrato') &&
+            doc?.title?.toLowerCase().includes('contrato')),
+      )
+      setSignatures(filtered)
+    }
     setLoading(false)
   }
 
@@ -64,7 +79,7 @@ export function SignatureModal({
     expira_em.setDate(expira_em.getDate() + 30)
 
     const { error } = await supabase.from('assinaturas').insert({
-      documento_id: doc.path,
+      documento_id: doc.path || doc.title,
       documento_nome: doc.title,
       cliente_id: clienteId,
       signatario_nome: newSig.nome,
@@ -82,6 +97,51 @@ export function SignatureModal({
       setIsAdding(false)
       setNewSig({ nome: '', email: '', tipo: 'Cliente' })
       loadSignatures()
+    }
+  }
+
+  const handleValidateCode = async (sig: any) => {
+    if (code.length !== 6) return toast.error('O código deve ter 6 dígitos')
+    setValidating(true)
+    try {
+      if (code !== sig.codigo_confirmacao) {
+        throw new Error('Código inválido. Tente novamente.')
+      }
+
+      let ip = '0.0.0.0'
+      try {
+        const res = await fetch('https://api.ipify.org?format=json')
+        const data = await res.json()
+        ip = data.ip
+      } catch (e) {
+        console.warn('Could not fetch IP')
+      }
+
+      const { error } = await supabase
+        .from('assinaturas')
+        .update({
+          status: 'assinado',
+          data_assinatura: new Date().toISOString(),
+          ip_assinatura: ip,
+        })
+        .eq('id', sig.id)
+
+      if (error) throw error
+
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: clienteId,
+        usuario_nome: sig.signatario_nome,
+        acao: `Assinatura Realizada no documento ${sig.documento_nome}`,
+      })
+
+      toast.success('Assinatura validada com sucesso!')
+      setAssinandoId(null)
+      setCode('')
+      loadSignatures()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setValidating(false)
     }
   }
 
@@ -168,62 +228,113 @@ export function SignatureModal({
             <div className="text-center py-4 text-sm text-muted-foreground">Carregando...</div>
           ) : signatures.length === 0 ? (
             <div className="text-center py-8 bg-muted/20 border border-dashed rounded-lg text-muted-foreground text-sm">
-              Nenhum assinante cadastrado para este documento.
+              Nenhum assinante encontrado. O cliente não está pendente de assinatura neste
+              documento.
             </div>
           ) : (
             <div className="space-y-3">
               {signatures.map((sig) => (
-                <div
-                  key={sig.id}
-                  className="flex flex-col md:flex-row md:items-center justify-between p-3 bg-card border rounded-lg gap-4"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{sig.signatario_nome}</span>
-                      <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                        {sig.signatario_tipo}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1.5 flex flex-col gap-1">
-                      <span>
-                        Código de Validação:{' '}
-                        <strong className="text-foreground text-sm font-mono tracking-widest">
-                          {sig.codigo_confirmacao}
-                        </strong>
-                      </span>
-                      {sig.signatario_email && <span>E-mail: {sig.signatario_email}</span>}
-                    </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      {sig.status === 'assinado' ? (
-                        <span className="text-xs text-green-600 flex items-center gap-1.5 font-medium bg-green-50 px-2 py-1 rounded-md w-fit border border-green-200">
-                          <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
-                          {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
+                <div key={sig.id} className="flex flex-col p-4 bg-card border rounded-lg gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{sig.signatario_nome}</span>
+                        <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                          {sig.signatario_tipo}
                         </span>
-                      ) : (
-                        <span className="text-xs text-amber-600 flex items-center gap-1.5 font-medium bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-200">
-                          <Clock className="w-3.5 h-3.5" /> Pendente
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1.5 flex flex-col gap-1">
+                        <span>
+                          Código de Validação:{' '}
+                          <strong className="text-foreground text-sm font-mono tracking-widest">
+                            {sig.codigo_confirmacao}
+                          </strong>
                         </span>
+                        {sig.signatario_email && <span>E-mail: {sig.signatario_email}</span>}
+                      </div>
+                      <div className="flex items-center gap-1 mt-2">
+                        {sig.status === 'assinado' ? (
+                          <span className="text-xs text-green-600 flex items-center gap-1.5 font-medium bg-green-50 px-2 py-1 rounded-md w-fit border border-green-200">
+                            <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
+                            {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-amber-600 flex items-center gap-1.5 font-medium bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-200">
+                            <Clock className="w-3.5 h-3.5" /> Pendente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {sig.status !== 'assinado' && (
+                        <Button size="sm" variant="default" onClick={() => setAssinandoId(sig.id)}>
+                          <PenTool className="w-4 h-4 mr-2" /> Assinar Agora
+                        </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCopyLink(sig.id)}
+                        title="Copiar Link de Assinatura"
+                      >
+                        <Copy className="w-4 h-4 mr-2" /> Copiar Link
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => handleRemove(sig.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyLink(sig.id)}
-                      title="Copiar Link de Assinatura"
-                    >
-                      <Copy className="w-4 h-4 mr-2" /> Copiar Link
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemove(sig.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+
+                  {assinandoId === sig.id && sig.status !== 'assinado' && (
+                    <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border flex flex-col items-center gap-3 animate-fade-in">
+                      <div className="text-center space-y-1">
+                        <Label className="text-sm font-semibold">
+                          Digite o código de 6 dígitos
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          O código foi gerado acima ou enviado por e-mail
+                        </p>
+                      </div>
+                      <div className="flex justify-center py-2">
+                        <InputOTP maxLength={6} value={code} onChange={setCode}>
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={1} />
+                            <InputOTPSlot index={2} />
+                            <InputOTPSlot index={3} />
+                            <InputOTPSlot index={4} />
+                            <InputOTPSlot index={5} />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
+                      <div className="flex justify-end gap-2 mt-2 w-full max-w-xs">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAssinandoId(null)
+                            setCode('')
+                          }}
+                          className="w-full"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleValidateCode(sig)}
+                          disabled={code.length !== 6 || validating}
+                          className="w-full"
+                        >
+                          {validating ? 'Validando...' : 'Confirmar'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
