@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BrandingTab } from './BrandingTab'
 import { TemplatesTab } from './TemplatesTab'
-import { DocumentosTab } from './DocumentosTab'
 import { ShieldAlert } from 'lucide-react'
 
 export default function AdminPage() {
@@ -78,12 +77,6 @@ export default function AdminPage() {
             >
               Templates
             </TabsTrigger>
-            <TabsTrigger
-              value="documentos"
-              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
-            >
-              Documentos Obrigatórios
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="branding" className="outline-none focus-visible:ring-0">
@@ -91,9 +84,6 @@ export default function AdminPage() {
           </TabsContent>
           <TabsContent value="templates" className="outline-none focus-visible:ring-0">
             <TemplatesTab />
-          </TabsContent>
-          <TabsContent value="documentos" className="outline-none focus-visible:ring-0">
-            <DocumentosTab />
           </TabsContent>
         </Tabs>
       </div>
