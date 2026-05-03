@@ -1,105 +1,75 @@
-import JSZip from 'npm:jszip@3'
-import { createClient } from 'npm:@supabase/supabase-js@2'
+export interface Env {
+  bender_templates: R2Bucket
+  dossiers: R2Bucket
+}
 
-export default async function (request: Request): Promise<Response> {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')!
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\\]]/g, '\\$&')
+}
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
-
-  function replacePlaceholders(xml: string): string {
-    return xml.replace(/\{\{[\s\S]*?\}\}/g, '')
+async function processDocx(
+  templateBuffer: ArrayBuffer,
+  replacements: Record<string, string>,
+): Promise<ArrayBuffer> {
+  let content = new TextDecoder('utf-8').decode(templateBuffer)
+  for (const [key, value] of Object.entries(replacements)) {
+    const placeholder = `{{${key}}}`
+    const regex = new RegExp(escapeRegExp(placeholder), 'g')
+    content = content.replace(regex, value)
   }
+  return new TextEncoder().encode(content)
+}
 
-  const pathsToProcess = [
-    'word/document.xml',
-    'word/header1.xml',
-    'word/header2.xml',
-    'word/header3.xml',
-    'word/footer1.xml',
-    'word/footer2.xml',
-    'word/footer3.xml',
-  ]
-
-  // List DOCX files in origin bucket
-  const { data: filesData, error: listError } = await supabase.storage
-    .from('bender_templates')
-    .list('', {
-      limit: 100,
-    })
-
-  if (listError) {
-    console.error('List error:', listError)
-    return new Response(JSON.stringify({ success: false, error: listError.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  const docxFiles = (filesData ?? []).filter(
-    (file) => file.name.endsWith('.docx') && !file.name.includes('/'),
-  )
-
-  for (const file of docxFiles) {
-    // Check if already exists in destination
-    const { data: destData, error: destError } = await supabase.storage
-      .from('dossiers')
-      .download(file.name)
-
-    if (!destError && destData) {
-      console.log(`Skipped (already exists): ${file.name}`)
-      continue
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405 })
     }
 
-    // Download original file
-    const { data: originData, error: originError } = await supabase.storage
-      .from('bender_templates')
-      .download(file.name)
-
-    if (originError || !originData) {
-      console.error(`Download error for ${file.name}:`, originError)
-      continue
+    let body
+    try {
+      body = await request.json<{ replacements: Record<string, string> }>()
+    } catch (e) {
+      return new Response('Invalid JSON body', { status: 400 })
     }
 
-    const arrayBuffer = await originData.arrayBuffer()
-    const zip = new JSZip()
-    await zip.loadAsync(arrayBuffer)
-
-    // Process placeholders in key XML files
-    for (const relPath of pathsToProcess) {
-      const zipFile = zip.file(relPath)
-      if (zipFile) {
-        const content = await zipFile.async('string')
-        const newContent = replacePlaceholders(content)
-        zip.file(relPath, newContent)
-      }
+    const { replacements } = body
+    if (!replacements || typeof replacements !== 'object') {
+      return new Response('Missing or invalid replacements', { status: 400 })
     }
 
-    // Generate new DOCX
-    const newArrayBuffer = await zip.generateAsync({ type: 'arraybuffer' })
+    const dossierId = crypto.randomUUID()
+    const templateNames: string[] = [
+      '1.docx',
+      '2.docx',
+      '3.docx',
+      '4.docx',
+      '5.docx',
+      '6.docx',
+      '7.docx',
+    ]
 
-    // Upload to destination
-    const { error: uploadError } = await supabase.storage
-      .from('dossiers')
-      .upload(file.name, new Uint8Array(newArrayBuffer), {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true,
-      })
-
-    if (uploadError) {
-      console.error(`Upload error for ${file.name}:`, uploadError)
-    } else {
-      console.log(`Successfully processed: ${file.name}`)
+    try {
+      await Promise.all(
+        templateNames.map(async (name) => {
+          const obj = await env.bender_templates.get(name)
+          if (!obj || !obj.body) {
+            throw new Error(`Template not found: ${name}`)
+          }
+          const templateBuffer = await obj.arrayBuffer()
+          const processedBuffer = await processDocx(templateBuffer, replacements)
+          await env.dossiers.put(`${dossierId}_${name}`, processedBuffer, {
+            httpMetadata: {
+              contentType:
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            },
+          })
+        }),
+      )
+      return Response.json({ success: true })
+    } catch (error: any) {
+      console.error('Error processing documents:', error)
+      return Response.json({ success: false, error: error.message }, { status: 500 })
     }
-  }
-
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  },
 }

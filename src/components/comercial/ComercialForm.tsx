@@ -297,41 +297,41 @@ export function ComercialForm({
 
       toast.info('Gerando dossiê...', { id: 'gerando-doc' })
 
-      const response = await fetch(
-        'https://igsdtxyopeiecpxwovgh.supabase.co/functions/v1/gerar_documento_cliente',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization:
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlnc2R0eHlvcGVpZWNweHdvdmdoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzUwOTY5MywiZXhwIjoyMDkzMDg1NjkzfQ.Y0P4NxXog1gcFW91maVshuG2pQSArLh4qKq1m9zOT-8',
-          },
-          body: JSON.stringify({
-            template: 'Contrato.docx',
-            dossierId: data.nome || '',
-            templateData: {
-              Cliente: data.nome || '',
-              'Valor total': new Intl.NumberFormat('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              }).format(total),
-              'Nome de quem vendeu': data.vendedor_nome || '',
-            },
-          }),
-        },
-      )
+      const replacements: Record<string, string> = {
+        Cliente: data.nome || '',
+        Valor: new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        }).format(total),
+        'Valor total': new Intl.NumberFormat('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        }).format(total),
+        'Nome de quem vendeu': data.vendedor_nome || '',
+      }
 
-      const result = await response.json()
+      customPlaceholders.forEach((cp) => {
+        if (cp.key.trim()) {
+          replacements[cp.key.trim()] = cp.value
+        }
+      })
+
+      const { data: result, error } = await supabase.functions.invoke('gerar_documento_cliente', {
+        body: {
+          replacements,
+        },
+      })
+
       toast.dismiss('gerando-doc')
 
-      if (response.ok && result.success) {
+      if (!error && result?.success) {
         setGenerating(false)
         toast.success(
           'Dossiê gerado com sucesso! Agora, revise os documentos na lista abaixo e clique no ícone de caneta para enviar para assinatura via ZapSign.',
           { duration: 8000 },
         )
       } else {
-        throw new Error(result.error || 'Falha ao gerar documentos.')
+        throw new Error(error?.message || result?.error || 'Falha ao gerar documentos.')
       }
     } catch (e: any) {
       toast.dismiss('gerando-doc')
