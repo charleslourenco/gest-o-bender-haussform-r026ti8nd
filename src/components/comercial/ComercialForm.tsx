@@ -295,47 +295,102 @@ export function ComercialForm({
       const savedForm = await handleSaveDraft(true)
       if (!savedForm) throw new Error('Erro ao salvar rascunho.')
 
-      toast.info('Gerando dossiê...', { id: 'gerando-doc' })
+      toast.info('Gerando contrato...', { id: 'gerando-doc' })
 
-      const replacements: Record<string, string> = {
-        Cliente: data.nome || '',
-        Valor: new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        }).format(total),
-        'Valor total': new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        }).format(total),
-        'Nome de quem vendeu': data.vendedor_nome || '',
+      const valorFormatado = new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }).format(total)
+
+      const body = {
+        cliente_id: clienteId,
+        cliente: data.nome || '',
+        valor: valorFormatado,
+        vendedor: data.vendedor_nome || '',
+        data: data.pagamento_a_vista_data || new Date().toISOString().split('T')[0],
+        signatario_tipo: 'Cliente',
+        signatario_nome: data.nome || '',
+        signatario_cpf: data.cpf || '',
+        signatario_email: data.email || '',
+        signatario_telefone: data.telefone || '',
       }
 
-      customPlaceholders.forEach((cp) => {
-        if (cp.key.trim()) {
-          replacements[cp.key.trim()] = cp.value
-        }
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/gerar_documento_cliente`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        },
+      )
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Falha ao gerar contrato')
+      }
+
+      const blob = await response.blob()
+
+      const fileName = `Contrato_Bender_Haussform_${data.nome.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.docx`
+      const filePath = `${clienteId}/documentos/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('clientes')
+        .upload(filePath, blob, {
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          upsert: true,
+        })
+
+      if (uploadError) throw new Error(`Erro ao salvar documento: ${uploadError.message}`)
+
+      const { data: publicUrlData } = supabase.storage.from('clientes').getPublicUrl(filePath)
+
+      await supabase.from('documentos_cliente').insert({
+        cliente_id: clienteId,
+        tipo: 'contrato',
+        status: 'Gerado',
+        arquivo_url: publicUrlData.publicUrl,
+        template_nome: 'Contrato Bender Haussform',
       })
 
-      const { data: result, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: {
-          replacements,
-        },
+      const { data: existingDossie } = await supabase
+        .from('dossies')
+        .select('id')
+        .eq('formulario_comercial_id', savedForm.id)
+        .maybeSingle()
+      if (existingDossie) {
+        await supabase
+          .from('dossies')
+          .update({ contrato_url: publicUrlData.publicUrl })
+          .eq('id', existingDossie.id)
+      } else {
+        await supabase.from('dossies').insert({
+          cliente_id: clienteId,
+          formulario_comercial_id: savedForm.id,
+          contrato_url: publicUrlData.publicUrl,
+          status: 'em_documentacao',
+        })
+      }
+
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: clienteId,
+        usuario_nome: data.vendedor_nome || 'Sistema',
+        acao: 'Contrato gerado',
+        icone: '📄',
       })
 
       toast.dismiss('gerando-doc')
-
-      if (!error && result?.success) {
-        setGenerating(false)
-        toast.success(
-          'Dossiê gerado com sucesso! Agora, revise os documentos na lista abaixo e clique no ícone de caneta para enviar para assinatura via ZapSign.',
-          { duration: 8000 },
-        )
-      } else {
-        throw new Error(error?.message || result?.error || 'Falha ao gerar documentos.')
-      }
+      toast.success('Contrato Gerado com Sucesso!', { duration: 8000 })
+      setGenerating(false)
     } catch (e: any) {
       toast.dismiss('gerando-doc')
-      toast.error(e.message || 'Erro ao gerar dossiê. Tente novamente em alguns instantes.')
+      toast.error(e.message || 'Erro ao gerar contrato. Tente novamente em alguns instantes.')
       setGenerating(false)
     }
   }
@@ -445,10 +500,10 @@ export function ComercialForm({
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Gerando dossiê...
+                    Gerando contrato...
                   </>
                 ) : (
-                  'Gerar Dossiê'
+                  'Gerar Contrato'
                 )}
               </button>
             </div>
