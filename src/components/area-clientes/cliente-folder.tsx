@@ -26,7 +26,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
   const [form, setForm] = useState<any>(null)
   const [files, setFiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [generatingContract, setGeneratingContract] = useState(false)
   const [selectedDocForSig, setSelectedDocForSig] = useState<any>(null)
 
   const [isAddTmplOpen, setIsAddTmplOpen] = useState(false)
@@ -176,73 +175,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       ) - (Number(form?.desconto) || 0)
     : 0
 
-  const handleGerarContrato = async () => {
-    try {
-      setGeneratingContract(true)
-      // Buscando vendedor e data da venda do formulário (Seção 07)
-      let vendedorFinal = form.vendedorNome || '-'
-      if (form.dados_etapa_4?.vendedor_nome) {
-        vendedorFinal = form.dados_etapa_4.vendedor_nome
-      } else if (form.dados_etapa_1?.vendedor_nome) {
-        vendedorFinal = form.dados_etapa_1.vendedor_nome
-      } else if (form.dados_etapa_3?.vendedor_nome) {
-        vendedorFinal = form.dados_etapa_3.vendedor_nome
-      } else if (form.vendedor_nome) {
-        vendedorFinal = form.vendedor_nome
-      }
-
-      const rawDataVenda = form.datas?.data_venda
-      const dataFinal = rawDataVenda
-        ? rawDataVenda.split('-').reverse().join('/')
-        : new Date().toLocaleDateString('pt-BR')
-
-      const formattedValor = new Intl.NumberFormat('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(valTot)
-
-      const payload = {
-        cliente_id: form.cliente?.id || form.cliente_id,
-        cliente: form.cliente?.nome || '-',
-        valor: formattedValor,
-        vendedor: vendedorFinal,
-        data: dataFinal,
-        signatario_tipo: 'Cliente',
-        signatario_nome: form.cliente?.nome || '-',
-        signatario_cpf: form.cliente?.cpf || form.cpf || '000.000.000-00',
-        signatario_email: form.cliente?.email || '',
-        signatario_telefone: form.cliente?.telefone || '',
-      }
-
-      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: payload,
-      })
-
-      if (error) throw error
-
-      if (data) {
-        const dId = form.cliente?.nome || form.cliente_id || formId
-        const sanitizedNome = form.cliente?.nome?.replace(/[^a-zA-Z0-9]/g, '_') || 'Cliente'
-        const fileName = `Contrato_Bender_Haussform_${sanitizedNome}.docx`
-
-        await supabase.storage.from('dossiers').upload(`${dId}/${fileName}`, data, { upsert: true })
-
-        await supabase.from('timeline_eventos').insert({
-          cliente_id: form.cliente?.id || form.cliente_id,
-          usuario_nome: 'Sistema',
-          acao: 'Contrato Gerado',
-        })
-
-        toast.success('Contrato gerado com sucesso!')
-        load()
-      }
-    } catch (e: any) {
-      toast.error('Erro ao gerar contrato: ' + e.message)
-    } finally {
-      setGeneratingContract(false)
-    }
-  }
-
   if (loading && !form) return <div className="p-8 text-center animate-pulse">Carregando...</div>
   if (!form) return <div className="p-8 text-center text-destructive">Não encontrado.</div>
 
@@ -276,15 +208,6 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
                 <Folder className="w-5 h-5 text-primary" /> Arquivos
               </h2>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleGerarContrato}
-                  disabled={generatingContract}
-                  className="gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  {generatingContract ? 'Gerando...' : 'Gerar Contrato'}
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline" className="gap-2">
