@@ -54,6 +54,7 @@ export type Database = {
           documento_nome: string
           expira_em: string
           id: string
+          ip_assinatura: string | null
           signatario_cpf: string | null
           signatario_email: string | null
           signatario_nome: string
@@ -70,6 +71,7 @@ export type Database = {
           documento_nome: string
           expira_em: string
           id?: string
+          ip_assinatura?: string | null
           signatario_cpf?: string | null
           signatario_email?: string | null
           signatario_nome: string
@@ -86,6 +88,7 @@ export type Database = {
           documento_nome?: string
           expira_em?: string
           id?: string
+          ip_assinatura?: string | null
           signatario_cpf?: string | null
           signatario_email?: string | null
           signatario_nome?: string
@@ -1138,6 +1141,7 @@ export const Constants = {
 //   data_assinatura: timestamp with time zone (nullable)
 //   expira_em: timestamp with time zone (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+//   ip_assinatura: text (nullable)
 // Table: clientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)

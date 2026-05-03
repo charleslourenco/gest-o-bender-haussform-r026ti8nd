@@ -1,143 +1,154 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import JSZip from 'https://esm.sh/jszip@3.10.1'
-
-type CreateAssinaturaRequest = {
-  cliente_id: string
-  signatario_tipo: string
-  signatario_nome: string
-  signatario_email: string
-  cliente: string
-  valor: string
-  vendedor: string
-  data: string
-}
+import JSZip from 'https://esm.sh/jszip@3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
-    const body = (await req.json()) as CreateAssinaturaRequest
+    const body: any = await req.json()
+    console.log('Input body:', JSON.stringify(body))
 
-    // Basic validation
-    const requiredFields = [
-      'cliente_id',
-      'signatario_tipo',
-      'signatario_nome',
-      'signatario_email',
-      'cliente',
-      'valor',
-      'vendedor',
-      'data',
-    ]
-    for (const field of requiredFields) {
-      if (!body[field as keyof CreateAssinaturaRequest]) {
-        throw new Error(`Missing required field: ${field}`)
-      }
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey =
+      Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
-    )
+    })
 
-    // Download template
-    const { data: templateData, error: downloadError } = await supabase.storage
-      .from('bender_templates')
-      .download('contrato.docx')
+    // Step 1: Download template
+    console.log('Step 1: Downloading template from dossiers/templates/contrato.docx')
+    const BUCKET = 'dossiers'
+    const TEMPLATE_PATH = 'templates/contrato.docx'
+    const { data: templateBlob, error: downloadError } = await supabase.storage
+      .from(BUCKET)
+      .download(TEMPLATE_PATH)
 
-    if (downloadError || !templateData) {
-      throw new Error('Failed to download template: ' + (downloadError?.message ?? 'Not found'))
+    if (downloadError || !templateBlob) {
+      console.error('Download error:', downloadError)
+      return new Response(JSON.stringify({ error: 'Failed to download template' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    console.log('Template downloaded successfully')
+
+    const templateBuffer = await templateBlob.arrayBuffer()
+
+    // Step 2: Load and modify ZIP
+    console.log('Step 2: Loading and modifying JSZip')
+    const zip = await JSZip.loadAsync(templateBuffer)
+
+    const replacements: Record<string, string> = body.replacements || {
+      '{{Cliente}}': body.cliente || '',
+      '{{Valor}}': body.valor || '',
+      '{{Vendedor}}': body.vendedor || '',
+      '{{Data}}': body.data || new Date().toLocaleDateString('pt-BR'),
+    }
+    console.log('Replacements:', JSON.stringify(replacements))
+
+    const documentXmlPath = 'word/document.xml'
+    const documentXmlFile = zip.file(documentXmlPath)
+    if (!documentXmlFile) {
+      console.error('document.xml not found in template')
+      return new Response(JSON.stringify({ error: 'Invalid template: missing document.xml' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    // Process DOCX
-    const zip = await JSZip.loadAsync(templateData)
-    const docXmlFile = zip.file('word/document.xml')
-    if (!docXmlFile) {
-      throw new Error('document.xml not found in template')
+    let documentXml = await documentXmlFile.async('string')
+    for (const [placeholder, value] of Object.entries(replacements)) {
+      const escaped = placeholder.replace(/[.*+?^${}()|[\\]/g, '\\$&')
+      documentXml = documentXml.replace(new RegExp(escaped, 'g'), value)
     }
+    zip.file(documentXmlPath, documentXml)
 
-    let docXml = await docXmlFile.async('text')
-    docXml = docXml
-      .replace(/\{\{Cliente\}\}/g, body.cliente)
-      .replace(/\{\{Valor\}\}/g, body.valor)
-      .replace(/\{\{Vendedor\}\}/g, body.vendedor)
-      .replace(/\{\{Data\}\}/g, body.data)
+    console.log('JSZip modification completed')
 
-    zip.file('word/document.xml', docXml)
+    // Step 3: Generate new buffer
+    console.log('Step 3: Generating DOCX buffer')
+    const generatedBuffer = await zip.generateAsync({ type: 'uint8array' })
 
-    const outputBuffer = await zip.generateAsync({ type: 'uint8array' })
-
-    // Upload to storage
-    const uuid = crypto.randomUUID()
-    const documento_nome = 'Contrato Bender Haussform.docx'
-    const documento_id = `contrato-bender-${uuid}.docx`
-
+    // Step 4: Upload
+    console.log('Step 4: Uploading generated DOCX')
+    const uploadPath = `contratos/${body.codigo_confirmacao}.docx`
     const { error: uploadError } = await supabase.storage
-      .from('dossiers')
-      .upload(documento_id, outputBuffer)
+      .from(BUCKET)
+      .upload(uploadPath, generatedBuffer, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        upsert: true,
+      })
 
     if (uploadError) {
-      throw new Error('Upload failed: ' + uploadError.message)
-    }
-
-    // Generate confirmation code (6 digits)
-    const codigo_confirmacao = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10)).join(
-      '',
-    )
-
-    // Expiration in 7 days
-    const expira_em = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-
-    // Insert into assinaturas
-    const { data: assinaturaData, error: insertError } = await supabase
-      .from('assinaturas')
-      .insert({
-        documento_id,
-        documento_nome,
-        cliente_id: body.cliente_id,
-        signatario_tipo: body.signatario_tipo,
-        signatario_nome: body.signatario_nome,
-        signatario_email: body.signatario_email,
-        codigo_confirmacao,
-        status: 'pendente',
-        expira_em,
+      console.error('Upload error:', uploadError)
+      return new Response(JSON.stringify({ error: 'Failed to upload DOCX' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
-      .select('id')
+    }
+    console.log('DOCX uploaded successfully to', uploadPath)
+
+    // Step 5: Insert to DB
+    console.log('Step 5: Inserting into assinaturas table')
+    const expiraEm = body.expira_em || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const statusDefault = body.status || 'pendente'
+    const insertData = {
+      documento_id: body.documento_id,
+      documento_nome: body.documento_nome,
+      cliente_id: body.cliente_id,
+      signatario_tipo: body.signatario_tipo,
+      signatario_nome: body.signatario_nome,
+      signatario_email: body.signatario_email,
+      codigo_confirmacao: body.codigo_confirmacao,
+      status: statusDefault,
+      expira_em: expiraEm,
+    }
+    console.log('Insert data:', JSON.stringify(insertData))
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('assinaturas')
+      .insert(insertData)
+      .select()
       .single()
 
-    if (insertError || !assinaturaData) {
-      throw new Error('Failed to create assinatura: ' + (insertError?.message ?? 'Unknown error'))
+    if (insertError || !inserted) {
+      console.error('Insert error:', insertError)
+      return new Response(JSON.stringify({ error: 'Failed to create assinatura record' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
+    console.log('Assinatura record created successfully')
 
-    return new Response(JSON.stringify({ success: true, assinatura_id: assinaturaData.id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(BUCKET).getPublicUrl(uploadPath)
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        file_url: publicUrl,
+        assinatura: inserted,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   } catch (error) {
-    console.error(error)
-    return new Response(JSON.stringify({ success: false, error: (error as Error).message }), {
-      status: 400,
+    console.error('Unexpected error:', error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }

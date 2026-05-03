@@ -184,17 +184,32 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
             </div>
             <div className="space-y-3">
               {files.length === 0 ? (
-                <div className="text-center py-8 bg-muted/30 rounded-md border-dashed">-</div>
+                <div className="text-center py-8 bg-muted/30 rounded-md border border-dashed text-muted-foreground">
+                  Nenhum documento encontrado.
+                </div>
               ) : (
-                <>
-                  {contratos.map((f) => (
-                    <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
-                  ))}
-                  {contratos.length > 0 && outros.length > 0 && <div className="border-t my-2" />}
-                  {outros.map((f) => (
-                    <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
-                  ))}
-                </>
+                <div className="flex flex-col gap-4">
+                  {contratos.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 border-b pb-1">
+                        Contrato
+                      </h3>
+                      {contratos.map((f) => (
+                        <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
+                      ))}
+                    </div>
+                  )}
+                  {outros.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 border-b pb-1">
+                        Outros Documentos
+                      </h3>
+                      {outros.map((f) => (
+                        <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

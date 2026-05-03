@@ -175,12 +175,12 @@ export function SignatureModal({
                       <div className="pt-2 border-t flex items-center justify-between">
                         <div className="text-xs">
                           Código:{' '}
-                          <strong className="text-primary tracking-widest">
+                          <strong className="text-primary tracking-widest text-sm">
                             {s.codigo_confirmacao}
                           </strong>
                         </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           className="h-7 px-2 text-xs"
                           onClick={() => copyLink(s.id, s.codigo_confirmacao)}
