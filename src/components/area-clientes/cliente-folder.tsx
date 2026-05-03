@@ -179,11 +179,34 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
   const handleGerarContrato = async () => {
     try {
       setGeneratingContract(true)
+      // Buscando vendedor e data da venda do formulário (Seção 07)
+      let vendedorFinal = form.vendedorNome || '-'
+      if (form.dados_etapa_4?.vendedor_nome) {
+        vendedorFinal = form.dados_etapa_4.vendedor_nome
+      } else if (form.dados_etapa_1?.vendedor_nome) {
+        vendedorFinal = form.dados_etapa_1.vendedor_nome
+      } else if (form.dados_etapa_3?.vendedor_nome) {
+        vendedorFinal = form.dados_etapa_3.vendedor_nome
+      } else if (form.vendedor_nome) {
+        vendedorFinal = form.vendedor_nome
+      }
+
+      const rawDataVenda = form.datas?.data_venda
+      const dataFinal = rawDataVenda
+        ? rawDataVenda.split('-').reverse().join('/')
+        : new Date().toLocaleDateString('pt-BR')
+
+      const formattedValor = new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(valTot)
+
       const payload = {
         cliente_id: form.cliente?.id || form.cliente_id,
         cliente: form.cliente?.nome || '-',
-        valor: valTot.toString(),
-        vendedor: form.vendedorNome || '-',
+        valor: formattedValor,
+        vendedor: vendedorFinal,
+        data: dataFinal,
         signatario_tipo: 'Cliente',
         signatario_nome: form.cliente?.nome || '-',
         signatario_cpf: form.cliente?.cpf || form.cpf || '000.000.000-00',

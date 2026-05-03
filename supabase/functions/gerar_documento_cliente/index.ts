@@ -11,6 +11,7 @@ interface RequestBody {
   cliente: string
   valor: string
   vendedor: string
+  data?: string
   signatario_tipo: string
   signatario_nome: string
   signatario_cpf: string
@@ -79,6 +80,7 @@ export default {
         cliente,
         valor,
         vendedor,
+        data: payloadData,
         signatario_tipo,
         signatario_nome,
         signatario_cpf,
@@ -103,7 +105,7 @@ export default {
         })
       }
 
-      const dataStr = new Date().toLocaleDateString('pt-BR')
+      const dataStr = payloadData || new Date().toLocaleDateString('pt-BR')
       const documento_id = crypto.randomUUID()
       const documento_nome = 'Contrato Bender Haussform'
       const codigo_confirmacao = Math.floor(100000 + Math.random() * 900000).toString()
