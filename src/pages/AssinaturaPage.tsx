@@ -36,11 +36,20 @@ export default function AssinaturaPage() {
 
   const handleOpenDocument = async () => {
     if (!assinatura?.documento_id) return
-    const { data } = supabase.storage.from('dossiers').getPublicUrl(assinatura.documento_id)
-    if (data?.publicUrl) {
-      window.open(data.publicUrl, '_blank')
+
+    const { data, error } = await supabase.storage
+      .from('dossiers')
+      .createSignedUrl(assinatura.documento_id, 3600)
+
+    if (data?.signedUrl) {
+      window.open(data.signedUrl, '_blank')
     } else {
-      toast.error('Não foi possível abrir o documento.')
+      const pub = supabase.storage.from('dossiers').getPublicUrl(assinatura.documento_id)
+      if (pub.data?.publicUrl) {
+        window.open(pub.data.publicUrl, '_blank')
+      } else {
+        toast.error('Não foi possível abrir o documento.')
+      }
     }
   }
 

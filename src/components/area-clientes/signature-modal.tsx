@@ -1,5 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useEffect, useState } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,228 +29,205 @@ export function SignatureModal({
   clienteId: string
   onClose: () => void
 }) {
-  const [assinaturas, setAssinaturas] = useState<any[]>([])
+  const [signatures, setSignatures] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
 
-  const [nome, setNome] = useState('')
-  const [email, setEmail] = useState('')
-  const [cpf, setCpf] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [tipo, setTipo] = useState('Cliente')
-
-  const fetchAssinaturas = async () => {
-    if (!doc) return
-    setLoading(true)
-    const docId = doc.path || doc.id || doc.title
-    const { data, error } = await supabase
-      .from('assinaturas')
-      .select('*')
-      .eq('documento_id', docId)
-      .order('criado_em', { ascending: false })
-
-    if (data) {
-      setAssinaturas(data)
-    }
-    setLoading(false)
-  }
+  const [newSig, setNewSig] = useState({
+    nome: '',
+    email: '',
+    tipo: 'Cliente',
+  })
 
   useEffect(() => {
-    if (doc) {
-      fetchAssinaturas()
-    } else {
-      setAssinaturas([])
-      setIsAdding(false)
+    if (doc?.path) {
+      loadSignatures()
     }
   }, [doc])
 
-  const handleAdd = async () => {
-    if (!nome) {
-      toast.error('Preencha o nome do signatário')
-      return
-    }
+  const loadSignatures = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('assinaturas')
+      .select('*')
+      .eq('documento_id', doc.path)
+      .order('criado_em', { ascending: true })
+    if (data) setSignatures(data)
+    setLoading(false)
+  }
 
-    const docId = doc.path || doc.id || doc.title
+  const handleAdd = async () => {
+    if (!newSig.nome) return toast.error('Nome é obrigatório')
+
     const codigo_confirmacao = Math.floor(100000 + Math.random() * 900000).toString()
-    const expira_em = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const expira_em = new Date()
+    expira_em.setDate(expira_em.getDate() + 30)
 
     const { error } = await supabase.from('assinaturas').insert({
-      documento_id: docId,
+      documento_id: doc.path,
       documento_nome: doc.title,
       cliente_id: clienteId,
-      signatario_nome: nome,
-      signatario_email: email || null,
-      signatario_cpf: cpf || null,
-      signatario_telefone: telefone || null,
-      signatario_tipo: tipo,
+      signatario_nome: newSig.nome,
+      signatario_email: newSig.email,
+      signatario_tipo: newSig.tipo,
       codigo_confirmacao,
       status: 'pendente',
-      expira_em,
+      expira_em: expira_em.toISOString(),
     })
 
     if (error) {
-      toast.error('Erro ao adicionar signatário: ' + error.message)
+      toast.error('Erro ao adicionar assinante')
     } else {
-      toast.success('Signatário adicionado com sucesso!')
+      toast.success('Assinante adicionado com sucesso!')
       setIsAdding(false)
-      setNome('')
-      setEmail('')
-      setCpf('')
-      setTelefone('')
-      setTipo('Cliente')
-      fetchAssinaturas()
+      setNewSig({ nome: '', email: '', tipo: 'Cliente' })
+      loadSignatures()
     }
   }
 
   const handleRemove = async (id: string) => {
     const { error } = await supabase.from('assinaturas').delete().eq('id', id)
-    if (error) {
-      toast.error('Erro ao remover signatário')
-    } else {
-      toast.success('Signatário removido')
-      fetchAssinaturas()
+    if (!error) {
+      toast.success('Assinante removido')
+      loadSignatures()
     }
   }
 
-  const copyLink = (id: string, codigo: string) => {
-    const link = `${window.location.origin}/assinatura/${id}`
-    navigator.clipboard.writeText(
-      `Link para assinatura do documento:\n${link}\n\nCódigo de Confirmação: ${codigo}`,
-    )
-    toast.success('Link e código copiados para a área de transferência!')
+  const handleCopyLink = (id: string) => {
+    const url = `${window.location.origin}/assinatura/${id}`
+    navigator.clipboard.writeText(url)
+    toast.success('Link de assinatura copiado!')
   }
 
   return (
     <Dialog open={!!doc} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gerenciar Assinaturas - {doc?.title}</DialogTitle>
+          <DialogTitle>Gerenciar Assinaturas</DialogTitle>
+          <DialogDescription>Documento: {doc?.title}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 mt-2">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-semibold">Signatários ({assinaturas.length})</h3>
-            <Button variant="outline" size="sm" onClick={() => setIsAdding(!isAdding)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar
-            </Button>
+        <div className="space-y-6 py-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium">Assinantes</h3>
+            {!isAdding && (
+              <Button size="sm" onClick={() => setIsAdding(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Adicionar
+              </Button>
+            )}
           </div>
 
           {isAdding && (
-            <div className="bg-muted/50 p-4 rounded-lg border space-y-4 animate-in fade-in zoom-in duration-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nome Completo</Label>
-                  <Input
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Nome do signatário"
-                  />
-                </div>
+            <div className="bg-muted/50 p-4 rounded-lg space-y-4 border">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={tipo} onValueChange={setTipo}>
+                  <Select
+                    value={newSig.tipo}
+                    onValueChange={(v) => setNewSig({ ...newSig, tipo: v })}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Cliente">Cliente</SelectItem>
-                      <SelectItem value="Representante Legal">Representante Legal</SelectItem>
-                      <SelectItem value="Testemunha 1">Testemunha 1</SelectItem>
-                      <SelectItem value="Testemunha 2">Testemunha 2</SelectItem>
+                      <SelectItem value="Testemunha">Testemunha</SelectItem>
+                      <SelectItem value="Representante">Representante</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>E-mail (opcional)</Label>
+                  <Label>Nome Completo</Label>
                   <Input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@exemplo.com"
-                    type="email"
+                    value={newSig.nome}
+                    onChange={(e) => setNewSig({ ...newSig, nome: e.target.value })}
+                    placeholder="João Silva"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>CPF (opcional)</Label>
+                  <Label>E-mail (Opcional)</Label>
                   <Input
-                    value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
-                    placeholder="000.000.000-00"
+                    value={newSig.email}
+                    onChange={(e) => setNewSig({ ...newSig, email: e.target.value })}
+                    placeholder="joao@email.com"
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" onClick={() => setIsAdding(false)}>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setIsAdding(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleAdd}>Salvar Signatário</Button>
+                <Button size="sm" onClick={handleAdd}>
+                  Salvar
+                </Button>
               </div>
             </div>
           )}
 
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-            {loading ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Carregando signatários...
-              </p>
-            ) : assinaturas.length === 0 && !isAdding ? (
-              <div className="text-center py-8 bg-muted/30 rounded-md border border-dashed text-muted-foreground">
-                Nenhum signatário adicionado para este documento.
-              </div>
-            ) : (
-              assinaturas.map((ass) => (
+          {loading ? (
+            <div className="text-center py-4 text-sm text-muted-foreground">Carregando...</div>
+          ) : signatures.length === 0 ? (
+            <div className="text-center py-8 bg-muted/20 border border-dashed rounded-lg text-muted-foreground text-sm">
+              Nenhum assinante cadastrado para este documento.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {signatures.map((sig) => (
                 <div
-                  key={ass.id}
-                  className="flex items-center justify-between p-3 border rounded-lg bg-card shadow-sm hover:shadow-md transition-shadow"
+                  key={sig.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between p-3 bg-card border rounded-lg gap-4"
                 >
-                  <div>
+                  <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{ass.signatario_nome}</span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-sm">
-                        {ass.signatario_tipo}
+                      <span className="font-medium text-sm">{sig.signatario_nome}</span>
+                      <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                        {sig.signatario_tipo}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                      {ass.signatario_email && <span>{ass.signatario_email}</span>}
-                      {ass.signatario_email && <span>•</span>}
-                      {ass.status === 'assinado' ? (
-                        <span className="flex items-center text-emerald-600 font-medium">
-                          <CheckCircle className="w-3.5 h-3.5 mr-1" /> Assinado em{' '}
-                          {new Date(ass.data_assinatura).toLocaleDateString('pt-BR')}
+                    <div className="text-xs text-muted-foreground mt-1.5 flex flex-col gap-1">
+                      <span>
+                        Código de Validação:{' '}
+                        <strong className="text-foreground text-sm font-mono tracking-widest">
+                          {sig.codigo_confirmacao}
+                        </strong>
+                      </span>
+                      {sig.signatario_email && <span>E-mail: {sig.signatario_email}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      {sig.status === 'assinado' ? (
+                        <span className="text-xs text-green-600 flex items-center gap-1.5 font-medium bg-green-50 px-2 py-1 rounded-md w-fit border border-green-200">
+                          <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
+                          {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
                         </span>
                       ) : (
-                        <span className="flex items-center text-amber-600 font-medium">
-                          <Clock className="w-3.5 h-3.5 mr-1" /> Aguardando Assinatura
+                        <span className="text-xs text-amber-600 flex items-center gap-1.5 font-medium bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-200">
+                          <Clock className="w-3.5 h-3.5" /> Pendente
                         </span>
                       )}
                     </div>
                   </div>
-
                   <div className="flex items-center gap-2">
-                    {ass.status !== 'assinado' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyLink(ass.id, ass.codigo_confirmacao)}
-                        className="h-8 text-xs"
-                      >
-                        <Copy className="w-3.5 h-3.5 mr-2" />
-                        Link
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyLink(sig.id)}
+                      title="Copiar Link de Assinatura"
+                    >
+                      <Copy className="w-4 h-4 mr-2" /> Copiar Link
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleRemove(ass.id)}
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => handleRemove(sig.id)}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
