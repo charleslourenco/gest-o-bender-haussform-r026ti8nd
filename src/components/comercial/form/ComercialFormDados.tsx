@@ -58,8 +58,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           (form.datas as any)?.data_venda ||
           dossie.criado_em?.split('T')[0] ||
           new Date().toISOString().split('T')[0],
-        data_liberacao_imovel: (form.datas as any)?.data_liberacao_imovel || '',
-        data_entrega_moveis: (form.datas as any)?.data_entrega_moveis || '',
+        data_acesso_imovel: (form.datas as any)?.data_acesso_imovel || '',
+        data_medicao_final: (form.datas as any)?.data_medicao_final || '',
+        data_entrega_minima: (form.datas as any)?.data_entrega_minima || '',
+        data_entrega_maxima: (form.datas as any)?.data_entrega_maxima || '',
       }))
     }
   }, [dossie])
@@ -129,8 +131,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           },
           datas: {
             data_venda: data.data_venda,
-            data_liberacao_imovel: data.data_liberacao_imovel,
-            data_entrega_moveis: data.data_entrega_moveis,
+            data_acesso_imovel: data.data_acesso_imovel,
+            data_medicao_final: data.data_medicao_final,
+            data_entrega_minima: data.data_entrega_minima,
+            data_entrega_maxima: data.data_entrega_maxima,
           },
           atualizado_em: new Date().toISOString(),
         })

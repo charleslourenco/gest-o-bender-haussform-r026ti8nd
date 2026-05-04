@@ -45,8 +45,26 @@ export interface FormState {
   pagamento_parcelado: ParcelaForm[]
 
   data_venda: string
-  data_liberacao_imovel: string
-  data_entrega_moveis: string
+  data_acesso_imovel: string
+  data_medicao_final: string
+  data_entrega_minima: string
+  data_entrega_maxima: string
+}
+
+export function addBusinessDays(dateStr: string, days: number): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr + 'T12:00:00Z')
+  if (isNaN(date.getTime())) return ''
+
+  let added = 0
+  while (added < days) {
+    date.setDate(date.getDate() + 1)
+    const day = date.getDay()
+    if (day !== 0 && day !== 6) {
+      added++
+    }
+  }
+  return date.toISOString().split('T')[0]
 }
 
 export const defaultState: FormState = {
@@ -97,8 +115,10 @@ export const defaultState: FormState = {
   ],
 
   data_venda: new Date().toISOString().split('T')[0],
-  data_liberacao_imovel: '',
-  data_entrega_moveis: '',
+  data_acesso_imovel: '',
+  data_medicao_final: '',
+  data_entrega_minima: '',
+  data_entrega_maxima: '',
 }
 
 export const maskCPF = (v: string) =>

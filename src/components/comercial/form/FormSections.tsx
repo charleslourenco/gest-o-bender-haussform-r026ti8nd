@@ -1,4 +1,11 @@
-import { FormState, maskCPF, maskPhoneStrict, maskCEP, formatCurrencyInput } from './FormUtils'
+import {
+  FormState,
+  maskCPF,
+  maskPhoneStrict,
+  maskCEP,
+  formatCurrencyInput,
+  addBusinessDays,
+} from './FormUtils'
 import { Plus, Trash2, Copy } from 'lucide-react'
 
 const inputClass =
@@ -540,39 +547,78 @@ export function SectionPagamento({ data, update }: Props) {
 }
 
 export function SectionDatas({ data, update }: Props) {
+  const handleAcessoChange = (val: string) => {
+    update('data_acesso_imovel', val)
+    if (val) {
+      const medicao = addBusinessDays(val, 5)
+      update('data_medicao_final', medicao)
+      update('data_entrega_minima', addBusinessDays(medicao, 50))
+      update('data_entrega_maxima', addBusinessDays(medicao, 70))
+    }
+  }
+
+  const handleMedicaoChange = (val: string) => {
+    update('data_medicao_final', val)
+    if (val) {
+      update('data_entrega_minima', addBusinessDays(val, 50))
+      update('data_entrega_maxima', addBusinessDays(val, 70))
+    }
+  }
+
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
       <h2 className="font-bold text-[18px] mb-[12px]">SEÇÃO 7 — DATAS</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[16px]">
         <div>
           <label className="block text-[14px] font-semibold mb-[4px]">Data da venda</label>
           <input
-            type="text"
+            type="date"
             readOnly
             className={inputClass + ' opacity-50 cursor-not-allowed'}
-            value={data.data_venda.split('-').reverse().join('/')}
+            value={data.data_venda}
           />
         </div>
         <div>
           <label className="block text-[14px] font-semibold mb-[4px]">
-            Data estimada de liberação do imóvel
+            Data de acesso ao imóvel *
           </label>
           <input
             type="date"
             className={inputClass}
-            value={data.data_liberacao_imovel}
-            onChange={(e) => update('data_liberacao_imovel', e.target.value)}
+            value={data.data_acesso_imovel}
+            onChange={(e) => handleAcessoChange(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-[14px] font-semibold mb-[4px]">Data da medição final</label>
+          <input
+            type="date"
+            className={inputClass}
+            value={data.data_medicao_final}
+            onChange={(e) => handleMedicaoChange(e.target.value)}
           />
         </div>
         <div>
           <label className="block text-[14px] font-semibold mb-[4px]">
-            Data estimada de entrega dos móveis
+            Data estimada de entrega — Prazo mínimo
           </label>
           <input
             type="date"
             className={inputClass}
-            value={data.data_entrega_moveis}
-            onChange={(e) => update('data_entrega_moveis', e.target.value)}
+            value={data.data_entrega_minima}
+            onChange={(e) => update('data_entrega_minima', e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-[14px] font-semibold mb-[4px]">
+            Data estimada de entrega — Prazo máximo
+          </label>
+          <input
+            type="date"
+            className={inputClass}
+            value={data.data_entrega_maxima}
+            onChange={(e) => update('data_entrega_maxima', e.target.value)}
           />
         </div>
       </div>
