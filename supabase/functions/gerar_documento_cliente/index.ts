@@ -1,171 +1,131 @@
-import { Document, Packer, Paragraph, TextRun } from 'https://esm.sh/docx@8.5.0'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Document, Packer, Paragraph, TextRun, AlignmentType } from 'https://esm.sh/docx'
 
-interface Env {
-  SUPABASE_URL: string
-  SUPABASE_SERVICE_ROLE_KEY: string
-}
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-interface RequestBody {
-  cliente_id: string
-  cliente: string
-  valor: string
-  vendedor: string
-  data?: string
-  signatario_tipo: string
-  signatario_nome: string
-  signatario_cpf: string
-  signatario_email: string
-  signatario_telefone: string
-}
+serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 
-async function generateDocx(
-  cliente: string,
-  valor: string,
-  vendedor: string,
-  dataStr: string,
-): Promise<ArrayBuffer> {
-  const doc = new Document({
-    sections: [
-      {
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'CONTRATO BENDER HAUSSFORM',
-                bold: true,
-                size: 32,
-              }),
-            ],
-          }),
-          new Paragraph({
-            children: [new TextRun(`Cliente: ${cliente}`)],
-          }),
-          new Paragraph({
-            children: [new TextRun(`Valor: R$ ${valor}`)],
-          }),
-          new Paragraph({
-            children: [new TextRun(`Vendedor: ${vendedor}`)],
-          }),
-          new Paragraph({
-            children: [new TextRun(`Data: ${dataStr}`)],
-          }),
-          new Paragraph({
-            children: [new TextRun('Assinatura do Cliente: ______________________________')],
-            spacing: { after: 400 },
-          }),
-          new Paragraph({
-            children: [new TextRun('Assinatura do Vendedor: ______________________________')],
-          }),
-        ],
-      },
-    ],
-  })
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
-  const blob = await Packer.toBlob(doc)
-  return await blob.arrayBuffer()
-}
-
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    try {
-      if (request.method !== 'POST') {
-        return new Response('Method not allowed', { status: 405 })
-      }
-
-      const body: RequestBody = await request.json()
-
-      const {
-        cliente_id,
-        cliente,
-        valor,
-        vendedor,
-        data: payloadData,
-        signatario_tipo,
-        signatario_nome,
-        signatario_cpf,
-        signatario_email,
-        signatario_telefone,
-      } = body
-
-      if (
-        !cliente_id ||
-        !cliente ||
-        !valor ||
-        !vendedor ||
-        !signatario_tipo ||
-        !signatario_nome ||
-        !signatario_cpf ||
-        !signatario_email ||
-        !signatario_telefone
-      ) {
-        return new Response(JSON.stringify({ error: 'Missing required fields' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }
-
-      const dataStr = payloadData || new Date().toLocaleDateString('pt-BR')
-      const documento_id = crypto.randomUUID()
-      const documento_nome = 'Contrato Bender Haussform'
-      const codigo_confirmacao = Math.floor(100000 + Math.random() * 900000).toString()
-      const status = 'assinado'
-      const expira_em = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-
-      const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-
-      // Generate DOCX
-      const docBuffer = await generateDocx(cliente, valor, vendedor, dataStr)
-
-      // Insert assinatura
-      const { error: assError } = await supabase.from('assinaturas').insert({
-        documento_id,
-        documento_nome,
-        cliente_id,
-        signatario_tipo,
-        signatario_nome,
-        signatario_cpf,
-        signatario_email,
-        signatario_telefone,
-        codigo_confirmacao,
-        status,
-        expira_em,
-      })
-
-      if (assError) {
-        console.error('Assinatura insert error:', assError)
-        return new Response(JSON.stringify({ error: 'Failed to register signature' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }
-
-      // Insert timeline event
-      const { error: timeError } = await supabase.from('timeline_eventos').insert({
-        cliente_id,
-        usuario_nome: signatario_nome,
-        acao: 'Contrato assinado eletronicamente',
-        icone: '✍️',
-      })
-
-      if (timeError) {
-        console.error('Timeline insert error:', timeError)
-      }
-
-      // Return DOCX
-      const sanitizedCliente = cliente.replace(/[^a-zA-Z0-9]/g, '_')
-      const headers = new Headers({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="Contrato_Bender_Haussform_${sanitizedCliente}.docx"`,
-      })
-
-      return new Response(docBuffer, { headers })
-    } catch (error) {
-      console.error('Worker error:', error)
-      return new Response(JSON.stringify({ error: 'Internal server error' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      })
+  try {
+    if (req.method !== 'POST') {
+      throw new Error('Only POST requests are allowed')
     }
-  },
-}
+
+    const body = await req.json()
+    const { cliente, valor, vendedor, data } = body
+
+    if (!cliente || !valor || !vendedor || !data) {
+      throw new Error('Missing required fields: cliente, valor, vendedor, data')
+    }
+
+    // Generate DOCX
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: 'Contrato Bender Haussform',
+                  bold: true,
+                  size: 32,
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+            }),
+            new Paragraph({
+              children: [new TextRun(`Cliente: ${cliente}`)],
+            }),
+            new Paragraph({
+              children: [new TextRun(`Valor: R$ ${valor}`)],
+            }),
+            new Paragraph({
+              children: [new TextRun(`Vendedor: ${vendedor}`)],
+            }),
+            new Paragraph({
+              children: [new TextRun(`Data: ${data}`)],
+            }),
+            new Paragraph({
+              children: [new TextRun('Assinatura do Cliente: _______________________')],
+              alignment: AlignmentType.RIGHT,
+            }),
+            new Paragraph({
+              children: [new TextRun('Assinatura do Vendedor: _______________________')],
+              alignment: AlignmentType.RIGHT,
+            }),
+          ],
+        },
+      ],
+    })
+
+    const docBuffer = await Packer.toBuffer(doc)
+
+    // Sanitize filename
+    const safeCliente = cliente.replace(/[^a-zA-Z0-9]/g, '_')
+    const safeData = data.replace(/[^a-zA-Z0-9]/g, '_')
+    const filename = `contrato-${safeCliente}-${safeData}.docx`
+
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from('contratos')
+      .upload(filename, docBuffer, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        upsert: true,
+      })
+
+    if (uploadError) {
+      throw new Error(`Upload failed: ${uploadError.message}`)
+    }
+
+    const { data: urlData } = supabase.storage.from('contratos').getPublicUrl(filename)
+    const publicUrl = urlData.publicUrl
+
+    // Insert into assinaturas
+    const { error: assError } = await supabase.from('assinaturas').insert({
+      cliente,
+      documento_url: publicUrl,
+      valor: typeof valor === 'string' ? parseFloat(valor.replace(',', '.')) : valor,
+      vendedor,
+      data: new Date(data),
+      status: 'pendente',
+    })
+
+    if (assError) {
+      throw new Error(`Insert assinaturas failed: ${assError.message}`)
+    }
+
+    // Insert into timeline_eventos
+    const { error: timelineError } = await supabase.from('timeline_eventos').insert({
+      cliente,
+      evento: 'documento_gerado',
+      detalhes: `Contrato gerado e salvo: ${publicUrl}`,
+      data: new Date(),
+    })
+
+    if (timelineError) {
+      throw new Error(`Insert timeline_eventos failed: ${timelineError.message}`)
+    }
+
+    return new Response(JSON.stringify({ success: true, documento_url: publicUrl }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
+  } catch (error) {
+    console.error(error)
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    })
+  }
+})

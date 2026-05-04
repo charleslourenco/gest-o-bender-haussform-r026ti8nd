@@ -15,57 +15,65 @@ export interface ParcelaForm {
 export interface FormState {
   nome: string
   cpf: string
-  telefone: string
-  email: string
+  data_nascimento: string
   profissao: string
   estado_civil: string
+  email: string
+  telefone: string
+
   end_cep: string
-  end_municipio: string
-  end_estado: string
   end_rua: string
   end_numero: string
-  end_bairro: string
   end_complemento: string
-  obra_mesmo_endereco: boolean
+  end_bairro: string
+  end_municipio: string
+  end_estado: string
+
   obra_cep: string
-  obra_municipio: string
-  obra_estado: string
   obra_rua: string
   obra_numero: string
-  obra_bairro: string
   obra_complemento: string
+  obra_bairro: string
+  obra_municipio: string
+  obra_estado: string
+
   produtos: ProdutoForm[]
   desconto: number
-  forma_pagamento: 'A_VISTA' | 'PARCELADO'
-  pagamento_a_vista_data: string
+
+  forma_pagamento: 'À vista' | 'Parcelado'
   pagamento_a_vista_meio: string
   pagamento_parcelado: ParcelaForm[]
-  data_medida: string
-  vendedor_nome: string
+
+  data_venda: string
+  data_liberacao_imovel: string
+  data_entrega_moveis: string
 }
 
 export const defaultState: FormState = {
   nome: '',
   cpf: '',
-  telefone: '',
-  email: '',
+  data_nascimento: '',
   profissao: '',
-  estado_civil: 'solteiro',
+  estado_civil: 'Solteiro',
+  email: '',
+  telefone: '',
+
   end_cep: '',
-  end_municipio: '',
-  end_estado: '',
   end_rua: '',
   end_numero: '',
-  end_bairro: '',
   end_complemento: '',
-  obra_mesmo_endereco: false,
+  end_bairro: '',
+  end_municipio: '',
+  end_estado: '',
+
   obra_cep: '',
-  obra_municipio: '',
-  obra_estado: '',
   obra_rua: '',
   obra_numero: '',
-  obra_bairro: '',
   obra_complemento: '',
+  obra_bairro: '',
+  obra_municipio: '',
+  obra_estado: '',
+
   produtos: [
     {
       id: Math.random().toString(36).substring(2),
@@ -76,25 +84,21 @@ export const defaultState: FormState = {
     },
   ],
   desconto: 0,
-  forma_pagamento: 'A_VISTA',
-  pagamento_a_vista_data: new Date().toISOString().split('T')[0],
-  pagamento_a_vista_meio: 'dinheiro',
+
+  forma_pagamento: 'À vista',
+  pagamento_a_vista_meio: 'PIX',
   pagamento_parcelado: [
     {
       id: Math.random().toString(36).substring(2),
       data: new Date().toISOString().split('T')[0],
       valor: 0,
-      meio: 'dinheiro',
-    },
-    {
-      id: Math.random().toString(36).substring(2),
-      data: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-      valor: 0,
-      meio: 'dinheiro',
+      meio: 'PIX',
     },
   ],
-  data_medida: '',
-  vendedor_nome: '',
+
+  data_venda: new Date().toISOString().split('T')[0],
+  data_liberacao_imovel: '',
+  data_entrega_moveis: '',
 }
 
 export const maskCPF = (v: string) =>
@@ -104,30 +108,27 @@ export const maskCPF = (v: string) =>
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .slice(0, 14)
-export const maskPhone = (v: string) =>
-  v
-    .replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '($1)$2')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .slice(0, 14)
+
+export const maskPhoneStrict = (v: string) => {
+  let val = v.replace(/\D/g, '')
+  if (val.length > 11) val = val.slice(0, 11)
+  if (val.length <= 2) return val.replace(/(\d{1,2})/, '($1')
+  if (val.length <= 7) return val.replace(/(\d{2})(\d{1,5})/, '($1)$2')
+  return val.replace(/(\d{2})(\d{5})(\d{1,4})/, '($1)$2-$3')
+}
+
 export const maskCEP = (v: string) =>
   v
     .replace(/\D/g, '')
     .replace(/(\d{5})(\d)/, '$1-$2')
     .slice(0, 9)
-export const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-export const addBusinessDays = (date: Date, days: number) => {
-  let count = 0
-  let cur = new Date(date)
-  const h = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25']
-  while (count < days) {
-    cur.setDate(cur.getDate() + 1)
-    const dw = cur.getDay(),
-      m = String(cur.getMonth() + 1).padStart(2, '0'),
-      d = String(cur.getDate()).padStart(2, '0')
-    if (dw !== 0 && dw !== 6 && !h.includes(`${m}-${d}`)) count++
-  }
-  return cur
+export const formatCurrencyInput = (v: any) => {
+  if (!v && v !== 0) return 'R$ 0,00'
+  const value = typeof v === 'string' ? v.replace(/\D/g, '') : v.toString().replace(/\D/g, '')
+  if (!value) return 'R$ 0,00'
+  const number = (Number(value) / 100).toFixed(2)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+    Number(number),
+  )
 }

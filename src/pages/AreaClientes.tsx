@@ -8,15 +8,15 @@ export default function AreaClientes() {
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<'lista' | 'pasta'>(id ? 'pasta' : 'lista')
-  const [selectedFormId, setSelectedFormId] = useState<string | null>(id || null)
+  const [selectedDossieId, setSelectedDossieId] = useState<string | null>(id || null)
 
   useEffect(() => {
     if (id) {
-      setSelectedFormId(id)
+      setSelectedDossieId(id)
       setActiveTab('pasta')
     } else {
       setActiveTab('lista')
-      setSelectedFormId(null)
+      setSelectedDossieId(null)
     }
   }, [id])
 
@@ -24,12 +24,12 @@ export default function AreaClientes() {
     <div className="h-full flex flex-col bg-background">
       {activeTab === 'lista' ? (
         <ClientesList
-          onSelect={(formId) => {
-            navigate(`/clientes/${formId}`)
+          onSelect={(dossieId) => {
+            navigate(`/clientes/${dossieId}`)
           }}
         />
       ) : (
-        <ClienteFolder formId={selectedFormId!} onBack={() => navigate('/clientes')} />
+        <ClienteFolder dossieId={selectedDossieId!} onBack={() => navigate('/clientes')} />
       )}
     </div>
   )

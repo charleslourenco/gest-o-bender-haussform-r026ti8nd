@@ -1,83 +1,41 @@
-import { useEffect, useState, useRef } from 'react'
-import { ArrowLeft, Folder, Plus, FileText, Upload as UploadIcon } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
-import { Timeline } from './timeline'
-import { DocumentRow } from './document-row'
-import { SignatureModal } from './signature-modal'
-import { toast } from 'sonner'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDados'
+import { ClienteDocumentos } from './cliente-documentos'
 
-export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () => void }) {
-  const [form, setForm] = useState<any>(null)
-  const [files, setFiles] = useState<any[]>([])
+export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {
+  const [dossie, setDossie] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedDocForSig, setSelectedDocForSig] = useState<any>(null)
-
-  const [isAddTmplOpen, setIsAddTmplOpen] = useState(false)
-  const [isAddManOpen, setIsAddManOpen] = useState(false)
-  const [templates, setTemplates] = useState<any[]>([])
-  const [manFile, setManFile] = useState<File | null>(null)
-  const [manFileName, setManFileName] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
     setLoading(true)
     try {
-      const { data: formData } = await supabase
-        .from('formulario_comercial')
-        .select('*, cliente:clientes(*)')
-        .eq('id', formId)
+      const { data } = await supabase
+        .from('dossies')
+        .select(`
+          *,
+          cliente:clientes(*),
+          formulario:formulario_comercial(*)
+        `)
+        .eq('id', dossieId)
         .single()
-      if (!formData) return
 
-      let vendedor = formData.dados_etapa_1?.vendedor_nome || '-'
-      if (formData.usuario_id || formData.user_id) {
-        const { data: uData } = await supabase
-          .from('users')
-          .select('nome')
-          .eq('id', formData.usuario_id || formData.user_id)
-          .single()
-        if (uData?.nome) vendedor = uData.nome
+      if (data) {
+        let vendedor = '-'
+        if (data.user_id) {
+          const { data: uData } = await supabase
+            .from('users')
+            .select('nome')
+            .eq('id', data.user_id)
+            .single()
+          if (uData) vendedor = uData.nome
+        }
+        data.vendedorNome = vendedor
+        setDossie(data)
       }
-      formData.vendedorNome = vendedor
-
-      const dossierId = formData.cliente?.nome || formData.cliente_id || formId
-      const { data: storageFiles } = await supabase.storage.from('dossiers').list(dossierId)
-      if (storageFiles) {
-        setFiles(
-          storageFiles
-            .filter((f) => f.name !== '.emptyFolderPlaceholder')
-            .map((f) => {
-              const isContrato = f.name.toLowerCase().includes('contrato')
-              return {
-                id: f.id,
-                title: f.name,
-                actions: isContrato ? ['ler', 'baixar', 'enviar'] : ['ler', 'baixar'],
-                path: `${dossierId}/${f.name}`,
-              }
-            }),
-        )
-      }
-      setForm(formData)
-      const { data: tmpls } = await supabase.from('templates').select('*')
-      setTemplates(tmpls || [])
-    } catch {
-      /* intentionally ignored */
     } finally {
       setLoading(false)
     }
@@ -85,86 +43,15 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
 
   useEffect(() => {
     load()
-  }, [formId])
+  }, [dossieId])
 
-  const handleUseTmpl = async (tmpl: any) => {
-    try {
-      const { data: fData, error: dErr } = await supabase.storage
-        .from('templates')
-        .download(tmpl.arquivo_url)
-      if (dErr) throw dErr
-      const dId = form.cliente?.nome || form.cliente_id || formId
-      const e = tmpl.arquivo_url.split('.').pop()
-      const fileName = `${tmpl.nome}_Template.${e}`
-      const { error: uErr } = await supabase.storage
-        .from('dossiers')
-        .upload(`${dId}/${fileName}`, fData, { upsert: true })
-      if (uErr) throw uErr
+  if (loading) return <div className="p-8 text-center animate-pulse">Carregando...</div>
+  if (!dossie) return <div className="p-8 text-center text-destructive">Dossiê não encontrado.</div>
 
-      const user = (await supabase.auth.getUser()).data.user
-      let userName = 'Sistema'
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('nome')
-          .eq('id', user.id)
-          .single()
-        if (profile?.nome) userName = profile.nome
-      }
-
-      await supabase.from('timeline_eventos').insert({
-        cliente_id: form.cliente?.id || form.cliente_id,
-        usuario_nome: userName,
-        acao: `Documento Adicionado: ${tmpl.nome}`,
-      })
-
-      toast.success('Adicionado com sucesso!')
-      setIsAddTmplOpen(false)
-      load()
-    } catch (e: any) {
-      toast.error('Erro: ' + e.message)
-    }
-  }
-
-  const handleManUpload = async () => {
-    if (!manFile || !manFileName) return toast.error('Preencha os dados')
-    try {
-      const dId = form.cliente?.nome || form.cliente_id || formId
-      const e = manFile.name.split('.').pop()
-      const { error: uErr } = await supabase.storage
-        .from('dossiers')
-        .upload(`${dId}/${manFileName}.${e}`, manFile, { upsert: true })
-      if (uErr) throw uErr
-
-      const user = (await supabase.auth.getUser()).data.user
-      let userName = 'Sistema'
-      if (user) {
-        const { data: profile } = await supabase
-          .from('users')
-          .select('nome')
-          .eq('id', user.id)
-          .single()
-        if (profile?.nome) userName = profile.nome
-      }
-
-      await supabase.from('timeline_eventos').insert({
-        cliente_id: form.cliente?.id || form.cliente_id,
-        usuario_nome: userName,
-        acao: `Documento Adicionado: ${manFileName}`,
-      })
-
-      toast.success('Enviado com sucesso!')
-      setIsAddManOpen(false)
-      setManFile(null)
-      setManFileName('')
-      load()
-    } catch (e: any) {
-      toast.error('Erro: ' + e.message)
-    }
-  }
+  const form = dossie.formulario
 
   let prods =
-    form && typeof form.produtos_servicos === 'string'
+    typeof form?.produtos_servicos === 'string'
       ? JSON.parse(form.produtos_servicos || '[]')
       : form?.produtos_servicos || []
   const valTot = Array.isArray(prods)
@@ -175,161 +62,57 @@ export function ClienteFolder({ formId, onBack }: { formId: string; onBack: () =
       ) - (Number(form?.desconto) || 0)
     : 0
 
-  if (loading && !form) return <div className="p-8 text-center animate-pulse">Carregando...</div>
-  if (!form) return <div className="p-8 text-center text-destructive">Não encontrado.</div>
-
-  const contratos = files.filter((f) => f.title.toLowerCase().includes('contrato'))
-  const outros = files.filter((f) => !f.title.toLowerCase().includes('contrato'))
+  const isFormSaved = form && form.cpf && (form.datas as any)?.data_venda
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in">
-      <div className="flex gap-4 border-b pb-4">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in flex flex-col h-full overflow-hidden">
+      <div className="flex gap-4 border-b pb-4 shrink-0">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">{form.cliente?.nome || '-'}</h1>
+          <h1 className="text-2xl font-bold">{dossie.cliente?.nome || '-'}</h1>
           <p className="text-muted-foreground text-sm">
-            Vendedor: {form.vendedorNome} | Valor da Venda:{' '}
+            Vendedor: {dossie.vendedorNome} | Valor da Venda:{' '}
             {valTot > 0
               ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                   valTot,
                 )
               : '-'}{' '}
-            | Data: {form.criado_em ? new Date(form.criado_em).toLocaleDateString('pt-BR') : '-'}
+            | Data:{' '}
+            {dossie.criado_em ? new Date(dossie.criado_em).toLocaleDateString('pt-BR') : '-'}
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card p-5 rounded-lg border shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <h2 className="text-lg font-semibold flex gap-2 items-center">
-                <Folder className="w-5 h-5 text-primary" /> Arquivos
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="outline" className="gap-2">
-                      <Plus className="w-4 h-4" /> Adicionar Documento
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setIsAddTmplOpen(true)}>
-                      Usar Template da Fábrica
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setIsAddManOpen(true)}>
-                      Upload Manual
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-            <div className="space-y-3">
-              {files.length === 0 ? (
-                <div className="text-center py-8 bg-muted/30 rounded-md border border-dashed text-muted-foreground">
-                  Nenhum documento encontrado.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {contratos.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 border-b pb-1">
-                        Contrato
-                      </h3>
-                      {contratos.map((f) => (
-                        <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
-                      ))}
-                    </div>
-                  )}
-                  {outros.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 border-b pb-1">
-                        Outros Documentos
-                      </h3>
-                      {outros.map((f) => (
-                        <DocumentRow key={f.id} doc={f} onSign={setSelectedDocForSig} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div>
-          <Timeline clienteId={form.cliente?.id || form.cliente_id} />
-        </div>
-      </div>
 
-      <SignatureModal
-        doc={selectedDocForSig}
-        clienteId={form.cliente?.id || form.cliente_id}
-        onClose={() => setSelectedDocForSig(null)}
-      />
-
-      <Dialog open={isAddTmplOpen} onOpenChange={setIsAddTmplOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Usar Template</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-2 mt-4">
-            {templates
-              .filter((t) => t.tipo !== 'contrato')
-              .map((t) => (
-                <Button
-                  key={t.id}
-                  variant="outline"
-                  className="justify-start h-auto py-3"
-                  onClick={() => handleUseTmpl(t)}
-                >
-                  <FileText className="w-4 h-4 mr-3" />{' '}
-                  <div className="text-left">
-                    <div className="font-medium">{t.nome}</div>
-                    <div className="text-xs text-muted-foreground">{t.tipo}</div>
-                  </div>
-                </Button>
-              ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={isAddManOpen} onOpenChange={setIsAddManOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload Manual</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Nome do Documento (sem extensão)</Label>
-              <Input value={manFileName} onChange={(e) => setManFileName(e.target.value)} />
+      <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
+        <TabsList className="shrink-0 w-full justify-start border-b rounded-none h-12 bg-transparent p-0 gap-6">
+          <TabsTrigger
+            value="dados"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-0 bg-transparent h-full font-bold"
+          >
+            DADOS
+          </TabsTrigger>
+          <TabsTrigger
+            value="documentos"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-0 bg-transparent h-full font-bold"
+          >
+            DOCUMENTOS
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="dados" className="flex-1 overflow-y-auto mt-4 p-1">
+          <ComercialFormDados dossie={dossie} onSaved={load} />
+        </TabsContent>
+        <TabsContent value="documentos" className="flex-1 overflow-y-auto mt-4 p-1">
+          {!isFormSaved ? (
+            <div className="p-12 text-center bg-muted/30 border-2 border-dashed border-steel-blue rounded-lg text-midnight-navy font-semibold">
+              Preencha e salve os dados do cliente na aba Dados antes de gerar documentos.
             </div>
-            <div className="space-y-2">
-              <Label>Arquivo</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => fileRef.current?.click()}
-                  className="w-full"
-                >
-                  <UploadIcon className="w-4 h-4 mr-2" /> {manFile ? manFile.name : 'Selecionar'}
-                </Button>
-                <input
-                  type="file"
-                  ref={fileRef}
-                  className="hidden"
-                  onChange={(e) => setManFile(e.target.files?.[0] || null)}
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIsAddManOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleManUpload}>Enviar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          ) : (
+            <ClienteDocumentos dossie={dossie} onReload={load} />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
