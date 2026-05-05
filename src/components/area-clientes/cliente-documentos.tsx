@@ -20,6 +20,25 @@ declare global {
   }
 }
 
+async function carregarBibliotecas() {
+  await Promise.all([
+    new Promise((resolve, reject) => {
+      const script1 = document.createElement('script')
+      script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.js'
+      script1.onload = resolve
+      script1.onerror = reject
+      document.head.appendChild(script1)
+    }),
+    new Promise((resolve, reject) => {
+      const script2 = document.createElement('script')
+      script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.47.4/docxtemplater.js'
+      script2.onload = resolve
+      script2.onerror = reject
+      document.head.appendChild(script2)
+    }),
+  ])
+}
+
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
@@ -58,6 +77,10 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     setGenerating(true)
     toast.info(`Gerando ${templateNome}...`, { id: 'gerar-doc' })
     try {
+      if (typeof window.PizZip === 'undefined' || typeof window.docxtemplater === 'undefined') {
+        await carregarBibliotecas()
+      }
+
       if (!window.PizZip || !window.docxtemplater) {
         throw new Error('As bibliotecas PizZip e Docxtemplater não foram carregadas no navegador.')
       }
