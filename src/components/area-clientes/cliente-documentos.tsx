@@ -254,19 +254,33 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       })
 
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession()
+      if (!session) {
+        throw new Error('Usuário não autenticado. Faça login novamente.')
+      }
+      console.log('Sessão ativa:', session.user.id)
+
       const safeName = isContrato
-        ? 'Contrato.docx'
+        ? `Contrato_${Date.now()}.docx`
         : `${templateNome}_${Date.now()}`.replace(/\s+/g, '_') + '.docx'
-      const filePath = `${dossie.cliente_id}/${safeName}`
+      const filePath = `${session.user.id}/${dossie.cliente_id}/${safeName}`
 
-      const { error: uploadError } = await supabase.storage.from('dossiers').upload(filePath, out, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        upsert: true,
-      })
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('dossiers')
+        .upload(filePath, out, {
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          upsert: true,
+        })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Erro no upload:', uploadError)
+        throw new Error('Erro no upload: ' + uploadError.message)
+      }
 
-      console.log('7. Upload concluído.')
+      console.log('Upload realizado:', uploadData)
 
       const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
       const publicUrl = publicUrlData.publicUrl
@@ -278,6 +292,18 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         status: 'gerado',
         arquivo_url: publicUrl,
       })
+
+      await supabase
+        .from('documentos_gerados')
+        .insert({
+          cliente_id: dossie.cliente_id,
+          user_id: session.user.id,
+          nome: isContrato ? 'Contrato.docx' : templateNome,
+          path: filePath,
+          tipo: isContrato ? 'contrato' : 'template',
+          criado_em: new Date().toISOString(),
+        })
+        .catch((e) => console.warn('Tabela documentos_gerados ignorada ou não existe:', e))
 
       if (isContrato) {
         await supabase.from('dossies').update({ contrato_url: publicUrl }).eq('id', dossie.id)
@@ -337,7 +363,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
     toast.info('Fazendo upload...', { id: 'upload-doc' })
     try {
-      const filePath = `${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session) throw new Error('Usuário não autenticado.')
+
+      const filePath = `${session.user.id}/${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
       const { error: uploadError } = await supabase.storage
         .from('dossiers')
         .upload(filePath, file, { upsert: true })
