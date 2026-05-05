@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDados'
 import { ClienteDocumentos } from './cliente-documentos'
+import { Timeline } from './timeline'
 
 export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {
   const [dossie, setDossie] = useState<any>(null)
@@ -99,6 +100,12 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           >
             DOCUMENTOS
           </TabsTrigger>
+          <TabsTrigger
+            value="timeline"
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none px-0 bg-transparent h-full font-bold"
+          >
+            TIMELINE
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="dados" className="flex-1 overflow-y-auto mt-4 p-1">
           <ComercialFormDados dossie={dossie} onSaved={load} />
@@ -111,6 +118,9 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           ) : (
             <ClienteDocumentos dossie={dossie} onReload={load} />
           )}
+        </TabsContent>
+        <TabsContent value="timeline" className="flex-1 overflow-y-auto mt-4 p-1">
+          <Timeline clienteId={dossie.cliente_id} />
         </TabsContent>
       </Tabs>
     </div>

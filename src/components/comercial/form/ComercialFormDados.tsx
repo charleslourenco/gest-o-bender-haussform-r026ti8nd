@@ -161,6 +161,13 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         })
         .eq('id', dossie.cliente_id)
 
+      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: dossie.cliente_id,
+        usuario_nome: userName,
+        acao: 'Dados do cliente atualizados',
+      })
+
       toast.success('Dados salvos com sucesso!')
       onSaved()
     } catch (e: any) {

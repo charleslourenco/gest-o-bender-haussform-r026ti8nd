@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Download, Upload, Plus, Eye, PenTool } from 'lucide-react'
+import { FileText, Download, Upload, Plus, Eye, PenTool, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -73,6 +73,28 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     (d) => d.tipo === 'Contrato' || d.template_nome?.toLowerCase().includes('contrato.docx'),
   )
 
+  const handleDeleteDoc = async (docId: string, nome: string) => {
+    if (!confirm('Deseja realmente remover este documento?')) return
+    try {
+      const { error } = await supabase.from('documentos_cliente').delete().eq('id', docId)
+      if (error) throw error
+
+      const { data: authData } = await supabase.auth.getUser()
+      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: dossie.cliente_id,
+        usuario_nome: userName,
+        acao: `Documento ${nome} removido`,
+      })
+
+      toast.success('Documento removido com sucesso!')
+      loadDocs()
+      onReload()
+    } catch (e: any) {
+      toast.error('Erro ao remover documento: ' + e.message)
+    }
+  }
+
   const processDocx = async (templateUrl: string, templateNome: string, isContrato: boolean) => {
     setGenerating(true)
     toast.info(`Gerando ${templateNome}...`, { id: 'gerar-doc' })
@@ -85,10 +107,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         throw new Error('As bibliotecas PizZip e Docxtemplater não foram carregadas no navegador.')
       }
 
-      const res = await fetch(templateUrl)
-      if (!res.ok) throw new Error('Não foi possível baixar o template da URL fornecida.')
-      const arrayBuffer = await res.arrayBuffer()
-
+      console.log('1. Buscando dados do formulário...')
       const { data: authData } = await supabase.auth.getUser()
 
       const { data: formInfo } = await supabase
@@ -99,6 +118,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         .single()
 
       if (!formInfo) throw new Error('Dados do formulário não encontrados.')
+      console.log('2. Dados encontrados:', formInfo)
+
+      console.log('3. Baixando arquivo do bucket...')
+      const res = await fetch(templateUrl)
+      if (!res.ok) throw new Error('Não foi possível baixar o template da URL fornecida.')
+      const arrayBuffer = await res.arrayBuffer()
+      console.log('4. Arquivo baixado, iniciando Docxtemplater...')
 
       const cli = Array.isArray(formInfo.cliente) ? formInfo.cliente[0] : formInfo.cliente || {}
 
@@ -201,6 +227,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         BLOCO_PARCELAS_TEXTO: blocoParcelasText || '',
       }
 
+      console.log('5. Placeholders mapeados:', placeholders)
+
       const zip = new window.PizZip(arrayBuffer)
       const doc = new window.docxtemplater(zip, {
         paragraphLoop: true,
@@ -209,6 +237,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       doc.render(placeholders)
 
+      console.log('6. Documento gerado, iniciando upload...')
       const out = doc.getZip().generate({
         type: 'blob',
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -226,6 +255,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       if (uploadError) throw uploadError
 
+      console.log('7. Upload concluído.')
+
       const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
       const publicUrl = publicUrlData.publicUrl
 
@@ -241,13 +272,24 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         await supabase.from('dossies').update({ contrato_url: publicUrl }).eq('id', dossie.id)
       }
 
+      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: dossie.cliente_id,
+        usuario_nome: userName,
+        acao: isContrato ? 'Contrato gerado' : `Documento ${templateNome} adicionado`,
+      })
+
       toast.dismiss('gerar-doc')
       toast.success(`${templateNome} gerado com sucesso!`)
       loadDocs()
       onReload()
     } catch (e: any) {
+      console.error('ERRO COMPLETO:', e)
       toast.dismiss('gerar-doc')
-      toast.error(`Falha ao gerar ${templateNome}: ` + e.message)
+      toast.error(
+        `Falha ao gerar ${templateNome}: ` +
+          (e?.message || e?.toString() || JSON.stringify(e) || 'erro desconhecido'),
+      )
     } finally {
       setGenerating(false)
     }
@@ -288,6 +330,14 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         template_nome: file.name,
         status: 'enviado',
         arquivo_url: publicUrlData.publicUrl,
+      })
+
+      const { data: authData } = await supabase.auth.getUser()
+      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: dossie.cliente_id,
+        usuario_nome: userName,
+        acao: `Arquivo ${file.name} enviado manualmente`,
       })
 
       toast.dismiss('upload-doc')
@@ -418,6 +468,14 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
                     >
                       <PenTool className="w-4 h-4 mr-1" /> Enviar para Assinatura
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
+                      className="font-semibold"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" /> Excluir
                     </Button>
                   </div>
                 )}

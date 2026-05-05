@@ -14,13 +14,7 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
         .eq('cliente_id', clienteId)
         .order('criado_em', { ascending: false })
       if (data) {
-        const realEvents = data.filter(
-          (e) =>
-            e.acao.includes('Contrato Gerado') ||
-            e.acao.includes('Documento Adicionado') ||
-            e.acao.includes('Assinatura Realizada'),
-        )
-        setEvents(realEvents)
+        setEvents(data)
       }
     }
     fetchEvents()
