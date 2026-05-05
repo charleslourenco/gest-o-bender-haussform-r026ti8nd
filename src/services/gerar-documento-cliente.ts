@@ -61,6 +61,8 @@ export const gerarDocumentoCliente = async (payload: GerarDocumentoPayload) => {
   // 3. Diagnóstico - Inspecionar XML Real
   try {
     const xmlContent = zip.files['word/document.xml'].asText()
+    console.log('XML BRUTO:', xmlContent.substring(0, 3000))
+
     const matches = xmlContent.match(/\[([A-Z_]+)\]/g)
     console.log('PLACEHOLDERS ENCONTRADOS NO XML:', matches)
 
