@@ -21,22 +21,26 @@ declare global {
 }
 
 async function carregarBibliotecas() {
-  await Promise.all([
-    new Promise((resolve, reject) => {
-      const script1 = document.createElement('script')
-      script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.4/pizzip.js'
-      script1.onload = resolve
-      script1.onerror = reject
-      document.head.appendChild(script1)
-    }),
-    new Promise((resolve, reject) => {
-      const script2 = document.createElement('script')
-      script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.47.4/docxtemplater.js'
-      script2.onload = resolve
-      script2.onerror = reject
-      document.head.appendChild(script2)
-    }),
-  ])
+  if (typeof window.PizZip !== 'undefined' && typeof window.docxtemplater !== 'undefined') return
+
+  function carregarScript(src: string) {
+    return new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector(`script[src="${src}"]`)
+      if (existing) {
+        resolve()
+        return
+      }
+      const script = document.createElement('script')
+      script.src = src
+      script.async = false
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Falha ao carregar: ' + src))
+      document.head.appendChild(script)
+    })
+  }
+
+  await carregarScript('https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.js')
+  await carregarScript('https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.js')
 }
 
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
@@ -121,9 +125,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       console.log('2. Dados encontrados:', formInfo)
 
       console.log('3. Baixando arquivo do bucket...')
-      const res = await fetch(templateUrl)
+      const res = await fetch(templateUrl, { method: 'GET', cache: 'no-cache' })
       if (!res.ok) {
-        throw new Error(`Erro ao baixar template: ${res.status} ${res.statusText}`)
+        throw new Error(`Erro ${res.status} ao baixar template: ${res.statusText}`)
       }
       const arrayBuffer = await res.arrayBuffer()
       console.log('4. Arquivo baixado, iniciando Docxtemplater...')
