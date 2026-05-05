@@ -236,6 +236,21 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       console.log('5. Placeholders mapeados:', placeholders)
 
       const zip = new window.PizZip(arrayBuffer)
+
+      // Inspecionar o XML real do documento
+      try {
+        if (zip.files['word/document.xml']) {
+          const xmlContent = zip.files['word/document.xml'].asText()
+          const matches = xmlContent.match(/\[([A-Z_]+)\]/g)
+          console.log('PLACEHOLDERS ENCONTRADOS NO XML:', matches)
+
+          const matchesDuplos = xmlContent.match(/\{\{([A-Z_]+)\}\}/g)
+          console.log('PLACEHOLDERS ANTIGOS {{}} NO XML:', matchesDuplos)
+        }
+      } catch (xmlError) {
+        console.error('Erro ao inspecionar o XML:', xmlError)
+      }
+
       const doc = new window.docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
