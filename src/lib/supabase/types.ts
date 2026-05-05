@@ -300,6 +300,44 @@ export type Database = {
           },
         ]
       }
+      documentos_gerados: {
+        Row: {
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          nome: string
+          path: string
+          tipo: string
+          user_id: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome: string
+          path: string
+          tipo: string
+          user_id?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          path?: string
+          tipo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documentos_gerados_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       dossies: {
         Row: {
           arquivo_projeto_url: string | null
@@ -1164,6 +1202,14 @@ export const Constants = {
 //   projeto_id: uuid (nullable)
 //   arquivo_url: text (nullable)
 //   template_nome: text (nullable)
+// Table: documentos_gerados
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   user_id: uuid (nullable)
+//   nome: text (not null)
+//   path: text (not null)
+//   tipo: text (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: dossies
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -1339,6 +1385,10 @@ export const Constants = {
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_cliente_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
+// Table: documentos_gerados
+//   FOREIGN KEY documentos_gerados_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY documentos_gerados_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY documentos_gerados_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: dossies
 //   FOREIGN KEY dossies_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY dossies_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -1429,6 +1479,15 @@ export const Constants = {
 //   Policy "doc_cli_select" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "doc_cli_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+// Table: documentos_gerados
+//   Policy "documentos_gerados_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "documentos_gerados_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "documentos_gerados_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "documentos_gerados_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: dossies
 //   Policy "dossies_delete" (DELETE, PERMISSIVE) roles={authenticated}

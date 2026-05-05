@@ -293,17 +293,21 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         arquivo_url: publicUrl,
       })
 
-      await supabase
-        .from('documentos_gerados')
-        .insert({
-          cliente_id: dossie.cliente_id,
-          user_id: session.user.id,
-          nome: isContrato ? 'Contrato.docx' : templateNome,
-          path: filePath,
-          tipo: isContrato ? 'contrato' : 'template',
-          criado_em: new Date().toISOString(),
-        })
-        .catch((e) => console.warn('Tabela documentos_gerados ignorada ou não existe:', e))
+      const { data: docData, error: docError } = await supabase.from('documentos_gerados').insert({
+        cliente_id: dossie.cliente_id,
+        user_id: session.user.id,
+        nome: isContrato ? 'Contrato.docx' : templateNome,
+        path: filePath,
+        tipo: isContrato ? 'contrato' : 'template',
+        criado_em: new Date().toISOString(),
+      })
+
+      if (docError) {
+        console.error('Erro ao registrar documento:', docError)
+        throw new Error('Erro ao registrar documento: ' + docError.message)
+      }
+
+      console.log('Documento registrado com sucesso:', docData)
 
       if (isContrato) {
         await supabase.from('dossies').update({ contrato_url: publicUrl }).eq('id', dossie.id)
