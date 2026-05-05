@@ -239,7 +239,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const doc = new window.docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
-        nullGetter: () => '',
+        errorLogging: true,
+        nullGetter: (part: any) => {
+          console.warn('Placeholder sem valor:', part.value)
+          return ''
+        },
       })
 
       doc.render(placeholders)
@@ -291,12 +295,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       loadDocs()
       onReload()
     } catch (e: any) {
-      console.error('ERRO COMPLETO:', e)
       toast.dismiss('gerar-doc')
-      toast.error(
-        `Falha ao gerar ${templateNome}: ` +
-          (e?.message || e?.toString() || JSON.stringify(e) || 'erro desconhecido'),
-      )
+      if (e.properties && e.properties.errors) {
+        const errosDetalhados = e.properties.errors
+          .map(
+            (err: any) =>
+              `Placeholder: ${err.properties?.id || err.properties?.name || 'desconhecido'} | Erro: ${err.properties?.explanation || err.message}`,
+          )
+          .join('\n')
+        console.error('ERROS DOCXTEMPLATER:\n' + errosDetalhados)
+        toast.error(`Falha ao gerar ${templateNome}:\n${errosDetalhados}`)
+      } else {
+        console.error('ERRO COMPLETO:', e)
+        toast.error(
+          `Falha ao gerar ${templateNome}: ` +
+            (e?.message || e?.toString() || JSON.stringify(e) || 'erro desconhecido'),
+        )
+      }
     } finally {
       setGenerating(false)
     }
