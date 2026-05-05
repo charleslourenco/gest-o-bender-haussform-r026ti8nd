@@ -252,6 +252,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       }
 
       const doc = new window.docxtemplater(zip, {
+        delimiters: { start: '[', end: ']' },
         paragraphLoop: true,
         linebreaks: true,
         errorLogging: true,
