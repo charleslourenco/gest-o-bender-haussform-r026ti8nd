@@ -402,10 +402,6 @@ export type Database = {
           complemento: string | null
           cpf: string | null
           criado_em: string
-          dados_etapa_1: Json | null
-          dados_etapa_2: Json | null
-          dados_etapa_3: Json | null
-          dados_etapa_4: Json | null
           data_nascimento: string | null
           datas: Json | null
           desconto: number | null
@@ -424,14 +420,10 @@ export type Database = {
           obra_numero: string | null
           obra_rua: string | null
           pagamentos: Json | null
-          placeholders_customizados: Json | null
           produtos_servicos: Json | null
           profissao: string | null
-          referencia_bancaria: string | null
-          renda: number | null
           rua: string | null
           user_id: string
-          usuario_id: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -441,10 +433,6 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
-          dados_etapa_1?: Json | null
-          dados_etapa_2?: Json | null
-          dados_etapa_3?: Json | null
-          dados_etapa_4?: Json | null
           data_nascimento?: string | null
           datas?: Json | null
           desconto?: number | null
@@ -463,14 +451,10 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
-          placeholders_customizados?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
-          referencia_bancaria?: string | null
-          renda?: number | null
           rua?: string | null
           user_id?: string
-          usuario_id?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -480,10 +464,6 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
-          dados_etapa_1?: Json | null
-          dados_etapa_2?: Json | null
-          dados_etapa_3?: Json | null
-          dados_etapa_4?: Json | null
           data_nascimento?: string | null
           datas?: Json | null
           desconto?: number | null
@@ -502,14 +482,10 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
-          placeholders_customizados?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
-          referencia_bancaria?: string | null
-          renda?: number | null
           rua?: string | null
           user_id?: string
-          usuario_id?: string | null
         }
         Relationships: [
           {
@@ -1216,13 +1192,10 @@ export const Constants = {
 //   cpf: text (nullable)
 //   data_nascimento: date (nullable)
 //   profissao: text (nullable)
-//   renda: numeric (nullable)
-//   referencia_bancaria: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   cliente_id: uuid (nullable)
 //   etapa_atual: integer (nullable, default: 1)
-//   usuario_id: uuid (nullable)
 //   estado_civil: text (nullable)
 //   cep: text (nullable)
 //   rua: text (nullable)
@@ -1242,12 +1215,7 @@ export const Constants = {
 //   desconto: numeric (nullable, default: 0)
 //   pagamentos: jsonb (nullable, default: '[]'::jsonb)
 //   datas: jsonb (nullable, default: '{}'::jsonb)
-//   dados_etapa_1: jsonb (nullable, default: '{}'::jsonb)
-//   dados_etapa_2: jsonb (nullable, default: '{}'::jsonb)
-//   dados_etapa_3: jsonb (nullable, default: '{}'::jsonb)
-//   dados_etapa_4: jsonb (nullable, default: '{}'::jsonb)
 //   user_id: uuid (not null, default: auth.uid())
-//   placeholders_customizados: jsonb (nullable, default: '{}'::jsonb)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1384,7 +1352,6 @@ export const Constants = {
 //   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
 //   PRIMARY KEY formulario_comercial_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY formulario_comercial_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
@@ -1479,15 +1446,14 @@ export const Constants = {
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: formulario_comercial
-//   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (usuario_id = auth.uid())
-//   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (usuario_id = auth.uid())
-//   Policy "Enable read access for own forms" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (usuario_id = auth.uid())
-//   Policy "Enable update for own forms" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (usuario_id = auth.uid())
-//     WITH CHECK: (usuario_id = auth.uid())
+//   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
+//   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "Enable read access for own forms" (SELECT, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
+//   Policy "Enable update for own forms" (UPDATE, PERMISSIVE) roles={public}
+//     USING: (auth.uid() = user_id)
 //   Policy "Users can delete own formulario_comercial" (DELETE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //   Policy "Users can insert own formulario_comercial" (INSERT, PERMISSIVE) roles={public}
@@ -1511,25 +1477,19 @@ export const Constants = {
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 // Table: pagamentos
-//   Policy "Enable delete for own payments" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable read access for own payments" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable update for own payments" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = pagamentos.formulario_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
+//   Policy "Enable read access for own payments" (SELECT, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
 // Table: parcelas
-//   Policy "Enable delete for own parcels" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable insert for own parcels" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable read access for own parcels" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "Enable update for own parcels" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos      JOIN formulario_comercial ON ((formulario_comercial.id = pagamentos.formulario_id)))   WHERE ((pagamentos.id = parcelas.pagamento_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "Enable delete for own parcels" (DELETE, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
+//   Policy "Enable insert for own parcels" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
+//   Policy "Enable read access for own parcels" (SELECT, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
+//   Policy "Enable update for own parcels" (UPDATE, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
 // Table: placeholders
 //   Policy "placeholders_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
@@ -1550,17 +1510,16 @@ export const Constants = {
 //   Policy "produtos_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: produtos_servicos_projeto
-//   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
 //   Policy "produtos_servicos_projeto_select_analise" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
-//   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial   WHERE ((formulario_comercial.id = produtos_servicos_projeto.formulario_comercial_id) AND (formulario_comercial.usuario_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={public}
+//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
 //   Policy "produtos_servicos_projeto_update_analise" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
 //     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))

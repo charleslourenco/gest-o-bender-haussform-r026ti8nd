@@ -89,10 +89,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       if (!res.ok) throw new Error('Não foi possível baixar o template da URL fornecida.')
       const arrayBuffer = await res.arrayBuffer()
 
+      const { data: authData } = await supabase.auth.getUser()
+
       const { data: formInfo } = await supabase
         .from('formulario_comercial')
-        .select('*, cliente:clientes(*)')
-        .eq('id', dossie.formulario_comercial_id || dossie.formulario?.id)
+        .select('*, cliente:clientes(nome, email, telefone)')
+        .eq('cliente_id', dossie.cliente_id)
+        .eq('user_id', authData.user?.id)
         .single()
 
       if (!formInfo) throw new Error('Dados do formulário não encontrados.')
@@ -109,17 +112,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
       const datas = (formInfo.datas as any) || {}
-      const pagamentosData = (formInfo.pagamentos as any) || {}
 
-      let metodoPagamento = ''
-      let formaPagamento = pagamentosData.forma || 'À VISTA'
-
-      if (formaPagamento === 'A_VISTA' || formaPagamento === 'À vista') {
-        metodoPagamento = pagamentosData.a_vista?.meio || ''
-      } else {
-        const parcelas = pagamentosData.parcelado || []
-        if (parcelas.length > 0) metodoPagamento = parcelas[0].meio || ''
-      }
+      const pagamentosArr = Array.isArray(formInfo.pagamentos)
+        ? formInfo.pagamentos
+        : [formInfo.pagamentos || {}]
+      const pagData = pagamentosArr[0] || {}
+      const formaPagamento = pagData.forma || 'À vista'
+      const metodoPagamento = pagData.meio || ''
 
       const hoje = new Date()
       const dataContratoExtenso = format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
@@ -127,37 +126,37 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const produtos = (formInfo.produtos_servicos as any[]) || []
       const subtotal = produtos.reduce(
         (acc: number, p: any) =>
-          acc + Number(p.valor_unitario) * Number(p.qtd || p.quantidade || 1),
+          acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
         0,
       )
       const desconto = Number(formInfo.desconto || 0)
-      const total = subtotal - desconto
+      const total = Math.max(0, subtotal - desconto)
 
-      const blocoProdutosServicos =
-        `Subtotal: ${formatCurrency(subtotal)}\n` +
-        `Desconto: ${formatCurrency(desconto)}\n` +
-        `Total: ${formatCurrency(total)}`
-
-      let blocoParcelas = ''
-      let blocoParcelasText = ''
-
-      if (
-        formaPagamento === 'A_VISTA' ||
-        formaPagamento === 'À vista' ||
-        formaPagamento === 'À VISTA'
-      ) {
-        blocoParcelas = ''
-        const dataPag = pagamentosData.a_vista?.data || datas.data_venda
-        blocoParcelasText = `O pagamento será realizado à vista no valor de ${formatCurrency(total)} (${numeroPorExtenso(total, true)}) a ser pago no dia ${formatDateStr(dataPag)} por meio de ${metodoPagamento}.`
+      let blocoProdutosServicos = ''
+      if (produtos.length === 0) {
+        blocoProdutosServicos = '(Nenhum produto cadastrado)'
       } else {
-        const parcelas = pagamentosData.parcelado || []
+        blocoProdutosServicos =
+          `Subtotal: ${formatCurrency(subtotal)}\n` +
+          `Desconto: ${formatCurrency(desconto)}\n` +
+          `Total: ${formatCurrency(total)}`
+      }
+
+      let blocoParcelasText = ''
+      const dataVenda = datas.data_venda || ''
+
+      if (formaPagamento === 'À vista') {
+        blocoParcelasText = `O pagamento será realizado à vista no valor de ${formatCurrency(total)} (${numeroPorExtenso(total, true)}) a ser pago no dia ${formatDateStr(dataVenda)} por meio de ${metodoPagamento}.`
+      } else {
+        const parcelas = pagData.parcelas || []
         const numParcelas = parcelas.length
 
         let descricoesParcelas = parcelas
           .map((p: any, index: number) => {
             const numOrdem = index + 1
             const dataVenc = formatDateStr(p.data || '')
-            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(p.valor)} (${numeroPorExtenso(p.valor, true)}) com vencimento em ${dataVenc}`
+            const valParcela = Number(p.valor || 0)
+            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} (${numeroPorExtenso(valParcela, true)}) com vencimento em ${dataVenc}`
           })
           .join('; ')
 
@@ -166,7 +165,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       const placeholders = {
         CLIENTE_NOME: cli.nome || '',
-        CLIENTE_CPF_CNPJ: formInfo.cpf || cli.cpf || '',
+        CLIENTE_CPF_CNPJ: formInfo.cpf || '',
         CLIENTE_PROFISSAO: formInfo.profissao || '',
         CLIENTE_ESTADO_CIVIL: formInfo.estado_civil || '',
         CLI_EMAIL: cli.email || '',
@@ -185,21 +184,21 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         OBRA_BAIRRO: formInfo.obra_bairro || '',
         OBRA_CIDADE: formInfo.obra_municipio || '',
         OBRA_ESTADO: formInfo.obra_estado || '',
-        METODO_PAGAMENTO: metodoPagamento,
-        DATA_PAGAMENTO: formatDateStr(datas.data_venda || ''),
-        DATA_PREVISTA_ENTREGA_IMOVEL: formatDateStr(datas.data_acesso_imovel || ''),
-        DATA_CONTRATO_EXTENSO: dataContratoExtenso,
+        METODO_PAGAMENTO: metodoPagamento || '',
+        DATA_PAGAMENTO: formatDateStr(dataVenda) || '',
+        DATA_PREVISTA_ENTREGA_IMOVEL: formatDateStr(datas.data_acesso_imovel || '') || '',
+        DATA_CONTRATO_EXTENSO: dataContratoExtenso || '',
         CLI_NOME: cli.nome || '',
-        CLI_CPF: formInfo.cpf || cli.cpf || '',
+        CLI_CPF: formInfo.cpf || '',
         REPRESENTANTE_BENDER_NOME: 'Daiana Gabriela Bender',
         REPRESENTANTE_BENDER_CPF: '011.494.920-40',
         TESTEMUNHA_01_NOME: '',
         TESTEMUNHA_01_CPF: '',
         TESTEMUNHA_02_NOME: '',
         TESTEMUNHA_02_CPF: '',
-        BLOCO_PRODUTOS_SERVICOS: blocoProdutosServicos,
-        BLOCO_PARCELAS: blocoParcelas,
-        BLOCO_PARCELAS_TEXTO: blocoParcelasText,
+        BLOCO_PRODUTOS_SERVICOS: blocoProdutosServicos || '',
+        BLOCO_PARCELAS: '',
+        BLOCO_PARCELAS_TEXTO: blocoParcelasText || '',
       }
 
       const zip = new window.PizZip(arrayBuffer)

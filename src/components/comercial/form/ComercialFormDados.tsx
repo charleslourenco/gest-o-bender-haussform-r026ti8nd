@@ -20,6 +20,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
     if (dossie) {
       const cli = dossie.cliente || {}
       const form = dossie.formulario || {}
+      const pagamentosArr = Array.isArray(form.pagamentos)
+        ? form.pagamentos
+        : [form.pagamentos || {}]
+      const pagData = pagamentosArr[0] || {}
 
       setData((p) => ({
         ...p,
@@ -51,9 +55,9 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
               ? form.produtos_servicos
               : p.produtos,
         desconto: Number(form.desconto) || 0,
-        forma_pagamento: (form.pagamentos as any)?.forma === 'Parcelado' ? 'Parcelado' : 'À vista',
-        pagamento_a_vista_meio: (form.pagamentos as any)?.metodo || 'PIX',
-        pagamento_parcelado: (form.pagamentos as any)?.parcelas || p.pagamento_parcelado,
+        forma_pagamento: pagData.forma === 'Parcelado' ? 'Parcelado' : 'À vista',
+        pagamento_a_vista_meio: pagData.meio || pagData.metodo || 'PIX',
+        pagamento_parcelado: pagData.parcelas || p.pagamento_parcelado,
         data_venda:
           (form.datas as any)?.data_venda ||
           dossie.criado_em?.split('T')[0] ||
@@ -101,34 +105,38 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
     setSaving(true)
     try {
+      const { data: authData } = await supabase.auth.getUser()
+
       const { error } = await supabase
         .from('formulario_comercial')
         .update({
-          cpf: data.cpf,
+          cpf: data.cpf || null,
           data_nascimento: data.data_nascimento || null,
-          profissao: data.profissao,
-          estado_civil: data.estado_civil,
-          cep: data.end_cep,
-          rua: data.end_rua,
-          numero: data.end_numero,
-          complemento: data.end_complemento,
-          bairro: data.end_bairro,
-          municipio: data.end_municipio,
-          estado: data.end_estado,
-          obra_cep: data.obra_cep,
-          obra_rua: data.obra_rua,
-          obra_numero: data.obra_numero,
-          obra_complemento: data.obra_complemento,
-          obra_bairro: data.obra_bairro,
-          obra_municipio: data.obra_municipio,
-          obra_estado: data.obra_estado,
+          profissao: data.profissao || null,
+          estado_civil: data.estado_civil || null,
+          cep: data.end_cep || null,
+          rua: data.end_rua || null,
+          numero: data.end_numero || null,
+          complemento: data.end_complemento || null,
+          bairro: data.end_bairro || null,
+          municipio: data.end_municipio || null,
+          estado: data.end_estado || null,
+          obra_cep: data.obra_cep || null,
+          obra_rua: data.obra_rua || null,
+          obra_numero: data.obra_numero || null,
+          obra_complemento: data.obra_complemento || null,
+          obra_bairro: data.obra_bairro || null,
+          obra_municipio: data.obra_municipio || null,
+          obra_estado: data.obra_estado || null,
           produtos_servicos: data.produtos as any,
-          desconto: data.desconto,
-          pagamentos: {
-            forma: data.forma_pagamento,
-            metodo: data.pagamento_a_vista_meio,
-            parcelas: data.forma_pagamento === 'Parcelado' ? data.pagamento_parcelado : [],
-          },
+          desconto: data.desconto || 0,
+          pagamentos: [
+            {
+              forma: data.forma_pagamento,
+              meio: data.pagamento_a_vista_meio,
+              parcelas: data.forma_pagamento === 'Parcelado' ? data.pagamento_parcelado : [],
+            },
+          ],
           datas: {
             data_venda: data.data_venda,
             data_acesso_imovel: data.data_acesso_imovel,
@@ -138,7 +146,8 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           },
           atualizado_em: new Date().toISOString(),
         })
-        .eq('id', dossie.formulario_comercial_id)
+        .eq('cliente_id', dossie.cliente_id)
+        .eq('user_id', authData.user?.id)
 
       if (error) throw error
 
