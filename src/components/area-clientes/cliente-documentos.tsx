@@ -3,12 +3,22 @@ import { FileText, Download, Upload, Plus, Eye, PenTool } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { numeroPorExtenso } from '@/lib/extenso'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
+declare global {
+  interface Window {
+    PizZip: any
+    docxtemplater: any
+  }
+}
 
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
@@ -48,25 +58,149 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     setGenerating(true)
     toast.info(`Gerando ${templateNome}...`, { id: 'gerar-doc' })
     try {
+      if (!window.PizZip || !window.docxtemplater) {
+        throw new Error('As bibliotecas PizZip e Docxtemplater não foram carregadas no navegador.')
+      }
+
       const res = await fetch(templateUrl)
       if (!res.ok) throw new Error('Não foi possível baixar o template da URL fornecida.')
-      const blob = await res.blob()
+      const arrayBuffer = await res.arrayBuffer()
 
-      // OBS: Como não podemos instalar pacotes externos como PizZip/Docxtemplater no ambiente restrito,
-      // realizamos o mock do processamento fazendo upload direto do template original para a pasta do cliente.
-      const processedBlob = blob
+      const { data: formInfo } = await supabase
+        .from('formulario_comercial')
+        .select('*, cliente:clientes(*)')
+        .eq('id', dossie.formulario_comercial_id || dossie.formulario?.id)
+        .single()
+
+      if (!formInfo) throw new Error('Dados do formulário não encontrados.')
+
+      const cli = Array.isArray(formInfo.cliente) ? formInfo.cliente[0] : formInfo.cliente || {}
+
+      const formatDateStr = (dateStr: string) => {
+        if (!dateStr) return ''
+        const [y, m, d] = dateStr.split('-')
+        return `${d}/${m}/${y}`
+      }
+
+      const formatCurrency = (val: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+      const datas = (formInfo.datas as any) || {}
+      const pagamentosData = (formInfo.pagamentos as any) || {}
+
+      let metodoPagamento = ''
+      let formaPagamento = pagamentosData.forma || 'À VISTA'
+
+      if (formaPagamento === 'A_VISTA' || formaPagamento === 'À vista') {
+        metodoPagamento = pagamentosData.a_vista?.meio || ''
+      } else {
+        const parcelas = pagamentosData.parcelado || []
+        if (parcelas.length > 0) metodoPagamento = parcelas[0].meio || ''
+      }
+
+      const hoje = new Date()
+      const dataContratoExtenso = format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+
+      const produtos = (formInfo.produtos_servicos as any[]) || []
+      const subtotal = produtos.reduce(
+        (acc: number, p: any) =>
+          acc + Number(p.valor_unitario) * Number(p.qtd || p.quantidade || 1),
+        0,
+      )
+      const desconto = Number(formInfo.desconto || 0)
+      const total = subtotal - desconto
+
+      const blocoProdutosServicos =
+        `Subtotal: ${formatCurrency(subtotal)}\n` +
+        `Desconto: ${formatCurrency(desconto)}\n` +
+        `Total: ${formatCurrency(total)}`
+
+      let blocoParcelas = ''
+      let blocoParcelasText = ''
+
+      if (
+        formaPagamento === 'A_VISTA' ||
+        formaPagamento === 'À vista' ||
+        formaPagamento === 'À VISTA'
+      ) {
+        blocoParcelas = ''
+        const dataPag = pagamentosData.a_vista?.data || datas.data_venda
+        blocoParcelasText = `O pagamento será realizado à vista no valor de ${formatCurrency(total)} (${numeroPorExtenso(total, true)}) a ser pago no dia ${formatDateStr(dataPag)} por meio de ${metodoPagamento}.`
+      } else {
+        const parcelas = pagamentosData.parcelado || []
+        const numParcelas = parcelas.length
+
+        let descricoesParcelas = parcelas
+          .map((p: any, index: number) => {
+            const numOrdem = index + 1
+            const dataVenc = formatDateStr(p.data || '')
+            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(p.valor)} (${numeroPorExtenso(p.valor, true)}) com vencimento em ${dataVenc}`
+          })
+          .join('; ')
+
+        blocoParcelasText = `O pagamento será realizado em ${numParcelas} (${numeroPorExtenso(numParcelas, false)}) parcelas por meio de ${metodoPagamento}, sendo: ${descricoesParcelas}.`
+      }
+
+      const placeholders = {
+        CLIENTE_NOME: cli.nome || '',
+        CLIENTE_CPF_CNPJ: formInfo.cpf || cli.cpf || '',
+        CLIENTE_PROFISSAO: formInfo.profissao || '',
+        CLIENTE_ESTADO_CIVIL: formInfo.estado_civil || '',
+        CLI_EMAIL: cli.email || '',
+        CLIENTE_TELEFONE: cli.telefone || '',
+        CLIENTE_CEP: formInfo.cep || '',
+        CLIENTE_RUA: formInfo.rua || '',
+        CLIENTE_NUMERO: formInfo.numero || '',
+        CLIENTE_COMPLEMENTO: formInfo.complemento || '',
+        CLIENTE_BAIRRO: formInfo.bairro || '',
+        CLIENTE_CIDADE: formInfo.municipio || '',
+        CLIENTE_ESTADO: formInfo.estado || '',
+        OBRA_CEP: formInfo.obra_cep || '',
+        OBRA_RUA: formInfo.obra_rua || '',
+        OBRA_NUMERO: formInfo.obra_numero || '',
+        OBRA_COMPLEMENTO: formInfo.obra_complemento || '',
+        OBRA_BAIRRO: formInfo.obra_bairro || '',
+        OBRA_CIDADE: formInfo.obra_municipio || '',
+        OBRA_ESTADO: formInfo.obra_estado || '',
+        METODO_PAGAMENTO: metodoPagamento,
+        DATA_PAGAMENTO: formatDateStr(datas.data_venda || ''),
+        DATA_PREVISTA_ENTREGA_IMOVEL: formatDateStr(datas.data_acesso_imovel || ''),
+        DATA_CONTRATO_EXTENSO: dataContratoExtenso,
+        CLI_NOME: cli.nome || '',
+        CLI_CPF: formInfo.cpf || cli.cpf || '',
+        REPRESENTANTE_BENDER_NOME: 'Daiana Gabriela Bender',
+        REPRESENTANTE_BENDER_CPF: '011.494.920-40',
+        TESTEMUNHA_01_NOME: '',
+        TESTEMUNHA_01_CPF: '',
+        TESTEMUNHA_02_NOME: '',
+        TESTEMUNHA_02_CPF: '',
+        BLOCO_PRODUTOS_SERVICOS: blocoProdutosServicos,
+        BLOCO_PARCELAS: blocoParcelas,
+        BLOCO_PARCELAS_TEXTO: blocoParcelasText,
+      }
+
+      const zip = new window.PizZip(arrayBuffer)
+      const doc = new window.docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+      })
+
+      doc.render(placeholders)
+
+      const out = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
 
       const safeName = isContrato
         ? 'Contrato.docx'
         : `${templateNome}_${Date.now()}`.replace(/\s+/g, '_') + '.docx'
       const filePath = `${dossie.cliente_id}/${safeName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('dossiers')
-        .upload(filePath, processedBlob, {
-          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          upsert: true,
-        })
+      const { error: uploadError } = await supabase.storage.from('dossiers').upload(filePath, out, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        upsert: true,
+      })
 
       if (uploadError) throw uploadError
 
