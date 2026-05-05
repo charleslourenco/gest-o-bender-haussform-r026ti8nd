@@ -122,7 +122,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       console.log('3. Baixando arquivo do bucket...')
       const res = await fetch(templateUrl)
-      if (!res.ok) throw new Error('Não foi possível baixar o template da URL fornecida.')
+      if (!res.ok) {
+        throw new Error(`Erro ao baixar template: ${res.status} ${res.statusText}`)
+      }
       const arrayBuffer = await res.arrayBuffer()
       console.log('4. Arquivo baixado, iniciando Docxtemplater...')
 
@@ -233,6 +235,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const doc = new window.docxtemplater(zip, {
         paragraphLoop: true,
         linebreaks: true,
+        nullGetter: () => '',
       })
 
       doc.render(placeholders)
