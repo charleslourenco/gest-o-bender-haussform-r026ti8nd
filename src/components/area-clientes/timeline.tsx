@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity } from 'lucide-react'
+import { Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 export function Timeline({ clienteId }: { clienteId?: string }) {
@@ -55,7 +55,7 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
                 <div className="absolute top-8 bottom-[-24px] left-[15px] w-[2px] bg-border" />
               )}
               <div className="relative z-10 w-8 h-8 rounded-full bg-background flex items-center justify-center text-primary shrink-0 border border-border shadow-sm">
-                <Activity className="w-4 h-4 text-primary" />
+                <Clock className="w-4 h-4 text-primary" />
               </div>
               <div className="pt-1 pb-2">
                 <div className="flex items-baseline gap-2 mb-1">
