@@ -58,11 +58,28 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const loadTemplates = async () => {
-    const { data } = await supabase
-      .from('templates')
-      .select('id, nome, tipo, arquivo_url')
-      .eq('status', 'ativo')
-    if (data) setTemplates(data)
+    try {
+      const { data: arquivos, error } = await supabase.storage
+        .from('bender_templates')
+        .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } })
+
+      if (error) throw new Error('Erro ao listar templates: ' + error.message)
+
+      if (arquivos) {
+        const templatesData = arquivos
+          .filter((f) => f.name.endsWith('.docx'))
+          .map((f) => ({
+            id: f.name,
+            nome: f.name.replace('.docx', '').replace(/_/g, ' '),
+            arquivo: f.name,
+            arquivo_url: `https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/${f.name}`,
+          }))
+        setTemplates(templatesData)
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message)
+    }
   }
 
   useEffect(() => {
@@ -381,7 +398,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const handleGerarTemplate = (t: any) => {
-    processDocx(t.arquivo_url, t.nome, false)
+    processDocx(t.arquivo_url, t.nome, t.arquivo === 'Contrato.docx')
   }
 
   const handleUploadClick = () => {
@@ -459,7 +476,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
             <FileText className="w-4 h-4 mr-2" /> 📄 Gerar Contrato
           </Button>
         )}
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open) loadTemplates()
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
