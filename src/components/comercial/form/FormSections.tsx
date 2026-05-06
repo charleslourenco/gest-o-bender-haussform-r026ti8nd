@@ -415,13 +415,19 @@ export function SectionPagamento({ data, update }: Props) {
   const applyParcels = (length: number) => {
     const val = Number((total / length).toFixed(2))
     const rem = total - val * length
-    const nextDate = new Date().toISOString().split('T')[0]
-    const arr = Array.from({ length }).map((_, i) => ({
-      id: Math.random().toString(36).substring(2),
-      data: nextDate, // simplificado
-      valor: i === 0 ? val + rem : val,
-      meio: 'PIX',
-    }))
+    const baseDate = data.data_venda ? new Date(data.data_venda + 'T12:00:00Z') : new Date()
+
+    const arr = Array.from({ length }).map((_, i) => {
+      const pDate = new Date(baseDate.getTime())
+      pDate.setDate(pDate.getDate() + 30 * (i + 1))
+
+      return {
+        id: Math.random().toString(36).substring(2),
+        data: pDate.toISOString().split('T')[0],
+        valor: i === 0 ? val + rem : val,
+        meio: 'PIX',
+      }
+    })
     update('pagamento_parcelado', arr)
   }
 
