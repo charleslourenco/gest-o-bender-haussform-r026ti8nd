@@ -26,15 +26,50 @@ export function Header() {
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user?.id) {
-      supabase
-        .from('users')
-        .select('foto_perfil')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }) => {
-          if (data?.foto_perfil) setFotoPerfil(data.foto_perfil)
-        })
+    if (!user?.id) return
+
+    const fetchFoto = async () => {
+      const { data } = await supabase.from('users').select('foto_perfil').eq('id', user.id).single()
+
+      if (data?.foto_perfil) {
+        setFotoPerfil(
+          data.foto_perfil.startsWith('http') || data.foto_perfil.startsWith('data:')
+            ? data.foto_perfil
+            : supabase.storage.from('avatars').getPublicUrl(data.foto_perfil).data.publicUrl,
+        )
+      } else {
+        setFotoPerfil(null)
+      }
+    }
+
+    fetchFoto()
+
+    const handleUserUpdated = () => fetchFoto()
+    window.addEventListener('user_updated', handleUserUpdated)
+
+    const channel = supabase
+      .channel('user_profile_changes')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${user.id}` },
+        (payload) => {
+          const newFoto = payload.new.foto_perfil
+          if (newFoto) {
+            setFotoPerfil(
+              newFoto.startsWith('http') || newFoto.startsWith('data:')
+                ? newFoto
+                : supabase.storage.from('avatars').getPublicUrl(newFoto).data.publicUrl,
+            )
+          } else {
+            setFotoPerfil(null)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      window.removeEventListener('user_updated', handleUserUpdated)
+      supabase.removeChannel(channel)
     }
   }, [user?.id])
 
@@ -93,7 +128,9 @@ export function Header() {
               </span>
             </div>
             <Avatar className="h-9 w-9 border border-border">
-              {fotoPerfil && <AvatarImage src={fotoPerfil} alt={userName} />}
+              {fotoPerfil && (
+                <AvatarImage src={fotoPerfil} alt={userName} className="object-cover" />
+              )}
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
               </AvatarFallback>
