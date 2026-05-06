@@ -107,10 +107,9 @@ serve(async (req) => {
 
     // Insert into timeline_eventos
     const { error: timelineError } = await supabase.from('timeline_eventos').insert({
-      cliente,
-      evento: 'documento_gerado',
-      detalhes: `Contrato gerado e salvo: ${publicUrl}`,
-      data: new Date(),
+      cliente_id: cliente,
+      acao: `Contrato gerado e salvo: ${publicUrl}`,
+      usuario_nome: vendedor,
     })
 
     if (timelineError) {

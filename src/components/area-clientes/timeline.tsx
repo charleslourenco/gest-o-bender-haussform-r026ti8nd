@@ -8,13 +8,22 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
   useEffect(() => {
     if (!clienteId) return
     const fetchEvents = async () => {
-      const { data } = await supabase
-        .from('timeline_eventos')
-        .select('*')
-        .eq('cliente_id', clienteId)
-        .order('criado_em', { ascending: false })
-      if (data) {
+      // Tenta buscar usando a função que resolve o nome do usuário a partir do e-mail
+      const { data, error } = await supabase.rpc('get_timeline_eventos', {
+        p_cliente_id: clienteId,
+      })
+      if (!error && data) {
         setEvents(data)
+      } else {
+        // Fallback caso a função ainda não exista (ex: antes da migration rodar)
+        const { data: fallbackData } = await supabase
+          .from('timeline_eventos')
+          .select('*')
+          .eq('cliente_id', clienteId)
+          .order('criado_em', { ascending: false })
+        if (fallbackData) {
+          setEvents(fallbackData.map((e: any) => ({ ...e, nome_exibicao: e.usuario_nome })))
+        }
       }
     }
     fetchEvents()
@@ -70,7 +79,8 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
                   </span>
                 </div>
                 <p className="text-sm text-foreground">
-                  <span className="font-semibold">{event.usuario_nome}</span> {event.acao}
+                  <span className="font-semibold">{event.nome_exibicao || event.usuario_nome}</span>{' '}
+                  {event.acao}
                 </p>
               </div>
             </div>
