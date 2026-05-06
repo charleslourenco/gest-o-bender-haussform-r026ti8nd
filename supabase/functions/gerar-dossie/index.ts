@@ -266,14 +266,16 @@ Deno.serve(async (req) => {
 
           console.log(`Salvando documento ${filePath}...`)
           const { error: uploadError } = await supabase.storage
-            .from('clientes')
+            .from('bender_clientes')
             .upload(filePath, fileText, { contentType: 'application/pdf', upsert: true })
 
           if (uploadError) {
             throw new Error(`Nao consegui salvar o documento: ${uploadError.message}`)
           }
 
-          const { data: publicUrlData } = supabase.storage.from('clientes').getPublicUrl(filePath)
+          const { data: publicUrlData } = supabase.storage
+            .from('bender_clientes')
+            .getPublicUrl(filePath)
           if (template.tipo === 'contrato') urlsDocumentos.contrato_url = publicUrlData.publicUrl
           if (template.tipo === 'termo_conclusao')
             urlsDocumentos.termo_conclusao_url = publicUrlData.publicUrl

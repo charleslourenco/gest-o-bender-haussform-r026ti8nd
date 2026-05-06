@@ -78,7 +78,7 @@ serve(async (req) => {
 
     // Upload to storage
     const { error: uploadError } = await supabase.storage
-      .from('contratos')
+      .from('bender_clientes')
       .upload(filename, docBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         upsert: true,
@@ -88,7 +88,7 @@ serve(async (req) => {
       throw new Error(`Upload failed: ${uploadError.message}`)
     }
 
-    const { data: urlData } = supabase.storage.from('contratos').getPublicUrl(filename)
+    const { data: urlData } = supabase.storage.from('bender_clientes').getPublicUrl(filename)
     const publicUrl = urlData.publicUrl
 
     // Insert into assinaturas

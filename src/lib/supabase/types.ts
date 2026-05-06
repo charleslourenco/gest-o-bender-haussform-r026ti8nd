@@ -44,6 +44,71 @@ export type Database = {
           },
         ]
       }
+      assinantes: {
+        Row: {
+          assinado_em: string | null
+          assinatura_base64: string | null
+          codigo_expira_em: string | null
+          codigo_verificacao: string | null
+          cpf: string | null
+          data_nascimento: string | null
+          email: string | null
+          envelope_id: string | null
+          id: string
+          ip_address: string | null
+          nome_completo: string
+          papel: string
+          papel_descricao: string | null
+          status: string | null
+          tipo_assinatura: string | null
+          token_acesso: string | null
+        }
+        Insert: {
+          assinado_em?: string | null
+          assinatura_base64?: string | null
+          codigo_expira_em?: string | null
+          codigo_verificacao?: string | null
+          cpf?: string | null
+          data_nascimento?: string | null
+          email?: string | null
+          envelope_id?: string | null
+          id?: string
+          ip_address?: string | null
+          nome_completo: string
+          papel: string
+          papel_descricao?: string | null
+          status?: string | null
+          tipo_assinatura?: string | null
+          token_acesso?: string | null
+        }
+        Update: {
+          assinado_em?: string | null
+          assinatura_base64?: string | null
+          codigo_expira_em?: string | null
+          codigo_verificacao?: string | null
+          cpf?: string | null
+          data_nascimento?: string | null
+          email?: string | null
+          envelope_id?: string | null
+          id?: string
+          ip_address?: string | null
+          nome_completo?: string
+          papel?: string
+          papel_descricao?: string | null
+          status?: string | null
+          tipo_assinatura?: string | null
+          token_acesso?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'assinantes_envelope_id_fkey'
+            columns: ['envelope_id']
+            isOneToOne: false
+            referencedRelation: 'envelopes_assinatura'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       assinaturas: {
         Row: {
           cliente_id: string | null
@@ -431,6 +496,47 @@ export type Database = {
         }
         Relationships: []
       }
+      envelopes_assinatura: {
+        Row: {
+          cliente_id: string | null
+          concluido_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          documento_id: string
+          id: string
+          nome_documento: string
+          status: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          documento_id: string
+          id?: string
+          nome_documento: string
+          status?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          concluido_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          documento_id?: string
+          id?: string
+          nome_documento?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'envelopes_assinatura_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       formulario_comercial: {
         Row: {
           atualizado_em: string
@@ -548,8 +654,10 @@ export type Database = {
           consultor_id: string | null
           criado_em: string
           criado_por_nome: string | null
+          data_venda: string | null
           email: string
           id: string
+          kanban_ativo: boolean
           nome: string
           notas: string | null
           ordem: number
@@ -562,8 +670,10 @@ export type Database = {
           consultor_id?: string | null
           criado_em?: string
           criado_por_nome?: string | null
+          data_venda?: string | null
           email: string
           id?: string
+          kanban_ativo?: boolean
           nome: string
           notas?: string | null
           ordem?: number
@@ -576,8 +686,10 @@ export type Database = {
           consultor_id?: string | null
           criado_em?: string
           criado_por_nome?: string | null
+          data_venda?: string | null
           email?: string
           id?: string
+          kanban_ativo?: boolean
           nome?: string
           notas?: string | null
           ordem?: number
@@ -1140,6 +1252,23 @@ export const Constants = {
 //   metragem: numeric (nullable)
 //   descricao: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: assinantes
+//   id: uuid (not null, default: gen_random_uuid())
+//   envelope_id: uuid (nullable)
+//   nome_completo: text (not null)
+//   email: text (nullable)
+//   papel: text (not null)
+//   papel_descricao: text (nullable)
+//   tipo_assinatura: text (nullable, default: 'link'::text)
+//   cpf: text (nullable)
+//   data_nascimento: date (nullable)
+//   codigo_verificacao: text (nullable)
+//   codigo_expira_em: timestamp with time zone (nullable)
+//   assinatura_base64: text (nullable)
+//   status: text (nullable, default: 'pendente'::text)
+//   token_acesso: text (nullable)
+//   assinado_em: timestamp with time zone (nullable)
+//   ip_address: text (nullable)
 // Table: assinaturas
 //   id: uuid (not null, default: gen_random_uuid())
 //   documento_id: text (not null)
@@ -1232,6 +1361,15 @@ export const Constants = {
 //   logo_url: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: envelopes_assinatura
+//   id: uuid (not null, default: gen_random_uuid())
+//   documento_id: text (not null)
+//   cliente_id: uuid (nullable)
+//   nome_documento: text (not null)
+//   status: text (nullable, default: 'aguardando'::text)
+//   criado_por: uuid (nullable)
+//   criado_em: timestamp with time zone (nullable, default: now())
+//   concluido_em: timestamp with time zone (nullable)
 // Table: formulario_comercial
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1275,6 +1413,8 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   criado_por_nome: text (nullable)
+//   kanban_ativo: boolean (not null, default: true)
+//   data_venda: timestamp with time zone (nullable)
 // Table: matriz_permissoes
 //   id: uuid (not null, default: gen_random_uuid())
 //   usuario_id: uuid (not null)
@@ -1368,6 +1508,10 @@ export const Constants = {
 // Table: ambientes
 //   FOREIGN KEY ambientes_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY ambientes_pkey: PRIMARY KEY (id)
+// Table: assinantes
+//   FOREIGN KEY assinantes_envelope_id_fkey: FOREIGN KEY (envelope_id) REFERENCES envelopes_assinatura(id) ON DELETE CASCADE
+//   PRIMARY KEY assinantes_pkey: PRIMARY KEY (id)
+//   UNIQUE assinantes_token_acesso_key: UNIQUE (token_acesso)
 // Table: assinaturas
 //   FOREIGN KEY assinaturas_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY assinaturas_pkey: PRIMARY KEY (id)
@@ -1396,6 +1540,10 @@ export const Constants = {
 //   FOREIGN KEY dossies_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: empresa
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
+// Table: envelopes_assinatura
+//   FOREIGN KEY envelopes_assinatura_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY envelopes_assinatura_criado_por_fkey: FOREIGN KEY (criado_por) REFERENCES auth.users(id)
+//   PRIMARY KEY envelopes_assinatura_pkey: PRIMARY KEY (id)
 // Table: formulario_comercial
 //   FOREIGN KEY fk_formulario_user: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
@@ -1448,6 +1596,16 @@ export const Constants = {
 //     USING: true
 //   Policy "ambientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: assinantes
+//   Policy "assinantes_delete" (DELETE, PERMISSIVE) roles={public}
+//     USING: true
+//   Policy "assinantes_insert" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: true
+//   Policy "assinantes_select" (SELECT, PERMISSIVE) roles={public}
+//     USING: true
+//   Policy "assinantes_update" (UPDATE, PERMISSIVE) roles={public}
+//     USING: true
+//     WITH CHECK: true
 // Table: assinaturas
 //   Policy "Assinaturas All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
@@ -1504,6 +1662,16 @@ export const Constants = {
 //     USING: true
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
+// Table: envelopes_assinatura
+//   Policy "envelopes_assinatura_delete" (DELETE, PERMISSIVE) roles={public}
+//     USING: true
+//   Policy "envelopes_assinatura_insert" (INSERT, PERMISSIVE) roles={public}
+//     WITH CHECK: true
+//   Policy "envelopes_assinatura_select" (SELECT, PERMISSIVE) roles={public}
+//     USING: true
+//   Policy "envelopes_assinatura_update" (UPDATE, PERMISSIVE) roles={public}
+//     USING: true
+//     WITH CHECK: true
 // Table: formulario_comercial
 //   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
@@ -1711,6 +1879,8 @@ export const Constants = {
 //   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 
 // --- INDEXES ---
+// Table: assinantes
+//   CREATE UNIQUE INDEX assinantes_token_acesso_key ON public.assinantes USING btree (token_acesso)
 // Table: clientes
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
 // Table: formulario_comercial

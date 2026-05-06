@@ -66,9 +66,15 @@ export function SectionPessoal({ data, update }: Props) {
             onChange={(e) => update('estado_civil', e.target.value)}
           >
             <option value="Solteiro">Solteiro</option>
+            <option value="Solteira">Solteira</option>
             <option value="Casado">Casado</option>
+            <option value="Casada">Casada</option>
             <option value="Divorciado">Divorciado</option>
+            <option value="Divorciada">Divorciada</option>
             <option value="Viúvo">Viúvo</option>
+            <option value="Viúva">Viúva</option>
+            <option value="Separado Judicialmente">Separado Judicialmente</option>
+            <option value="Separada Judicialmente">Separada Judicialmente</option>
             <option value="União Estável">União Estável</option>
           </select>
         </div>
