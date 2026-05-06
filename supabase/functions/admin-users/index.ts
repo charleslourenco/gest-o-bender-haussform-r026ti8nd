@@ -67,6 +67,7 @@ Deno.serve(async (req: Request) => {
           telefone: userData.telefone,
           funcao: userData.funcao,
           status: userData.status,
+          foto_perfil: userData.foto_perfil,
         })
         .eq('id', newAuthUser.user.id)
 
@@ -87,6 +88,7 @@ Deno.serve(async (req: Request) => {
           telefone: userData.telefone,
           funcao: userData.funcao,
           status: userData.status,
+          foto_perfil: userData.foto_perfil,
         })
         .eq('id', userId)
 

@@ -52,6 +52,7 @@ const formatPhone = (val: string) => {
 export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModalProps) {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -65,6 +66,7 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
   })
 
   useEffect(() => {
+    setSelectedFile(null)
     if (user) {
       form.reset({
         nome: user.nome || '',
@@ -87,11 +89,25 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true)
     try {
+      let fotoUrl = user?.foto_perfil
+
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, selectedFile, { upsert: true })
+
+        if (uploadError) throw uploadError
+        fotoUrl = fileName
+      }
+
       const { data, error } = await supabase.functions.invoke('admin-users', {
         body: {
           action: user ? 'update' : 'create',
           userId: user?.id,
-          userData: values,
+          userData: { ...values, foto_perfil: fotoUrl },
         },
       })
       if (error) throw error
@@ -106,7 +122,9 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
         className: 'bg-dark-denim text-off-white border-none',
       })
 
-      const savedUser = user || { id: data.user.id, ...values }
+      const savedUser = user
+        ? { ...user, ...values, foto_perfil: fotoUrl }
+        : { id: data.user.id, ...values, foto_perfil: fotoUrl }
       onSuccess(savedUser as AppUser, !user)
       onClose()
     } catch (err: any) {
@@ -263,18 +281,25 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                   className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 file:text-midnight-navy file:font-semibold rounded-lg pt-2 cursor-pointer"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
-                    if (file && file.size > 5 * 1024 * 1024) {
-                      toast({
-                        title: (
-                          <div className="flex items-center gap-2">
-                            <XCircle className="h-5 w-5 text-off-white" />
-                            <span>Erro</span>
-                          </div>
-                        ),
-                        description: 'Arquivo muito grande. Máximo 5MB.',
-                        className: 'bg-steel-blue text-off-white border-none',
-                      })
-                      e.target.value = ''
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast({
+                          title: (
+                            <div className="flex items-center gap-2">
+                              <XCircle className="h-5 w-5 text-off-white" />
+                              <span>Erro</span>
+                            </div>
+                          ),
+                          description: 'Arquivo muito grande. Máximo 5MB.',
+                          className: 'bg-steel-blue text-off-white border-none',
+                        })
+                        e.target.value = ''
+                        setSelectedFile(null)
+                      } else {
+                        setSelectedFile(file)
+                      }
+                    } else {
+                      setSelectedFile(null)
                     }
                   }}
                 />
