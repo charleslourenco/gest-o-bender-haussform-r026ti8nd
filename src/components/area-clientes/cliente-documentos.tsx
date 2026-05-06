@@ -168,10 +168,16 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       if (produtos.length === 0) {
         blocoProdutosServicos = '(Nenhum produto cadastrado)'
       } else {
-        blocoProdutosServicos =
-          `Subtotal: ${formatCurrency(subtotal)}\n` +
-          `Desconto: ${formatCurrency(desconto)}\n` +
-          `Total: ${formatCurrency(total)}`
+        const linhasProdutos = produtos
+          .map((p: any, i: number) => {
+            const nome = p.nome || p.descricao || p.name || `Item ${i + 1}`
+            const qtd = Number(p.qtd || p.quantidade || 1)
+            const valorUnit = Number(p.valor_unitario || p.valor || 0)
+            const valorTotal = qtd * valorUnit
+            return `${i + 1}. ${nome} — Qtd: ${qtd} × ${formatCurrency(valorUnit)} = ${formatCurrency(valorTotal)}`
+          })
+          .join('\n')
+        blocoProdutosServicos = `${linhasProdutos}\n\nSubtotal: ${formatCurrency(subtotal)}\nDesconto: ${formatCurrency(desconto)}\nTotal: ${formatCurrency(total)}`
       }
 
       let blocoParcelasText = ''
@@ -183,12 +189,17 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         const parcelas = pagData.parcelas || []
         const numParcelas = parcelas.length
 
-        let descricoesParcelas = parcelas
+        // Calcular datas com intervalo de 30 dias a partir da data da venda
+        const dataBase = dataVenda ? new Date(dataVenda + 'T12:00:00') : new Date()
+
+        const descricoesParcelas = parcelas
           .map((p: any, index: number) => {
             const numOrdem = index + 1
-            const dataVenc = formatDateStr(p.data || '')
-            const valParcela = Number(p.valor || 0)
-            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} (${numeroPorExtenso(valParcela, true)}) com vencimento em ${dataVenc}`
+            const dataVenc = new Date(dataBase)
+            dataVenc.setDate(dataVenc.getDate() + 30 * numOrdem)
+            const dataFormatada = `${String(dataVenc.getDate()).padStart(2, '0')}/${String(dataVenc.getMonth() + 1).padStart(2, '0')}/${dataVenc.getFullYear()}`
+            const valParcela = Number(p.valor || total / numParcelas || 0)
+            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} (${numeroPorExtenso(valParcela, true)}) com vencimento em ${dataFormatada}`
           })
           .join('; ')
 
@@ -229,7 +240,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         TESTEMUNHA_02_NOME: '',
         TESTEMUNHA_02_CPF: '',
         BLOCO_PRODUTOS_SERVICOS: blocoProdutosServicos || '',
-        BLOCO_PARCELAS: '',
+        BLOCO_PARCELAS: blocoParcelasText || '',
         BLOCO_PARCELAS_TEXTO: blocoParcelasText || '',
       }
 
