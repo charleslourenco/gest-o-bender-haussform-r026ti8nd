@@ -1099,6 +1099,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_timeline_eventos: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          acao: string
+          cliente_id: string
+          criado_em: string
+          icone: string
+          id: string
+          nome_exibicao: string
+          usuario_nome: string
+        }[]
+      }
       has_module_access: {
         Args: { mod: string; user_id: string }
         Returns: boolean
@@ -1775,6 +1787,30 @@ export const Constants = {
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
 
 // --- DATABASE FUNCTIONS ---
+// FUNCTION get_timeline_eventos(uuid)
+//   CREATE OR REPLACE FUNCTION public.get_timeline_eventos(p_cliente_id uuid)
+//    RETURNS TABLE(id uuid, cliente_id uuid, usuario_nome text, acao text, icone text, criado_em timestamp with time zone, nome_exibicao text)
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//    SET search_path TO 'public'
+//   AS $function$
+//   BEGIN
+//     RETURN QUERY
+//     SELECT
+//       t.id,
+//       t.cliente_id,
+//       t.usuario_nome,
+//       t.acao,
+//       t.icone,
+//       t.criado_em,
+//       COALESCE(u.nome, t.usuario_nome) AS nome_exibicao
+//     FROM public.timeline_eventos t
+//     LEFT JOIN public.users u ON u.email = t.usuario_nome
+//     WHERE t.cliente_id = p_cliente_id
+//     ORDER BY t.criado_em DESC;
+//   END;
+//   $function$
+//
 // FUNCTION handle_new_user()
 //   CREATE OR REPLACE FUNCTION public.handle_new_user()
 //    RETURNS trigger

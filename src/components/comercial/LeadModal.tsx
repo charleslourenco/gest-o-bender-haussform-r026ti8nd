@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Lead } from '@/types'
 import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
@@ -12,6 +12,31 @@ interface Props {
 
 export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const [isGenerating, setIsGenerating] = useState(false)
+
+  const formatPhone = (value: string) => {
+    if (!value) return ''
+    const v = value.replace(/\D/g, '')
+    if (v.length <= 2) {
+      return v.length > 0 ? `(${v}` : v
+    }
+    if (v.length <= 6) {
+      return `(${v.slice(0, 2)}) ${v.slice(2)}`
+    }
+    if (v.length <= 10) {
+      return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`
+    }
+    return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7, 11)}`
+  }
+
+  const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
+
+  useEffect(() => {
+    setTelefone(formatPhone(lead?.telefone || ''))
+  }, [lead])
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTelefone(formatPhone(e.target.value))
+  }
 
   const handleGerarDossie = async () => {
     setIsGenerating(true)
@@ -95,7 +120,10 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               required
               type="tel"
               name="telefone"
-              defaultValue={lead?.telefone}
+              value={telefone}
+              onChange={handlePhoneChange}
+              minLength={14}
+              maxLength={15}
               placeholder="(11) 99999-9999"
               className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
