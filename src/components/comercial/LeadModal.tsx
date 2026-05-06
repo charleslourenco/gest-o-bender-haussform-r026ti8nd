@@ -29,10 +29,28 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
   }
 
   const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
+  const [nome, setNome] = useState(lead?.nome || '')
 
   useEffect(() => {
     setTelefone(formatPhone(lead?.telefone || ''))
+    setNome(lead?.nome || '')
   }, [lead])
+
+  const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const exceptions = ['de', 'da', 'do', 'das', 'dos', 'e']
+    const formatted = e.target.value
+      .split(' ')
+      .map((word, index) => {
+        if (word.length === 0) return word
+        const lowerWord = word.toLowerCase()
+        if (exceptions.includes(lowerWord) && index !== 0) {
+          return lowerWord
+        }
+        return lowerWord.charAt(0).toUpperCase() + lowerWord.slice(1)
+      })
+      .join(' ')
+    setNome(formatted)
+  }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTelefone(formatPhone(e.target.value))
@@ -96,7 +114,8 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             <input
               required
               name="nome"
-              defaultValue={lead?.nome}
+              value={nome}
+              onChange={handleNomeChange}
               className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
