@@ -32,6 +32,7 @@ const formSchema = z.object({
   telefone: z.string().min(14, 'Telefone inválido'),
   funcao: z.string().min(1, 'Selecione uma função'),
   status: z.boolean(),
+  senha: z.string().optional(),
 })
 
 interface UserFormModalProps {
@@ -74,6 +75,7 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
         telefone: user.telefone || '',
         funcao: user.funcao || '',
         status: user.status ?? true,
+        senha: '',
       })
     } else {
       form.reset({
@@ -82,11 +84,20 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
         telefone: '',
         funcao: '',
         status: true,
+        senha: '',
       })
     }
   }, [user, form, isOpen])
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!user && (!values.senha || values.senha.length < 6)) {
+      form.setError('senha', {
+        type: 'manual',
+        message: 'Senha é obrigatória para novos usuários (mín. 6 caracteres)',
+      })
+      return
+    }
+
     setIsSubmitting(true)
     try {
       let fotoUrl = user?.foto_perfil
@@ -177,26 +188,48 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-midnight-navy font-semibold text-base">
-                    E-mail
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="joao@exemplo.com"
-                      className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
-                      {...field}
-                      disabled={!!user}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-steel-blue font-bold" />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-midnight-navy font-semibold text-base">
+                      E-mail
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="joao@exemplo.com"
+                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                        {...field}
+                        disabled={!!user}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-steel-blue font-bold" />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="senha"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-midnight-navy font-semibold text-base">
+                      {user ? 'Nova Senha (Opcional)' : 'Senha de Acesso'}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="******"
+                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-steel-blue font-bold" />
+                  </FormItem>
+                )}
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <FormField
                 control={form.control}

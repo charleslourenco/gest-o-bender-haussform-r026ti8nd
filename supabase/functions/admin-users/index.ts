@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'create') {
       const { data: newAuthUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: userData.email,
-        password: 'ChangeMe@2026', // Initial generic password
+        password: userData.senha || 'ChangeMe@2026', // Initial generic password
         email_confirm: true,
         user_metadata: { nome: userData.nome },
       })
@@ -80,6 +80,13 @@ Deno.serve(async (req: Request) => {
 
     if (action === 'update') {
       if (!userId) throw new Error('ID do usuário não fornecido')
+
+      if (userData.senha) {
+        const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+          password: userData.senha,
+        })
+        if (authUpdateError) throw authUpdateError
+      }
 
       const { error: updateError } = await supabaseAdmin
         .from('users')
