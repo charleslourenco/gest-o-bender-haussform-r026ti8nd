@@ -281,16 +281,9 @@ export function SignatureModal({ doc, clienteId, onClose }: any) {
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {sig.status === 'assinado' ? (
-                        <span className="text-green-600 flex items-center gap-1 mt-1">
-                          <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
-                          {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 flex items-center gap-1 mt-1">
-                          <Clock className="w-3.5 h-3.5" /> Aguardando assinatura (E-mail enviado)
-                        </span>
-                      )}
+                      <span className="text-muted-foreground flex items-center gap-1 mt-1">
+                        <Send className="w-3 h-3" /> E-mail de solicitação enviado
+                      </span>
                     </div>
                   </div>
                   <div className="flex gap-2">

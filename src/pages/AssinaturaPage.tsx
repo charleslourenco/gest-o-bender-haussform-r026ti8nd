@@ -57,6 +57,11 @@ export default function AssinaturaPage() {
   const handleOpenDocument = async () => {
     if (!assinatura?.documento_id) return
 
+    if (assinatura.documento_id.startsWith('http')) {
+      window.open(assinatura.documento_id, '_blank')
+      return
+    }
+
     const { data, error } = await supabase.storage
       .from('dossiers')
       .createSignedUrl(assinatura.documento_id, 3600)
@@ -166,7 +171,9 @@ export default function AssinaturaPage() {
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <ShieldCheck className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Portal de Assinaturas</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Portal de Assinatura Bender Haussform
+          </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Assinatura eletrônica com validade legal.
           </p>

@@ -22,9 +22,10 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'projetos@benderhaussform.com',
+        from: 'Bender Haussform <projetos@benderhaussform.com>',
         to: [to],
         subject: `Assinatura Pendente: ${documento_nome}`,
+        text: `Olá, ${nome}. Você foi convidado para assinar o documento ${documento_nome}. Seu código de verificação é: ${codigo}. Acesse o link para assinar: ${link}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
             <h2 style="color: #333;">Olá, ${nome}</h2>
