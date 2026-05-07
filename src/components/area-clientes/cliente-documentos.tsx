@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { numeroPorExtenso } from '@/lib/extenso'
+import { SignatureModal } from './signature-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [docs, setDocs] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
+  const [signatureDoc, setSignatureDoc] = useState<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadDocs = async () => {
@@ -568,7 +570,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       variant="default"
                       size="sm"
                       onClick={() =>
-                        toast.info('Funcionalidade de assinatura será ativada em breve.')
+                        setSignatureDoc({
+                          path: doc.arquivo_url,
+                          title: doc.template_nome || doc.tipo,
+                          ...doc,
+                        })
                       }
                       className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
                     >
@@ -589,6 +595,18 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           </div>
         )}
       </div>
+
+      {signatureDoc && (
+        <SignatureModal
+          doc={signatureDoc}
+          clienteId={dossie.cliente_id}
+          onClose={() => {
+            setSignatureDoc(null)
+            loadDocs()
+            if (onReload) onReload()
+          }}
+        />
+      )}
     </div>
   )
 }

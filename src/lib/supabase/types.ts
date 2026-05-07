@@ -111,6 +111,7 @@ export type Database = {
       }
       assinaturas: {
         Row: {
+          assinatura_imagem: string | null
           cliente_id: string | null
           codigo_confirmacao: string
           criado_em: string
@@ -121,6 +122,7 @@ export type Database = {
           id: string
           ip_assinatura: string | null
           signatario_cpf: string | null
+          signatario_data_nascimento: string | null
           signatario_email: string | null
           signatario_nome: string
           signatario_telefone: string | null
@@ -128,6 +130,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          assinatura_imagem?: string | null
           cliente_id?: string | null
           codigo_confirmacao: string
           criado_em?: string
@@ -138,6 +141,7 @@ export type Database = {
           id?: string
           ip_assinatura?: string | null
           signatario_cpf?: string | null
+          signatario_data_nascimento?: string | null
           signatario_email?: string | null
           signatario_nome: string
           signatario_telefone?: string | null
@@ -145,6 +149,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          assinatura_imagem?: string | null
           cliente_id?: string | null
           codigo_confirmacao?: string
           criado_em?: string
@@ -155,6 +160,7 @@ export type Database = {
           id?: string
           ip_assinatura?: string | null
           signatario_cpf?: string | null
+          signatario_data_nascimento?: string | null
           signatario_email?: string | null
           signatario_nome?: string
           signatario_telefone?: string | null
@@ -1297,6 +1303,8 @@ export const Constants = {
 //   expira_em: timestamp with time zone (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   ip_assinatura: text (nullable)
+//   signatario_data_nascimento: date (nullable)
+//   assinatura_imagem: text (nullable)
 // Table: clientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
