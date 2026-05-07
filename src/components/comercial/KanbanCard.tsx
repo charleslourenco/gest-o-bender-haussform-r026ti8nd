@@ -1,5 +1,5 @@
 import { Lead } from '@/types'
-import { Edit2, Trash2, Calendar, User } from 'lucide-react'
+import { Edit2, Trash2, Calendar, User, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -48,18 +48,47 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
           <User className="w-3.5 h-3.5 text-steel-blue shrink-0" />
           <span className="truncate">{lead.consultor?.nome || 'Sem consultor'}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-steel-blue text-[12px] justify-between">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="w-3.5 h-3.5 shrink-0" />
-            <span>{new Date(lead.criado_em).toLocaleDateString('pt-BR')}</span>
+        <div className="flex flex-col gap-1.5 text-steel-blue text-[11px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5" title="Data de criação">
+              <Calendar className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {new Date(lead.criado_em).toLocaleString('pt-BR', {
+                  timeZone: 'America/Sao_Paulo',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            {lead.criado_por_nome && (
+              <span
+                className="text-[10px] opacity-70 truncate max-w-[80px]"
+                title={`Criado por: ${lead.criado_por_nome}`}
+              >
+                Por: {lead.criado_por_nome.split(' ')[0]}
+              </span>
+            )}
           </div>
-          {lead.criado_por_nome && (
-            <span
-              className="text-[10px] opacity-70 truncate max-w-[80px]"
-              title={`Criado por: ${lead.criado_por_nome}`}
+          {lead.atualizado_em && (
+            <div
+              className="flex items-center gap-1.5 opacity-80"
+              title="Última interação/atualização"
             >
-              Por: {lead.criado_por_nome.split(' ')[0]}
-            </span>
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>
+                {new Date(lead.atualizado_em).toLocaleString('pt-BR', {
+                  timeZone: 'America/Sao_Paulo',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
           )}
         </div>
       </div>

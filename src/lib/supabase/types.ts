@@ -1103,6 +1103,41 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string | null
+          phone: string
+          step: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          phone: string
+          step?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          phone?: string
+          step?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_sessions_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1527,6 +1562,13 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   status: boolean (not null, default: true)
+// Table: whatsapp_sessions
+//   id: uuid (not null, default: gen_random_uuid())
+//   phone: text (not null)
+//   lead_id: uuid (nullable)
+//   step: integer (not null, default: 0)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: ambientes
@@ -1609,6 +1651,10 @@ export const Constants = {
 //   UNIQUE users_email_key: UNIQUE (email)
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
+// Table: whatsapp_sessions
+//   FOREIGN KEY whatsapp_sessions_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+//   UNIQUE whatsapp_sessions_phone_key: UNIQUE (phone)
+//   PRIMARY KEY whatsapp_sessions_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: ambientes
@@ -1797,6 +1843,10 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = id)
 //   Policy "Usuário vê apenas seus dados ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
+// Table: whatsapp_sessions
+//   Policy "whatsapp_sessions_all" (ALL, PERMISSIVE) roles={public}
+//     USING: true
+//     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
 // FUNCTION get_timeline_eventos(uuid)
@@ -1940,3 +1990,5 @@ export const Constants = {
 //   CREATE INDEX idx_templates_user_id_tipo ON public.templates USING btree (user_id, tipo)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+// Table: whatsapp_sessions
+//   CREATE UNIQUE INDEX whatsapp_sessions_phone_key ON public.whatsapp_sessions USING btree (phone)
