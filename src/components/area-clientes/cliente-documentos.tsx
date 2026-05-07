@@ -543,6 +543,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                 </div>
                 {doc.arquivo_url && (
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    {doc.arquivo_assinado_url ? (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        asChild
+                        className="bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm"
+                      >
+                        <a
+                          href={doc.arquivo_assinado_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="w-4 h-4 mr-1" /> [PDF Assinado]
+                        </a>
+                      </Button>
+                    ) : null}
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -550,36 +567,44 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
                       <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
-                        <Eye className="w-4 h-4 mr-1" /> Visualizar
+                        <Eye className="w-4 h-4 mr-1" /> Visualizar{' '}
+                        {doc.arquivo_assinado_url ? 'Original' : ''}
                       </a>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const a = document.createElement('a')
-                        a.href = doc.arquivo_url
-                        a.download = doc.template_nome || 'documento'
-                        a.click()
-                      }}
-                      className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
-                    >
-                      <Download className="w-4 h-4 mr-1" /> Baixar
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() =>
-                        setSignatureDoc({
-                          path: doc.arquivo_url,
-                          title: doc.template_nome || doc.tipo,
-                          ...doc,
-                        })
-                      }
-                      className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
-                    >
-                      <PenTool className="w-4 h-4 mr-1" /> Enviar para Assinatura
-                    </Button>
+
+                    {!doc.arquivo_assinado_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const a = document.createElement('a')
+                          a.href = doc.arquivo_url
+                          a.download = doc.template_nome || 'documento'
+                          a.click()
+                        }}
+                        className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
+                      >
+                        <Download className="w-4 h-4 mr-1" /> Baixar
+                      </Button>
+                    )}
+
+                    {!doc.arquivo_assinado_url && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() =>
+                          setSignatureDoc({
+                            path: doc.arquivo_url,
+                            title: doc.template_nome || doc.tipo,
+                            ...doc,
+                          })
+                        }
+                        className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
+                      >
+                        <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
+                      </Button>
+                    )}
+
                     <Button
                       variant="destructive"
                       size="sm"

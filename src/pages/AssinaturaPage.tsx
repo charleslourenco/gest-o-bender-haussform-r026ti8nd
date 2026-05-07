@@ -127,6 +127,13 @@ export default function AssinaturaPage() {
           .from('documentos_cliente')
           .update({ status: 'Assinado' })
           .eq('arquivo_url', assinatura.documento_id)
+
+        // Call Edge Function in background to finalize the document
+        supabase.functions
+          .invoke('finalize-signature-document', {
+            body: { documento_id: assinatura.documento_id, cliente_id: assinatura.cliente_id },
+          })
+          .catch((err) => console.error('Erro ao finalizar documento:', err))
       }
 
       toast.success('Documento assinado com sucesso!')
