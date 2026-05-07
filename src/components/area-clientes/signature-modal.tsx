@@ -16,36 +16,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Copy, Plus, Trash2, CheckCircle, Clock, PenTool } from 'lucide-react'
+import { Copy, Plus, Trash2, CheckCircle, Clock, Send, Users } from 'lucide-react'
 
-export function SignatureModal({
-  doc,
-  clienteId,
-  onClose,
-}: {
-  doc: any
-  clienteId: string
-  onClose: () => void
-}) {
+const ROLES = [
+  'Representante da Empresa',
+  'Cliente',
+  'Testemunha',
+  'Analista',
+  'Representante do Cliente',
+  'Consultor(a)',
+]
+
+export function SignatureModal({ doc, clienteId, onClose }: any) {
   const [signatures, setSignatures] = useState<any[]>([])
+  const [stagedSigners, setStagedSigners] = useState<any[]>([])
+  const [clientData, setClientData] = useState<{ nome: string; email: string } | null>(null)
   const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
-  const [assinandoId, setAssinandoId] = useState<string | null>(null)
-  const [code, setCode] = useState('')
-  const [validating, setValidating] = useState(false)
 
-  const [newSig, setNewSig] = useState({
-    nome: '',
-    email: '',
-    tipo: 'Cliente',
-  })
+  const [newSig, setNewSig] = useState({ tipo: '', nome: '', email: '' })
 
   useEffect(() => {
-    if (doc?.path || clienteId) {
-      loadSignatures()
+    if (doc?.path || clienteId) loadSignatures()
+    if (clienteId) {
+      supabase
+        .from('clientes')
+        .select('nome, email')
+        .eq('id', clienteId)
+        .single()
+        .then(({ data }) => {
+          if (data) setClientData(data)
+        })
     }
   }, [doc, clienteId])
 
@@ -59,104 +63,100 @@ export function SignatureModal({
       .order('criado_em', { ascending: true })
 
     if (data) {
-      const filtered = data.filter(
-        (s) =>
-          s.documento_id === doc?.path ||
-          doc?.title?.includes(s.documento_nome) ||
-          (s.documento_nome?.toLowerCase().includes('contrato') &&
-            doc?.title?.toLowerCase().includes('contrato')),
+      setSignatures(
+        data.filter(
+          (s) =>
+            s.documento_id === doc?.path ||
+            doc?.title?.includes(s.documento_nome) ||
+            (s.documento_nome?.toLowerCase().includes('contrato') &&
+              doc?.title?.toLowerCase().includes('contrato')),
+        ),
       )
-      setSignatures(filtered)
     }
     setLoading(false)
   }
 
-  const handleAdd = async () => {
-    if (!newSig.nome) return toast.error('Nome é obrigatório')
-
-    const codigo_confirmacao = Math.floor(100000 + Math.random() * 900000).toString()
-    const expira_em = new Date()
-    expira_em.setDate(expira_em.getDate() + 30)
-
-    const { error } = await supabase.from('assinaturas').insert({
-      documento_id: doc.path || doc.title,
-      documento_nome: doc.title,
-      cliente_id: clienteId,
-      signatario_nome: newSig.nome,
-      signatario_email: newSig.email,
-      signatario_tipo: newSig.tipo,
-      codigo_confirmacao,
-      status: 'pendente',
-      expira_em: expira_em.toISOString(),
-    })
-
-    if (error) {
-      toast.error('Erro ao adicionar assinante')
+  const handleRoleChange = (v: string) => {
+    if (v === 'Representante da Empresa') {
+      setNewSig({ tipo: v, nome: 'Daiana Gabriela Bender', email: 'projetos@benderhaussform.com' })
+    } else if (v === 'Cliente' && clientData) {
+      setNewSig({ tipo: v, nome: clientData.nome, email: clientData.email })
     } else {
-      toast.success('Assinante adicionado com sucesso!')
-      setIsAdding(false)
-      setNewSig({ nome: '', email: '', tipo: 'Cliente' })
-      loadSignatures()
+      setNewSig({ tipo: v, nome: '', email: '' })
     }
   }
 
-  const handleValidateCode = async (sig: any) => {
-    if (code.length !== 6) return toast.error('O código deve ter 6 dígitos')
-    setValidating(true)
+  const handleAddStaged = () => {
+    if (!newSig.tipo || !newSig.nome || !newSig.email) {
+      return toast.error('Preencha o papel, nome e e-mail')
+    }
+    setStagedSigners([...stagedSigners, newSig])
+    setNewSig({ tipo: '', nome: '', email: '' })
+    setIsAdding(false)
+  }
+
+  const handleRemoveStaged = (index: number) => {
+    setStagedSigners(stagedSigners.filter((_, i) => i !== index))
+  }
+
+  const handleSendAll = async () => {
+    if (stagedSigners.length === 0) return toast.error('Adicione signatários para enviar.')
+    setSending(true)
     try {
-      if (code !== sig.codigo_confirmacao) {
-        throw new Error('Código inválido. Tente novamente.')
+      for (const sig of stagedSigners) {
+        const code = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
+        const { data, error } = await supabase
+          .from('assinaturas')
+          .insert({
+            documento_id: doc.path || doc.title,
+            documento_nome: doc.title,
+            cliente_id: clienteId,
+            signatario_nome: sig.nome,
+            signatario_email: sig.email,
+            signatario_tipo: sig.tipo,
+            codigo_confirmacao: code,
+            status: 'pendente',
+            expira_em: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+
+        if (data) {
+          await supabase.functions.invoke('send-signature-email', {
+            body: {
+              to: sig.email,
+              nome: sig.nome,
+              link: `${window.location.origin}/assinatura/${data.id}`,
+              codigo: code,
+              documento_nome: doc.title,
+            },
+          })
+
+          await supabase.from('timeline_eventos').insert({
+            cliente_id: clienteId,
+            usuario_nome: 'Sistema',
+            acao: `Enviado pedido de assinatura para ${sig.nome} (${sig.tipo})`,
+          })
+        }
       }
-
-      let ip = '0.0.0.0'
-      try {
-        const res = await fetch('https://api.ipify.org?format=json')
-        const data = await res.json()
-        ip = data.ip
-      } catch (e) {
-        console.warn('Could not fetch IP')
-      }
-
-      const { error } = await supabase
-        .from('assinaturas')
-        .update({
-          status: 'assinado',
-          data_assinatura: new Date().toISOString(),
-          ip_assinatura: ip,
-        })
-        .eq('id', sig.id)
-
-      if (error) throw error
-
-      await supabase.from('timeline_eventos').insert({
-        cliente_id: clienteId,
-        usuario_nome: sig.signatario_nome,
-        acao: `Assinatura Realizada no documento ${sig.documento_nome}`,
-      })
-
-      toast.success('Assinatura validada com sucesso!')
-      setAssinandoId(null)
-      setCode('')
+      setStagedSigners([])
+      toast.success('Pedidos de assinatura enviados com sucesso!')
       loadSignatures()
     } catch (e: any) {
-      toast.error(e.message)
+      toast.error('Erro ao enviar assinaturas: ' + e.message)
     } finally {
-      setValidating(false)
+      setSending(false)
     }
   }
 
-  const handleRemove = async (id: string) => {
+  const handleRemoveExisting = async (id: string) => {
     const { error } = await supabase.from('assinaturas').delete().eq('id', id)
     if (!error) {
-      toast.success('Assinante removido')
+      toast.success('Assinatura removida do documento')
       loadSignatures()
     }
-  }
-
-  const handleCopyLink = (id: string) => {
-    const url = `${window.location.origin}/assinatura/${id}`
-    navigator.clipboard.writeText(url)
-    toast.success('Link de assinatura copiado!')
   }
 
   return (
@@ -167,32 +167,34 @@ export function SignatureModal({
           <DialogDescription>Documento: {doc?.title}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Assinantes</h3>
-            {!isAdding && (
-              <Button size="sm" onClick={() => setIsAdding(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Adicionar
-              </Button>
-            )}
-          </div>
+        <div className="space-y-6 py-2">
+          {/* Sessão de Envio de Novas Assinaturas */}
+          <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-border">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <Users className="w-4 h-4 text-primary" /> Preparar Envio
+              </h3>
+              {!isAdding && (
+                <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> Adicionar Signatário
+                </Button>
+              )}
+            </div>
 
-          {isAdding && (
-            <div className="bg-muted/50 p-4 rounded-lg space-y-4 border">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {isAdding && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-background p-3 rounded border">
                 <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Select
-                    value={newSig.tipo}
-                    onValueChange={(v) => setNewSig({ ...newSig, tipo: v })}
-                  >
+                  <Label>Papel / Função</Label>
+                  <Select value={newSig.tipo} onValueChange={handleRoleChange}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Cliente">Cliente</SelectItem>
-                      <SelectItem value="Testemunha">Testemunha</SelectItem>
-                      <SelectItem value="Representante">Representante</SelectItem>
+                      {ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -201,144 +203,124 @@ export function SignatureModal({
                   <Input
                     value={newSig.nome}
                     onChange={(e) => setNewSig({ ...newSig, nome: e.target.value })}
-                    placeholder="João Silva"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>E-mail (Opcional)</Label>
+                  <Label>E-mail</Label>
                   <Input
+                    type="email"
                     value={newSig.email}
                     onChange={(e) => setNewSig({ ...newSig, email: e.target.value })}
-                    placeholder="joao@email.com"
                   />
                 </div>
+                <div className="md:col-span-3 flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" onClick={handleAddStaged}>
+                    Confirmar na Lista
+                  </Button>
+                </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => setIsAdding(false)}>
-                  Cancelar
-                </Button>
-                <Button size="sm" onClick={handleAdd}>
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {loading ? (
-            <div className="text-center py-4 text-sm text-muted-foreground">Carregando...</div>
-          ) : signatures.length === 0 ? (
-            <div className="text-center py-8 bg-muted/20 border border-dashed rounded-lg text-muted-foreground text-sm">
-              Nenhum assinante encontrado. O cliente não está pendente de assinatura neste
-              documento.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {signatures.map((sig) => (
-                <div key={sig.id} className="flex flex-col p-4 bg-card border rounded-lg gap-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{sig.signatario_nome}</span>
-                        <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                          {sig.signatario_tipo}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1.5 flex flex-col gap-1">
-                        <span>
-                          Código de Validação:{' '}
-                          <strong className="text-foreground text-sm font-mono tracking-widest">
-                            {sig.codigo_confirmacao}
-                          </strong>
-                        </span>
-                        {sig.signatario_email && <span>E-mail: {sig.signatario_email}</span>}
-                      </div>
-                      <div className="flex items-center gap-1 mt-2">
-                        {sig.status === 'assinado' ? (
-                          <span className="text-xs text-green-600 flex items-center gap-1.5 font-medium bg-green-50 px-2 py-1 rounded-md w-fit border border-green-200">
-                            <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
-                            {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-amber-600 flex items-center gap-1.5 font-medium bg-amber-50 px-2 py-1 rounded-md w-fit border border-amber-200">
-                            <Clock className="w-3.5 h-3.5" /> Pendente
-                          </span>
-                        )}
-                      </div>
+            {stagedSigners.length > 0 && (
+              <div className="space-y-2 mt-4">
+                <Label className="text-xs text-muted-foreground">Signatários na Fila:</Label>
+                {stagedSigners.map((sig, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between bg-background p-2 rounded border text-sm"
+                  >
+                    <div>
+                      <span className="font-semibold">{sig.tipo}</span> — {sig.nome} ({sig.email})
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {sig.status !== 'assinado' && (
-                        <Button size="sm" variant="default" onClick={() => setAssinandoId(sig.id)}>
-                          <PenTool className="w-4 h-4 mr-2" /> Assinar Agora
-                        </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveStaged(i)}
+                      className="text-destructive h-8 w-8"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button className="w-full mt-2" onClick={handleSendAll} disabled={sending}>
+                  {sending ? (
+                    'Enviando e-mails...'
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" /> Disparar E-mails de Assinatura
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Lista de Assinaturas Existentes */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Status das Assinaturas</h3>
+            {loading ? (
+              <div className="text-center py-4 text-sm text-muted-foreground">Carregando...</div>
+            ) : signatures.length === 0 ? (
+              <div className="text-center py-6 bg-muted/20 border border-dashed rounded-lg text-muted-foreground text-sm">
+                Nenhum signatário registrado.
+              </div>
+            ) : (
+              signatures.map((sig) => (
+                <div
+                  key={sig.id}
+                  className="flex items-center justify-between p-3 bg-card border rounded-lg"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{sig.signatario_nome}</span>
+                      <span className="text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
+                        {sig.signatario_tipo}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {sig.status === 'assinado' ? (
+                        <span className="text-green-600 flex items-center gap-1 mt-1">
+                          <CheckCircle className="w-3.5 h-3.5" /> Assinado em{' '}
+                          {new Date(sig.data_assinatura).toLocaleString('pt-BR')}
+                        </span>
+                      ) : (
+                        <span className="text-amber-600 flex items-center gap-1 mt-1">
+                          <Clock className="w-3.5 h-3.5" /> Aguardando assinatura (E-mail enviado)
+                        </span>
                       )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleCopyLink(sig.id)}
-                        title="Copiar Link de Assinatura"
-                      >
-                        <Copy className="w-4 h-4 mr-2" /> Copiar Link
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemove(sig.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
-
-                  {assinandoId === sig.id && sig.status !== 'assinado' && (
-                    <div className="mt-2 p-4 bg-muted/30 rounded-lg border border-border flex flex-col items-center gap-3 animate-fade-in">
-                      <div className="text-center space-y-1">
-                        <Label className="text-sm font-semibold">
-                          Digite o código de 6 dígitos
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          O código foi gerado acima ou enviado por e-mail
-                        </p>
-                      </div>
-                      <div className="flex justify-center py-2">
-                        <InputOTP maxLength={6} value={code} onChange={setCode}>
-                          <InputOTPGroup>
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                            <InputOTPSlot index={3} />
-                            <InputOTPSlot index={4} />
-                            <InputOTPSlot index={5} />
-                          </InputOTPGroup>
-                        </InputOTP>
-                      </div>
-                      <div className="flex justify-end gap-2 mt-2 w-full max-w-xs">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setAssinandoId(null)
-                            setCode('')
-                          }}
-                          className="w-full"
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleValidateCode(sig)}
-                          disabled={code.length !== 6 || validating}
-                          className="w-full"
-                        >
-                          {validating ? 'Validando...' : 'Confirmar'}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Copiar Link"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `${window.location.origin}/assinatura/${sig.id}`,
+                        )
+                        toast.success('Link copiado!')
+                      }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive h-8 w-8 hover:bg-destructive/10"
+                      onClick={() => handleRemoveExisting(sig.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
