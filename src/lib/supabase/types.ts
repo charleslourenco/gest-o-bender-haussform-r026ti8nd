@@ -322,6 +322,7 @@ export type Database = {
       }
       documentos_cliente: {
         Row: {
+          arquivo_assinado_url: string | null
           arquivo_url: string | null
           cliente_id: string | null
           criado_em: string
@@ -333,6 +334,7 @@ export type Database = {
           tipo: string
         }
         Insert: {
+          arquivo_assinado_url?: string | null
           arquivo_url?: string | null
           cliente_id?: string | null
           criado_em?: string
@@ -344,6 +346,7 @@ export type Database = {
           tipo: string
         }
         Update: {
+          arquivo_assinado_url?: string | null
           arquivo_url?: string | null
           cliente_id?: string | null
           criado_em?: string
@@ -1351,6 +1354,7 @@ export const Constants = {
 //   projeto_id: uuid (nullable)
 //   arquivo_url: text (nullable)
 //   template_nome: text (nullable)
+//   arquivo_assinado_url: text (nullable)
 // Table: documentos_gerados
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
