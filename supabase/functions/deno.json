@@ -4,6 +4,7 @@
     "admin-users": 5,
     "gerar-dossie": 7,
     "gerar_documento_cliente": 33,
-    "send-signature-email": 2
+    "send-signature-email": 2,
+    "finalize-signature-document": 1
   }
 }
