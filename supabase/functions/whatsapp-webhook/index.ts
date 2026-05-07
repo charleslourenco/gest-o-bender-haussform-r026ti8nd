@@ -206,15 +206,35 @@ Deno.serve(async (req) => {
         const zapiToken = Deno.env.get('ZAPI_TOKEN')
 
         if (zapiInstance && zapiToken) {
+          const cleanPhone = phone.replace(/\D/g, '')
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
-          await fetch(zapiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              phone: phone,
-              message: responseText,
-            }),
-          })
+
+          try {
+            const zapiRes = await fetch(zapiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Client-Token': zapiToken, // Segurança adicional exigida por algumas instâncias
+              },
+              body: JSON.stringify({
+                phone: cleanPhone,
+                message: responseText,
+              }),
+            })
+
+            if (!zapiRes.ok) {
+              const errTxt = await zapiRes.text()
+              console.error('Erro na resposta do Z-API:', zapiRes.status, errTxt)
+            } else {
+              console.log('Mensagem enviada com sucesso para', cleanPhone)
+            }
+          } catch (e) {
+            console.error('Falha de rede ao chamar Z-API:', e)
+          }
+        } else {
+          console.error(
+            'Credenciais Z-API (ZAPI_INSTANCE_ID ou ZAPI_TOKEN) não configuradas nas variáveis de ambiente.',
+          )
         }
       }
     }
