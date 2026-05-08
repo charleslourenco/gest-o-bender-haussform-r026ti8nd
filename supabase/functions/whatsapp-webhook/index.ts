@@ -118,61 +118,97 @@ Deno.serve(async (req) => {
     } else {
       switch (session.step) {
         case 0:
-          responseText = `Oi${senderName !== 'Cliente' ? ' ' + senderName : ''}! Que bom ter você por aqui 😊|||Me conta, como você chegou até a Bender?`
+          responseText = `Oi${senderName !== 'Cliente' ? ' ' + senderName : ''}! Que bom te ter aqui 😊|||Me conta, como você chegou até a Bender?`
           nextStep = 1
           break
-        case 1:
+        case 1: {
+          const isIndication =
+            lowerMessage.includes('indica') ||
+            lowerMessage.includes('corretor') ||
+            lowerMessage.includes('arquiteto') ||
+            lowerMessage.includes('designer')
+          const updatedNotes =
+            (lead.notas || '') +
+            `\n[Origem do Contato]: ${messageText}` +
+            (isIndication ? `\n[Possível Indicador]: Verificar detalhes no histórico.` : '')
+
           await supabase
             .from('leads')
-            .update({ origem: `WhatsApp - ${messageText.substring(0, 50)}` })
+            .update({
+              origem: `WhatsApp - ${messageText.substring(0, 50)}`,
+              notas: updatedNotes,
+            })
             .eq('id', lead.id)
-          responseText = `Ah, que legal!|||E você já conversou com algum dos nossos consultores antes, ou é a primeira vez?`
+
+          lead.notas = updatedNotes
+
+          let originReaction = 'Ah, entendi!'
+          if (lowerMessage.includes('instagram') || lowerMessage.includes('insta')) {
+            originReaction = 'Ah, que bom te ver por aqui então!'
+          } else if (isIndication) {
+            originReaction = 'Que bom! Adoramos quando chegam por indicação.'
+          } else if (
+            lowerMessage.includes('anúncio') ||
+            lowerMessage.includes('google') ||
+            lowerMessage.includes('facebook')
+          ) {
+            originReaction = 'Que legal que nosso trabalho chegou até você!'
+          }
+
+          responseText = `${originReaction}|||Me diz uma coisa, você já tem conversado com algum dos nossos consultores, ou é a primeira vez?`
           nextStep = 2
           break
+        }
         case 2:
           if (
             lowerMessage.includes('sim') ||
             lowerMessage.includes('já') ||
             lowerMessage.includes('ja')
           ) {
-            responseText = `Entendi!|||Vou avisar a equipe para que o consultor que já te conhece retome o contato. Só um minutinho, tá?`
+            responseText = `Entendi.|||Vou avisar a equipe para que o consultor que já te conhece retome o contato. Só um minutinho, tá?`
             nextStep = 99
             nextStatus = 'Aguardando Atendimento'
           } else {
-            responseText = `Ah, perfeito! Aqui nós desenhamos projetos sob medida e temos nossa própria marcenaria, além de curadoria de móveis incríveis.|||Me diz uma coisa: em qual cidade ou bairro fica o imóvel que você quer mobiliar?`
+            responseText = `Entendi. Aqui nós desenhamos projetos sob medida e temos nossa própria marcenaria, além de curadoria de móveis incríveis.|||Me conta, em qual cidade ou bairro fica o imóvel que você quer mobiliar?`
             nextStep = 3
           }
           break
-        case 3:
-          await supabase
-            .from('leads')
-            .update({
-              notas: (lead.notas || '') + `\nLocalização do imóvel: ${messageText}`,
-            })
-            .eq('id', lead.id)
-          responseText = `Legal! E como está o imóvel agora?|||Já está pronto, ainda na planta, em reforma...?`
+        case 3: {
+          const updatedNotes = (lead.notas || '') + `\n[Localização do imóvel]: ${messageText}`
+          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
+
+          lead.notas = updatedNotes
+
+          let locReaction = 'Entendi.'
+          const cidades_principais = ['piçarras', 'picarras', 'penha', 'barra velha']
+          if (cidades_principais.some((c) => lowerMessage.includes(c))) {
+            locReaction = 'Que ótimo, é bem pertinho da gente!'
+          }
+
+          responseText = `${locReaction} E como está o imóvel agora?|||Já está pronto, ainda na planta, em reforma...?`
           nextStep = 4
           break
-        case 4:
-          await supabase
-            .from('leads')
-            .update({
-              notas: (lead.notas || '') + `\nStatus do imóvel: ${messageText}`,
-            })
-            .eq('id', lead.id)
-          responseText = `Entendi.|||Para a gente pensar em um projeto que faça sentido para você, qual seria mais ou menos o investimento que você tem em mente?`
+        }
+        case 4: {
+          const updatedNotes = (lead.notas || '') + `\n[Status do imóvel]: ${messageText}`
+          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
+
+          lead.notas = updatedNotes
+
+          responseText = `Compreendo.|||Para a gente pensar em um projeto que faça sentido para você, você já tem uma ideia de quanto pretende investir, mesmo que seja uma estimativa?`
           nextStep = 5
           break
-        case 5:
-          await supabase
-            .from('leads')
-            .update({
-              notas: (lead.notas || '') + `\nTeto de investimento: ${messageText}`,
-            })
-            .eq('id', lead.id)
-          responseText = `Maravilha! Nós atendemos desde projetos para investimento até nível Casa Cor, temos bastante flexibilidade.|||Vou pedir para um dos nossos consultores te chamar. Assim vocês podem conversar melhor e até marcar um café aqui no nosso showroom. Pode ser?`
+        }
+        case 5: {
+          const updatedNotes = (lead.notas || '') + `\n[Investimento estimado]: ${messageText}`
+          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
+
+          lead.notas = updatedNotes
+
+          responseText = `Combinado! Nós atendemos desde projetos para investimento até nível Casa Cor, temos bastante flexibilidade.|||Vou pedir para um dos nossos consultores te chamar. Assim vocês podem conversar melhor e até marcar um café aqui no nosso showroom. Pode ser?`
           nextStep = 6
           break
+        }
         case 6:
           responseText = `Combinado então! Logo alguém da nossa equipe te chama aqui. Até mais! ✨`
           nextStep = 99
