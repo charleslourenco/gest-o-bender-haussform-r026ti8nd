@@ -146,35 +146,40 @@ IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o
     }
 
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
-    if (!openaiKey) {
-      console.error('OPENAI_API_KEY não configurada nas variáveis de ambiente.')
+
+    try {
+      if (!openaiKey) {
+        throw new Error('OPENAI_API_KEY não configurada nas variáveis de ambiente.')
+      }
+
+      const openai = new OpenAI({ apiKey: openaiKey })
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      })
+
+      const resultText = completion.choices[0].message.content
+      if (!resultText) throw new Error('Sem resposta da IA')
+
+      const result = JSON.parse(resultText)
+      const responseText = result.resposta || ''
+      const isTransbordo = result.transbordo === true
+      const dados = result.dados_extraidos || {}
+
+      await processResponse(supabase, lead, session, phone, responseText, isTransbordo, dados)
+
+      return new Response('OK', { status: 200 })
+    } catch (apiError: any) {
+      console.error('Erro na API da OpenAI ou processamento de IA:', apiError)
       const fallbackResponse = `Olá! Sou a Catarina. No momento, meu sistema de inteligência está sendo atualizado. Um consultor entrará em contato com você em breve!`
       await processResponse(supabase, lead, session, phone, fallbackResponse, true, {})
       return new Response('OK', { status: 200 })
     }
-
-    const openai = new OpenAI({ apiKey: openaiKey })
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages,
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-    })
-
-    const resultText = completion.choices[0].message.content
-    if (!resultText) throw new Error('Sem resposta da IA')
-
-    const result = JSON.parse(resultText)
-    const responseText = result.resposta || ''
-    const isTransbordo = result.transbordo === true
-    const dados = result.dados_extraidos || {}
-
-    await processResponse(supabase, lead, session, phone, responseText, isTransbordo, dados)
-
-    return new Response('OK', { status: 200 })
   } catch (e: any) {
-    console.error(e)
+    console.error('Erro geral no webhook:', e)
     return new Response('Error', { status: 500 })
   }
 })
