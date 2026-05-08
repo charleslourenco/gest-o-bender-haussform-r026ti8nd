@@ -117,16 +117,28 @@ Deno.serve(async (req) => {
       nextStatus = 'Aguardando Atendimento'
     } else {
       switch (session.step) {
-        case 0:
-          responseText = `Olá${senderName !== 'Cliente' ? ' ' + senderName : ''}, eu sou a Catarina, consultora virtual da Bender. Tudo bem com você? 😊|||Me conta, como você chegou até a gente?`
+        case 0: {
+          const greeting = senderName !== 'Cliente' ? `Olá, ${senderName},` : `Olá,`
+          responseText = `${greeting} eu sou a Catarina, consultora virtual da Bender. Tudo bem por aí?|||Antes de falarmos de medidas, me conta: qual é o ambiente que você mais quer transformar hoje?`
           nextStep = 1
           break
+        }
         case 1: {
+          const updatedNotes = (lead.notas || '') + `\n[Ambiente Desejado]: ${messageText}`
+          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
+          lead.notas = updatedNotes
+
+          responseText = `Pensar nesse espaço é sempre especial${senderName !== 'Cliente' ? ', ' + senderName : ''}.|||Me diz uma coisa, como você conheceu o nosso trabalho? Foi pelo Instagram, alguma indicação...?`
+          nextStep = 2
+          break
+        }
+        case 2: {
           const isIndication =
             lowerMessage.includes('indica') ||
             lowerMessage.includes('corretor') ||
             lowerMessage.includes('arquiteto') ||
-            lowerMessage.includes('designer')
+            lowerMessage.includes('designer') ||
+            lowerMessage.includes('engenheir')
           const updatedNotes =
             (lead.notas || '') +
             `\n[Origem do Contato]: ${messageText}` +
@@ -142,50 +154,45 @@ Deno.serve(async (req) => {
 
           lead.notas = updatedNotes
 
-          let originReaction = 'Ah, entendi!'
+          let originReaction = 'Entendi! Ficamos felizes que tenha chegado até nós.'
           if (lowerMessage.includes('instagram') || lowerMessage.includes('insta')) {
-            originReaction = 'Ah, que bom te ver por aqui então!'
+            originReaction =
+              'Ah, que bom ver você saindo do nosso Instagram para conversar com a gente!'
           } else if (isIndication) {
-            originReaction = 'Que bom! Adoramos quando chegam por indicação.'
+            originReaction =
+              'Que alegria! Adoramos quando chegam por indicação, é o maior reconhecimento do nosso trabalho.'
           } else if (
             lowerMessage.includes('anúncio') ||
             lowerMessage.includes('google') ||
             lowerMessage.includes('facebook')
           ) {
-            originReaction = 'Que legal que nosso trabalho chegou até você!'
+            originReaction = 'Entendi! Que bom que o nosso trabalho chegou até você.'
           }
 
-          responseText = `${originReaction}|||Me diz uma coisa, você já tem conversado com algum dos nossos consultores, ou é a primeira vez?`
-          nextStep = 2
+          responseText = `${originReaction}|||E me conta, em qual cidade ou bairro fica o imóvel que vamos mobiliar?`
+          nextStep = 3
           break
         }
-        case 2:
-          if (
-            lowerMessage.includes('sim') ||
-            lowerMessage.includes('já') ||
-            lowerMessage.includes('ja')
-          ) {
-            responseText = `Entendi.|||Vou avisar a equipe para que o consultor que já te conhece retome o contato. Só um minutinho, tá?`
-            nextStep = 99
-            nextStatus = 'Aguardando Atendimento'
-          } else {
-            responseText = `Entendi. Aqui nós desenhamos projetos sob medida e temos nossa própria marcenaria, além de curadoria de móveis incríveis.|||Me conta, em qual cidade ou bairro fica o imóvel que você quer mobiliar?`
-            nextStep = 3
-          }
-          break
         case 3: {
           const updatedNotes = (lead.notas || '') + `\n[Localização do imóvel]: ${messageText}`
           await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
 
           lead.notas = updatedNotes
 
-          let locReaction = 'Entendi.'
-          const cidades_principais = ['piçarras', 'picarras', 'penha', 'barra velha']
+          let locReaction = 'Entendi, já atendemos projetos incríveis nessa região.'
+          const cidades_principais = [
+            'piçarras',
+            'picarras',
+            'penha',
+            'barra velha',
+            'balneário',
+            'balneario',
+          ]
           if (cidades_principais.some((c) => lowerMessage.includes(c))) {
-            locReaction = 'Que ótimo, é bem pertinho da gente!'
+            locReaction = 'Excelente escolha! A Bender assina muitos decorados por aí.'
           }
 
-          responseText = `${locReaction} E como está o imóvel agora?|||Já está pronto, ainda na planta, em reforma...?`
+          responseText = `${locReaction}|||E como está o coração com esse projeto? O imóvel já está pronto para receber os móveis ou você ainda está na fase de planejamento e planta?`
           nextStep = 4
           break
         }
@@ -195,7 +202,19 @@ Deno.serve(async (req) => {
 
           lead.notas = updatedNotes
 
-          responseText = `Compreendo.|||Para a gente pensar em um projeto que faça sentido para você, você já tem uma ideia de quanto pretende investir, mesmo que seja uma estimativa?`
+          let statusReaction = 'Compreendo. Cada fase tem seu encanto.'
+          if (lowerMessage.includes('planta') || lowerMessage.includes('planejamento')) {
+            statusReaction =
+              'A fase da planta é deliciosa! É o momento de planejar cada detalhe com calma para quando a chave chegar, tudo estar perfeito.'
+          } else if (lowerMessage.includes('reforma')) {
+            statusReaction =
+              'Reformas sempre trazem novos ares, é lindo ver a transformação acontecer.'
+          } else if (lowerMessage.includes('pronto')) {
+            statusReaction =
+              'Que emoção! Com o imóvel pronto, já dá para visualizar os ambientes ganhando vida.'
+          }
+
+          responseText = `${statusReaction}|||Para eu te ajudar melhor a desenhar isso, você já tem uma ideia de quanto pretende investir no projeto?`
           nextStep = 5
           break
         }
@@ -205,12 +224,12 @@ Deno.serve(async (req) => {
 
           lead.notas = updatedNotes
 
-          responseText = `Combinado! Nós atendemos desde projetos para investimento até nível Casa Cor, temos bastante flexibilidade.|||Vou pedir para um dos nossos consultores te chamar. Assim vocês podem conversar melhor e até marcar um café aqui no nosso showroom. Pode ser?`
+          responseText = `A Bender equilibra muito bem projetos inteligentes com o alto padrão da Casa Cor. E como temos nossa própria fábrica e 15 anos de história, conseguimos ajustar o que você tem em mente.|||Vou te conectar com um dos nossos consultores especialistas para dar continuidade a esse sonho com você. Pode ser?`
           nextStep = 6
           break
         }
         case 6:
-          responseText = `Combinado então! Logo alguém da nossa equipe te chama aqui. Até mais! ✨`
+          responseText = `Combinado então! Logo a nossa equipe te chama aqui para continuarmos. Até breve! ✨`
           nextStep = 99
           nextStatus = 'Aguardando Atendimento'
           break
