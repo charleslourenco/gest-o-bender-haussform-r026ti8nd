@@ -232,12 +232,8 @@ Deno.serve(async (req) => {
 
             const headers: Record<string, string> = {
               'Content-Type': 'application/json',
-            }
-
-            // Injeta o Client-Token com a nova variável de ambiente configurada no Supabase
-            const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN')
-            if (zapiClientToken) {
-              headers['Client-Token'] = zapiClientToken
+              'Client-Token':
+                Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
             }
 
             const zapiRes = await fetch(zapiUrl, {
