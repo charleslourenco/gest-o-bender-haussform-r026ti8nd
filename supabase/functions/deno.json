@@ -6,6 +6,6 @@
     "gerar_documento_cliente": 34,
     "send-signature-email": 3,
     "finalize-signature-document": 2,
-    "whatsapp-webhook": 2
+    "whatsapp-webhook": 3
   }
 }
