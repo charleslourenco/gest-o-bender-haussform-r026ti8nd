@@ -112,15 +112,13 @@ Deno.serve(async (req) => {
 
     if (isAssistance) {
       responseText =
-        'Entendo. Vou repassar o seu contato imediatamente para a nossa equipe técnica e um humano vai falar com você. Um momento, por favor.'
+        'Pode deixar. Vou acionar a nossa equipe técnica agora mesmo para falar com você.|||Só um momento, por favor.'
       nextStep = 99 // Transbordo (Fim do fluxo)
       nextStatus = 'Aguardando Atendimento'
     } else {
       switch (session.step) {
         case 0:
-          responseText = `Olá${
-            senderName !== 'Cliente' ? ' ' + senderName : ''
-          }! Seja muito bem-vindo(a) à Bender Haussform. Eu sou a Catarina, sua consultora virtual.\n\nPara começarmos, você poderia me contar como conheceu a Bender?`
+          responseText = `Oi${senderName !== 'Cliente' ? ' ' + senderName : ''}! Que bom ter você por aqui 😊|||Me conta, como você chegou até a Bender?`
           nextStep = 1
           break
         case 1:
@@ -128,8 +126,7 @@ Deno.serve(async (req) => {
             .from('leads')
             .update({ origem: `WhatsApp - ${messageText.substring(0, 50)}` })
             .eq('id', lead.id)
-          responseText =
-            'Que bacana! Você já foi atendido(a) por algum dos nossos consultores anteriormente?'
+          responseText = `Ah, que legal!|||E você já conversou com algum dos nossos consultores antes, ou é a primeira vez?`
           nextStep = 2
           break
         case 2:
@@ -138,13 +135,11 @@ Deno.serve(async (req) => {
             lowerMessage.includes('já') ||
             lowerMessage.includes('ja')
           ) {
-            responseText =
-              'Certo! Vou repassar o seu contato para a nossa equipe, e o consultor que já lhe atendeu entrará em contato. Um momento, por favor.'
+            responseText = `Entendi!|||Vou avisar a equipe para que o consultor que já te conhece retome o contato. Só um minutinho, tá?`
             nextStep = 99
             nextStatus = 'Aguardando Atendimento'
           } else {
-            responseText =
-              'Perfeito! Nós oferecemos marcenaria com fábrica própria, acompanhamento de obras com planos desenhados para atender todas as necessidades e curadoria de móveis soltos das melhores marcas.\n\nGostaria de entender melhor: onde fica o imóvel que você deseja mobiliar? (Cidade/Bairro)'
+            responseText = `Ah, perfeito! Aqui nós desenhamos projetos sob medida e temos nossa própria marcenaria, além de curadoria de móveis incríveis.|||Me diz uma coisa: em qual cidade ou bairro fica o imóvel que você quer mobiliar?`
             nextStep = 3
           }
           break
@@ -155,8 +150,7 @@ Deno.serve(async (req) => {
               notas: (lead.notas || '') + `\nLocalização do imóvel: ${messageText}`,
             })
             .eq('id', lead.id)
-          responseText =
-            'Ótimo! E qual é o status atual do seu imóvel? (Por exemplo: pronto, em reforma, na planta...)'
+          responseText = `Legal! E como está o imóvel agora?|||Já está pronto, ainda na planta, em reforma...?`
           nextStep = 4
           break
         case 4:
@@ -166,8 +160,7 @@ Deno.serve(async (req) => {
               notas: (lead.notas || '') + `\nStatus do imóvel: ${messageText}`,
             })
             .eq('id', lead.id)
-          responseText =
-            'Entendido! Para que possamos desenhar um projeto que atenda às suas expectativas, qual seria o teto de investimento esperado para este projeto?'
+          responseText = `Entendi.|||Para a gente pensar em um projeto que faça sentido para você, qual seria mais ou menos o investimento que você tem em mente?`
           nextStep = 5
           break
         case 5:
@@ -177,13 +170,11 @@ Deno.serve(async (req) => {
               notas: (lead.notas || '') + `\nTeto de investimento: ${messageText}`,
             })
             .eq('id', lead.id)
-          responseText =
-            'Nós fazemos desde projetos pensados em custo-benefício para quem busca investir, até projetos a nível de Casa Cor, da qual inclusive somos fornecedores! A Bender atua há mais de 15 anos no mercado e assina apartamentos decorados das melhores construtoras.\n\nPerfeito! Vou te encaminhar para um consultor que vai te chamar e marcar uma visita no nosso showroom. Pode ser assim?'
+          responseText = `Maravilha! Nós atendemos desde projetos para investimento até nível Casa Cor, temos bastante flexibilidade.|||Vou pedir para um dos nossos consultores te chamar. Assim vocês podem conversar melhor e até marcar um café aqui no nosso showroom. Pode ser?`
           nextStep = 6
           break
         case 6:
-          responseText =
-            'Excelente! Em breve um de nossos consultores especialistas entrará em contato com você. Até logo!'
+          responseText = `Combinado então! Logo alguém da nossa equipe te chama aqui. Até mais! ✨`
           nextStep = 99
           nextStatus = 'Aguardando Atendimento'
           break
@@ -208,10 +199,11 @@ Deno.serve(async (req) => {
 
       // Salva a resposta da Catarina nas notas
       if (responseText) {
+        const readableText = responseText.replace(/\|\|\|/g, '\n')
         const finalNotes =
           (lead.notas ? lead.notas + '\n' : '') +
           (nextStep > session.step && nextStep !== 99 && session.step !== 0 ? `\n` : '') +
-          `[Catarina]: ${responseText}`
+          `[Catarina]: ${readableText}`
 
         await supabase.from('leads').update({ notas: finalNotes }).eq('id', lead.id)
 
@@ -225,45 +217,59 @@ Deno.serve(async (req) => {
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
 
           try {
-            const payload = {
-              phone: cleanPhone,
-              message: responseText,
-            }
+            const messages = responseText
+              .split('|||')
+              .map((m) => m.trim())
+              .filter(Boolean)
 
-            const headers: Record<string, string> = {
-              'Content-Type': 'application/json',
-              'Client-Token':
-                Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-            }
+            for (const msg of messages) {
+              const payload = {
+                phone: cleanPhone,
+                message: msg,
+              }
 
-            const zapiRes = await fetch(zapiUrl, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(payload),
-            })
+              const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                'Client-Token':
+                  Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+              }
 
-            const contentType = zapiRes.headers.get('content-type') || ''
-            const isJson = contentType.includes('application/json')
-            const zapiData = isJson ? await zapiRes.json().catch(() => null) : await zapiRes.text()
+              const zapiRes = await fetch(zapiUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload),
+              })
 
-            if (!zapiRes.ok || (isJson && zapiData && zapiData.error)) {
-              console.error(
-                'Erro na resposta do Z-API:',
-                zapiRes.status,
-                zapiData,
-                'Payload enviado:',
-                payload,
-              )
-              await supabase
-                .from('leads')
-                .update({
-                  notas:
-                    finalNotes +
-                    `\n[Erro do Sistema]: Falha ao enviar WhatsApp para ${cleanPhone}. Z-API retornou: ${JSON.stringify(zapiData || 'Erro desconhecido')}`,
-                })
-                .eq('id', lead.id)
-            } else {
-              console.log('Mensagem enviada com sucesso para', cleanPhone)
+              const contentType = zapiRes.headers.get('content-type') || ''
+              const isJson = contentType.includes('application/json')
+              const zapiData = isJson
+                ? await zapiRes.json().catch(() => null)
+                : await zapiRes.text()
+
+              if (!zapiRes.ok || (isJson && zapiData && zapiData.error)) {
+                console.error(
+                  'Erro na resposta do Z-API:',
+                  zapiRes.status,
+                  zapiData,
+                  'Payload enviado:',
+                  payload,
+                )
+                await supabase
+                  .from('leads')
+                  .update({
+                    notas:
+                      finalNotes +
+                      `\n[Erro do Sistema]: Falha ao enviar WhatsApp para ${cleanPhone}. Z-API retornou: ${JSON.stringify(zapiData || 'Erro desconhecido')}`,
+                  })
+                  .eq('id', lead.id)
+              } else {
+                console.log('Mensagem enviada com sucesso para', cleanPhone)
+              }
+
+              // Small delay between messages to simulate human typing and guarantee order
+              if (messages.length > 1) {
+                await new Promise((resolve) => setTimeout(resolve, 1500))
+              }
             }
           } catch (e) {
             const error = e as Error
