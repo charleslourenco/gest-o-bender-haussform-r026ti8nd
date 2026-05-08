@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
           email: `${phone}@whatsapp.com`, // Email fake pois o campo é obrigatório
           origem: 'WhatsApp',
           status: 'Novo Lead',
-          notas: `[Iniciado atendimento via WhatsApp com Caterine]\n[Cliente]: ${messageText}`,
+          notas: `[Iniciado atendimento via WhatsApp com Catarina]\n[Cliente]: ${messageText}`,
           atualizado_em: nowStr,
         })
         .select('*')
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         case 0:
           responseText = `Olá${
             senderName !== 'Cliente' ? ' ' + senderName : ''
-          }! Seja muito bem-vindo(a) à Bender Haussform. Eu sou a Caterine, sua consultora virtual.\n\nPara começarmos, você poderia me contar como conheceu a Bender?`
+          }! Seja muito bem-vindo(a) à Bender Haussform. Eu sou a Catarina, sua consultora virtual.\n\nPara começarmos, você poderia me contar como conheceu a Bender?`
           nextStep = 1
           break
         case 1:
@@ -192,12 +192,12 @@ Deno.serve(async (req) => {
         await supabase.from('leads').update({ status: nextStatus }).eq('id', lead.id)
       }
 
-      // Salva a resposta da Caterine nas notas
+      // Salva a resposta da Catarina nas notas
       if (responseText) {
         const finalNotes =
           (lead.notas ? lead.notas + '\n' : '') +
           (nextStep > session.step && nextStep !== 99 && session.step !== 0 ? `\n` : '') +
-          `[Caterine]: ${responseText}`
+          `[Catarina]: ${responseText}`
 
         await supabase.from('leads').update({ notas: finalNotes }).eq('id', lead.id)
 
