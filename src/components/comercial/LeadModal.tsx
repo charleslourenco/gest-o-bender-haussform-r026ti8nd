@@ -15,17 +15,20 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
   const formatPhone = (value: string) => {
     if (!value) return ''
-    const v = value.replace(/\D/g, '')
-    if (v.length <= 2) {
-      return v.length > 0 ? `(${v}` : v
+    let v = value.replace(/\D/g, '')
+
+    if (v.startsWith('55') && v.length > 11) {
+      if (v.length > 13) v = v.slice(0, 13)
+      if (v.length <= 4) return `+${v.slice(0, 2)} (${v.slice(2)}`
+      if (v.length <= 9) return `+${v.slice(0, 2)} (${v.slice(2, 4)}) ${v.slice(4)}`
+      return `+${v.slice(0, 2)} (${v.slice(2, 4)}) ${v.slice(4, 9)}-${v.slice(9)}`
+    } else {
+      if (v.length > 11) v = v.slice(0, 11)
+      if (v.length <= 2) return v.length > 0 ? `(${v}` : v
+      if (v.length <= 6) return `(${v.slice(0, 2)}) ${v.slice(2)}`
+      if (v.length <= 10) return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`
+      return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`
     }
-    if (v.length <= 6) {
-      return `(${v.slice(0, 2)}) ${v.slice(2)}`
-    }
-    if (v.length <= 10) {
-      return `(${v.slice(0, 2)}) ${v.slice(2, 6)}-${v.slice(6)}`
-    }
-    return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7, 11)}`
   }
 
   const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
@@ -93,6 +96,17 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
     const fd = new FormData(e.currentTarget)
     const data = Object.fromEntries(fd.entries())
     if (!data.consultor_id) data.consultor_id = null
+
+    let phoneStr = (data.telefone as string).replace(/\D/g, '')
+    if (phoneStr.length === 10) {
+      phoneStr = '55' + phoneStr.slice(0, 2) + '9' + phoneStr.slice(2)
+    } else if (phoneStr.length === 11) {
+      phoneStr = '55' + phoneStr
+    } else if (phoneStr.length === 12 && phoneStr.startsWith('55')) {
+      phoneStr = '55' + phoneStr.slice(2, 4) + '9' + phoneStr.slice(4)
+    }
+    data.telefone = phoneStr
+
     onSave(data)
   }
 
@@ -142,8 +156,8 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               value={telefone}
               onChange={handlePhoneChange}
               minLength={14}
-              maxLength={15}
-              placeholder="(11) 99999-9999"
+              maxLength={19}
+              placeholder="+55 (11) 99999-9999"
               className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200"
             />
           </div>
