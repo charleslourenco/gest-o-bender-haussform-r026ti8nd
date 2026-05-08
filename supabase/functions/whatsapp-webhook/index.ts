@@ -118,7 +118,7 @@ Deno.serve(async (req) => {
     } else {
       switch (session.step) {
         case 0:
-          responseText = `Oi${senderName !== 'Cliente' ? ' ' + senderName : ''}! Que bom te ter aqui 😊|||Me conta, como você chegou até a Bender?`
+          responseText = `Olá${senderName !== 'Cliente' ? ' ' + senderName : ''}, eu sou a Catarina, consultora virtual da Bender. Tudo bem com você? 😊|||Me conta, como você chegou até a gente?`
           nextStep = 1
           break
         case 1: {
