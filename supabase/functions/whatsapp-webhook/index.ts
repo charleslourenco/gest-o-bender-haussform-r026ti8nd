@@ -206,7 +206,17 @@ Deno.serve(async (req) => {
         const zapiToken = Deno.env.get('ZAPI_TOKEN')
 
         if (zapiInstance && zapiToken) {
-          const cleanPhone = phone.replace(/\D/g, '')
+          let cleanPhone = phone.replace(/\D/g, '')
+
+          // Formatação do número para 13 dígitos (55 + DDD + 9 + 8 dígitos)
+          if (cleanPhone.length === 12 && cleanPhone.startsWith('55')) {
+            cleanPhone = cleanPhone.substring(0, 4) + '9' + cleanPhone.substring(4)
+          } else if (cleanPhone.length === 10) {
+            cleanPhone = '55' + cleanPhone.substring(0, 2) + '9' + cleanPhone.substring(2)
+          } else if (cleanPhone.length === 11 && !cleanPhone.startsWith('55')) {
+            cleanPhone = '55' + cleanPhone
+          }
+
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
 
           try {
