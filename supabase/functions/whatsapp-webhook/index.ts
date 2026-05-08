@@ -236,8 +236,7 @@ Deno.serve(async (req) => {
               'Content-Type': 'application/json',
             }
 
-            // Apenas injeta Client-Token se explicitamente configurado
-            // Evita erro 'your client-token is not configured' na Z-API
+            // Injeta o Client-Token com a nova variável de ambiente configurada no Supabase
             const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN')
             if (zapiClientToken) {
               headers['Client-Token'] = zapiClientToken
