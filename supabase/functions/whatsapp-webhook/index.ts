@@ -209,12 +209,19 @@ Deno.serve(async (req) => {
           let cleanPhone = phone.replace(/\D/g, '')
 
           // Padroniza para 55 + DDD + 9 dígitos
-          if (cleanPhone.length === 10) {
-            cleanPhone = '55' + cleanPhone.substring(0, 2) + '9' + cleanPhone.substring(2)
-          } else if (cleanPhone.length === 11) {
-            cleanPhone = '55' + cleanPhone
-          } else if (cleanPhone.length === 12 && cleanPhone.startsWith('55')) {
-            cleanPhone = '55' + cleanPhone.substring(2, 4) + '9' + cleanPhone.substring(4)
+          if (cleanPhone.startsWith('55')) {
+            if (cleanPhone.length === 12) {
+              // 55 + DDD + 8 digitos -> Adiciona o 9
+              cleanPhone = '55' + cleanPhone.substring(2, 4) + '9' + cleanPhone.substring(4)
+            }
+          } else {
+            if (cleanPhone.length === 10) {
+              // DDD + 8 digitos
+              cleanPhone = '55' + cleanPhone.substring(0, 2) + '9' + cleanPhone.substring(2)
+            } else if (cleanPhone.length === 11) {
+              // DDD + 9 digitos
+              cleanPhone = '55' + cleanPhone
+            }
           }
 
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
@@ -225,12 +232,20 @@ Deno.serve(async (req) => {
               message: responseText,
             }
 
+            const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+            }
+
+            // Apenas injeta Client-Token se explicitamente configurado
+            // Evita erro 'your client-token is not configured' na Z-API
+            const zapiClientToken = Deno.env.get('ZAPI_CLIENT_TOKEN')
+            if (zapiClientToken) {
+              headers['Client-Token'] = zapiClientToken
+            }
+
             const zapiRes = await fetch(zapiUrl, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Client-Token': zapiToken,
-              },
+              headers,
               body: JSON.stringify(payload),
             })
 
