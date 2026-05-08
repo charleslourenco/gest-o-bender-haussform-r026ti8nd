@@ -208,35 +208,30 @@ Deno.serve(async (req) => {
         if (zapiInstance && zapiToken) {
           let cleanPhone = phone.replace(/\D/g, '')
 
-          if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+          // Padroniza para 55 + DDD + 9 dígitos
+          if (cleanPhone.length === 10) {
+            cleanPhone = '55' + cleanPhone.substring(0, 2) + '9' + cleanPhone.substring(2)
+          } else if (cleanPhone.length === 11) {
             cleanPhone = '55' + cleanPhone
-          }
-
-          if (cleanPhone.startsWith('55')) {
-            const ddd = parseInt(cleanPhone.substring(2, 4), 10)
-            if (ddd > 27) {
-              if (cleanPhone.length === 13) {
-                cleanPhone = cleanPhone.substring(0, 4) + cleanPhone.substring(5)
-              }
-            } else {
-              if (cleanPhone.length === 12) {
-                cleanPhone = cleanPhone.substring(0, 4) + '9' + cleanPhone.substring(4)
-              }
-            }
+          } else if (cleanPhone.length === 12 && cleanPhone.startsWith('55')) {
+            cleanPhone = '55' + cleanPhone.substring(2, 4) + '9' + cleanPhone.substring(4)
           }
 
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
 
           try {
+            const payload = {
+              phone: cleanPhone,
+              message: responseText,
+            }
+
             const zapiRes = await fetch(zapiUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'Client-Token': zapiToken,
               },
-              body: JSON.stringify({
-                phone: cleanPhone,
-                message: responseText,
-              }),
+              body: JSON.stringify(payload),
             })
 
             const contentType = zapiRes.headers.get('content-type') || ''
@@ -244,7 +239,13 @@ Deno.serve(async (req) => {
             const zapiData = isJson ? await zapiRes.json().catch(() => null) : await zapiRes.text()
 
             if (!zapiRes.ok || (isJson && zapiData && zapiData.error)) {
-              console.error('Erro na resposta do Z-API:', zapiRes.status, zapiData)
+              console.error(
+                'Erro na resposta do Z-API:',
+                zapiRes.status,
+                zapiData,
+                'Payload enviado:',
+                payload,
+              )
               await supabase
                 .from('leads')
                 .update({
