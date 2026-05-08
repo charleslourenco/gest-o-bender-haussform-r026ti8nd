@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import OpenAI from 'openai'
+import OpenAI from 'npm:openai@4'
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -96,6 +96,34 @@ Deno.serve(async (req) => {
       session = newSession
     }
 
+    // Comando oculto para o cliente poder resetar a sessão de testes que ficou presa
+    if (messageText.trim().toUpperCase() === 'RESETAR') {
+      if (session) await supabase.from('whatsapp_sessions').update({ step: 0 }).eq('id', session.id)
+      if (lead)
+        await supabase
+          .from('leads')
+          .update({ status: 'Novo Lead', notas: '[Sessão reiniciada pelo usuário]' })
+          .eq('id', lead.id)
+
+      const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
+      const zapiToken = Deno.env.get('ZAPI_TOKEN')
+      if (zapiInstance && zapiToken) {
+        await fetch(`https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Client-Token':
+              Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+          },
+          body: JSON.stringify({
+            phone,
+            message: 'Sessão reiniciada. A Catarina está pronta para conversar novamente.',
+          }),
+        }).catch(() => {})
+      }
+      return new Response('Reset OK', { status: 200 })
+    }
+
     // Se já finalizou (99), ignora (foi pro transbordo/humano)
     if (session.step === 99 || lead.status !== 'Novo Lead') {
       return new Response('Handed over', { status: 200 })
@@ -174,8 +202,16 @@ IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o
       return new Response('OK', { status: 200 })
     } catch (apiError: any) {
       console.error('Erro na API da OpenAI ou processamento de IA:', apiError)
-      const fallbackResponse = `Olá! Sou a Catarina. No momento, meu sistema de inteligência está sendo atualizado. Um consultor entrará em contato com você em breve!`
-      await processResponse(supabase, lead, session, phone, fallbackResponse, true, {})
+
+      const isConfigError = apiError.message?.includes('OPENAI_API_KEY')
+
+      // Envia uma mensagem amigável sem dar transbordo automático em caso de erro de configuração,
+      // para não travar a sessão em "Aguardando Atendimento" por acidente.
+      const fallbackResponse = isConfigError
+        ? `Desculpe, meu sistema está temporariamente indisponível. Por favor, tente enviar sua mensagem novamente em instantes.`
+        : `Tive uma falha técnica de conexão. Você pode tentar novamente ou aguardar nosso consultor.`
+
+      await processResponse(supabase, lead, session, phone, fallbackResponse, !isConfigError, {})
       return new Response('OK', { status: 200 })
     }
   } catch (e: any) {
