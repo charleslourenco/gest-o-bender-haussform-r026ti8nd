@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import OpenAI from 'openai'
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -34,15 +35,6 @@ Deno.serve(async (req) => {
     const messageText = payload.text?.message || payload.message || payload.body || ''
     const senderName = payload.senderName || payload.contactName || 'Cliente'
 
-    const lowerMessage = messageText.toLowerCase()
-    const isAssistance =
-      lowerMessage.includes('assistência') ||
-      lowerMessage.includes('assistencia') ||
-      lowerMessage.includes('conserto') ||
-      lowerMessage.includes('defeito') ||
-      lowerMessage.includes('reparo') ||
-      lowerMessage.includes('problema')
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -53,7 +45,6 @@ Deno.serve(async (req) => {
       .select('*')
       .eq('telefone', phone)
       .maybeSingle()
-    let isNewLead = false
     const nowStr = new Date().toISOString()
 
     if (!lead) {
@@ -73,7 +64,6 @@ Deno.serve(async (req) => {
 
       if (error) throw error
       lead = newLead
-      isNewLead = true
     } else {
       const newNotes = (lead.notas ? lead.notas + '\n' : '') + `[Cliente]: ${messageText}`
       await supabase
@@ -106,251 +96,81 @@ Deno.serve(async (req) => {
       session = newSession
     }
 
-    let responseText = ''
-    let nextStep = session.step
-    let nextStatus = lead.status
+    // Se já finalizou (99), ignora (foi pro transbordo/humano)
+    if (session.step === 99 || lead.status !== 'Novo Lead') {
+      return new Response('Handed over', { status: 200 })
+    }
 
-    if (isAssistance) {
-      responseText =
-        'Pode deixar. Vou acionar a nossa equipe técnica agora mesmo para falar com você.|||Só um momento, por favor.'
-      nextStep = 99 // Transbordo (Fim do fluxo)
-      nextStatus = 'Aguardando Atendimento'
-    } else {
-      switch (session.step) {
-        case 0: {
-          const greeting = senderName !== 'Cliente' ? `Olá, ${senderName},` : `Olá,`
-          responseText = `${greeting} eu sou a Catarina, consultora virtual da Bender. Tudo bem por aí?|||Antes de falarmos de medidas, me conta: qual é o ambiente que você mais quer transformar hoje?`
-          nextStep = 1
-          break
+    // Preparar mensagens para a OpenAI
+    const systemPrompt = `Você é a Catarina, consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
+Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível.
+
+Seu objetivo é fazer uma triagem inicial do cliente de forma conversacional, coletando os seguintes dados (faça as perguntas aos poucos, flua com a conversa):
+1. O ambiente que deseja transformar.
+2. Como conheceu a Bender (Instagram, indicação, etc.).
+3. Em qual cidade ou bairro fica o imóvel.
+4. Status do imóvel (planta, reforma, pronto).
+5. Ideia de investimento estimado.
+
+Regras de Ouro:
+- Trate o cliente pelo nome se souber (nome atual fornecido pelo WhatsApp: ${senderName}).
+- Seja natural, não pareça um formulário robótico. Reaja ao que o cliente diz (ex: se ele fala que foi indicação, fique feliz).
+- Atendemos principalmente o litoral de SC. Se for muito fora de SC, você pode avisar com elegância que nossa área de atuação padrão é o litoral catarinense, mas passe para o especialista mesmo assim.
+- Se o cliente falar sobre assistência técnica, conserto, defeito ou reparo, acione a equipe técnica imediatamente (marque transbordo = true).
+- Quando coletar todas as informações principais ou se o cliente quiser pular direto para falar com o especialista, diga que vai conectá-lo a um consultor e marque transbordo = true.
+- Retorne SEMPRE um JSON válido com a seguinte estrutura:
+{
+  "resposta": "Sua resposta aqui. Pode usar ||| para quebrar em múltiplas mensagens",
+  "transbordo": boolean,
+  "dados_extraidos": {
+    "ambiente": "string com o que descobriu AGORA (ou null)",
+    "origem": "string com o que descobriu AGORA (ou null)",
+    "localizacao": "string com o que descobriu AGORA (ou null)",
+    "status_imovel": "string com o que descobriu AGORA (ou null)",
+    "investimento": "string com o que descobriu AGORA (ou null)"
+  }
+}
+IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem. Para informações antigas ou ainda não fornecidas, use null.`
+
+    const messages: any[] = [{ role: 'system', content: systemPrompt }]
+
+    if (lead.notas) {
+      const lines = lead.notas.split('\n')
+      for (const line of lines) {
+        if (line.startsWith('[Cliente]: ')) {
+          messages.push({ role: 'user', content: line.substring(11).trim() })
+        } else if (line.startsWith('[Catarina]: ')) {
+          messages.push({ role: 'assistant', content: line.substring(12).trim() })
         }
-        case 1: {
-          const updatedNotes = (lead.notas || '') + `\n[Ambiente Desejado]: ${messageText}`
-          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
-          lead.notas = updatedNotes
-
-          responseText = `Pensar nesse espaço é sempre especial${senderName !== 'Cliente' ? ', ' + senderName : ''}.|||Me diz uma coisa, como você conheceu o nosso trabalho? Foi pelo Instagram, alguma indicação...?`
-          nextStep = 2
-          break
-        }
-        case 2: {
-          const isIndication =
-            lowerMessage.includes('indica') ||
-            lowerMessage.includes('corretor') ||
-            lowerMessage.includes('arquiteto') ||
-            lowerMessage.includes('designer') ||
-            lowerMessage.includes('engenheir')
-          const updatedNotes =
-            (lead.notas || '') +
-            `\n[Origem do Contato]: ${messageText}` +
-            (isIndication ? `\n[Possível Indicador]: Verificar detalhes no histórico.` : '')
-
-          await supabase
-            .from('leads')
-            .update({
-              origem: `WhatsApp - ${messageText.substring(0, 50)}`,
-              notas: updatedNotes,
-            })
-            .eq('id', lead.id)
-
-          lead.notas = updatedNotes
-
-          let originReaction = 'Entendi! Ficamos felizes que tenha chegado até nós.'
-          if (lowerMessage.includes('instagram') || lowerMessage.includes('insta')) {
-            originReaction =
-              'Ah, que bom ver você saindo do nosso Instagram para conversar com a gente!'
-          } else if (isIndication) {
-            originReaction =
-              'Que alegria! Adoramos quando chegam por indicação, é o maior reconhecimento do nosso trabalho.'
-          } else if (
-            lowerMessage.includes('anúncio') ||
-            lowerMessage.includes('google') ||
-            lowerMessage.includes('facebook')
-          ) {
-            originReaction = 'Entendi! Que bom que o nosso trabalho chegou até você.'
-          }
-
-          responseText = `${originReaction}|||E me conta, em qual cidade ou bairro fica o imóvel que vamos mobiliar?`
-          nextStep = 3
-          break
-        }
-        case 3: {
-          const updatedNotes = (lead.notas || '') + `\n[Localização do imóvel]: ${messageText}`
-          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
-
-          lead.notas = updatedNotes
-
-          let locReaction = 'Entendi, já atendemos projetos incríveis nessa região.'
-          const cidades_principais = [
-            'piçarras',
-            'picarras',
-            'penha',
-            'barra velha',
-            'balneário',
-            'balneario',
-          ]
-          if (cidades_principais.some((c) => lowerMessage.includes(c))) {
-            locReaction = 'Excelente escolha! A Bender assina muitos decorados por aí.'
-          }
-
-          responseText = `${locReaction}|||E como está o coração com esse projeto? O imóvel já está pronto para receber os móveis ou você ainda está na fase de planejamento e planta?`
-          nextStep = 4
-          break
-        }
-        case 4: {
-          const updatedNotes = (lead.notas || '') + `\n[Status do imóvel]: ${messageText}`
-          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
-
-          lead.notas = updatedNotes
-
-          let statusReaction = 'Compreendo. Cada fase tem seu encanto.'
-          if (lowerMessage.includes('planta') || lowerMessage.includes('planejamento')) {
-            statusReaction =
-              'A fase da planta é deliciosa! É o momento de planejar cada detalhe com calma para quando a chave chegar, tudo estar perfeito.'
-          } else if (lowerMessage.includes('reforma')) {
-            statusReaction =
-              'Reformas sempre trazem novos ares, é lindo ver a transformação acontecer.'
-          } else if (lowerMessage.includes('pronto')) {
-            statusReaction =
-              'Que emoção! Com o imóvel pronto, já dá para visualizar os ambientes ganhando vida.'
-          }
-
-          responseText = `${statusReaction}|||Para eu te ajudar melhor a desenhar isso, você já tem uma ideia de quanto pretende investir no projeto?`
-          nextStep = 5
-          break
-        }
-        case 5: {
-          const updatedNotes = (lead.notas || '') + `\n[Investimento estimado]: ${messageText}`
-          await supabase.from('leads').update({ notas: updatedNotes }).eq('id', lead.id)
-
-          lead.notas = updatedNotes
-
-          responseText = `A Bender equilibra muito bem projetos inteligentes com o alto padrão da Casa Cor. E como temos nossa própria fábrica e 15 anos de história, conseguimos ajustar o que você tem em mente.|||Vou te conectar com um dos nossos consultores especialistas para dar continuidade a esse sonho com você. Pode ser?`
-          nextStep = 6
-          break
-        }
-        case 6:
-          responseText = `Combinado então! Logo a nossa equipe te chama aqui para continuarmos. Até breve! ✨`
-          nextStep = 99
-          nextStatus = 'Aguardando Atendimento'
-          break
-        case 99:
-          // Caso já esteja em transbordo, não responde nada automaticamente
-          return new Response('OK', { status: 200 })
       }
     }
 
-    if (nextStep !== session.step || nextStatus !== lead.status) {
-      await supabase
-        .from('whatsapp_sessions')
-        .update({
-          step: nextStep,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', session.id)
-
-      if (nextStatus !== lead.status) {
-        await supabase.from('leads').update({ status: nextStatus }).eq('id', lead.id)
-      }
-
-      // Salva a resposta da Catarina nas notas
-      if (responseText) {
-        const readableText = responseText.replace(/\|\|\|/g, '\n')
-        const finalNotes =
-          (lead.notas ? lead.notas + '\n' : '') +
-          (nextStep > session.step && nextStep !== 99 && session.step !== 0 ? `\n` : '') +
-          `[Catarina]: ${readableText}`
-
-        await supabase.from('leads').update({ notas: finalNotes }).eq('id', lead.id)
-
-        // Envia mensagem pelo Z-API
-        const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-        const zapiToken = Deno.env.get('ZAPI_TOKEN')
-
-        if (zapiInstance && zapiToken) {
-          let cleanPhone = phone // Já normalizado no início do arquivo
-
-          const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
-
-          try {
-            const messages = responseText
-              .split('|||')
-              .map((m) => m.trim())
-              .filter(Boolean)
-
-            for (const msg of messages) {
-              const payload = {
-                phone: cleanPhone,
-                message: msg,
-              }
-
-              const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-                'Client-Token':
-                  Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-              }
-
-              const zapiRes = await fetch(zapiUrl, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload),
-              })
-
-              const contentType = zapiRes.headers.get('content-type') || ''
-              const isJson = contentType.includes('application/json')
-              const zapiData = isJson
-                ? await zapiRes.json().catch(() => null)
-                : await zapiRes.text()
-
-              if (!zapiRes.ok || (isJson && zapiData && zapiData.error)) {
-                console.error(
-                  'Erro na resposta do Z-API:',
-                  zapiRes.status,
-                  zapiData,
-                  'Payload enviado:',
-                  payload,
-                )
-                await supabase
-                  .from('leads')
-                  .update({
-                    notas:
-                      finalNotes +
-                      `\n[Erro do Sistema]: Falha ao enviar WhatsApp para ${cleanPhone}. Z-API retornou: ${JSON.stringify(zapiData || 'Erro desconhecido')}`,
-                  })
-                  .eq('id', lead.id)
-              } else {
-                console.log('Mensagem enviada com sucesso para', cleanPhone)
-              }
-
-              // Small delay between messages to simulate human typing and guarantee order
-              if (messages.length > 1) {
-                await new Promise((resolve) => setTimeout(resolve, 1500))
-              }
-            }
-          } catch (e) {
-            const error = e as Error
-            console.error('Falha de rede ao chamar Z-API:', error)
-            await supabase
-              .from('leads')
-              .update({
-                notas:
-                  finalNotes +
-                  `\n[Erro do Sistema]: Falha de rede ao chamar Z-API. Detalhes: ${error.message}`,
-              })
-              .eq('id', lead.id)
-          }
-        } else {
-          console.error(
-            'Credenciais Z-API (ZAPI_INSTANCE_ID ou ZAPI_TOKEN) não configuradas nas variáveis de ambiente.',
-          )
-          await supabase
-            .from('leads')
-            .update({
-              notas: finalNotes + `\n[Erro do Sistema]: Credenciais Z-API não configuradas.`,
-            })
-            .eq('id', lead.id)
-        }
-      }
+    const openaiKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openaiKey) {
+      console.error('OPENAI_API_KEY não configurada nas variáveis de ambiente.')
+      const fallbackResponse = `Olá! Sou a Catarina. No momento, meu sistema de inteligência está sendo atualizado. Um consultor entrará em contato com você em breve!`
+      await processResponse(supabase, lead, session, phone, fallbackResponse, true, {})
+      return new Response('OK', { status: 200 })
     }
+
+    const openai = new OpenAI({ apiKey: openaiKey })
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages,
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+    })
+
+    const resultText = completion.choices[0].message.content
+    if (!resultText) throw new Error('Sem resposta da IA')
+
+    const result = JSON.parse(resultText)
+    const responseText = result.resposta || ''
+    const isTransbordo = result.transbordo === true
+    const dados = result.dados_extraidos || {}
+
+    await processResponse(supabase, lead, session, phone, responseText, isTransbordo, dados)
 
     return new Response('OK', { status: 200 })
   } catch (e: any) {
@@ -358,3 +178,101 @@ Deno.serve(async (req) => {
     return new Response('Error', { status: 500 })
   }
 })
+
+async function processResponse(
+  supabase: any,
+  lead: any,
+  session: any,
+  phone: string,
+  responseText: string,
+  isTransbordo: boolean,
+  dados: any,
+) {
+  let extraNotes = ''
+  if (dados.ambiente && dados.ambiente !== 'null')
+    extraNotes += `\n[Novo Dado - Ambiente]: ${dados.ambiente}`
+  if (dados.origem && dados.origem !== 'null')
+    extraNotes += `\n[Novo Dado - Origem]: ${dados.origem}`
+  if (dados.localizacao && dados.localizacao !== 'null')
+    extraNotes += `\n[Novo Dado - Localização]: ${dados.localizacao}`
+  if (dados.status_imovel && dados.status_imovel !== 'null')
+    extraNotes += `\n[Novo Dado - Status do Imóvel]: ${dados.status_imovel}`
+  if (dados.investimento && dados.investimento !== 'null')
+    extraNotes += `\n[Novo Dado - Investimento]: ${dados.investimento}`
+
+  const readableText = responseText.replace(/\|\|\|/g, ' ')
+  const finalNotes = (lead.notas || '') + extraNotes + `\n[Catarina]: ${readableText}`
+
+  let nextStep = session.step
+  let nextStatus = lead.status
+
+  if (isTransbordo) {
+    nextStep = 99
+    nextStatus = 'Aguardando Atendimento'
+  } else if (session.step === 0) {
+    nextStep = 1 // Sai do 0 para indicar que já iniciou
+  }
+
+  await supabase
+    .from('leads')
+    .update({
+      notas: finalNotes,
+      status: nextStatus,
+      origem:
+        dados.origem && dados.origem !== 'null'
+          ? `WhatsApp - ${String(dados.origem).substring(0, 50)}`
+          : lead.origem,
+    })
+    .eq('id', lead.id)
+
+  if (nextStep !== session.step) {
+    await supabase
+      .from('whatsapp_sessions')
+      .update({ step: nextStep, updated_at: new Date().toISOString() })
+      .eq('id', session.id)
+  }
+
+  // Envia mensagem pelo Z-API
+  const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
+  const zapiToken = Deno.env.get('ZAPI_TOKEN')
+
+  if (zapiInstance && zapiToken && responseText) {
+    const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
+
+    try {
+      const messages = responseText
+        .split('|||')
+        .map((m: string) => m.trim())
+        .filter(Boolean)
+
+      for (const msg of messages) {
+        const payload = {
+          phone,
+          message: msg,
+        }
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Client-Token': Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+        }
+
+        const zapiRes = await fetch(zapiUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        })
+
+        if (!zapiRes.ok) {
+          console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
+        }
+
+        // Small delay between messages to simulate human typing and guarantee order
+        if (messages.length > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500))
+        }
+      }
+    } catch (e) {
+      console.error('Falha de rede ao chamar Z-API:', e)
+    }
+  }
+}
