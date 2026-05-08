@@ -14,8 +14,22 @@ Deno.serve(async (req) => {
       return new Response('Ignored', { status: 200 })
     }
 
-    const phone = payload.phone
-    if (!phone) return new Response('No phone', { status: 200 })
+    const rawPhone = payload.phone || payload.from || payload.sender || ''
+    if (!rawPhone) return new Response('No phone', { status: 200 })
+
+    // 1. Extrair o número removendo tudo após o @
+    let phone = rawPhone.split('@')[0].replace(/\D/g, '')
+
+    // 2, 3 e 4. Normalizar para 13 dígitos inserindo o 9 após o DDD se faltar
+    if (phone.startsWith('55') && phone.length === 12) {
+      phone = phone.substring(0, 4) + '9' + phone.substring(4)
+    } else if (!phone.startsWith('55')) {
+      if (phone.length === 10) {
+        phone = '55' + phone.substring(0, 2) + '9' + phone.substring(2)
+      } else if (phone.length === 11) {
+        phone = '55' + phone
+      }
+    }
 
     const messageText = payload.text?.message || payload.message || payload.body || ''
     const senderName = payload.senderName || payload.contactName || 'Cliente'
@@ -206,23 +220,7 @@ Deno.serve(async (req) => {
         const zapiToken = Deno.env.get('ZAPI_TOKEN')
 
         if (zapiInstance && zapiToken) {
-          let cleanPhone = phone.replace(/\D/g, '')
-
-          // Padroniza para 55 + DDD + 9 dígitos
-          if (cleanPhone.startsWith('55')) {
-            if (cleanPhone.length === 12) {
-              // 55 + DDD + 8 digitos -> Adiciona o 9
-              cleanPhone = '55' + cleanPhone.substring(2, 4) + '9' + cleanPhone.substring(4)
-            }
-          } else {
-            if (cleanPhone.length === 10) {
-              // DDD + 8 digitos
-              cleanPhone = '55' + cleanPhone.substring(0, 2) + '9' + cleanPhone.substring(2)
-            } else if (cleanPhone.length === 11) {
-              // DDD + 9 digitos
-              cleanPhone = '55' + cleanPhone
-            }
-          }
+          let cleanPhone = phone // Já normalizado no início do arquivo
 
           const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
 
