@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import OpenAI from 'openai'
+import OpenAI from 'npm:openai'
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
