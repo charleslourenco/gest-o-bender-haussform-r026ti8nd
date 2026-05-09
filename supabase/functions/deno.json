@@ -1,11 +1,11 @@
 {
   "_versions": {
-    "check-permission": 4,
-    "admin-users": 6,
-    "gerar-dossie": 8,
-    "gerar_documento_cliente": 34,
-    "send-signature-email": 3,
-    "finalize-signature-document": 2,
-    "whatsapp-webhook": 19
+    "check-permission": 5,
+    "admin-users": 7,
+    "gerar-dossie": 9,
+    "gerar_documento_cliente": 35,
+    "send-signature-email": 4,
+    "finalize-signature-document": 3,
+    "whatsapp-webhook": 21
   }
 }
