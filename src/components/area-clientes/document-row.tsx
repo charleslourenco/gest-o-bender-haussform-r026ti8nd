@@ -17,27 +17,50 @@ export function DocumentRow({ doc, onSign }: DocumentRowProps) {
   const [numberPart, ...restPart] = doc.title.split(' | ')
   const restTitle = restPart.join(' | ')
 
-  const handleDownload = async () => {
+  const getDocumentUrl = async () => {
     const filePath = doc.path || doc.title
-    if (!filePath) return
-    const { data, error } = await supabase.storage.from('dossiers').download(filePath)
-    if (data) {
-      const url = URL.createObjectURL(data)
+    if (!filePath) return null
+
+    if (filePath.startsWith('http')) {
+      return filePath
+    }
+
+    const { data } = supabase.storage.from('dossiers').getPublicUrl(filePath)
+    return data?.publicUrl
+  }
+
+  const handleDownload = async () => {
+    const url = await getDocumentUrl()
+    if (!url) return
+
+    if (url.startsWith('http')) {
       const a = document.createElement('a')
       a.href = url
       a.download = doc.title
+      a.target = '_blank'
+      document.body.appendChild(a)
       a.click()
-    } else if (error) {
-      console.error('Erro ao baixar arquivo:', error)
+      document.body.removeChild(a)
+    } else {
+      const { data, error } = await supabase.storage
+        .from('dossiers')
+        .download(doc.path || doc.title)
+      if (data) {
+        const objectUrl = URL.createObjectURL(data)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = doc.title
+        a.click()
+      } else if (error) {
+        console.error('Erro ao baixar arquivo:', error)
+      }
     }
   }
 
-  const handleOpen = () => {
-    const filePath = doc.path || doc.title
-    if (!filePath) return
-    const { data } = supabase.storage.from('dossiers').getPublicUrl(filePath)
-    if (data?.publicUrl) {
-      window.open(data.publicUrl, '_blank')
+  const handleOpen = async () => {
+    const url = await getDocumentUrl()
+    if (url) {
+      window.open(url, '_blank')
     }
   }
 

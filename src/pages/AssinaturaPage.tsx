@@ -116,25 +116,8 @@ export default function AssinaturaPage() {
         acao: `Assinatura Realizada no documento ${assinatura.documento_nome} (Papel: ${assinatura.signatario_tipo})`,
       })
 
-      // Update document status if all signatures are done
-      const { data: allSigs } = await supabase
-        .from('assinaturas')
-        .select('status')
-        .eq('documento_id', assinatura.documento_id)
-
-      if (allSigs && allSigs.every((s) => s.status === 'assinado')) {
-        await supabase
-          .from('documentos_cliente')
-          .update({ status: 'Assinado' })
-          .eq('arquivo_url', assinatura.documento_id)
-
-        // Call Edge Function in background to finalize the document
-        supabase.functions
-          .invoke('finalize-signature-document', {
-            body: { documento_id: assinatura.documento_id, cliente_id: assinatura.cliente_id },
-          })
-          .catch((err) => console.error('Erro ao finalizar documento:', err))
-      }
+      // A finalização agora é disparada automaticamente via gatilho de banco de dados
+      // quando a última assinatura for concluída.
 
       toast.success('Documento assinado com sucesso!')
       setAssinatura({

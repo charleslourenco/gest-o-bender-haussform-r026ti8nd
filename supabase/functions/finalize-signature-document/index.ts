@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
+import mammoth from 'npm:mammoth@1.6.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
@@ -27,6 +28,16 @@ Deno.serve(async (req: Request) => {
 
     if (sigError) throw sigError
 
+    const allAssinados = assinaturas?.every((sig) => sig.status === 'assinado')
+    if (!allAssinados) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Aguardando demais assinaturas' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
     const { data: docCliente } = await supabase
       .from('documentos_cliente')
       .select('*')
@@ -34,19 +45,82 @@ Deno.serve(async (req: Request) => {
       .single()
 
     const mergedPdf = await PDFDocument.create()
-
     let addedOriginal = false
+
     try {
-      const res = await fetch(documento_id)
-      if (res.ok) {
-        const originalPdfBytes = await res.arrayBuffer()
+      let originalPdfBytes: ArrayBuffer
+
+      if (documento_id.startsWith('http')) {
+        const res = await fetch(documento_id)
+        if (!res.ok) throw new Error('Could not fetch document URL')
+        originalPdfBytes = await res.arrayBuffer()
+      } else {
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from('dossiers')
+          .download(documento_id)
+        if (fileError) throw fileError
+        originalPdfBytes = await fileData.arrayBuffer()
+      }
+
+      try {
+        const originalPdf = await PDFDocument.load(originalPdfBytes)
+        const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
+        copiedPages.forEach((page) => mergedPdf.addPage(page))
+        addedOriginal = true
+      } catch (pdfErr) {
+        console.log('Not a PDF, trying to extract text as DOCX...')
         try {
-          const originalPdf = await PDFDocument.load(originalPdfBytes)
-          const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
-          copiedPages.forEach((page) => mergedPdf.addPage(page))
+          const { value: text } = await mammoth.extractRawText({
+            buffer: new Uint8Array(originalPdfBytes),
+          })
+
+          const font = await mergedPdf.embedFont(StandardFonts.Helvetica)
+          const fontSize = 12
+          const margin = 50
+          const width = 595.28
+          const height = 841.89
+          const maxLineWidth = width - margin * 2
+
+          const lines = text.split('\n')
+          let page = mergedPdf.addPage([width, height])
+          let y = height - margin
+
+          for (const line of lines) {
+            const words = line.split(' ')
+            let currentLine = ''
+
+            for (const word of words) {
+              const testLine = currentLine ? `${currentLine} ${word}` : word
+              const testWidth = font.widthOfTextAtSize(testLine, fontSize)
+
+              if (testWidth > maxLineWidth) {
+                page.drawText(currentLine, { x: margin, y, size: fontSize, font })
+                y -= fontSize + 4
+                currentLine = word
+
+                if (y < margin) {
+                  page = mergedPdf.addPage([width, height])
+                  y = height - margin
+                }
+              } else {
+                currentLine = testLine
+              }
+            }
+
+            if (currentLine) {
+              page.drawText(currentLine, { x: margin, y, size: fontSize, font })
+              y -= fontSize + 4
+
+              if (y < margin) {
+                page = mergedPdf.addPage([width, height])
+                y = height - margin
+              }
+            }
+            y -= fontSize + 4
+          }
           addedOriginal = true
-        } catch (pdfErr) {
-          console.error('Document is not a valid PDF, probably DOCX.')
+        } catch (docxErr) {
+          console.error('Failed to convert DOCX', docxErr)
         }
       }
     } catch (fetchErr) {
@@ -58,21 +132,15 @@ Deno.serve(async (req: Request) => {
       const font = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
       const normalFont = await mergedPdf.embedFont(StandardFonts.Helvetica)
       page.drawText('Documento Assinado', { x: 50, y: 800, size: 20, font })
-      page.drawText(`Original: ${docCliente?.template_nome || 'Documento Word'}`, {
+      page.drawText(`Original: ${docCliente?.template_nome || documento_id}`, {
         x: 50,
         y: 770,
         size: 12,
         font: normalFont,
       })
-      page.drawText('O documento original encontra-se anexado ao sistema em formato editável.', {
+      page.drawText('Não foi possível anexar o conteúdo original.', {
         x: 50,
         y: 750,
-        size: 10,
-        font: normalFont,
-      })
-      page.drawText('Este arquivo contém os certificados de assinatura com validade jurídica.', {
-        x: 50,
-        y: 735,
         size: 10,
         font: normalFont,
       })
@@ -179,19 +247,64 @@ Deno.serve(async (req: Request) => {
     const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
     const arquivo_assinado_url = publicUrlData.publicUrl
 
-    await supabase
-      .from('documentos_cliente')
-      .update({
-        arquivo_assinado_url,
-        status: 'Assinado',
-      })
-      .eq('arquivo_url', documento_id)
-
-    if (docCliente?.tipo === 'Contrato') {
+    if (docCliente) {
       await supabase
-        .from('dossies')
-        .update({ contrato_url: arquivo_assinado_url })
-        .eq('cliente_id', docCliente.cliente_id)
+        .from('documentos_cliente')
+        .update({
+          arquivo_assinado_url,
+          status: 'Assinado',
+        })
+        .eq('id', docCliente.id)
+
+      if (docCliente.tipo === 'Contrato') {
+        await supabase
+          .from('dossies')
+          .update({ contrato_url: arquivo_assinado_url })
+          .eq('cliente_id', cliente_id)
+      }
+    } else {
+      await supabase
+        .from('documentos_cliente')
+        .update({
+          arquivo_assinado_url,
+          status: 'Assinado',
+        })
+        .eq('arquivo_url', documento_id)
+    }
+
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    if (RESEND_API_KEY) {
+      for (const sig of assinaturas || []) {
+        if (sig.signatario_email) {
+          try {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${RESEND_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: 'Bender Haussform <projetos@benderhaussform.com>',
+                to: [sig.signatario_email],
+                subject: `Documento Assinado e Finalizado: ${sig.documento_nome}`,
+                text: `Olá, ${sig.signatario_nome}. O documento ${sig.documento_nome} foi assinado por todos os envolvidos. Você pode baixar a via finalizada no link: ${arquivo_assinado_url}`,
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
+                    <h2 style="color: #333;">Olá, ${sig.signatario_nome}</h2>
+                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso por todos os signatários.</p>
+                    <div style="text-align: center; margin: 30px 0;">
+                      <a href="${arquivo_assinado_url}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
+                    </div>
+                    <p style="font-size: 12px; color: #999; text-align: center; margin-top: 40px;">Bender Haussform</p>
+                  </div>
+                `,
+              }),
+            })
+          } catch (emailErr) {
+            console.error('Failed to send email to', sig.signatario_email, emailErr)
+          }
+        }
+      }
     }
 
     return new Response(JSON.stringify({ success: true, url: arquivo_assinado_url }), {

@@ -1,5 +1,6 @@
 {
   "imports": {
-    "pdf-lib": "npm:pdf-lib@1.17.1"
+    "pdf-lib": "npm:pdf-lib@1.17.1",
+    "mammoth": "npm:mammoth@1.6.0"
   }
 }
