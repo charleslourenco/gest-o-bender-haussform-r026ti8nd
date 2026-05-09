@@ -2,7 +2,6 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 
-// Forçando redeploy da função para recarregar a OPENAI_API_KEY recém adicionada
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
@@ -41,11 +40,19 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Buscar ou criar o Lead
-    let { data: lead } = await supabase
+    // Utilizando limit(1) ao invés de maybeSingle() para evitar erros caso existam contatos duplicados (o que impedia a resposta em novos DDDs/números)
+    let { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
       .eq('telefone', phone)
-      .maybeSingle()
+      .order('criado_em', { ascending: false })
+      .limit(1)
+
+    if (leadsError) {
+      console.error('Erro ao buscar leads:', leadsError)
+    }
+
+    let lead = leads && leads.length > 0 ? leads[0] : null
     const nowStr = new Date().toISOString()
 
     if (!lead) {
@@ -134,6 +141,13 @@ Deno.serve(async (req) => {
     const systemPrompt = `Você é a Catarina, consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
 Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível.
 
+Nossa fábrica e loja ficam localizadas em **Balneário Piçarras - SC**.
+Nossos principais serviços são:
+1. Projeto e fabricação própria de móveis sob medida.
+2. Fabricação de projetos de arquitetos, designers de interiores e projetistas.
+3. Fornecimento de móveis soltos (cadeiras, sofás, camas, etc.) compatibilizados com a estética do projeto sob medida.
+4. Serviço de Acompanhamento de Obras.
+
 Seu objetivo é fazer uma triagem inicial do cliente de forma conversacional.
 Você precisa descobrir as seguintes informações (faça UMA pergunta por vez, flua com a conversa, sem pressa para encerrar):
 1. O ambiente que deseja transformar.
@@ -143,14 +157,15 @@ Você precisa descobrir as seguintes informações (faça UMA pergunta por vez, 
 5. Ideia de investimento estimado.
 
 Regras de Ouro:
-- NA SUA PRIMEIRA MENSAGEM, você DEVE se apresentar de forma agradável informando seu nome e cargo, por exemplo: "Olá! Sou a Catarina, - Consultora Virtual da Bender Haussform."
+- NA SUA PRIMEIRA MENSAGEM, você DEVE se apresentar de forma agradável informando seu nome, cargo e de onde somos, por exemplo: "Olá! Sou a Catarina, Consultora Virtual da Bender Haussform, de Balneário Piçarras - SC."
 - Trate o cliente pelo nome se souber (nome atual fornecido pelo WhatsApp: ${senderName}).
 - Seja natural, não pareça um formulário robótico. Reaja ao que o cliente diz.
-- Atendemos principalmente o litoral de SC. Se for muito fora de SC, passe para o especialista informando as nossas áreas de atendimento.
+- Atendemos exclusivamente o litoral de SC e regiões próximas a Balneário Piçarras. Se o cliente for de uma cidade fora da nossa área de cobertura, informe educadamente que atendemos apenas nestas regiões específicas, MAS NÃO ENCERRE o atendimento bruscamente (não dê transbordo imediato por causa disso).
+- Se o cliente perguntar sobre nossos serviços, liste os nossos 4 pilares descritos acima.
 - NÃO ENCERRE O ATENDIMENTO CEDO DEMAIS. Só marque transbordo = true QUANDO:
   a) O cliente pedir explicitamente para falar com um consultor/humano/especialista; OU
   b) O assunto for assistência técnica/reparo; OU
-  c) Você já tiver finalizado a coleta das informações principais e for a hora de repassar ao consultor.
+  c) Você já tiver finalizado a coleta de TODAS as informações principais (os 5 pontos de triagem) e for a hora de repassar ao consultor.
 - Ao marcar transbordo = true, SEMPRE envie uma última mensagem avisando o cliente que um de nossos especialistas vai assumir a conversa em breve.
 - Retorne SEMPRE um JSON válido com a seguinte estrutura:
 {

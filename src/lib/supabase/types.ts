@@ -1969,8 +1969,40 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION trigger_finalize_signature()
+//   CREATE OR REPLACE FUNCTION public.trigger_finalize_signature()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   DECLARE
+//     pending_count INT;
+//     req_id BIGINT;
+//   BEGIN
+//     IF NEW.status = 'assinado' AND (OLD.status IS DISTINCT FROM 'assinado') THEN
+//       SELECT count(*) INTO pending_count
+//       FROM public.assinaturas
+//       WHERE documento_id = NEW.documento_id AND status != 'assinado';
+//
+//       IF pending_count = 0 THEN
+//         SELECT net.http_post(
+//           url := 'https://igsdtxyopeiecpxwovgh.supabase.co/functions/v1/finalize-signature-document',
+//           headers := '{"Content-Type": "application/json"}'::jsonb,
+//           body := json_build_object(
+//             'documento_id', NEW.documento_id,
+//             'cliente_id', NEW.cliente_id
+//           )::jsonb
+//         ) INTO req_id;
+//       END IF;
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 
 // --- TRIGGERS ---
+// Table: assinaturas
+//   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
 // Table: placeholders
 //   set_placeholders_atualizado_em: CREATE TRIGGER set_placeholders_atualizado_em BEFORE UPDATE ON public.placeholders FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: templates
