@@ -567,38 +567,86 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
                       <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
-                        <Eye className="w-4 h-4 mr-1" /> Visualizar{' '}
-                        {doc.arquivo_assinado_url ? 'Original' : ''}
+                        <PenTool className="w-4 h-4 mr-1" /> Editar Word
                       </a>
                     </Button>
 
-                    {!doc.arquivo_assinado_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const a = document.createElement('a')
-                          a.href = doc.arquivo_url
-                          a.download = doc.template_nome || 'documento'
-                          a.click()
-                        }}
-                        className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
-                      >
-                        <Download className="w-4 h-4 mr-1" /> Baixar
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
+                          window.open(doc.arquivo_url, '_blank')
+                          return
+                        }
+                        toast.info('Gerando PDF atualizado...', { id: 'gerar-pdf' })
+                        try {
+                          const {
+                            data: { session },
+                          } = await supabase.auth.getSession()
+                          const payload = {
+                            cliente_id: dossie.cliente_id,
+                            vendedor: session?.user?.user_metadata?.nome || 'Sistema',
+                          }
+                          const { data, error } = await supabase.functions.invoke(
+                            'gerar_documento_cliente',
+                            {
+                              body: payload,
+                            },
+                          )
+                          if (error) throw error
+                          if (data?.documento_url) {
+                            toast.dismiss('gerar-pdf')
+                            window.open(data.documento_url, '_blank')
+                          }
+                        } catch (e: any) {
+                          toast.dismiss('gerar-pdf')
+                          toast.error('Erro ao visualizar PDF: ' + e.message)
+                        }
+                      }}
+                      className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
+                    >
+                      <Eye className="w-4 h-4 mr-1" /> Visualizar PDF
+                    </Button>
 
                     {!doc.arquivo_assinado_url && (
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() =>
+                        onClick={async () => {
+                          let finalPath = doc.arquivo_url
+                          if (!finalPath?.toLowerCase().endsWith('.pdf')) {
+                            toast.info('Preparando PDF para assinatura...', { id: 'prep-pdf' })
+                            try {
+                              const {
+                                data: { session },
+                              } = await supabase.auth.getSession()
+                              const { data, error } = await supabase.functions.invoke(
+                                'gerar_documento_cliente',
+                                {
+                                  body: {
+                                    cliente_id: dossie.cliente_id,
+                                    vendedor: session?.user?.user_metadata?.nome || 'Sistema',
+                                  },
+                                },
+                              )
+                              if (error) throw error
+                              if (data?.documento_url) {
+                                finalPath = data.documento_url
+                              }
+                              toast.dismiss('prep-pdf')
+                            } catch (e: any) {
+                              toast.dismiss('prep-pdf')
+                              toast.error('Erro ao preparar PDF: ' + e.message)
+                              return
+                            }
+                          }
                           setSignatureDoc({
-                            path: doc.arquivo_url,
+                            path: finalPath,
                             title: doc.template_nome || doc.tipo,
                             ...doc,
                           })
-                        }
+                        }}
                         className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
                       >
                         <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
