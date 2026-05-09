@@ -3,7 +3,7 @@
     "check-permission": 5,
     "admin-users": 7,
     "gerar-dossie": 9,
-    "gerar_documento_cliente": 35,
+    "gerar_documento_cliente": 36,
     "send-signature-email": 4,
     "finalize-signature-document": 4,
     "whatsapp-webhook": 23,

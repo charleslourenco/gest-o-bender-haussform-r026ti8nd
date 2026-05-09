@@ -1,7 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
-import mammoth from 'npm:mammoth@1.6.0'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
@@ -45,89 +44,41 @@ Deno.serve(async (req: Request) => {
       .single()
 
     const mergedPdf = await PDFDocument.create()
-    let addedOriginal = false
+
+    // 1. Corrigir o Caminho do Bucket (Prioriza bender_clientes)
+    let originalPdfBytes: ArrayBuffer | null = null
 
     try {
-      let originalPdfBytes: ArrayBuffer
-
       if (documento_id.startsWith('http')) {
         const res = await fetch(documento_id)
-        if (!res.ok) throw new Error('Could not fetch document URL')
-        originalPdfBytes = await res.arrayBuffer()
+        if (res.ok) originalPdfBytes = await res.arrayBuffer()
       } else {
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from('dossiers')
+        const { data: benderData, error: benderError } = await supabase.storage
+          .from('bender_clientes')
           .download(documento_id)
-        if (fileError) throw fileError
-        originalPdfBytes = await fileData.arrayBuffer()
-      }
-
-      try {
-        const originalPdf = await PDFDocument.load(originalPdfBytes)
-        const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
-        copiedPages.forEach((page) => mergedPdf.addPage(page))
-        addedOriginal = true
-      } catch (pdfErr) {
-        console.log('Not a PDF, trying to extract text as DOCX...')
-        try {
-          const { value: text } = await mammoth.extractRawText({
-            buffer: new Uint8Array(originalPdfBytes),
-          })
-
-          const font = await mergedPdf.embedFont(StandardFonts.Helvetica)
-          const fontSize = 12
-          const margin = 50
-          const width = 595.28
-          const height = 841.89
-          const maxLineWidth = width - margin * 2
-
-          const lines = text.split('\n')
-          let page = mergedPdf.addPage([width, height])
-          let y = height - margin
-
-          for (const line of lines) {
-            const words = line.split(' ')
-            let currentLine = ''
-
-            for (const word of words) {
-              const testLine = currentLine ? `${currentLine} ${word}` : word
-              const testWidth = font.widthOfTextAtSize(testLine, fontSize)
-
-              if (testWidth > maxLineWidth) {
-                page.drawText(currentLine, { x: margin, y, size: fontSize, font })
-                y -= fontSize + 4
-                currentLine = word
-
-                if (y < margin) {
-                  page = mergedPdf.addPage([width, height])
-                  y = height - margin
-                }
-              } else {
-                currentLine = testLine
-              }
-            }
-
-            if (currentLine) {
-              page.drawText(currentLine, { x: margin, y, size: fontSize, font })
-              y -= fontSize + 4
-
-              if (y < margin) {
-                page = mergedPdf.addPage([width, height])
-                y = height - margin
-              }
-            }
-            y -= fontSize + 4
+        if (!benderError && benderData) {
+          originalPdfBytes = await benderData.arrayBuffer()
+        } else {
+          const { data: fileData, error: fileError } = await supabase.storage
+            .from('dossiers')
+            .download(documento_id)
+          if (!fileError && fileData) {
+            originalPdfBytes = await fileData.arrayBuffer()
           }
-          addedOriginal = true
-        } catch (docxErr) {
-          console.error('Failed to convert DOCX', docxErr)
         }
       }
-    } catch (fetchErr) {
-      console.error('Error fetching original document:', fetchErr)
-    }
 
-    if (!addedOriginal) {
+      if (originalPdfBytes) {
+        // 2. Mesclagem Nativa: Tenta carregar o PDF Original
+        const originalPdf = await PDFDocument.load(originalPdfBytes)
+        // Garante a ordem: primeiro o corpo completo do contrato com todos os dados comerciais
+        const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
+        copiedPages.forEach((page) => mergedPdf.addPage(page))
+      } else {
+        throw new Error('Não foi possível encontrar o arquivo original no storage')
+      }
+    } catch (fetchErr) {
+      console.error('Error fetching or loading original document:', fetchErr)
       const page = mergedPdf.addPage([595.28, 841.89])
       const font = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
       const normalFont = await mergedPdf.embedFont(StandardFonts.Helvetica)
@@ -146,6 +97,7 @@ Deno.serve(async (req: Request) => {
       })
     }
 
+    // Criação do Manifesto (Adicionado APÓS as páginas originais, garantindo a ordem solicitada)
     let certPage = mergedPdf.addPage([595.28, 841.89])
     const font = await mergedPdf.embedFont(StandardFonts.Helvetica)
     const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
@@ -238,13 +190,14 @@ Deno.serve(async (req: Request) => {
     const fileName = `${safeDocName}_Assinado_${Date.now()}.pdf`
     const filePath = `assinados/${cliente_id || 'avulso'}/${fileName}`
 
+    // 3. Alinhamento de Armazenamento (Salvando no bender_clientes)
     const { error: uploadError } = await supabase.storage
-      .from('dossiers')
+      .from('bender_clientes')
       .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
     if (uploadError) throw uploadError
 
-    const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
+    const { data: publicUrlData } = supabase.storage.from('bender_clientes').getPublicUrl(filePath)
     const arquivo_assinado_url = publicUrlData.publicUrl
 
     if (docCliente) {
