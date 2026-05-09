@@ -6,6 +6,8 @@ import { X, Sparkles, MessageSquare } from 'lucide-react'
 
 import catarinaImg from '@/assets/catarina-6d3e7.png'
 import zenaideImg from '@/assets/zenaide-fa35c.png'
+import ottoImg from '@/assets/seu-otto-648df.png'
+import edithImg from '@/assets/dona-edith-20a11.png'
 
 const CHARACTERS = {
   catarina: {
@@ -17,13 +19,13 @@ const CHARACTERS = {
   edith: {
     name: 'Dona Edith',
     role: 'Financeiro',
-    img: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2', // Placeholder
+    img: edithImg,
     theme: 'border-emerald-500 shadow-emerald-500/30',
   },
   otto: {
     name: 'Seu Otto',
     role: 'PCP & Análise Técnica',
-    img: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3', // Placeholder
+    img: ottoImg,
     theme: 'border-blue-500 shadow-blue-500/30',
   },
   zenaide: {
@@ -103,9 +105,39 @@ export function AIAssistant() {
   const charData = CHARACTERS[character]
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-end justify-end">
+    <div className="fixed bottom-0 left-6 z-50 flex items-end">
+      <div className="relative">
+        {!isOpen && (
+          <button
+            onClick={() => setIsHidden(true)}
+            className="absolute top-4 right-0 bg-gray-800 text-white rounded-full p-1 shadow hover:bg-gray-700 transition-colors z-20"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+
+        <button
+          onClick={toggleAssistant}
+          className="relative group transition-transform hover:scale-105 active:scale-95 flex items-end"
+        >
+          <img
+            src={charData.img}
+            alt={charData.name}
+            className={cn(
+              'h-32 md:h-40 w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              isOpen ? 'scale-105' : '',
+            )}
+          />
+          {hasNewMessage && !isOpen && (
+            <div className="absolute top-6 right-2 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10">
+              <MessageSquare className="h-3 w-3" fill="currentColor" />
+            </div>
+          )}
+        </button>
+      </div>
+
       {isOpen && (
-        <div className="animate-fade-in-up mb-4 mr-4 w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 relative">
+        <div className="animate-fade-in-up mb-8 ml-2 w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 relative">
           <button
             onClick={() => setIsOpen(false)}
             className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors p-1"
@@ -139,40 +171,9 @@ export function AIAssistant() {
             </p>
           )}
 
-          <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45" />
+          <div className="absolute -bottom-2 left-8 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45" />
         </div>
       )}
-
-      <div className="relative">
-        <button
-          onClick={toggleAssistant}
-          className={cn(
-            'relative h-16 w-16 md:h-20 md:w-20 rounded-full overflow-hidden border-[3px] shadow-lg transition-transform hover:scale-105 active:scale-95 bg-white',
-            isOpen ? charData.theme : 'border-gray-200',
-          )}
-        >
-          <img
-            src={charData.img}
-            alt={charData.name}
-            className="h-full w-full object-cover object-top bg-gradient-to-b from-slate-50 to-slate-100"
-          />
-        </button>
-
-        {hasNewMessage && !isOpen && (
-          <div className="absolute -top-1 -right-1 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white">
-            <MessageSquare className="h-3 w-3" fill="currentColor" />
-          </div>
-        )}
-
-        {!isOpen && (
-          <button
-            onClick={() => setIsHidden(true)}
-            className="absolute -top-1 -left-1 bg-gray-800 text-white rounded-full p-1 shadow hover:bg-gray-700 transition-colors z-10"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
     </div>
   )
 }
