@@ -105,8 +105,8 @@ export function AIAssistant() {
   const charData = CHARACTERS[character]
 
   return (
-    <div className="fixed bottom-0 left-6 z-50 flex items-end">
-      <div className="relative">
+    <div className="fixed bottom-20 left-6 z-50 flex items-end pointer-events-none">
+      <div className="relative pointer-events-auto">
         {!isOpen && (
           <button
             onClick={() => setIsHidden(true)}
@@ -124,7 +124,7 @@ export function AIAssistant() {
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-32 md:h-40 w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              'h-[calc(100vh-380px)] min-h-[120px] max-h-[450px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
               isOpen ? 'scale-105' : '',
             )}
           />
@@ -137,7 +137,7 @@ export function AIAssistant() {
       </div>
 
       {isOpen && (
-        <div className="animate-fade-in-up mb-8 ml-2 w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 relative">
+        <div className="animate-fade-in-up mb-8 ml-2 w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 relative pointer-events-auto">
           <button
             onClick={() => setIsOpen(false)}
             className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors p-1"
