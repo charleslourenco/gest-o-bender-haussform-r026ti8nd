@@ -97,6 +97,61 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     (d) => d.tipo === 'Contrato' || d.template_nome?.toLowerCase().includes('contrato.docx'),
   )
 
+  const getSignedUrl = async (originalUrl: string) => {
+    if (!originalUrl) return ''
+    try {
+      const match = originalUrl.match(
+        /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
+      )
+      if (match) {
+        const bucket = match[1]
+        const path = decodeURIComponent(match[2])
+        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+        if (data?.signedUrl) {
+          return data.signedUrl
+        }
+      }
+    } catch (e) {
+      console.error('Error generating signed URL:', e)
+    }
+    return originalUrl
+  }
+
+  const handleOpenPdf = async (doc: any) => {
+    setConvertingIds((prev) => ({ ...prev, [doc.id]: true }))
+
+    if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
+      const url = await getSignedUrl(doc.arquivo_url)
+      window.open(url, '_blank')
+      setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
+      return
+    }
+
+    toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      const payload = {
+        cliente_id: dossie.cliente_id,
+        vendedor: session?.user?.user_metadata?.nome || 'Sistema',
+      }
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
+        body: payload,
+      })
+      if (error) throw error
+      if (data?.documento_url) {
+        const url = await getSignedUrl(data.documento_url)
+        window.open(url, '_blank')
+      }
+    } catch (e: any) {
+      toast.error('Erro ao visualizar PDF: ' + e.message)
+    } finally {
+      toast.dismiss('gerar-pdf-' + doc.id)
+      setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
+    }
+  }
+
   const handleDeleteDoc = async (docId: string, nome: string) => {
     if (!confirm('Deseja realmente remover este documento?')) return
     try {
@@ -548,67 +603,33 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       <Button
                         variant="default"
                         size="sm"
-                        asChild
+                        onClick={async () => {
+                          const url = await getSignedUrl(doc.arquivo_assinado_url)
+                          window.open(url, '_blank')
+                        }}
                         className="bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm"
                       >
-                        <a
-                          href={doc.arquivo_assinado_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Download className="w-4 h-4 mr-1" /> [PDF Assinado]
-                        </a>
+                        <Download className="w-4 h-4 mr-1" /> [PDF Assinado]
                       </Button>
                     ) : null}
 
                     <Button
                       variant="outline"
                       size="sm"
-                      asChild
+                      onClick={async () => {
+                        const url = await getSignedUrl(doc.arquivo_url)
+                        window.open(url, '_blank')
+                      }}
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
-                      <a href={doc.arquivo_url} target="_blank" rel="noopener noreferrer">
-                        <PenTool className="w-4 h-4 mr-1" /> Editar Word
-                      </a>
+                      <PenTool className="w-4 h-4 mr-1" /> Editar Word
                     </Button>
 
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={convertingIds[doc.id]}
-                      onClick={async () => {
-                        if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
-                          window.open(doc.arquivo_url, '_blank')
-                          return
-                        }
-
-                        setConvertingIds((prev) => ({ ...prev, [doc.id]: true }))
-                        toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
-                        try {
-                          const {
-                            data: { session },
-                          } = await supabase.auth.getSession()
-                          const payload = {
-                            cliente_id: dossie.cliente_id,
-                            vendedor: session?.user?.user_metadata?.nome || 'Sistema',
-                          }
-                          const { data, error } = await supabase.functions.invoke(
-                            'gerar_documento_cliente',
-                            {
-                              body: payload,
-                            },
-                          )
-                          if (error) throw error
-                          if (data?.documento_url) {
-                            window.open(data.documento_url, '_blank')
-                          }
-                        } catch (e: any) {
-                          toast.error('Erro ao visualizar PDF: ' + e.message)
-                        } finally {
-                          toast.dismiss('gerar-pdf-' + doc.id)
-                          setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
-                        }
-                      }}
+                      onClick={() => handleOpenPdf(doc)}
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
                       {convertingIds[doc.id] ? (

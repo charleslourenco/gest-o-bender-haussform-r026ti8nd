@@ -51,25 +51,53 @@ Deno.serve(async (req: Request) => {
 
     const mergedPdf = await PDFDocument.create()
 
-    // 1. Corrigir o Caminho do Bucket (Prioriza bender_clientes)
+    // 1. Corrigir o Caminho do Bucket (Busca inteligente)
     let originalPdfBytes: ArrayBuffer | null = null
 
     try {
+      let bucketName = 'bender_clientes'
+      let filePath = documento_id
+
       if (documento_id.startsWith('http')) {
-        const res = await fetch(documento_id)
-        if (res.ok) originalPdfBytes = await res.arrayBuffer()
-      } else {
-        const { data: benderData, error: benderError } = await supabase.storage
-          .from('bender_clientes')
-          .download(documento_id)
-        if (!benderError && benderData) {
-          originalPdfBytes = await benderData.arrayBuffer()
+        const match = documento_id.match(
+          /\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/(.+?)(?:\?|$)/,
+        )
+        if (match) {
+          bucketName = match[1]
+          filePath = decodeURIComponent(match[2])
         } else {
-          const { data: fileData, error: fileError } = await supabase.storage
-            .from('dossiers')
-            .download(documento_id)
-          if (!fileError && fileData) {
-            originalPdfBytes = await fileData.arrayBuffer()
+          // Fallback para URL externa
+          const res = await fetch(documento_id)
+          if (res.ok) originalPdfBytes = await res.arrayBuffer()
+        }
+      }
+
+      if (!originalPdfBytes && filePath) {
+        // Tenta baixar do bucket extraído
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from(bucketName)
+          .download(filePath)
+        if (fileData && !fileError) {
+          originalPdfBytes = await fileData.arrayBuffer()
+        } else {
+          // Fallbacks de compatibilidade com arquivos antigos
+          const { data: benderData } = await supabase.storage
+            .from('bender_clientes')
+            .download(filePath)
+          if (benderData) {
+            originalPdfBytes = await benderData.arrayBuffer()
+          } else {
+            const { data: dossierData } = await supabase.storage.from('dossiers').download(filePath)
+            if (dossierData) {
+              originalPdfBytes = await dossierData.arrayBuffer()
+            } else if (cliente_id) {
+              const { data: contratoData } = await supabase.storage
+                .from('bender_clientes')
+                .download(`contratos/${cliente_id}/${filePath}`)
+              if (contratoData) {
+                originalPdfBytes = await contratoData.arrayBuffer()
+              }
+            }
           }
         }
       }
@@ -192,8 +220,36 @@ Deno.serve(async (req: Request) => {
     }
 
     const pdfBytes = await mergedPdf.save()
-    const safeDocName = (docCliente?.template_nome || 'documento').replace(/[^a-zA-Z0-9]/g, '_')
-    const fileName = `${safeDocName}_Assinado_${Date.now()}.pdf`
+
+    // Busca nome do cliente para padronizar o nome do arquivo
+    let nomeCliente = 'Cliente'
+    if (cliente_id) {
+      const { data: clienteData } = await supabase
+        .from('clientes')
+        .select('nome')
+        .eq('id', cliente_id)
+        .single()
+      if (clienteData?.nome) {
+        nomeCliente = clienteData.nome
+      }
+    }
+
+    const safeNome = nomeCliente
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+
+    let baseName = 'Contrato'
+    if (
+      docCliente &&
+      docCliente.tipo !== 'Contrato' &&
+      docCliente.template_nome &&
+      !docCliente.template_nome.toLowerCase().includes('contrato')
+    ) {
+      baseName = docCliente.template_nome.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')
+    }
+
+    const fileName = `${baseName}_Assinado_${safeNome}.pdf`
     const filePath = `assinados/${cliente_id || 'avulso'}/${fileName}`
 
     // 3. Alinhamento de Armazenamento (Salvando no bender_clientes)
