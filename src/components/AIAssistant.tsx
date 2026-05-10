@@ -105,7 +105,7 @@ export function AIAssistant() {
   const charData = CHARACTERS[character]
 
   return (
-    <div className="fixed bottom-20 left-6 z-50 flex items-end pointer-events-none">
+    <div className="fixed bottom-20 left-[calc(var(--sidebar-width,16rem)/2)] -translate-x-1/2 z-50 flex justify-center items-end pointer-events-none">
       <div className="relative pointer-events-auto">
         {!isOpen && (
           <button
@@ -137,7 +137,7 @@ export function AIAssistant() {
       </div>
 
       {isOpen && (
-        <div className="animate-fade-in-up mb-8 ml-2 w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 relative pointer-events-auto">
+        <div className="animate-fade-in-up absolute bottom-8 left-[calc(100%+0.5rem)] w-72 bg-white rounded-2xl p-4 shadow-xl border border-gray-100 pointer-events-auto">
           <button
             onClick={() => setIsOpen(false)}
             className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 transition-colors p-1"
@@ -171,7 +171,7 @@ export function AIAssistant() {
             </p>
           )}
 
-          <div className="absolute -bottom-2 left-8 w-4 h-4 bg-white border-b border-r border-gray-100 transform rotate-45" />
+          <div className="absolute top-[calc(100%-3rem)] -left-2 w-4 h-4 bg-white border-b border-l border-gray-100 transform rotate-45" />
         </div>
       )}
     </div>
