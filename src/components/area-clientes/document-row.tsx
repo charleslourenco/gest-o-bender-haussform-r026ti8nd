@@ -21,12 +21,31 @@ export function DocumentRow({ doc, onSign }: DocumentRowProps) {
     const filePath = doc.path || doc.title
     if (!filePath) return null
 
+    // Tenta gerar Signed URL primeiro para evitar bloqueios
     if (filePath.startsWith('http')) {
+      try {
+        const match = filePath.match(
+          /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
+        )
+        if (match) {
+          const bucket = match[1]
+          const path = decodeURIComponent(match[2])
+          const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+          if (data?.signedUrl) return data.signedUrl
+        }
+      } catch (e) {
+        console.error('Erro ao gerar URL assinada', e)
+      }
       return filePath
     }
 
-    const { data } = supabase.storage.from('dossiers').getPublicUrl(filePath)
-    return data?.publicUrl
+    // Se filePath for apenas o caminho
+    const { data } = await supabase.storage.from('dossiers').createSignedUrl(filePath, 3600)
+    if (data?.signedUrl) return data.signedUrl
+
+    // Fallback
+    const { data: publicData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
+    return publicData?.publicUrl
   }
 
   const handleDownload = async () => {
@@ -58,9 +77,11 @@ export function DocumentRow({ doc, onSign }: DocumentRowProps) {
   }
 
   const handleOpen = async () => {
+    const newWindow = window.open('', '_blank')
     const url = await getDocumentUrl()
-    if (url) {
-      window.open(url, '_blank')
+    if (newWindow) {
+      if (url) newWindow.location.href = url
+      else newWindow.close()
     }
   }
 

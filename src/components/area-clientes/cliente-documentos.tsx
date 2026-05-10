@@ -107,45 +107,70 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         const bucket = match[1]
         const path = decodeURIComponent(match[2])
         const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+
+        if (error) {
+          console.error('Erro Supabase ao assinar URL:', error)
+          toast.error('Erro ao gerar acesso seguro: ' + error.message)
+          return null
+        }
+
         if (data?.signedUrl) {
           return data.signedUrl
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error generating signed URL:', e)
+      toast.error('Falha interna ao gerar link seguro')
+      return null
     }
     return originalUrl
   }
 
   const handleOpenPdf = async (doc: any) => {
+    // Abre a aba antes do processo assíncrono para evitar bloqueio de popup pelo navegador
+    const newWindow = window.open('', '_blank')
     setConvertingIds((prev) => ({ ...prev, [doc.id]: true }))
 
-    if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
-      const url = await getSignedUrl(doc.arquivo_url)
-      window.open(url, '_blank')
-      setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
-      return
-    }
-
-    toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
     try {
+      if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
+        const url = await getSignedUrl(doc.arquivo_url)
+        if (url && newWindow) {
+          newWindow.location.href = url
+        } else if (newWindow) {
+          newWindow.close()
+        }
+        return
+      }
+
+      toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
       const {
         data: { session },
       } = await supabase.auth.getSession()
+
       const payload = {
         cliente_id: dossie.cliente_id,
         vendedor: session?.user?.user_metadata?.nome || 'Sistema',
       }
+
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
         body: payload,
       })
+
       if (error) throw error
+
       if (data?.documento_url) {
         const url = await getSignedUrl(data.documento_url)
-        window.open(url, '_blank')
+        if (url && newWindow) {
+          newWindow.location.href = url
+        } else if (newWindow) {
+          newWindow.close()
+        }
+      } else if (newWindow) {
+        newWindow.close()
       }
     } catch (e: any) {
       toast.error('Erro ao visualizar PDF: ' + e.message)
+      if (newWindow) newWindow.close()
     } finally {
       toast.dismiss('gerar-pdf-' + doc.id)
       setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
@@ -604,8 +629,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                         variant="default"
                         size="sm"
                         onClick={async () => {
+                          const newWindow = window.open('', '_blank')
                           const url = await getSignedUrl(doc.arquivo_assinado_url)
-                          window.open(url, '_blank')
+                          if (url && newWindow) {
+                            newWindow.location.href = url
+                          } else if (newWindow) {
+                            newWindow.close()
+                          }
                         }}
                         className="bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm"
                       >
@@ -617,8 +647,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       variant="outline"
                       size="sm"
                       onClick={async () => {
+                        const newWindow = window.open('', '_blank')
                         const url = await getSignedUrl(doc.arquivo_url)
-                        window.open(url, '_blank')
+                        if (url && newWindow) {
+                          newWindow.location.href = url
+                        } else if (newWindow) {
+                          newWindow.close()
+                        }
                       }}
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
