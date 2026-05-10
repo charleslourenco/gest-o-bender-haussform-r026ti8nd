@@ -18,7 +18,7 @@ Deno.serve(async (req: Request) => {
     const { documento_id, cliente_id } = await req.json()
 
     if (!documento_id) {
-      throw new Error('documento_id é obrigatório')
+      throw new Error('documento_id é obrigatório (deve ser o arquivo_url do documento)')
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
     if (sigError) throw sigError
 
     const allAssinados = assinaturas?.every((sig) => sig.status === 'assinado')
-    if (!allAssinados) {
+    if (!allAssinados || !assinaturas?.length) {
       return new Response(
         JSON.stringify({ success: false, message: 'Aguardando demais assinaturas' }),
         {
@@ -50,72 +50,21 @@ Deno.serve(async (req: Request) => {
       .single()
 
     const mergedPdf = await PDFDocument.create()
+    const filePath = documento_id
 
-    // 1. Caminho do Bucket e Arquivo (Exato, sem fallbacks)
-    let originalPdfBytes: ArrayBuffer | null = null
+    const { data: fileData, error: fileError } = await supabase.storage
+      .from('bender_clientes')
+      .download(filePath)
 
-    try {
-      let bucketName = 'bender_clientes'
-      let filePath = documento_id
-
-      if (documento_id.startsWith('http')) {
-        const match = documento_id.match(
-          /\/storage\/v1\/object\/(?:public|sign)\/([^\/]+)\/(.+?)(?:\?|$)/,
-        )
-        if (match) {
-          bucketName = match[1]
-          filePath = decodeURIComponent(match[2])
-        } else {
-          const res = await fetch(documento_id)
-          if (res.ok) originalPdfBytes = await res.arrayBuffer()
-        }
-      }
-
-      if (!originalPdfBytes && filePath) {
-        // Busca exatamente no bucket e caminho resolvidos
-        const { data: fileData, error: fileError } = await supabase.storage
-          .from(bucketName)
-          .download(filePath)
-
-        if (fileError) {
-          throw new Error(`Erro ao baixar documento do storage: ${fileError.message}`)
-        }
-
-        if (fileData) {
-          originalPdfBytes = await fileData.arrayBuffer()
-        }
-      }
-
-      if (originalPdfBytes) {
-        // 2. Mesclagem Nativa: Tenta carregar o PDF Original
-        const originalPdf = await PDFDocument.load(originalPdfBytes)
-        // Garante a ordem: primeiro o corpo completo do contrato com todos os dados comerciais
-        const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
-        copiedPages.forEach((page) => mergedPdf.addPage(page))
-      } else {
-        throw new Error('Não foi possível encontrar o arquivo original no storage')
-      }
-    } catch (fetchErr) {
-      console.error('Error fetching or loading original document:', fetchErr)
-      const page = mergedPdf.addPage([595.28, 841.89])
-      const font = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
-      const normalFont = await mergedPdf.embedFont(StandardFonts.Helvetica)
-      page.drawText('Documento Assinado', { x: 50, y: 800, size: 20, font })
-      page.drawText(`Original: ${docCliente?.template_nome || documento_id}`, {
-        x: 50,
-        y: 770,
-        size: 12,
-        font: normalFont,
-      })
-      page.drawText('Não foi possível anexar o conteúdo original.', {
-        x: 50,
-        y: 750,
-        size: 10,
-        font: normalFont,
-      })
+    if (fileError || !fileData) {
+      throw new Error(`Erro ao baixar documento original: ${fileError?.message}`)
     }
 
-    // Criação do Manifesto (Adicionado APÓS as páginas originais, garantindo a ordem solicitada)
+    const originalPdfBytes = await fileData.arrayBuffer()
+    const originalPdf = await PDFDocument.load(originalPdfBytes)
+    const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
+    copiedPages.forEach((page) => mergedPdf.addPage(page))
+
     let certPage = mergedPdf.addPage([595.28, 841.89])
     const font = await mergedPdf.embedFont(StandardFonts.Helvetica)
     const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
@@ -123,7 +72,7 @@ Deno.serve(async (req: Request) => {
     certPage.drawText('MANIFESTO DE ASSINATURA ELETRÔNICA', {
       x: 50,
       y: 800,
-      size: 16,
+      size: 14,
       font: boldFont,
     })
     certPage.drawText(`Data de Conclusão: ${new Date().toLocaleString('pt-BR')}`, {
@@ -148,7 +97,7 @@ Deno.serve(async (req: Request) => {
       })
       y -= 20
       certPage.drawText(
-        `CPF: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
+        `CPF/CNPJ: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
         { x: 50, y, size: 10, font },
       )
       y -= 15
@@ -157,9 +106,12 @@ Deno.serve(async (req: Request) => {
         { x: 50, y, size: 10, font },
       )
       y -= 15
-      certPage.drawText(`IP: ${sig.ip_assinatura || 'N/A'}`, { x: 50, y, size: 10, font })
-      y -= 15
-      certPage.drawText(`Código: ${sig.codigo_confirmacao}`, { x: 50, y, size: 10, font })
+      certPage.drawText(`IP: ${sig.ip_assinatura || 'N/A'} | Código: ${sig.codigo_confirmacao}`, {
+        x: 50,
+        y,
+        size: 10,
+        font,
+      })
       y -= 20
 
       if (sig.assinatura_imagem && sig.assinatura_imagem.startsWith('data:image/png;base64,')) {
@@ -181,13 +133,6 @@ Deno.serve(async (req: Request) => {
           })
           y -= dims.height + 20
         } catch (e) {
-          console.error('Error embedding image', e)
-          certPage.drawText('[Imagem da Assinatura Indisponível]', {
-            x: 50,
-            y,
-            size: 10,
-            font: rgb(1, 0, 0),
-          })
           y -= 20
         }
       } else {
@@ -205,7 +150,6 @@ Deno.serve(async (req: Request) => {
 
     const pdfBytes = await mergedPdf.save()
 
-    // Busca nome do cliente para padronizar o nome do arquivo
     let nomeCliente = 'Cliente'
     if (cliente_id) {
       const { data: clienteData } = await supabase
@@ -213,72 +157,39 @@ Deno.serve(async (req: Request) => {
         .select('nome')
         .eq('id', cliente_id)
         .single()
-      if (clienteData?.nome) {
-        nomeCliente = clienteData.nome
-      }
+      if (clienteData?.nome) nomeCliente = clienteData.nome
     }
 
     const safeNome = nomeCliente
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9]/g, '_')
+    const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
+    const finalFilePath = `contratos/${cliente_id}/${fileName}`
 
-    let baseName = 'Contrato'
-    if (
-      docCliente &&
-      docCliente.tipo !== 'Contrato' &&
-      docCliente.template_nome &&
-      !docCliente.template_nome.toLowerCase().includes('contrato')
-    ) {
-      baseName = docCliente.template_nome.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9]/g, '_')
-    }
-
-    const fileName = `${baseName}_Assinado_${safeNome}.pdf`
-    const filePath = `assinados/${cliente_id || 'avulso'}/${fileName}`
-
-    // 3. Alinhamento de Armazenamento (Salvando no bender_clientes)
     const { error: uploadError } = await supabase.storage
       .from('bender_clientes')
-      .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
+      .upload(finalFilePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
     if (uploadError) throw uploadError
-
-    const { data: publicUrlData, error: signError } = await supabase.storage
-      .from('bender_clientes')
-      .createSignedUrl(filePath, 315360000)
-    const arquivo_assinado_url = publicUrlData?.signedUrl || ''
-
-    if (signError) {
-      console.error('Sign URL error:', signError)
-    }
 
     if (docCliente) {
       await supabase
         .from('documentos_cliente')
         .update({
-          arquivo_assinado_url,
+          arquivo_assinado_url: finalFilePath,
           status: 'Assinado',
         })
         .eq('id', docCliente.id)
-
-      if (docCliente.tipo === 'Contrato') {
-        await supabase
-          .from('dossies')
-          .update({ contrato_url: arquivo_assinado_url })
-          .eq('cliente_id', cliente_id)
-      }
-    } else {
-      await supabase
-        .from('documentos_cliente')
-        .update({
-          arquivo_assinado_url,
-          status: 'Assinado',
-        })
-        .eq('arquivo_url', documento_id)
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (RESEND_API_KEY) {
+      const { data: urlData } = await supabase.storage
+        .from('bender_clientes')
+        .createSignedUrl(finalFilePath, 315360000)
+      const signedUrl = urlData?.signedUrl || ''
+
       for (const sig of assinaturas || []) {
         if (sig.signatario_email) {
           try {
@@ -291,32 +202,27 @@ Deno.serve(async (req: Request) => {
               body: JSON.stringify({
                 from: 'Bender Haussform <projetos@benderhaussform.com>',
                 to: [sig.signatario_email],
-                subject: `Documento Assinado e Finalizado: ${sig.documento_nome}`,
-                text: `Olá, ${sig.signatario_nome}. O documento ${sig.documento_nome} foi assinado por todos os envolvidos. Você pode baixar a via finalizada no link: ${arquivo_assinado_url}`,
+                subject: `Documento Assinado Finalizado: ${sig.documento_nome}`,
                 html: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
                     <h2 style="color: #333;">Olá, ${sig.signatario_nome}</h2>
-                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso por todos os signatários.</p>
+                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso.</p>
                     <div style="text-align: center; margin: 30px 0;">
-                      <a href="${arquivo_assinado_url}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
+                      <a href="${signedUrl}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
                     </div>
-                    <p style="font-size: 12px; color: #999; text-align: center; margin-top: 40px;">Bender Haussform</p>
                   </div>
                 `,
               }),
             })
-          } catch (emailErr) {
-            console.error('Failed to send email to', sig.signatario_email, emailErr)
-          }
+          } catch (emailErr) {}
         }
       }
     }
 
-    return new Response(JSON.stringify({ success: true, url: arquivo_assinado_url }), {
+    return new Response(JSON.stringify({ success: true, url: finalFilePath }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    console.error('Finalize Signature Error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
