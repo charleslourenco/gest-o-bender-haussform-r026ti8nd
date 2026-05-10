@@ -49,6 +49,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [signatureDoc, setSignatureDoc] = useState<any>(null)
+  const [convertingIds, setConvertingIds] = useState<Record<string, boolean>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadDocs = async () => {
@@ -574,12 +575,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={convertingIds[doc.id]}
                       onClick={async () => {
                         if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
                           window.open(doc.arquivo_url, '_blank')
                           return
                         }
-                        toast.info('Gerando PDF atualizado...', { id: 'gerar-pdf' })
+
+                        setConvertingIds((prev) => ({ ...prev, [doc.id]: true }))
+                        toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
                         try {
                           const {
                             data: { session },
@@ -596,56 +600,53 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                           )
                           if (error) throw error
                           if (data?.documento_url) {
-                            toast.dismiss('gerar-pdf')
                             window.open(data.documento_url, '_blank')
                           }
                         } catch (e: any) {
-                          toast.dismiss('gerar-pdf')
                           toast.error('Erro ao visualizar PDF: ' + e.message)
+                        } finally {
+                          toast.dismiss('gerar-pdf-' + doc.id)
+                          setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
                         }
                       }}
                       className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
                     >
-                      <Eye className="w-4 h-4 mr-1" /> Visualizar PDF
+                      {convertingIds[doc.id] ? (
+                        <div className="w-4 h-4 mr-1 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Eye className="w-4 h-4 mr-1" />
+                      )}
+                      Visualizar PDF
                     </Button>
 
                     {!doc.arquivo_assinado_url && (
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={async () => {
-                          let finalPath = doc.arquivo_url
-                          if (!finalPath?.toLowerCase().endsWith('.pdf')) {
-                            toast.info('Preparando PDF para assinatura...', { id: 'prep-pdf' })
-                            try {
-                              const {
-                                data: { session },
-                              } = await supabase.auth.getSession()
-                              const { data, error } = await supabase.functions.invoke(
-                                'gerar_documento_cliente',
-                                {
+                        onClick={() => {
+                          setSignatureDoc({
+                            path: doc.arquivo_url,
+                            title: doc.template_nome || doc.tipo,
+                            ...doc,
+                          })
+
+                          if (!doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
+                            supabase.auth.getSession().then(({ data: { session } }) => {
+                              supabase.functions
+                                .invoke('gerar_documento_cliente', {
                                   body: {
                                     cliente_id: dossie.cliente_id,
                                     vendedor: session?.user?.user_metadata?.nome || 'Sistema',
                                   },
-                                },
-                              )
-                              if (error) throw error
-                              if (data?.documento_url) {
-                                finalPath = data.documento_url
-                              }
-                              toast.dismiss('prep-pdf')
-                            } catch (e: any) {
-                              toast.dismiss('prep-pdf')
-                              toast.error('Erro ao preparar PDF: ' + e.message)
-                              return
-                            }
+                                })
+                                .then(({ data, error }) => {
+                                  if (data?.documento_url && !error) {
+                                    console.log('Conversão DOCX -> PDF em segundo plano concluída.')
+                                  }
+                                })
+                                .catch(console.error)
+                            })
                           }
-                          setSignatureDoc({
-                            path: finalPath,
-                            title: doc.template_nome || doc.tipo,
-                            ...doc,
-                          })
                         }}
                         className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
                       >

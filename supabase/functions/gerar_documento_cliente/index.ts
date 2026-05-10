@@ -216,8 +216,14 @@ serve(async (req) => {
       throw new Error(`Upload failed: ${uploadError.message}`)
     }
 
-    const { data: urlData } = supabase.storage.from('bender_clientes').getPublicUrl(filename)
-    const publicUrl = urlData.publicUrl
+    const { data: urlData, error: signError } = await supabase.storage
+      .from('bender_clientes')
+      .createSignedUrl(filename, 315360000)
+    const publicUrl = urlData?.signedUrl || ''
+
+    if (signError) {
+      console.error('Sign URL error:', signError)
+    }
 
     // Insert into timeline_eventos if not already there recently
     if (cliente_id) {

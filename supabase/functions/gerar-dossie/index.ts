@@ -273,14 +273,16 @@ Deno.serve(async (req) => {
             throw new Error(`Nao consegui salvar o documento: ${uploadError.message}`)
           }
 
-          const { data: publicUrlData } = supabase.storage
+          const { data: publicUrlData, error: signError } = await supabase.storage
             .from('bender_clientes')
-            .getPublicUrl(filePath)
-          if (template.tipo === 'contrato') urlsDocumentos.contrato_url = publicUrlData.publicUrl
+            .createSignedUrl(filePath, 315360000)
+          if (signError) console.error('Sign URL error:', signError)
+          if (template.tipo === 'contrato')
+            urlsDocumentos.contrato_url = publicUrlData?.signedUrl || ''
           if (template.tipo === 'termo_conclusao')
-            urlsDocumentos.termo_conclusao_url = publicUrlData.publicUrl
+            urlsDocumentos.termo_conclusao_url = publicUrlData?.signedUrl || ''
           if (template.tipo === 'termo_garantia')
-            urlsDocumentos.termo_garantia_url = publicUrlData.publicUrl
+            urlsDocumentos.termo_garantia_url = publicUrlData?.signedUrl || ''
 
           documentos_preenchidos.push(template.tipo)
         }

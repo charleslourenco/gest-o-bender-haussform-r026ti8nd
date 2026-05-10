@@ -203,8 +203,14 @@ Deno.serve(async (req: Request) => {
 
     if (uploadError) throw uploadError
 
-    const { data: publicUrlData } = supabase.storage.from('bender_clientes').getPublicUrl(filePath)
-    const arquivo_assinado_url = publicUrlData.publicUrl
+    const { data: publicUrlData, error: signError } = await supabase.storage
+      .from('bender_clientes')
+      .createSignedUrl(filePath, 315360000)
+    const arquivo_assinado_url = publicUrlData?.signedUrl || ''
+
+    if (signError) {
+      console.error('Sign URL error:', signError)
+    }
 
     if (docCliente) {
       await supabase
