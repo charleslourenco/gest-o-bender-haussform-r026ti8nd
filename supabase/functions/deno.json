@@ -5,7 +5,7 @@
     "gerar-dossie": 10,
     "gerar_documento_cliente": 38,
     "send-signature-email": 4,
-    "finalize-signature-document": 7,
+    "finalize-signature-document": 8,
     "whatsapp-webhook": 23,
     "assistant-intelligence": 1
   }

@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     const mergedPdf = await PDFDocument.create()
 
-    // 1. Corrigir o Caminho do Bucket (Busca inteligente)
+    // 1. Caminho do Bucket e Arquivo (Exato, sem fallbacks)
     let originalPdfBytes: ArrayBuffer | null = null
 
     try {
@@ -66,39 +66,23 @@ Deno.serve(async (req: Request) => {
           bucketName = match[1]
           filePath = decodeURIComponent(match[2])
         } else {
-          // Fallback para URL externa
           const res = await fetch(documento_id)
           if (res.ok) originalPdfBytes = await res.arrayBuffer()
         }
       }
 
       if (!originalPdfBytes && filePath) {
-        // Tenta baixar do bucket extraído
+        // Busca exatamente no bucket e caminho resolvidos
         const { data: fileData, error: fileError } = await supabase.storage
           .from(bucketName)
           .download(filePath)
-        if (fileData && !fileError) {
+
+        if (fileError) {
+          throw new Error(`Erro ao baixar documento do storage: ${fileError.message}`)
+        }
+
+        if (fileData) {
           originalPdfBytes = await fileData.arrayBuffer()
-        } else {
-          // Fallbacks de compatibilidade com arquivos antigos
-          const { data: benderData } = await supabase.storage
-            .from('bender_clientes')
-            .download(filePath)
-          if (benderData) {
-            originalPdfBytes = await benderData.arrayBuffer()
-          } else {
-            const { data: dossierData } = await supabase.storage.from('dossiers').download(filePath)
-            if (dossierData) {
-              originalPdfBytes = await dossierData.arrayBuffer()
-            } else if (cliente_id) {
-              const { data: contratoData } = await supabase.storage
-                .from('bender_clientes')
-                .download(`contratos/${cliente_id}/${filePath}`)
-              if (contratoData) {
-                originalPdfBytes = await contratoData.arrayBuffer()
-              }
-            }
-          }
         }
       }
 
