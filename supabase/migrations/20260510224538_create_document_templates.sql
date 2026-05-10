@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.document_templates (
 ALTER TABLE public.documentos_cliente ADD COLUMN IF NOT EXISTS conteudo_preenchido text;
 
 INSERT INTO public.document_templates (nome, conteudo) VALUES
-('contrato', $Na Bender, acreditamos que um projeto de interiores é muito mais do que a soma de seus materiais. É a tradução de um estilo de vida em forma, proporção e detalhe. Cada móvel projetado por nossa equipe carrega um processo meticuloso que começa muito antes da primeira peça ser cortada — e só termina quando o cliente, ao cruzar a porta de seu novo ambiente, sente exatamente o que imaginou.
+('contrato', $$Na Bender, acreditamos que um projeto de interiores é muito mais do que a soma de seus materiais. É a tradução de um estilo de vida em forma, proporção e detalhe. Cada móvel projetado por nossa equipe carrega um processo meticuloso que começa muito antes da primeira peça ser cortada — e só termina quando o cliente, ao cruzar a porta de seu novo ambiente, sente exatamente o que imaginou.
 A aparente complexidade deste documento é, na verdade, um reflexo do cuidado que dedicamos a cada etapa da sua experiência conosco. Cada cláusula foi escrita para proteger não apenas nossos interesses, mas principalmente a sua tranquilidade, o seu investimento e a qualidade do resultado final.
 
 A ESTRUTURA DE QUATRO MÃOS
@@ -238,9 +238,9 @@ CLÁUSULA 19 — DISPOSIÇÕES GERAIS
 CLÁUSULA 20 — FORO
 Fica eleito o foro da Comarca de Balneário Piçarras — SC para dirimir quaisquer litígios, com renúncia a qualquer outro foro.
 
-Balneário Piçarras, [DATA_CONTRATO_EXTENSO]$),
+Balneário Piçarras, [DATA_CONTRATO_EXTENSO]$$),
 
-('termo_garantia', $TERMO DE GARANTIA DE MÓVEIS SOB MEDIDA
+('termo_garantia', $$TERMO DE GARANTIA DE MÓVEIS SOB MEDIDA
 
 Cliente: [CLIENTE_NOME]
 Data de Início da Garantia: [DATA_INICIO_GARANTIA]
@@ -271,9 +271,9 @@ Data de Início da Garantia: [DATA_INICIO_GARANTIA]
 CONTATO PARA ASSISTÊNCIA
 Fone e WhatsApp: (47) 99216-8595
 E-mail: projetos@benderhaussform.com
-Endereço: Rua Bender 149, Bairro Nossa Senhora da Conceição, Balneário Piçarras – SC$),
+Endereço: Rua Bender 149, Bairro Nossa Senhora da Conceição, Balneário Piçarras – SC$$),
 
-('termo_alteracao', $TERMO DE ALTERAÇÃO DE PROJETO
+('termo_alteracao', $$TERMO DE ALTERAÇÃO DE PROJETO
 
 Para: [CLIENTE_NOME]
 Data da Solicitação: [DATA_SOLICITACAO]
@@ -293,9 +293,9 @@ Acreditamos que um projeto de interiores é a tradução de um estilo de vida e,
 Nosso compromisso é transformar seu ambiente com o acolhimento e o rigor técnico que você merece.
 
 BENDER MÓVEIS E DESIGN LTDA
-CNPJ: 14.871.048/0001-80$),
+CNPJ: 14.871.048/0001-80$$),
 
-('termo_conclusao_vistoria', $TERMO DE CONCLUSÃO E VISTORIA — MÓVEIS SOB MEDIDA
+('termo_conclusao_vistoria', $$TERMO DE CONCLUSÃO E VISTORIA — MÓVEIS SOB MEDIDA
 
 Cliente: [CLIENTE_NOME]
 CPF/CNPJ: [CLIENTE_CPF_CNPJ]
@@ -315,9 +315,9 @@ Data da Vistoria: [DATA_VISTORIA]
 2. Item: _______________ Correção: _______________
 3. Item: _______________ Correção: _______________
 
-OBS: Este documento formaliza a vistoria e inicia o período de garantia legal e contratual.$),
+OBS: Este documento formaliza a vistoria e inicia o período de garantia legal e contratual.$$),
 
-('termo_nao_conformidade', $TERMO DE NÃO CONFORMIDADE
+('termo_nao_conformidade', $$TERMO DE NÃO CONFORMIDADE
 
 Para: [CLIENTE_NOME]
 CPF/CNPJ: [CLIENTE_CPF_CNPJ]
@@ -341,9 +341,9 @@ Durante o acompanhamento técnico, constatamos que o ambiente ainda não reúne 
 Agradecemos a compreensão. Nossa prioridade é garantir que a entrega final reflita a excelência e o conforto que você planejou.
 
 BENDER MÓVEIS E DESIGN LTDA
-CNPJ: 14.871.048/0001-80$),
+CNPJ: 14.871.048/0001-80$$),
 
-('termo_recusa', $TERMO DE RECUSA DE PARTICIPAÇÃO EM REUNIÃO DE ANÁLISE DE PROJETO
+('termo_recusa', $$TERMO DE RECUSA DE PARTICIPAÇÃO EM REUNIÃO DE ANÁLISE DE PROJETO
 
 Eu, [CLIENTE_NOME], CPF/CNPJ [CLIENTE_CPF_CNPJ], na qualidade de CONTRATANTE do projeto de móveis sob medida junto à Bender Móveis e Design LTDA, CNPJ: 14.871.048/0001-80, declaro que tenho:
 
@@ -359,9 +359,9 @@ Vinculação à Ata: Estou ciente de que a Ata de Reunião de Análise, mesmo se
 
 Renúncia a Contestações Futuras: Renuncio expressamente ao direito de realizar quaisquer contestações sobre os pontos definidos na referida Ata, compreendendo que qualquer solicitação de mudança posterior estará sujeita à análise de viabilidade e cobrança de custos adicionais.
 
-[OBRA_CIDADE], [DATA_CONTRATO_EXTENSO]$),
+[OBRA_CIDADE], [DATA_CONTRATO_EXTENSO]$$),
 
-('termo_representacao', $TERMO DE AUTORIZAÇÃO PARA REPRESENTAÇÃO
+('termo_representacao', $$TERMO DE AUTORIZAÇÃO PARA REPRESENTAÇÃO
 
 Eu, [CLIENTE_NOME], [CLIENTE_CPF_CNPJ], cliente da BENDER MÓVEIS E DESIGN LTDA, declaro que autorizo expressamente a(o) arquiteta(o) [REPRESENTANTE_NOME], CPF [REPRESENTANTE_CPF], a me representar integralmente na Reunião de Análise referente ao meu contrato de móveis sob medida.
 
@@ -369,7 +369,7 @@ Concedo à(ao) referida(o) arquiteta(o) plenos poderes para discutir, deliberar,
 
 Esta autorização visa agilizar o processo de detalhamento e aprovação do projeto, garantindo a continuidade do cronograma de fabricação e instalação, conforme os termos do nosso contrato com a Bender Móveis e Design Ltda.
 
-Balneário Piçarras, [DATA_CONTRATO_EXTENSO]$)
+Balneário Piçarras, [DATA_CONTRATO_EXTENSO]$$)
 ON CONFLICT (nome) DO UPDATE SET conteudo = EXCLUDED.conteudo;
 
 DROP POLICY IF EXISTS "document_templates_select" ON public.document_templates;
