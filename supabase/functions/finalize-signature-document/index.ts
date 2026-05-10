@@ -33,8 +33,8 @@ Deno.serve(async (req: Request) => {
 
     if (sigError) throw sigError
 
-    const allAssinados = assinaturas?.every((sig) => sig.status === 'assinado')
-    if (!allAssinados || !assinaturas?.length) {
+    const pendentesCount = assinaturas?.filter((sig) => sig.status === 'pendente').length || 0
+    if (pendentesCount > 0 || !assinaturas?.length) {
       return new Response(
         JSON.stringify({ success: false, message: 'Aguardando demais assinaturas' }),
         {
@@ -70,82 +70,55 @@ Deno.serve(async (req: Request) => {
     const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
 
     certPage.drawText('MANIFESTO DE ASSINATURA ELETRÔNICA', {
-      x: 50,
-      y: 800,
-      size: 14,
+      x: 85,
+      y: 760,
+      size: 15,
       font: boldFont,
     })
     certPage.drawText(`Data de Conclusão: ${new Date().toLocaleString('pt-BR')}`, {
-      x: 50,
-      y: 780,
+      x: 85,
+      y: 740,
       size: 10,
       font,
     })
 
-    let y = 740
+    let y = 700
     for (const sig of assinaturas || []) {
       if (y < 200) {
         certPage = mergedPdf.addPage([595.28, 841.89])
-        y = 800
+        y = 760
       }
 
       certPage.drawText(`Signatário: ${sig.signatario_nome} (${sig.signatario_tipo})`, {
-        x: 50,
+        x: 85,
         y,
-        size: 12,
+        size: 10,
         font: boldFont,
       })
-      y -= 20
+      y -= 15
       certPage.drawText(
         `CPF/CNPJ: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
-        { x: 50, y, size: 10, font },
+        { x: 85, y, size: 10, font },
       )
       y -= 15
       certPage.drawText(
         `Data da Assinatura: ${sig.data_assinatura ? new Date(sig.data_assinatura).toLocaleString('pt-BR') : 'N/A'}`,
-        { x: 50, y, size: 10, font },
+        { x: 85, y, size: 10, font },
       )
       y -= 15
-      certPage.drawText(`IP: ${sig.ip_assinatura || 'N/A'} | Código: ${sig.codigo_confirmacao}`, {
-        x: 50,
-        y,
-        size: 10,
-        font,
-      })
-      y -= 20
-
-      if (sig.assinatura_imagem && sig.assinatura_imagem.startsWith('data:image/png;base64,')) {
-        try {
-          const base64Data = sig.assinatura_imagem.replace('data:image/png;base64,', '')
-          const binaryString = atob(base64Data)
-          const len = binaryString.length
-          const bytes = new Uint8Array(len)
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i)
-          }
-          const image = await mergedPdf.embedPng(bytes)
-          const dims = image.scale(0.3)
-          certPage.drawImage(image, {
-            x: 50,
-            y: y - dims.height,
-            width: dims.width,
-            height: dims.height,
-          })
-          y -= dims.height + 20
-        } catch (e) {
-          y -= 20
-        }
-      } else {
-        y -= 10
-      }
+      certPage.drawText(
+        `IP: ${sig.ip_assinatura || 'N/A'} | Código de Confirmação: ${sig.codigo_confirmacao}`,
+        { x: 85, y, size: 10, font },
+      )
+      y -= 25
 
       certPage.drawLine({
-        start: { x: 50, y: y + 10 },
-        end: { x: 545, y: y + 10 },
-        thickness: 1,
-        color: rgb(0.8, 0.8, 0.8),
+        start: { x: 85, y: y + 10 },
+        end: { x: 510, y: y + 10 },
+        thickness: 0.5,
+        color: rgb(0.5, 0.5, 0.5),
       })
-      y -= 10
+      y -= 15
     }
 
     const pdfBytes = await mergedPdf.save()

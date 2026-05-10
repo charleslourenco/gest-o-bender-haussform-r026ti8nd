@@ -3,9 +3,14 @@ import { FileText, Download, Upload, Plus, Eye, PenTool, Trash2 } from 'lucide-r
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
-import { numeroPorExtenso } from '@/lib/extenso'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { SignatureModal } from './signature-modal'
 import {
   DropdownMenu,
@@ -14,71 +19,36 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-declare global {
-  interface Window {
-    PizZip: any
-    docxtemplater: any
-  }
-}
-
-async function carregarBibliotecas() {
-  if (typeof window.PizZip !== 'undefined' && typeof window.docxtemplater !== 'undefined') return
-
-  function carregarScript(src: string) {
-    return new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector(`script[src="${src}"]`)
-      if (existing) {
-        resolve()
-        return
-      }
-      const script = document.createElement('script')
-      script.src = src
-      script.async = false
-      script.onload = () => resolve()
-      script.onerror = () => reject(new Error('Falha ao carregar: ' + src))
-      document.head.appendChild(script)
-    })
-  }
-
-  await carregarScript('https://cdn.jsdelivr.net/npm/pizzip@3.1.4/dist/pizzip.js')
-  await carregarScript('https://cdn.jsdelivr.net/npm/docxtemplater@3.47.4/build/docxtemplater.js')
-}
-
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [signatureDoc, setSignatureDoc] = useState<any>(null)
-  const [convertingIds, setConvertingIds] = useState<Record<string, boolean>>({})
+
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingDoc, setEditingDoc] = useState<any>(null)
+  const [editingContent, setEditingContent] = useState('')
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadDocs = async () => {
     const { data } = await supabase
       .from('documentos_cliente')
-      .select('*')
+      .select('*, assinaturas(id, status), clientes(nome)')
       .eq('cliente_id', dossie.cliente_id)
+      .order('criado_em', { ascending: false })
     if (data) setDocs(data)
   }
 
   const loadTemplates = async () => {
     try {
-      const { data: arquivos, error } = await supabase.storage
-        .from('bender_templates')
-        .list('', { limit: 100, sortBy: { column: 'name', order: 'asc' } })
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('id, nome')
+        .eq('ativo', true)
 
-      if (error) throw new Error('Erro ao listar templates: ' + error.message)
-
-      if (arquivos) {
-        const templatesData = arquivos
-          .filter((f) => f.name.endsWith('.docx'))
-          .map((f) => ({
-            id: f.name,
-            nome: f.name.replace('.docx', '').replace(/_/g, ' '),
-            arquivo: f.name,
-            arquivo_url: `https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/${f.name}`,
-          }))
-        setTemplates(templatesData)
-      }
+      if (error) throw error
+      if (data) setTemplates(data)
     } catch (err: any) {
       console.error(err)
       toast.error(err.message)
@@ -93,88 +63,29 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const form = dossie.formulario || {}
   const hasData = !!form.cpf && !!form.rua
 
-  const hasContratoGerado = docs.some(
-    (d) => d.tipo === 'Contrato' || d.template_nome?.toLowerCase().includes('contrato.docx'),
-  )
-
   const getSignedUrl = async (originalUrl: string) => {
     if (!originalUrl) return ''
     try {
-      const match = originalUrl.match(
-        /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
-      )
-      if (match) {
-        const bucket = match[1]
-        const path = decodeURIComponent(match[2])
-        const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
-
-        if (error) {
-          console.error('Erro Supabase ao assinar URL:', error)
-          toast.error('Erro ao gerar acesso seguro: ' + error.message)
-          return null
+      if (originalUrl.startsWith('http')) {
+        const match = originalUrl.match(
+          /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
+        )
+        if (match) {
+          const bucket = match[1]
+          const path = decodeURIComponent(match[2])
+          const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+          if (!error && data?.signedUrl) return data.signedUrl
         }
-
-        if (data?.signedUrl) {
-          return data.signedUrl
-        }
+      } else {
+        const { data, error } = await supabase.storage
+          .from('bender_clientes')
+          .createSignedUrl(originalUrl, 3600)
+        if (!error && data?.signedUrl) return data.signedUrl
       }
     } catch (e: any) {
       console.error('Error generating signed URL:', e)
-      toast.error('Falha interna ao gerar link seguro')
-      return null
     }
     return originalUrl
-  }
-
-  const handleOpenPdf = async (doc: any) => {
-    // Abre a aba antes do processo assíncrono para evitar bloqueio de popup pelo navegador
-    const newWindow = window.open('', '_blank')
-    setConvertingIds((prev) => ({ ...prev, [doc.id]: true }))
-
-    try {
-      if (doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
-        const url = await getSignedUrl(doc.arquivo_url)
-        if (url && newWindow) {
-          newWindow.location.href = url
-        } else if (newWindow) {
-          newWindow.close()
-        }
-        return
-      }
-
-      toast.info('Gerando PDF...', { id: 'gerar-pdf-' + doc.id })
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      const payload = {
-        cliente_id: dossie.cliente_id,
-        vendedor: session?.user?.user_metadata?.nome || 'Sistema',
-      }
-
-      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: payload,
-      })
-
-      if (error) throw error
-
-      if (data?.documento_url) {
-        const url = await getSignedUrl(data.documento_url)
-        if (url && newWindow) {
-          newWindow.location.href = url
-        } else if (newWindow) {
-          newWindow.close()
-        }
-      } else if (newWindow) {
-        newWindow.close()
-      }
-    } catch (e: any) {
-      toast.error('Erro ao visualizar PDF: ' + e.message)
-      if (newWindow) newWindow.close()
-    } finally {
-      toast.dismiss('gerar-pdf-' + doc.id)
-      setConvertingIds((prev) => ({ ...prev, [doc.id]: false }))
-    }
   }
 
   const handleDeleteDoc = async (docId: string, nome: string) => {
@@ -199,289 +110,33 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
-  const processDocx = async (templateUrl: string, templateNome: string, isContrato: boolean) => {
+  const handleGerarTemplate = async (templateNome: string) => {
     setGenerating(true)
     toast.info(`Gerando ${templateNome}...`, { id: 'gerar-doc' })
     try {
-      if (typeof window.PizZip === 'undefined' || typeof window.docxtemplater === 'undefined') {
-        await carregarBibliotecas()
-      }
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
+        body: { action: 'gerar_novo', cliente_id: dossie.cliente_id, template_nome: templateNome },
+      })
+      if (error) throw error
+      if (!data.success) throw new Error(data.error)
 
-      if (!window.PizZip || !window.docxtemplater) {
-        throw new Error('As bibliotecas PizZip e Docxtemplater não foram carregadas no navegador.')
-      }
-
-      console.log('1. Buscando dados do formulário...')
       const { data: authData } = await supabase.auth.getUser()
-
-      const { data: formInfo } = await supabase
-        .from('formulario_comercial')
-        .select('*, cliente:clientes(nome, email, telefone)')
-        .eq('cliente_id', dossie.cliente_id)
-        .eq('user_id', authData.user?.id)
-        .single()
-
-      if (!formInfo) throw new Error('Dados do formulário não encontrados.')
-      console.log('2. Dados encontrados:', formInfo)
-
-      console.log('3. Baixando arquivo do bucket...')
-      const res = await fetch(templateUrl, { method: 'GET', cache: 'no-cache' })
-      if (!res.ok) {
-        throw new Error(`Erro ${res.status} ao baixar template: ${res.statusText}`)
-      }
-      const arrayBuffer = await res.arrayBuffer()
-      console.log('4. Arquivo baixado, iniciando Docxtemplater...')
-
-      const cli = Array.isArray(formInfo.cliente) ? formInfo.cliente[0] : formInfo.cliente || {}
-
-      const formatDateStr = (dateStr: string) => {
-        if (!dateStr) return ''
-        const [y, m, d] = dateStr.split('-')
-        return `${d}/${m}/${y}`
-      }
-
-      const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-
-      const datas = (formInfo.datas as any) || {}
-
-      const pagamentosArr = Array.isArray(formInfo.pagamentos)
-        ? formInfo.pagamentos
-        : [formInfo.pagamentos || {}]
-      const pagData = pagamentosArr[0] || {}
-      const formaPagamento = pagData.forma || 'À vista'
-      const metodoPagamento = pagData.meio || ''
-
-      const hoje = new Date()
-      const dataContratoExtenso = format(hoje, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
-
-      const produtos = (formInfo.produtos_servicos as any[]) || []
-      const subtotal = produtos.reduce(
-        (acc: number, p: any) =>
-          acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
-        0,
-      )
-      const desconto = Number(formInfo.desconto || 0)
-      const total = Math.max(0, subtotal - desconto)
-
-      let blocoProdutosServicos = ''
-      if (produtos.length === 0) {
-        blocoProdutosServicos = '(Nenhum produto cadastrado)'
-      } else {
-        const linhasProdutos = produtos
-          .map((p: any, i: number) => {
-            const nome = p.nome || p.descricao || p.name || `Item ${i + 1}`
-            const qtd = Number(p.qtd || p.quantidade || 1)
-            const valorUnit = Number(p.valor_unitario || p.valor || 0)
-            const valorTotal = qtd * valorUnit
-            return `${i + 1}. ${nome} — Qtd: ${qtd} × ${formatCurrency(valorUnit)} = ${formatCurrency(valorTotal)}`
-          })
-          .join('\n')
-        blocoProdutosServicos = `${linhasProdutos}\n\nSubtotal: ${formatCurrency(subtotal)}\nDesconto: ${formatCurrency(desconto)}\nTotal: ${formatCurrency(total)}`
-      }
-
-      let blocoParcelasText = ''
-      const dataVenda = datas.data_venda || ''
-
-      if (formaPagamento === 'À vista') {
-        blocoParcelasText = `O pagamento será realizado à vista no valor de ${formatCurrency(total)} (${numeroPorExtenso(total, true)}) a ser pago no dia ${formatDateStr(dataVenda)} por meio de ${metodoPagamento}.`
-      } else {
-        const parcelas = pagData.parcelas || []
-        const numParcelas = parcelas.length
-
-        // Calcular datas com intervalo de 30 dias a partir da data da venda
-        const dataBase = dataVenda ? new Date(dataVenda + 'T12:00:00') : new Date()
-
-        const descricoesParcelas = parcelas
-          .map((p: any, index: number) => {
-            const numOrdem = index + 1
-            const dataVenc = new Date(dataBase)
-            dataVenc.setDate(dataVenc.getDate() + 30 * numOrdem)
-            const dataFormatada = `${String(dataVenc.getDate()).padStart(2, '0')}/${String(dataVenc.getMonth() + 1).padStart(2, '0')}/${dataVenc.getFullYear()}`
-            const valParcela = Number(p.valor || total / numParcelas || 0)
-            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} (${numeroPorExtenso(valParcela, true)}) com vencimento em ${dataFormatada}`
-          })
-          .join('; ')
-
-        blocoParcelasText = `O pagamento será realizado em ${numParcelas} (${numeroPorExtenso(numParcelas, false)}) parcelas por meio de ${metodoPagamento}, sendo: ${descricoesParcelas}.`
-      }
-
-      const placeholders = {
-        CLIENTE_NOME: cli.nome || '',
-        CLIENTE_CPF_CNPJ: formInfo.cpf || '',
-        CLIENTE_PROFISSAO: formInfo.profissao || '',
-        CLIENTE_ESTADO_CIVIL: formInfo.estado_civil || '',
-        CLI_EMAIL: cli.email || '',
-        CLIENTE_TELEFONE: cli.telefone || '',
-        CLIENTE_CEP: formInfo.cep || '',
-        CLIENTE_RUA: formInfo.rua || '',
-        CLIENTE_NUMERO: formInfo.numero || '',
-        CLIENTE_COMPLEMENTO: formInfo.complemento || '',
-        CLIENTE_BAIRRO: formInfo.bairro || '',
-        CLIENTE_CIDADE: formInfo.municipio || '',
-        CLIENTE_ESTADO: formInfo.estado || '',
-        OBRA_CEP: formInfo.obra_cep || '',
-        OBRA_RUA: formInfo.obra_rua || '',
-        OBRA_NUMERO: formInfo.obra_numero || '',
-        OBRA_COMPLEMENTO: formInfo.obra_complemento || '',
-        OBRA_BAIRRO: formInfo.obra_bairro || '',
-        OBRA_CIDADE: formInfo.obra_municipio || '',
-        OBRA_ESTADO: formInfo.obra_estado || '',
-        METODO_PAGAMENTO: metodoPagamento || '',
-        DATA_PAGAMENTO: formatDateStr(dataVenda) || '',
-        DATA_PREVISTA_ENTREGA_IMOVEL: formatDateStr(datas.data_acesso_imovel || '') || '',
-        DATA_CONTRATO_EXTENSO: dataContratoExtenso || '',
-        CLI_NOME: cli.nome || '',
-        CLI_CPF: formInfo.cpf || '',
-        REPRESENTANTE_BENDER_NOME: 'Daiana Gabriela Bender',
-        REPRESENTANTE_BENDER_CPF: '011.494.920-40',
-        TESTEMUNHA_01_NOME: '',
-        TESTEMUNHA_01_CPF: '',
-        TESTEMUNHA_02_NOME: '',
-        TESTEMUNHA_02_CPF: '',
-        BLOCO_PRODUTOS_SERVICOS: blocoProdutosServicos || '',
-        BLOCO_PARCELAS: blocoParcelasText || '',
-        BLOCO_PARCELAS_TEXTO: blocoParcelasText || '',
-      }
-
-      console.log('5. Placeholders mapeados:', placeholders)
-
-      const zip = new window.PizZip(arrayBuffer)
-
-      // Inspecionar o XML real do documento
-      try {
-        if (zip.files['word/document.xml']) {
-          const xmlContent = zip.files['word/document.xml'].asText()
-          const matches = xmlContent.match(/\[([A-Z_]+)\]/g)
-          console.log('PLACEHOLDERS ENCONTRADOS NO XML:', matches)
-
-          const matchesDuplos = xmlContent.match(/\{\{([A-Z_]+)\}\}/g)
-          console.log('PLACEHOLDERS ANTIGOS {{}} NO XML:', matchesDuplos)
-        }
-      } catch (xmlError) {
-        console.error('Erro ao inspecionar o XML:', xmlError)
-      }
-
-      const doc = new window.docxtemplater(zip, {
-        delimiters: { start: '[', end: ']' },
-        paragraphLoop: true,
-        linebreaks: true,
-        errorLogging: true,
-        nullGetter: (part: any) => {
-          console.warn('Placeholder sem valor:', part.value)
-          return ''
-        },
-      })
-
-      doc.render(placeholders)
-
-      console.log('6. Documento gerado, iniciando upload...')
-      const out = doc.getZip().generate({
-        type: 'blob',
-        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      })
-
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession()
-      if (!session) {
-        throw new Error('Usuário não autenticado. Faça login novamente.')
-      }
-      console.log('Sessão ativa:', session.user.id)
-
-      const safeName = isContrato
-        ? `Contrato_${Date.now()}.docx`
-        : `${templateNome}_${Date.now()}`.replace(/\s+/g, '_') + '.docx'
-      const filePath = `${session.user.id}/${dossie.cliente_id}/${safeName}`
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('dossiers')
-        .upload(filePath, out, {
-          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          upsert: true,
-        })
-
-      if (uploadError) {
-        console.error('Erro no upload:', uploadError)
-        throw new Error('Erro no upload: ' + uploadError.message)
-      }
-
-      console.log('Upload realizado:', uploadData)
-
-      const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
-      const publicUrl = publicUrlData.publicUrl
-
-      await supabase.from('documentos_cliente').insert({
-        cliente_id: dossie.cliente_id,
-        tipo: isContrato ? 'Contrato' : 'template',
-        template_nome: isContrato ? 'Contrato.docx' : templateNome,
-        status: 'gerado',
-        arquivo_url: publicUrl,
-      })
-
-      const { data: docData, error: docError } = await supabase.from('documentos_gerados').insert({
-        cliente_id: dossie.cliente_id,
-        user_id: session.user.id,
-        nome: isContrato ? 'Contrato.docx' : templateNome,
-        path: filePath,
-        tipo: isContrato ? 'contrato' : 'template',
-        criado_em: new Date().toISOString(),
-      })
-
-      if (docError) {
-        console.error('Erro ao registrar documento:', docError)
-        throw new Error('Erro ao registrar documento: ' + docError.message)
-      }
-
-      console.log('Documento registrado com sucesso:', docData)
-
-      if (isContrato) {
-        await supabase.from('dossies').update({ contrato_url: publicUrl }).eq('id', dossie.id)
-      }
-
       const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
         usuario_nome: userName,
-        acao: isContrato ? 'Contrato gerado' : `Documento ${templateNome} adicionado`,
+        acao: `Documento ${templateNome} gerado`,
       })
 
-      toast.dismiss('gerar-doc')
       toast.success(`${templateNome} gerado com sucesso!`)
       loadDocs()
       onReload()
     } catch (e: any) {
-      toast.dismiss('gerar-doc')
-      if (e.properties && e.properties.errors) {
-        const errosDetalhados = e.properties.errors
-          .map(
-            (err: any) =>
-              `Placeholder: ${err.properties?.id || err.properties?.name || 'desconhecido'} | Erro: ${err.properties?.explanation || err.message}`,
-          )
-          .join('\n')
-        console.error('ERROS DOCXTEMPLATER:\n' + errosDetalhados)
-        toast.error(`Falha ao gerar ${templateNome}:\n${errosDetalhados}`)
-      } else {
-        console.error('ERRO COMPLETO:', e)
-        toast.error(
-          `Falha ao gerar ${templateNome}: ` +
-            (e?.message || e?.toString() || JSON.stringify(e) || 'erro desconhecido'),
-        )
-      }
+      toast.error(`Falha ao gerar ${templateNome}: ${e.message}`)
     } finally {
+      toast.dismiss('gerar-doc')
       setGenerating(false)
     }
-  }
-
-  const handleGerarContrato = () => {
-    const url =
-      'https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/Contrato.docx'
-    processDocx(url, 'Contrato', true)
-  }
-
-  const handleGerarTemplate = (t: any) => {
-    processDocx(t.arquivo_url, t.nome, t.arquivo === 'Contrato.docx')
   }
 
   const handleUploadClick = () => {
@@ -499,39 +154,76 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       } = await supabase.auth.getSession()
       if (!session) throw new Error('Usuário não autenticado.')
 
-      const filePath = `${session.user.id}/${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+      const filePath = `contratos/${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
       const { error: uploadError } = await supabase.storage
-        .from('dossiers')
+        .from('bender_clientes')
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
-
-      const { data: publicUrlData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
 
       await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
         tipo: 'upload_manual',
         template_nome: file.name,
         status: 'enviado',
-        arquivo_url: publicUrlData.publicUrl,
+        arquivo_url: filePath,
       })
 
-      const { data: authData } = await supabase.auth.getUser()
-      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
         usuario_nome: userName,
         acao: `Arquivo ${file.name} enviado manualmente`,
       })
 
-      toast.dismiss('upload-doc')
       toast.success('Arquivo enviado com sucesso!')
       loadDocs()
     } catch (err: any) {
-      toast.dismiss('upload-doc')
       toast.error('Erro no upload: ' + err.message)
     } finally {
+      toast.dismiss('upload-doc')
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleEditClick = (doc: any) => {
+    setEditingDoc(doc)
+    setEditingContent(
+      doc.conteudo_preenchido || 'Não editável (somente documentos gerados via template)',
+    )
+    setEditModalOpen(true)
+  }
+
+  const handleSaveEdit = async () => {
+    toast.info('Salvando e regerando PDF...', { id: 'save-edit' })
+    try {
+      const { error } = await supabase.functions.invoke('gerar_documento_cliente', {
+        body: {
+          action: 'atualizar_pdf',
+          documento_id: editingDoc.id,
+          conteudo_editado: editingContent,
+        },
+      })
+      if (error) throw error
+
+      toast.success('Documento salvo e atualizado!')
+      setEditModalOpen(false)
+      loadDocs()
+    } catch (e: any) {
+      toast.error(`Falha ao salvar: ${e.message}`)
+    } finally {
+      toast.dismiss('save-edit')
+    }
+  }
+
+  const handleDownloadSigned = async (url: string) => {
+    const signed = await getSignedUrl(url)
+    if (signed) {
+      const a = document.createElement('a')
+      a.href = signed
+      a.target = '_blank'
+      a.download = 'Contrato_Assinado.pdf'
+      a.click()
     }
   }
 
@@ -550,15 +242,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
       <div className="flex flex-wrap gap-4 items-center mb-6">
-        {!hasContratoGerado && (
-          <Button
-            onClick={handleGerarContrato}
-            disabled={generating}
-            className="bg-dark-denim hover:bg-dark-denim/90 font-bold"
-          >
-            <FileText className="w-4 h-4 mr-2" /> 📄 Gerar Contrato
-          </Button>
-        )}
         <DropdownMenu
           onOpenChange={(open) => {
             if (open) loadTemplates()
@@ -566,11 +249,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         >
           <DropdownMenuTrigger asChild>
             <Button
-              variant="outline"
-              className="font-bold border-2 border-steel-blue"
+              variant="default"
+              className="font-bold bg-dark-denim hover:bg-dark-denim/90 text-white shadow"
               disabled={generating}
             >
-              <Plus className="w-4 h-4 mr-2" /> Acrescentar documento ▼
+              <Plus className="w-4 h-4 mr-2" /> Gerar Novo Documento ▼
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
@@ -580,22 +263,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               templates.map((t) => (
                 <DropdownMenuItem
                   key={t.id}
-                  onClick={() => handleGerarTemplate(t)}
-                  className="cursor-pointer"
+                  onClick={() => handleGerarTemplate(t.nome)}
+                  className="cursor-pointer font-medium"
                 >
-                  {t.nome}
+                  {t.nome.toUpperCase()}
                 </DropdownMenuItem>
               ))
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+
         <Button
           variant="outline"
-          className="font-bold border-2 border-steel-blue"
+          className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
           onClick={handleUploadClick}
           disabled={generating}
         >
-          <Upload className="w-4 h-4 mr-2" /> Upload de arquivo
+          <Upload className="w-4 h-4 mr-2" /> Upload Manual
         </Button>
       </div>
 
@@ -605,108 +289,57 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           <p className="text-steel-blue italic">Nenhum documento encontrado para este cliente.</p>
         ) : (
           <div className="space-y-3">
-            {docs.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex flex-col md:flex-row md:items-center justify-between bg-pale-cornflower p-4 rounded border border-steel-blue gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  <FileText className="w-6 h-6 text-midnight-navy shrink-0" />
-                  <div>
-                    <p className="font-bold text-midnight-navy break-all">
-                      {doc.template_nome || doc.tipo}
-                    </p>
-                    <p className="text-xs text-steel-blue">
-                      Status: {doc.status} | Gerado em:{' '}
-                      {new Date(doc.criado_em).toLocaleDateString('pt-BR')}
-                    </p>
+            {docs.map((doc) => {
+              const pendentes =
+                doc.assinaturas?.filter((a: any) => a.status === 'pendente').length || 0
+              const hasAssinaturas = doc.assinaturas?.length > 0
+              const allAssinados = hasAssinaturas && pendentes === 0
+
+              return (
+                <div
+                  key={doc.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-lg border shadow-sm gap-4 hover:border-steel-blue transition-colors"
+                >
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <FileText className="w-6 h-6 text-steel-blue shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-midnight-navy truncate">
+                        📄 {doc.template_nome || doc.tipo} - {doc.clientes?.nome || 'Cliente'} -{' '}
+                        {new Date(doc.criado_em).toLocaleDateString('pt-BR')}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Status: {doc.status}</p>
+                    </div>
                   </div>
-                </div>
-                {doc.arquivo_url && (
+
                   <div className="flex flex-wrap gap-2 shrink-0">
-                    {doc.arquivo_assinado_url ? (
+                    {doc.conteudo_preenchido && (
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
-                        onClick={async () => {
-                          const newWindow = window.open('', '_blank')
-                          const url = await getSignedUrl(doc.arquivo_assinado_url)
-                          if (url && newWindow) {
-                            newWindow.location.href = url
-                          } else if (newWindow) {
-                            newWindow.close()
-                          }
-                        }}
-                        className="bg-green-600 text-white hover:bg-green-700 font-semibold shadow-sm"
+                        onClick={() => handleEditClick(doc)}
+                        className="hover:bg-slate-100"
                       >
-                        <Download className="w-4 h-4 mr-1" /> [PDF Assinado]
+                        <Eye className="w-4 h-4 mr-1" /> Visualizar / Editar
                       </Button>
-                    ) : null}
+                    )}
 
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={async () => {
-                        const newWindow = window.open('', '_blank')
-                        const url = await getSignedUrl(doc.arquivo_url)
-                        if (url && newWindow) {
-                          newWindow.location.href = url
-                        } else if (newWindow) {
-                          newWindow.close()
-                        }
-                      }}
-                      className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
+                      onClick={() => setSignatureDoc(doc)}
+                      className="hover:bg-slate-100"
                     >
-                      <PenTool className="w-4 h-4 mr-1" /> Editar Word
+                      <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
                     </Button>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={convertingIds[doc.id]}
-                      onClick={() => handleOpenPdf(doc)}
-                      className="border-steel-blue text-midnight-navy font-semibold hover:bg-steel-blue hover:text-white"
-                    >
-                      {convertingIds[doc.id] ? (
-                        <div className="w-4 h-4 mr-1 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Eye className="w-4 h-4 mr-1" />
-                      )}
-                      Visualizar PDF
-                    </Button>
-
-                    {!doc.arquivo_assinado_url && (
+                    {allAssinados && doc.arquivo_assinado_url && (
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => {
-                          setSignatureDoc({
-                            path: doc.arquivo_url,
-                            title: doc.template_nome || doc.tipo,
-                            ...doc,
-                          })
-
-                          if (!doc.arquivo_url?.toLowerCase().endsWith('.pdf')) {
-                            supabase.auth.getSession().then(({ data: { session } }) => {
-                              supabase.functions
-                                .invoke('gerar_documento_cliente', {
-                                  body: {
-                                    cliente_id: dossie.cliente_id,
-                                    vendedor: session?.user?.user_metadata?.nome || 'Sistema',
-                                  },
-                                })
-                                .then(({ data, error }) => {
-                                  if (data?.documento_url && !error) {
-                                    console.log('Conversão DOCX -> PDF em segundo plano concluída.')
-                                  }
-                                })
-                                .catch(console.error)
-                            })
-                          }
-                        }}
-                        className="bg-dark-denim text-white hover:bg-dark-denim/90 font-semibold"
+                        onClick={() => handleDownloadSigned(doc.arquivo_assinado_url)}
+                        className="bg-green-600 hover:bg-green-700 shadow text-white font-medium"
                       >
-                        <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
+                        <Download className="w-4 h-4 mr-1" /> 📥 PDF Assinado
                       </Button>
                     )}
 
@@ -714,21 +347,50 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       variant="destructive"
                       size="sm"
                       onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
-                      className="font-semibold"
                     >
-                      <Trash2 className="w-4 h-4 mr-1" /> Excluir
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
 
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Editar Texto do Documento</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 py-2">
+            <Textarea
+              value={editingContent}
+              onChange={(e) => setEditingContent(e.target.value)}
+              className="h-full min-h-[400px] w-full resize-none font-mono text-sm border-2 border-steel-blue/30 focus-visible:ring-steel-blue"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              className="bg-dark-denim text-white hover:bg-dark-denim/90"
+            >
+              Salvar e Regerar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {signatureDoc && (
         <SignatureModal
-          doc={signatureDoc}
+          doc={{
+            ...signatureDoc,
+            title: signatureDoc.template_nome || signatureDoc.tipo,
+            path: signatureDoc.arquivo_url,
+          }}
           clienteId={dossie.cliente_id}
           onClose={() => {
             setSignatureDoc(null)

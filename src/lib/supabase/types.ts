@@ -320,11 +320,36 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          conteudo: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          conteudo: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          conteudo?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       documentos_cliente: {
         Row: {
           arquivo_assinado_url: string | null
           arquivo_url: string | null
           cliente_id: string | null
+          conteudo_preenchido: string | null
           criado_em: string
           id: string
           projeto_id: string | null
@@ -337,6 +362,7 @@ export type Database = {
           arquivo_assinado_url?: string | null
           arquivo_url?: string | null
           cliente_id?: string | null
+          conteudo_preenchido?: string | null
           criado_em?: string
           id?: string
           projeto_id?: string | null
@@ -349,6 +375,7 @@ export type Database = {
           arquivo_assinado_url?: string | null
           arquivo_url?: string | null
           cliente_id?: string | null
+          conteudo_preenchido?: string | null
           criado_em?: string
           id?: string
           projeto_id?: string | null
@@ -1379,6 +1406,12 @@ export const Constants = {
 //   data_pagamento: date (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: document_templates
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   conteudo: text (not null)
+//   ativo: boolean (nullable, default: true)
+//   atualizado_em: timestamp without time zone (nullable, default: now())
 // Table: documentos_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1390,6 +1423,7 @@ export const Constants = {
 //   arquivo_url: text (nullable)
 //   template_nome: text (nullable)
 //   arquivo_assinado_url: text (nullable)
+//   conteudo_preenchido: text (nullable)
 // Table: documentos_gerados
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1591,6 +1625,9 @@ export const Constants = {
 //   FOREIGN KEY contas_receber_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY contas_receber_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contas_receber_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: document_templates
+//   UNIQUE document_templates_nome_key: UNIQUE (nome)
+//   PRIMARY KEY document_templates_pkey: PRIMARY KEY (id)
 // Table: documentos_cliente
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
@@ -1699,6 +1736,9 @@ export const Constants = {
 //   Policy "contas_receber_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //     WITH CHECK: (user_id = auth.uid())
+// Table: document_templates
+//   Policy "document_templates_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: documentos_cliente
 //   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -2013,6 +2053,8 @@ export const Constants = {
 //   CREATE UNIQUE INDEX assinantes_token_acesso_key ON public.assinantes USING btree (token_acesso)
 // Table: clientes
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
+// Table: document_templates
+//   CREATE UNIQUE INDEX document_templates_nome_key ON public.document_templates USING btree (nome)
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)

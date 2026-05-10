@@ -89,15 +89,18 @@ Deno.serve(async (req: Request) => {
 
       let blocoProdutos = ''
       if (produtos.length === 0) {
-        blocoProdutos = '(Nenhum produto cadastrado)'
+        blocoProdutos = '______________'
       } else {
-        const linhas = produtos.map((p: any, i: number) => {
-          const nome = p.nome || p.descricao || p.nome_produto || `Item ${i + 1}`
+        blocoProdutos = 'PRODUTO E SERVIÇO ||| QTD ||| V. UNIT. ||| TOTAL\n'
+        produtos.forEach((p: any) => {
+          const nome = p.nome || p.descricao || p.nome_produto || 'Item'
           const qtd = Number(p.qtd || p.quantidade || 1)
           const vu = Number(p.valor_unitario || p.valor || 0)
-          return `${i + 1}. ${nome} — Qtd: ${qtd} × ${formatCurrency(vu)} = ${formatCurrency(qtd * vu)}`
+          blocoProdutos += `${nome} ||| ${qtd} ||| ${formatCurrency(vu)} ||| ${formatCurrency(qtd * vu)}\n`
         })
-        blocoProdutos = `${linhas.join('\n')}\n\nSubtotal: ${formatCurrency(subtotal)}\nDesconto: ${formatCurrency(desconto)}\nTotal: ${formatCurrency(total)}`
+        blocoProdutos += `Subtotal ||| ||| ||| ${formatCurrency(subtotal)}\n`
+        blocoProdutos += `Desconto ||| ||| ||| ${formatCurrency(desconto)}\n`
+        blocoProdutos += `TOTAL ||| ||| ||| ${formatCurrency(total)}`
       }
 
       const formaPagamento = pagData.forma || 'À vista'
@@ -110,15 +113,17 @@ Deno.serve(async (req: Request) => {
       } else {
         const parcelas = pagData.parcelas || []
         const numParcelas = parcelas.length
-        const descricoesParcelas = parcelas
-          .map((p: any, index: number) => {
-            const numOrdem = index + 1
-            const valParcela = Number(p.valor || total / numParcelas || 0)
-            const dataVenc = p.data || p.vencimento || ''
-            return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} com vencimento em ${formatDateStr(dataVenc)}`
-          })
-          .join('; ')
-        blocoParcelasText = `O pagamento será realizado em ${numParcelas} parcelas por meio de ${metodoPagamento}, sendo: ${descricoesParcelas}.`
+        if (numParcelas > 0) {
+          const descricoesParcelas = parcelas
+            .map((p: any, index: number) => {
+              const numOrdem = index + 1
+              const valParcela = Number(p.valor || total / numParcelas || 0)
+              const dataVenc = p.data || p.vencimento || ''
+              return `a ${numOrdem}ª parcela no valor de ${formatCurrency(valParcela)} com vencimento em ${formatDateStr(dataVenc)}`
+            })
+            .join('; ')
+          blocoParcelasText = `O pagamento será realizado em ${numParcelas} parcelas por meio de ${metodoPagamento}, sendo: ${descricoesParcelas}.`
+        }
       }
 
       const mesExtenso = [
@@ -170,15 +175,16 @@ Deno.serve(async (req: Request) => {
         '[DATA_SOLICITACAO]': formatDateStr(new Date().toISOString().split('T')[0]),
         '[DATA_VISTORIA]': formatDateStr(new Date().toISOString().split('T')[0]),
         '[DATA_OCORRENCIA]': formatDateStr(new Date().toISOString().split('T')[0]),
-        '[DESCRICAO_ALTERACAO]': dados_extras?.descricao_alteracao || '____________________',
-        '[DESCRICAO_OCORRENCIA]': dados_extras?.descricao_ocorrencia || '____________________',
-        '[REPRESENTANTE_NOME]': dados_extras?.representante_nome || '____________________',
-        '[REPRESENTANTE_CPF]': dados_extras?.representante_cpf || '____________________',
+        '[DESCRICAO_ALTERACAO]': dados_extras?.descricao_alteracao || '',
+        '[DESCRICAO_OCORRENCIA]': dados_extras?.descricao_ocorrencia || '',
+        '[REPRESENTANTE_NOME]': dados_extras?.representante_nome || '',
+        '[REPRESENTANTE_CPF]': dados_extras?.representante_cpf || '',
       }
 
       let conteudoFinal = template.conteudo
       for (const [key, value] of Object.entries(placeholders)) {
-        conteudoFinal = conteudoFinal.split(key).join(value)
+        const replacement = value || '_______________'
+        conteudoFinal = conteudoFinal.split(key).join(replacement)
       }
 
       const cidadeForFooter = form.municipio || cli.cidade || 'Balneário Piçarras'
@@ -218,7 +224,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: doc } = await supabase
         .from('documentos_cliente')
-        .select('*')
+        .select('*, clientes(cidade)')
         .eq('id', documento_id)
         .single()
 
@@ -229,7 +235,8 @@ Deno.serve(async (req: Request) => {
         .update({ conteudo_preenchido: conteudo_editado })
         .eq('id', documento_id)
 
-      const pdfBytes = await generatePdfFromText(conteudo_editado, 'Balneário Piçarras', logoBytes)
+      const cidadeForFooter = doc.clientes?.cidade || 'Balneário Piçarras'
+      const pdfBytes = await generatePdfFromText(conteudo_editado, cidadeForFooter, logoBytes)
 
       const { error: uploadError } = await supabase.storage
         .from('bender_clientes')
@@ -257,7 +264,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     '👤': '[Cliente]',
     '📐': '[Analista]',
     '🔨': '[Montador]',
-    '✦': '-',
+    '✦': '•',
     '🧑‍💻': '[Projeto]',
     '⚙️': '[Fabricação]',
     '🚚': '[Entrega]',
@@ -266,7 +273,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     '✖️': '[ ]',
     '⚠️': '[Atenção]',
     '📦': '[Logística]',
-    '🔹': '-',
+    '🔹': '•',
     '🏗️': '[Acompanhamento]',
     '🎭': '[Ambientação]',
     '🤝': '[Termo]',
@@ -274,49 +281,63 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     '📣': '[Comunicados]',
     '📄': '[Documento]',
     '📒': '[Caderno]',
+    '✅': '[X]',
+    '❌': '[ ]',
   }
   let safeText = text
   for (const [emoji, replacement] of Object.entries(emojiMap)) {
     safeText = safeText.split(emoji).join(replacement)
   }
-  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n]/g, '') // Keep basic ascii + latin1, strip complex emojis
+  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '') // Keep basic ascii + latin1
 
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-  let page = pdfDoc.addPage([595.28, 841.89]) // A4
-  const margin = 60
-  const maxWidth = 595.28 - margin * 2
-  let currentY = 841.89 - margin
+  const margin = 85 // 3cm
+  const pageWidth = 595.28
+  const pageHeight = 841.89
+  const maxWidth = pageWidth - margin * 2
 
-  if (logoBytes) {
-    try {
-      const image = await pdfDoc.embedPng(logoBytes)
-      const scale = 150 / image.width
-      const imgDims = { width: image.width * scale, height: image.height * scale }
-      page.drawImage(image, {
-        x: (595.28 - imgDims.width) / 2,
-        y: currentY - imgDims.height,
-        width: imgDims.width,
-        height: imgDims.height,
-      })
-      currentY -= imgDims.height + 40
-    } catch (e) {
-      console.warn('Failed to embed logo', e)
-      page.drawText('BENDER HAUSSFORM', { x: margin, y: currentY, size: 14, font: fontBold })
-      currentY -= 40
+  let page = pdfDoc.addPage([pageWidth, pageHeight])
+  let currentY = pageHeight - margin
+  let isFirstPage = true
+
+  const drawHeader = async (p: any, isFirst: boolean) => {
+    if (isFirst) {
+      if (logoBytes) {
+        try {
+          const image = await pdfDoc.embedPng(logoBytes)
+          const scale = 120 / image.width
+          const imgDims = { width: image.width * scale, height: image.height * scale }
+          p.drawImage(image, {
+            x: (pageWidth - imgDims.width) / 2,
+            y: pageHeight - margin + 20,
+            width: imgDims.width,
+            height: imgDims.height,
+          })
+          return imgDims.height + 10
+        } catch (e) {
+          console.warn('Failed to embed logo', e)
+        }
+      } else {
+        // Fallback comment: // TODO: inserir logo da Bender — buscar em bender_templates/logo.png
+      }
     }
-  } else {
-    page.drawText('BENDER HAUSSFORM', { x: margin, y: currentY, size: 14, font: fontBold })
-    currentY -= 40
+    return 0
   }
 
   const checkPageBreak = (needed: number) => {
     if (currentY - needed < margin) {
-      page = pdfDoc.addPage([595.28, 841.89])
-      currentY = 841.89 - margin
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      currentY = pageHeight - margin
+      isFirstPage = false
     }
+  }
+
+  let logoOffset = await drawHeader(page, true)
+  if (logoOffset > 0) {
+    currentY -= logoOffset
   }
 
   const wrapText = (textStr: string, font: any, size: number) => {
@@ -327,7 +348,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       const testLine = currentLine ? `${currentLine} ${word}` : word
       const width = font.widthOfTextAtSize(testLine, size)
       if (width > maxWidth) {
-        lines.push(currentLine)
+        if (currentLine) lines.push(currentLine)
         currentLine = word
       } else {
         currentLine = testLine
@@ -337,60 +358,149 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     return lines
   }
 
-  const lines = safeText.split('\n')
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i].trim()
+  const drawJustifiedLine = (
+    p: any,
+    text: string,
+    y: number,
+    font: any,
+    size: number,
+    color: any,
+  ) => {
+    const words = text.split(' ')
+    if (words.length <= 1) {
+      p.drawText(text, { x: margin, y, size, font, color })
+      return
+    }
+    const textWidth = font.widthOfTextAtSize(text.replace(/\s+/g, ''), size)
+    const spaceWidth = (maxWidth - textWidth) / (words.length - 1)
+
+    if (spaceWidth > font.widthOfTextAtSize(' ', size) * 3) {
+      p.drawText(text, { x: margin, y, size, font, color })
+      return
+    }
+
+    let currentX = margin
+    for (const word of words) {
+      p.drawText(word, { x: currentX, y, size, font, color })
+      currentX += font.widthOfTextAtSize(word, size) + spaceWidth
+    }
+  }
+
+  const rawLines = safeText.split('\n')
+  for (let i = 0; i < rawLines.length; i++) {
+    const rawLine = rawLines[i].trim()
     if (!rawLine) {
-      currentY -= 8
+      currentY -= 10 * 1.5
       continue
     }
 
+    if (rawLine.includes(' ||| ')) {
+      const cells = rawLine.split(' ||| ')
+      const cellWidths = [maxWidth * 0.45, maxWidth * 0.15, maxWidth * 0.2, maxWidth * 0.2]
+      const rowHeight = 20
+      checkPageBreak(rowHeight)
+
+      let currentX = margin
+      for (let c = 0; c < Math.min(cells.length, 4); c++) {
+        const text = cells[c].trim()
+        const cellFont =
+          i === 0 || text.toUpperCase() === 'TOTAL' || rawLine.startsWith('PRODUTO')
+            ? fontBold
+            : fontRegular
+        page.drawRectangle({
+          x: currentX,
+          y: currentY - 14,
+          width: cellWidths[c],
+          height: rowHeight,
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 0.5,
+          color: rgb(1, 1, 1),
+        })
+        const textW = cellFont.widthOfTextAtSize(text, 10)
+        page.drawText(text, {
+          x: currentX + (cellWidths[c] - textW) / 2,
+          y: currentY - 10,
+          size: 10,
+          font: cellFont,
+          color: rgb(0, 0, 0),
+        })
+        currentX += cellWidths[c]
+      }
+      currentY -= rowHeight
+      continue
+    }
+
+    const isMainTitle =
+      i === 0 || rawLine.startsWith('CONTRATO UNIFICADO') || rawLine.startsWith('TERMO DE ')
     const isClauseTitle = rawLine.toUpperCase() === rawLine && rawLine.startsWith('CLÁUSULA')
     const isSubtitle = /^[0-9]+\.[0-9]+/.test(rawLine)
 
     let font = fontRegular
     let size = 10
+    let align = 'justify'
 
-    if (isClauseTitle) {
+    if (isMainTitle) {
       font = fontBold
-      size = 12
-      currentY -= 12
+      size = 15
+      align = 'center'
+      currentY -= 15
+    } else if (isClauseTitle) {
+      font = fontBold
+      size = 13
+      align = 'left'
+      currentY -= 15
     } else if (isSubtitle) {
       font = fontBold
       size = 10
+      align = 'left'
+    } else if (
+      rawLine.startsWith('[X]') ||
+      rawLine.startsWith('[ ]') ||
+      rawLine.startsWith('[Atenção]')
+    ) {
+      align = 'left'
     }
 
     const wrappedLines = wrapText(rawLine, font, size)
+    const lineHeight = size * 1.5
 
-    for (const wl of wrappedLines) {
-      checkPageBreak(size + 4)
-      page.drawText(wl, { x: margin, y: currentY, size, font, color: rgb(0, 0, 0) })
-      currentY -= size + 4
+    for (let j = 0; j < wrappedLines.length; j++) {
+      const wl = wrappedLines[j]
+      checkPageBreak(lineHeight)
+
+      const width = font.widthOfTextAtSize(wl, size)
+      let x = margin
+
+      if (align === 'center') {
+        x = margin + (maxWidth - width) / 2
+        page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+      } else if (align === 'justify' && j < wrappedLines.length - 1 && width > maxWidth * 0.7) {
+        drawJustifiedLine(page, wl, currentY, font, size, rgb(0, 0, 0))
+      } else {
+        page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+      }
+
+      currentY -= lineHeight
     }
 
-    if (isClauseTitle) {
+    if (isClauseTitle || isMainTitle) {
       currentY -= 12
-    } else {
-      currentY -= 8
     }
   }
 
   const pages = pdfDoc.getPages()
   for (let i = 0; i < pages.length; i++) {
     const p = pages[i]
-    const footerY = 30
+    const footerY = margin - 20
     p.drawText(`Bender Haussform — ${cidade}/SC`, {
       x: margin,
       y: footerY,
       size: 8,
       font: fontRegular,
     })
-    p.drawText(`Página ${i + 1} de ${pages.length}`, {
-      x: 595.28 - margin - 50,
-      y: footerY,
-      size: 8,
-      font: fontRegular,
-    })
+    const pageText = `Página ${i + 1} de ${pages.length}`
+    const tw = fontRegular.widthOfTextAtSize(pageText, 8)
+    p.drawText(pageText, { x: pageWidth - margin - tw, y: footerY, size: 8, font: fontRegular })
   }
 
   return await pdfDoc.save()
