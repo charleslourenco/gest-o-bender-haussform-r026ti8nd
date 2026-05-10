@@ -583,6 +583,7 @@ export type Database = {
           cpf: string | null
           criado_em: string
           data_nascimento: string | null
+          data_prevista_entrega: string | null
           datas: Json | null
           desconto: number | null
           estado: string | null
@@ -604,6 +605,7 @@ export type Database = {
           profissao: string | null
           rua: string | null
           user_id: string
+          valor_total: number | null
         }
         Insert: {
           atualizado_em?: string
@@ -614,6 +616,7 @@ export type Database = {
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          data_prevista_entrega?: string | null
           datas?: Json | null
           desconto?: number | null
           estado?: string | null
@@ -635,6 +638,7 @@ export type Database = {
           profissao?: string | null
           rua?: string | null
           user_id?: string
+          valor_total?: number | null
         }
         Update: {
           atualizado_em?: string
@@ -645,6 +649,7 @@ export type Database = {
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          data_prevista_entrega?: string | null
           datas?: Json | null
           desconto?: number | null
           estado?: string | null
@@ -666,6 +671,7 @@ export type Database = {
           profissao?: string | null
           rua?: string | null
           user_id?: string
+          valor_total?: number | null
         }
         Relationships: [
           {
@@ -1493,6 +1499,8 @@ export const Constants = {
 //   pagamentos: jsonb (nullable, default: '[]'::jsonb)
 //   datas: jsonb (nullable, default: '{}'::jsonb)
 //   user_id: uuid (not null, default: auth.uid())
+//   valor_total: numeric (nullable)
+//   data_prevista_entrega: date (nullable)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)

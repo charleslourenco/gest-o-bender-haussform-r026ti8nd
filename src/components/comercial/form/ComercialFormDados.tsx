@@ -107,45 +107,66 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
     try {
       const { data: authData } = await supabase.auth.getUser()
 
+      const valorTotal =
+        data.produtos.reduce(
+          (acc: number, p: any) =>
+            acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
+          0,
+        ) - (data.desconto || 0)
+      const ambientesUnicos = Array.from(
+        new Set(data.produtos.map((p: any) => p.ambiente || 'Geral')),
+      )
+
+      const payload: any = {
+        cpf: data.cpf || null,
+        data_nascimento: data.data_nascimento || null,
+        profissao: data.profissao || null,
+        estado_civil: data.estado_civil || null,
+        cep: data.end_cep || null,
+        rua: data.end_rua || null,
+        numero: data.end_numero || null,
+        complemento: data.end_complemento || null,
+        bairro: data.end_bairro || null,
+        municipio: data.end_municipio || null,
+        estado: data.end_estado || null,
+        obra_cep: data.obra_cep || null,
+        obra_rua: data.obra_rua || null,
+        obra_numero: data.obra_numero || null,
+        obra_complemento: data.obra_complemento || null,
+        obra_bairro: data.obra_bairro || null,
+        obra_municipio: data.obra_municipio || null,
+        obra_estado: data.obra_estado || null,
+        produtos_servicos: data.produtos as any,
+        desconto: data.desconto || 0,
+        pagamentos: [
+          {
+            forma: data.forma_pagamento,
+            meio: data.pagamento_a_vista_meio,
+            parcelas: data.forma_pagamento === 'Parcelado' ? data.pagamento_parcelado : [],
+          },
+        ],
+        datas: {
+          data_venda: data.data_venda,
+          data_acesso_imovel: data.data_acesso_imovel,
+          data_medicao_final: data.data_medicao_final,
+          data_entrega_minima: data.data_entrega_minima,
+          data_entrega_maxima: data.data_entrega_maxima,
+        },
+        valor_total: valorTotal,
+        parcelas: data.forma_pagamento === 'Parcelado' ? data.pagamento_parcelado : [],
+        metodo_pagamento: data.pagamento_a_vista_meio,
+        data_pagamento: data.data_venda || null,
+        nome_cliente: data.nome,
+        ambientes: ambientesUnicos,
+        itens: data.produtos,
+        especificacoes: JSON.stringify(data.produtos.map((p: any) => p.descricao || p.nome || '')),
+        data_prevista_entrega: data.data_entrega_maxima || null,
+        atualizado_em: new Date().toISOString(),
+      }
+
       const { error } = await supabase
         .from('formulario_comercial')
-        .update({
-          cpf: data.cpf || null,
-          data_nascimento: data.data_nascimento || null,
-          profissao: data.profissao || null,
-          estado_civil: data.estado_civil || null,
-          cep: data.end_cep || null,
-          rua: data.end_rua || null,
-          numero: data.end_numero || null,
-          complemento: data.end_complemento || null,
-          bairro: data.end_bairro || null,
-          municipio: data.end_municipio || null,
-          estado: data.end_estado || null,
-          obra_cep: data.obra_cep || null,
-          obra_rua: data.obra_rua || null,
-          obra_numero: data.obra_numero || null,
-          obra_complemento: data.obra_complemento || null,
-          obra_bairro: data.obra_bairro || null,
-          obra_municipio: data.obra_municipio || null,
-          obra_estado: data.obra_estado || null,
-          produtos_servicos: data.produtos as any,
-          desconto: data.desconto || 0,
-          pagamentos: [
-            {
-              forma: data.forma_pagamento,
-              meio: data.pagamento_a_vista_meio,
-              parcelas: data.forma_pagamento === 'Parcelado' ? data.pagamento_parcelado : [],
-            },
-          ],
-          datas: {
-            data_venda: data.data_venda,
-            data_acesso_imovel: data.data_acesso_imovel,
-            data_medicao_final: data.data_medicao_final,
-            data_entrega_minima: data.data_entrega_minima,
-            data_entrega_maxima: data.data_entrega_maxima,
-          },
-          atualizado_em: new Date().toISOString(),
-        })
+        .update(payload)
         .eq('cliente_id', dossie.cliente_id)
         .eq('user_id', authData.user?.id)
 
