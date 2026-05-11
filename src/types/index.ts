@@ -45,3 +45,15 @@ export interface InventoryItem {
   minStock: number
   price: number
 }
+
+export interface Transaction {
+  id: string
+  type: 'receita' | 'despesa'
+  description: string
+  category: string
+  amount: number
+  dueDate: string
+  paidDate: string | null
+  status: string
+  source: any
+}
