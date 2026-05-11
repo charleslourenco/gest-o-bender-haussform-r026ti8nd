@@ -5,6 +5,8 @@ export const gerarDocumentoCliente = async (params: any) => {
     body: params,
   })
 
+  console.log('ERRO DETALHADO:', JSON.stringify(data), JSON.stringify(error))
+
   if (error) throw error
 
   if (data && data.success === false) {

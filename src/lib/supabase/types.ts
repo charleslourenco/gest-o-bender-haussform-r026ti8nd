@@ -575,6 +575,7 @@ export type Database = {
       }
       formulario_comercial: {
         Row: {
+          ambientes: Json | null
           atualizado_em: string
           bairro: string | null
           cep: string | null
@@ -583,15 +584,20 @@ export type Database = {
           cpf: string | null
           criado_em: string
           data_nascimento: string | null
+          data_pagamento: string | null
           data_prevista_entrega: string | null
           datas: Json | null
           desconto: number | null
+          especificacoes: string | null
           estado: string | null
           estado_civil: string | null
           etapa_atual: number | null
           id: string
+          itens: Json | null
           lead_id: string
+          metodo_pagamento: string | null
           municipio: string | null
+          nome_cliente: string | null
           numero: string | null
           obra_bairro: string | null
           obra_cep: string | null
@@ -601,6 +607,7 @@ export type Database = {
           obra_numero: string | null
           obra_rua: string | null
           pagamentos: Json | null
+          parcelas: Json | null
           produtos_servicos: Json | null
           profissao: string | null
           rua: string | null
@@ -608,6 +615,7 @@ export type Database = {
           valor_total: number | null
         }
         Insert: {
+          ambientes?: Json | null
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null
@@ -616,15 +624,20 @@ export type Database = {
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          data_pagamento?: string | null
           data_prevista_entrega?: string | null
           datas?: Json | null
           desconto?: number | null
+          especificacoes?: string | null
           estado?: string | null
           estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
+          itens?: Json | null
           lead_id: string
+          metodo_pagamento?: string | null
           municipio?: string | null
+          nome_cliente?: string | null
           numero?: string | null
           obra_bairro?: string | null
           obra_cep?: string | null
@@ -634,6 +647,7 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
+          parcelas?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
           rua?: string | null
@@ -641,6 +655,7 @@ export type Database = {
           valor_total?: number | null
         }
         Update: {
+          ambientes?: Json | null
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null
@@ -649,15 +664,20 @@ export type Database = {
           cpf?: string | null
           criado_em?: string
           data_nascimento?: string | null
+          data_pagamento?: string | null
           data_prevista_entrega?: string | null
           datas?: Json | null
           desconto?: number | null
+          especificacoes?: string | null
           estado?: string | null
           estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
+          itens?: Json | null
           lead_id?: string
+          metodo_pagamento?: string | null
           municipio?: string | null
+          nome_cliente?: string | null
           numero?: string | null
           obra_bairro?: string | null
           obra_cep?: string | null
@@ -667,6 +687,7 @@ export type Database = {
           obra_numero?: string | null
           obra_rua?: string | null
           pagamentos?: Json | null
+          parcelas?: Json | null
           produtos_servicos?: Json | null
           profissao?: string | null
           rua?: string | null
@@ -1501,6 +1522,13 @@ export const Constants = {
 //   user_id: uuid (not null, default: auth.uid())
 //   valor_total: numeric (nullable)
 //   data_prevista_entrega: date (nullable)
+//   parcelas: jsonb (nullable, default: '[]'::jsonb)
+//   metodo_pagamento: text (nullable)
+//   data_pagamento: date (nullable)
+//   nome_cliente: text (nullable)
+//   ambientes: jsonb (nullable, default: '[]'::jsonb)
+//   itens: jsonb (nullable, default: '[]'::jsonb)
+//   especificacoes: text (nullable)
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1746,6 +1774,8 @@ export const Constants = {
 //     WITH CHECK: (user_id = auth.uid())
 // Table: document_templates
 //   Policy "document_templates_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "permissao_leitura_edge_function" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: documentos_cliente
 //   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}

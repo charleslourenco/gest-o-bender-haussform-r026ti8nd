@@ -58,18 +58,28 @@ Deno.serve(async (req: Request) => {
       const { data: template, error: tplError } = await supabase
         .from('document_templates')
         .select('conteudo')
-        .eq('nome', template_nome)
-        .single()
+        .ilike('nome', template_nome.trim())
+        .limit(1)
+        .maybeSingle()
 
-      if (tplError || !template) throw new Error('Template não encontrado no banco de dados')
+      if (tplError)
+        throw new Error(`Erro ao buscar template '${template_nome}': ${tplError.message}`)
+      if (!template)
+        throw new Error(`Template '${template_nome}' não encontrado no banco de dados.`)
 
-      const { data: form } = await supabase
+      const { data: form, error: formError } = await supabase
         .from('formulario_comercial')
         .select('*, cliente:clientes(*)')
         .eq('cliente_id', cliente_id)
-        .single()
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-      if (!form) throw new Error('Formulário não encontrado para este cliente')
+      if (formError) throw new Error(`Erro ao buscar formulário: ${formError.message}`)
+      if (!form)
+        throw new Error(
+          'Formulário comercial não encontrado para este cliente. Preencha a aba Dados antes de gerar documentos.',
+        )
 
       const cli = Array.isArray(form.cliente) ? form.cliente[0] : form.cliente || {}
       const datas = form.datas || {}
@@ -190,7 +200,7 @@ Deno.serve(async (req: Request) => {
       const cidadeForFooter = form.municipio || cli.cidade || 'Balneário Piçarras'
       const pdfBytes = await generatePdfFromText(conteudoFinal, cidadeForFooter, logoBytes)
 
-      const safeNome = template_nome.replace(/[^a-zA-Z0-9]/g, '_')
+      const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
       const fileName = `${safeNome}_${Date.now()}.pdf`
       const filePath = `contratos/${cliente_id}/${fileName}`
 
@@ -198,14 +208,15 @@ Deno.serve(async (req: Request) => {
         .from('bender_clientes')
         .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+      if (uploadError)
+        throw new Error(`Falha no upload do arquivo para o storage: ${uploadError.message}`)
 
       const { data: docRecord, error: docError } = await supabase
         .from('documentos_cliente')
         .insert({
           cliente_id,
-          tipo: template_nome,
-          template_nome: `${template_nome}.pdf`,
+          tipo: template_nome.trim(),
+          template_nome: `${template_nome.trim()}.pdf`,
           status: 'gerado',
           arquivo_url: filePath,
           conteudo_preenchido: conteudoFinal,
@@ -213,7 +224,7 @@ Deno.serve(async (req: Request) => {
         .select()
         .single()
 
-      if (docError) throw new Error(`Error saving record: ${docError.message}`)
+      if (docError) throw new Error(`Erro ao salvar registro do documento: ${docError.message}`)
 
       return new Response(JSON.stringify({ success: true, documento: docRecord }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -222,12 +233,13 @@ Deno.serve(async (req: Request) => {
       if (!documento_id || !conteudo_editado)
         throw new Error('documento_id e conteudo_editado são obrigatórios')
 
-      const { data: doc } = await supabase
+      const { data: doc, error: docError } = await supabase
         .from('documentos_cliente')
         .select('*, clientes(cidade)')
         .eq('id', documento_id)
-        .single()
+        .maybeSingle()
 
+      if (docError) throw new Error(`Erro ao buscar documento: ${docError.message}`)
       if (!doc) throw new Error('Documento não encontrado')
 
       await supabase
@@ -242,7 +254,8 @@ Deno.serve(async (req: Request) => {
         .from('bender_clientes')
         .upload(doc.arquivo_url, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
-      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+      if (uploadError)
+        throw new Error(`Falha no upload do arquivo atualizado: ${uploadError.message}`)
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -251,10 +264,15 @@ Deno.serve(async (req: Request) => {
 
     throw new Error('Ação inválida')
   } catch (error: any) {
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    console.error('Erro na função gerar_documento_cliente:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'Erro desconhecido',
+        stack: error.stack,
+      }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   }
 })
 

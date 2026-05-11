@@ -117,6 +117,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
         body: { action: 'gerar_novo', cliente_id: dossie.cliente_id, template_nome: templateNome },
       })
+
+      console.log('ERRO DETALHADO (gerar_novo):', JSON.stringify(data), JSON.stringify(error))
+
       if (error) throw error
       if (!data.success) throw new Error(data.error)
 
@@ -197,14 +200,18 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const handleSaveEdit = async () => {
     toast.info('Salvando e regerando PDF...', { id: 'save-edit' })
     try {
-      const { error } = await supabase.functions.invoke('gerar_documento_cliente', {
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
         body: {
           action: 'atualizar_pdf',
           documento_id: editingDoc.id,
           conteudo_editado: editingContent,
         },
       })
+
+      console.log('ERRO DETALHADO (atualizar_pdf):', JSON.stringify(data), JSON.stringify(error))
+
       if (error) throw error
+      if (data && !data.success) throw new Error(data.error)
 
       toast.success('Documento salvo e atualizado!')
       setEditModalOpen(false)
