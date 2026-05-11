@@ -263,6 +263,54 @@ export type Database = {
           },
         ]
       }
+      contas_pagar: {
+        Row: {
+          atualizado_em: string
+          categoria: string | null
+          codigo_barras: string | null
+          comprovante_url: string | null
+          criado_em: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string | null
+          fornecedor: string
+          id: string
+          status_pagamento: string
+          user_id: string | null
+          valor: number
+        }
+        Insert: {
+          atualizado_em?: string
+          categoria?: string | null
+          codigo_barras?: string | null
+          comprovante_url?: string | null
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao?: string | null
+          fornecedor: string
+          id?: string
+          status_pagamento?: string
+          user_id?: string | null
+          valor: number
+        }
+        Update: {
+          atualizado_em?: string
+          categoria?: string | null
+          codigo_barras?: string | null
+          comprovante_url?: string | null
+          criado_em?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string | null
+          fornecedor?: string
+          id?: string
+          status_pagamento?: string
+          user_id?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       contas_receber: {
         Row: {
           atualizado_em: string
@@ -769,6 +817,30 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      logs_ia: {
+        Row: {
+          acao: string
+          criado_em: string
+          detalhes: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          criado_em?: string
+          detalhes?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          criado_em?: string
+          detalhes?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       matriz_permissoes: {
         Row: {
@@ -1421,6 +1493,20 @@ export const Constants = {
 //   profissao: text (nullable)
 //   renda: numeric (nullable)
 //   referencia_bancaria: text (nullable)
+// Table: contas_pagar
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (nullable)
+//   fornecedor: text (not null)
+//   descricao: text (nullable)
+//   categoria: text (nullable)
+//   valor: numeric (not null)
+//   data_vencimento: date (not null)
+//   data_pagamento: date (nullable)
+//   status_pagamento: text (not null, default: 'aguardando'::text)
+//   codigo_barras: text (nullable)
+//   comprovante_url: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: contas_receber
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -1544,6 +1630,12 @@ export const Constants = {
 //   criado_por_nome: text (nullable)
 //   kanban_ativo: boolean (not null, default: true)
 //   data_venda: timestamp with time zone (nullable)
+// Table: logs_ia
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (nullable)
+//   acao: text (not null)
+//   detalhes: jsonb (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: matriz_permissoes
 //   id: uuid (not null, default: gen_random_uuid())
 //   usuario_id: uuid (not null)
@@ -1656,6 +1748,9 @@ export const Constants = {
 //   FOREIGN KEY clientes_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
 //   PRIMARY KEY clientes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY clientes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: contas_pagar
+//   PRIMARY KEY contas_pagar_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY contas_pagar_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: contas_receber
 //   FOREIGN KEY contas_receber_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY contas_receber_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -1692,6 +1787,9 @@ export const Constants = {
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
+// Table: logs_ia
+//   PRIMARY KEY logs_ia_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY logs_ia_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
@@ -1768,6 +1866,10 @@ export const Constants = {
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: contas_pagar
+//   Policy "Acesso total contas_pagar" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: contas_receber
 //   Policy "contas_receber_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
@@ -1853,6 +1955,10 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: logs_ia
+//   Policy "Acesso total logs_ia" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: matriz_permissoes
