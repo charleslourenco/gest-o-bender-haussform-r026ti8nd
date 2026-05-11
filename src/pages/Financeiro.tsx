@@ -26,25 +26,33 @@ export default function Financeiro() {
       const recebimentos = (receberRes.data || []).map((r: any) => ({
         id: r.id,
         type: 'receita' as const,
-        description: r.cliente?.nome || 'Cliente não identificado',
-        category: 'Venda de Projetos',
+        description: r.descricao || `Referente à parcela ${r.numero_parcela || ''}`,
+        category: r.categoria || 'Venda de Projetos',
         amount: Number(r.valor),
         dueDate: r.data_vencimento,
         paidDate: r.data_pagamento,
         status: r.status_pagamento,
         source: r,
+        createdAt: r.criado_em,
+        entityName: r.cliente?.nome || 'Cliente não identificado',
+        meioPagamento: r.meio_pagamento,
+        antecipado: r.antecipado,
       }))
 
       const pagamentos = (pagarRes.data || []).map((p: any) => ({
         id: p.id,
         type: 'despesa' as const,
-        description: p.fornecedor,
-        category: p.categoria || 'Despesa Operacional',
+        description: p.descricao || 'Despesa',
+        category: p.categoria || 'Geral',
         amount: Number(p.valor),
         dueDate: p.data_vencimento,
         paidDate: p.data_pagamento,
         status: p.status_pagamento,
         source: p,
+        createdAt: p.criado_em,
+        entityName: p.fornecedor || 'Fornecedor',
+        meioPagamento: p.meio_pagamento,
+        antecipado: p.antecipado,
       }))
 
       setTransactions(

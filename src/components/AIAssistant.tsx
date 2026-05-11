@@ -70,8 +70,8 @@ export function AIAssistant() {
     if (character !== newChar) {
       setCharacter(newChar)
       setMessages([])
-      setIsOpen(false)
-      setHasNewMessage(true)
+      setIsOpen(true) // Always open initially when switching
+      setHasNewMessage(false)
     }
   }, [location.pathname, character])
 
@@ -79,17 +79,100 @@ export function AIAssistant() {
     setIsLoading(true)
     try {
       const history = messages.length > 0 ? messages : undefined
-      const { data, error } = await supabase.functions.invoke('assistant-intelligence', {
-        body: {
-          character: CHARACTERS[character!].name,
-          moduleName: CHARACTERS[character!].role,
-          contextData: { path: location.pathname },
-          userMessage: userMsg,
-          chatHistory: history,
-        },
-      })
-      if (data?.message) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: data.message }])
+      const isEdith = character === 'edith'
+
+      let aiMessage = ''
+
+      if (isEdith) {
+        const today = new Date().toISOString().split('T')[0]
+        const [{ data: pagar }, { data: receber }, { data: assinaturas }] = await Promise.all([
+          supabase
+            .from('contas_pagar')
+            .select('fornecedor, valor, data_vencimento, descricao, categoria')
+            .eq('data_vencimento', today)
+            .neq('status_pagamento', 'pago'),
+          supabase
+            .from('contas_receber')
+            .select('cliente_id, valor, data_vencimento, descricao, categoria')
+            .eq('data_vencimento', today)
+            .neq('status_pagamento', 'pago'),
+          supabase
+            .from('assinaturas')
+            .select('id, documento_nome, signatario_nome, data_assinatura')
+            .eq('status', 'assinado'),
+        ])
+
+        const { data } = await supabase.functions.invoke('financeiro-ai', {
+          body: {
+            action: 'chat',
+            payload: {
+              text: userMsg,
+              currentDate: today,
+              history,
+              context: { pagar, receber, assinaturasPendentes: assinaturas },
+            },
+          },
+        })
+        aiMessage = data?.message || ''
+
+        const jsonMatch =
+          aiMessage.match(/```json\n([\s\S]*?)\n```/) || aiMessage.match(/{[\s\S]*"acao"[\s\S]*}/)
+        if (jsonMatch) {
+          try {
+            const jsonStr = jsonMatch[1] || jsonMatch[0]
+            const actionData = JSON.parse(jsonStr)
+            const { data: userData } = await supabase.auth.getUser()
+
+            if (actionData.acao === 'criar_pagamento') {
+              await supabase.from('contas_pagar').insert({
+                user_id: userData.user?.id,
+                fornecedor: actionData.dados.credor_devedor || 'Desconhecido',
+                valor: actionData.dados.valor || 0,
+                data_vencimento: actionData.dados.data_vencimento || today,
+                descricao: actionData.dados.descricao,
+                categoria: actionData.dados.categoria,
+                meio_pagamento: actionData.dados.meio_pagamento,
+                antecipado: actionData.dados.antecipado || false,
+              })
+              window.dispatchEvent(new Event('financeiro-refresh'))
+            } else if (actionData.acao === 'criar_recebimento') {
+              await supabase.from('contas_receber').insert({
+                user_id: userData.user?.id,
+                descricao:
+                  actionData.dados.descricao || `Recebimento de ${actionData.dados.credor_devedor}`,
+                valor: actionData.dados.valor || 0,
+                data_vencimento: actionData.dados.data_vencimento || today,
+                categoria: actionData.dados.categoria,
+                meio_pagamento: actionData.dados.meio_pagamento,
+                antecipado: actionData.dados.antecipado || false,
+                numero_parcela: '1/1',
+              })
+              window.dispatchEvent(new Event('financeiro-refresh'))
+            }
+            if (aiMessage.includes('```json')) {
+              aiMessage = aiMessage.replace(/```json\n[\s\S]*?\n```/, '')
+            } else {
+              aiMessage = aiMessage.replace(jsonStr, '')
+            }
+          } catch (e) {
+            console.error('Failed to parse action from Edith', e)
+          }
+        }
+      } else {
+        const { data } = await supabase.functions.invoke('assistant-intelligence', {
+          body: {
+            character: CHARACTERS[character!].name,
+            moduleName: CHARACTERS[character!].role,
+            contextData: { path: location.pathname },
+            userMessage: userMsg,
+            chatHistory: history,
+          },
+        })
+        aiMessage = data?.message || ''
+      }
+
+      if (aiMessage) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: aiMessage.trim() }])
         setHasNewMessage(!isOpen)
       }
     } catch (err) {
@@ -142,8 +225,8 @@ export function AIAssistant() {
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-[calc(90vh-380px)] min-h-[100px] max-h-[400px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
-              isOpen ? 'scale-105' : '',
+              'h-[calc(80vh-380px)] min-h-[90px] max-h-[360px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              isOpen ? 'scale-100' : 'scale-90',
             )}
           />
           {hasNewMessage && !isOpen && (
@@ -161,12 +244,6 @@ export function AIAssistant() {
               <Sparkles className="h-4 w-4 text-blue-500" />
               <h4 className="font-semibold text-sm text-gray-800">{charData.name}</h4>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
 
           <div

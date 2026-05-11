@@ -56,4 +56,8 @@ export interface Transaction {
   paidDate: string | null
   status: string
   source: any
+  createdAt: string
+  entityName: string
+  meioPagamento?: string
+  antecipado?: boolean
 }

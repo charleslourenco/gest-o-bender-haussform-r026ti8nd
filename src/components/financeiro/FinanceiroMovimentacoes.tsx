@@ -24,43 +24,16 @@ export function FinanceiroMovimentacoes({
   transactions: Transaction[]
   onRefresh: () => void
 }) {
-  const [commandText, setCommandText] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const handleCommand = async () => {
-    if (!commandText.trim()) return
-    setIsProcessing(true)
-    try {
-      const { data, error } = await supabase.functions.invoke('financeiro-ai', {
-        body: {
-          action: 'command',
-          payload: { text: commandText, currentDate: new Date().toISOString().split('T')[0] },
-        },
-      })
-      if (error) throw error
-      const { acao, dados, mensagem } = data
-      if (acao === 'criar_pagamento') {
-        await supabase.from('contas_pagar' as any).insert({
-          user_id: user?.id,
-          fornecedor: dados.fornecedor || 'Desconhecido',
-          valor: dados.valor || 0,
-          data_vencimento: dados.data_vencimento || new Date().toISOString().split('T')[0],
-          descricao: dados.descricao,
-          categoria: dados.categoria || 'Geral',
-        })
-      }
-      toast({ title: 'Edith diz:', description: mensagem })
-      setCommandText('')
-      onRefresh()
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
-    } finally {
-      setIsProcessing(false)
-    }
-  }
+  React.useEffect(() => {
+    const handleRefresh = () => onRefresh()
+    window.addEventListener('financeiro-refresh', handleRefresh)
+    return () => window.removeEventListener('financeiro-refresh', handleRefresh)
+  }, [onRefresh])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -83,6 +56,7 @@ export function FinanceiroMovimentacoes({
           data_vencimento: data.data_vencimento || new Date().toISOString().split('T')[0],
           categoria: data.categoria || 'Geral',
           codigo_barras: data.codigo_barras,
+          meio_pagamento: data.meio_pagamento || 'Boleto',
         })
         toast({ title: 'Sucesso', description: `Conta de ${data.fornecedor} registrada!` })
         onRefresh()
@@ -120,39 +94,34 @@ export function FinanceiroMovimentacoes({
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-6 rounded-xl border border-emerald-500/20">
-        <h3 className="font-semibold text-emerald-900 mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5" /> Fale com a Edith ou Anexe um Boleto
-        </h3>
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-4 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-emerald-600" />
+          <div>
+            <h3 className="font-semibold text-emerald-900">Leitura Inteligente</h3>
+            <p className="text-sm text-emerald-700/80">
+              Anexe um boleto para a Edith lançar automaticamente
+            </p>
+          </div>
+        </div>
+        <div className="relative shrink-0">
           <Input
-            placeholder="Ex: 'Pagar R$ 150 para Padaria Silva amanhã'"
-            value={commandText}
-            onChange={(e) => setCommandText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCommand()}
-            className="flex-1 bg-white"
+            type="file"
+            id="ocr-upload"
+            className="hidden"
+            accept="image/*,application/pdf"
+            onChange={handleFileUpload}
           />
           <Button
-            onClick={handleCommand}
+            asChild
+            variant="outline"
+            className="cursor-pointer bg-white"
             disabled={isProcessing}
-            className="bg-emerald-600 hover:bg-emerald-700"
           >
-            {isProcessing ? 'Processando...' : 'Lançar'}
+            <label htmlFor="ocr-upload">
+              <Upload className="h-4 w-4 mr-2" /> {isProcessing ? 'Lendo...' : 'Ler Boleto (OCR)'}
+            </label>
           </Button>
-          <div className="relative">
-            <Input
-              type="file"
-              id="ocr-upload"
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileUpload}
-            />
-            <Button asChild variant="outline" className="cursor-pointer bg-white">
-              <label htmlFor="ocr-upload">
-                <Upload className="h-4 w-4 mr-2" /> Ler Boleto (OCR)
-              </label>
-            </Button>
-          </div>
         </div>
       </div>
 
@@ -172,9 +141,13 @@ export function FinanceiroMovimentacoes({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Data Inserção</TableHead>
               <TableHead>Vencimento</TableHead>
-              <TableHead>Descrição</TableHead>
+              <TableHead>Credor / Devedor</TableHead>
+              <TableHead>Referência</TableHead>
               <TableHead>Categoria</TableHead>
+              <TableHead>Meio Pgto</TableHead>
+              <TableHead>Antecipado</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[80px]">Ação</TableHead>
@@ -183,12 +156,42 @@ export function FinanceiroMovimentacoes({
           <TableBody>
             {filtered.map((t) => (
               <TableRow key={t.id}>
-                <TableCell>{format(parseISO(t.dueDate), 'dd/MM/yyyy')}</TableCell>
-                <TableCell className="font-medium">{t.description}</TableCell>
-                <TableCell>{t.category}</TableCell>
-                <TableCell className={t.type === 'receita' ? 'text-emerald-600' : 'text-rose-600'}>
-                  {t.type === 'receita' ? '+' : '-'}
-                  {formatCurrency(t.amount)}
+                <TableCell className="text-gray-500">
+                  {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell className="font-medium">
+                  {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
+                </TableCell>
+                <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
+                <TableCell className="text-gray-600 max-w-[200px] truncate" title={t.description}>
+                  {t.description}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className="font-normal text-xs">
+                    {t.category}
+                  </Badge>
+                </TableCell>
+                <TableCell>{t.meioPagamento || '-'}</TableCell>
+                <TableCell>
+                  {t.antecipado ? (
+                    <Badge
+                      variant="secondary"
+                      className="bg-amber-100 text-amber-800 border-amber-200"
+                    >
+                      Sim
+                    </Badge>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell
+                  className={
+                    t.type === 'receita'
+                      ? 'text-emerald-600 font-semibold'
+                      : 'text-rose-600 font-semibold'
+                  }
+                >
+                  {t.type === 'receita' ? '+' : '-'} {formatCurrency(t.amount)}
                 </TableCell>
                 <TableCell>
                   <Badge
