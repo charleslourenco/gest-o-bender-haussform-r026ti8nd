@@ -1750,10 +1750,16 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: assinaturas
+//   Policy "Acesso total assinaturas" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "Assinaturas All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true
 // Table: clientes
+//   Policy "Acesso total clientes" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "clientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
 //   Policy "clientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -1778,6 +1784,11 @@ export const Constants = {
 //   Policy "permissao_leitura_edge_function" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: documentos_cliente
+//   Policy "Acesso total documentos" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+//   Policy "Permitir leitura para usuários autenticados" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
 //   Policy "doc_cli_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -1796,6 +1807,9 @@ export const Constants = {
 //   Policy "documentos_gerados_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: dossies
+//   Policy "Acesso total dossies" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "dossies_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //   Policy "dossies_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -1821,6 +1835,9 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: formulario_comercial
+//   Policy "Acesso total formulario" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={public}
@@ -1909,6 +1926,9 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: timeline_eventos
+//   Policy "Acesso total timeline" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "Timeline All Access" (ALL, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true

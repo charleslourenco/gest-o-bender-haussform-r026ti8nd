@@ -61,7 +61,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }, [dossie.cliente_id])
 
   const form = dossie.formulario || {}
-  const hasData = !!form.cpf && !!form.rua
 
   const getSignedUrl = async (originalUrl: string) => {
     if (!originalUrl) return ''
@@ -232,16 +231,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       a.download = 'Contrato_Assinado.pdf'
       a.click()
     }
-  }
-
-  if (!hasData) {
-    return (
-      <div className="p-8 text-center bg-off-white border-2 border-steel-blue rounded-lg">
-        <p className="text-lg font-semibold text-midnight-navy">
-          Preencha os dados do cliente na aba Dados antes de gerar documentos.
-        </p>
-      </div>
-    )
   }
 
   return (

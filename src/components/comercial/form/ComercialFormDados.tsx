@@ -16,6 +16,27 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
   const [data, setData] = useState<FormState>(defaultState)
   const [saving, setSaving] = useState(false)
 
+  const maskCpf = (v: string) => {
+    let r = v.replace(/\D/g, '')
+    if (r.length > 11) r = r.substring(0, 11)
+    r = r.replace(/(\d{3})(\d)/, '$1.$2')
+    r = r.replace(/(\d{3})(\d)/, '$1.$2')
+    r = r.replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    return r
+  }
+
+  const maskPhone = (v: string) => {
+    let r = v.replace(/\D/g, '')
+    if (r.length > 11) r = r.substring(0, 11)
+    if (r.length > 2) {
+      r = r.replace(/^(\d{2})(\d)/g, '($1) $2')
+      if (r.length > 9) {
+        r = r.replace(/(\d{4,5})(\d{4})$/, '$1-$2')
+      }
+    }
+    return r
+  }
+
   useEffect(() => {
     if (dossie) {
       const cli = dossie.cliente || {}
@@ -29,8 +50,8 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         ...p,
         nome: cli.nome || '',
         email: cli.email || '',
-        telefone: cli.telefone || '',
-        cpf: form.cpf || cli.cpf || '',
+        telefone: cli.telefone ? maskPhone(cli.telefone) : '',
+        cpf: form.cpf || cli.cpf ? maskCpf(form.cpf || cli.cpf) : '',
         data_nascimento: form.data_nascimento || '',
         profissao: form.profissao || '',
         estado_civil: form.estado_civil || 'Solteiro',
@@ -70,7 +91,12 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
     }
   }, [dossie])
 
-  const update = (f: keyof FormState, v: any) => setData((p) => ({ ...p, [f]: v }))
+  const update = (f: keyof FormState, v: any) => {
+    let value = v
+    if (f === 'cpf' && typeof v === 'string') value = maskCpf(v)
+    if (f === 'telefone' && typeof v === 'string') value = maskPhone(v)
+    setData((p) => ({ ...p, [f]: value }))
+  }
 
   const updateViaCep = async (cep: string, isObra: boolean) => {
     const clean = cep.replace(/\D/g, '')
