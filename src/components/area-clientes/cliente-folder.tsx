@@ -63,8 +63,6 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
       ) - (Number(form?.desconto) || 0)
     : 0
 
-  const isFormSaved = form && form.cpf && (form.datas as any)?.data_venda
-
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in flex flex-col h-full overflow-hidden">
       <div className="flex gap-4 border-b pb-4 shrink-0">
@@ -111,13 +109,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           <ComercialFormDados dossie={dossie} onSaved={load} />
         </TabsContent>
         <TabsContent value="documentos" className="flex-1 overflow-y-auto mt-4 p-1">
-          {!isFormSaved ? (
-            <div className="p-12 text-center bg-muted/30 border-2 border-dashed border-steel-blue rounded-lg text-midnight-navy font-semibold">
-              Preencha e salve os dados do cliente na aba Dados antes de gerar documentos.
-            </div>
-          ) : (
-            <ClienteDocumentos dossie={dossie} onReload={load} />
-          )}
+          <ClienteDocumentos dossie={dossie} onReload={load} />
         </TabsContent>
         <TabsContent value="timeline" className="flex-1 overflow-y-auto mt-4 p-1">
           <Timeline clienteId={dossie.cliente_id} />

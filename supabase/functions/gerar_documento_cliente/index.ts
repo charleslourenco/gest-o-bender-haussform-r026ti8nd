@@ -76,25 +76,33 @@ Deno.serve(async (req: Request) => {
         .maybeSingle()
 
       if (formError) throw new Error(`Erro ao buscar formulário: ${formError.message}`)
-      if (!form)
-        throw new Error(
-          'Formulário comercial não encontrado para este cliente. Preencha a aba Dados antes de gerar documentos.',
-        )
 
-      const cli = Array.isArray(form.cliente) ? form.cliente[0] : form.cliente || {}
-      const datas = form.datas || {}
-      const pagamentosArr = Array.isArray(form.pagamentos)
-        ? form.pagamentos
-        : [form.pagamentos || {}]
+      let cli: any = {}
+      if (form) {
+        cli = Array.isArray(form.cliente) ? form.cliente[0] : form.cliente || {}
+      } else {
+        const { data: cliData } = await supabase
+          .from('clientes')
+          .select('*')
+          .eq('id', cliente_id)
+          .maybeSingle()
+        if (cliData) cli = cliData
+      }
+
+      const safeForm = form || {}
+      const datas = safeForm.datas || {}
+      const pagamentosArr = Array.isArray(safeForm.pagamentos)
+        ? safeForm.pagamentos
+        : [safeForm.pagamentos || {}]
       const pagData = pagamentosArr[0] || {}
-      const produtos = form.produtos_servicos || []
+      const produtos = safeForm.produtos_servicos || []
 
       const subtotal = produtos.reduce(
         (acc: number, p: any) =>
           acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
         0,
       )
-      const desconto = Number(form.desconto || 0)
+      const desconto = Number(safeForm.desconto || 0)
       const total = Math.max(0, subtotal - desconto)
 
       let blocoProdutos = ''
@@ -155,26 +163,26 @@ Deno.serve(async (req: Request) => {
 
       const placeholders: Record<string, string> = {
         '[CLIENTE_NOME]': cli.nome || '',
-        '[CLIENTE_CPF_CNPJ]': form.cpf || cli.cpf || '',
-        '[CLIENTE_PROFISSAO]': form.profissao || cli.profissao || '',
-        '[CLIENTE_ESTADO_CIVIL]': form.estado_civil || '',
+        '[CLIENTE_CPF_CNPJ]': safeForm.cpf || cli.cpf || '',
+        '[CLIENTE_PROFISSAO]': safeForm.profissao || cli.profissao || '',
+        '[CLIENTE_ESTADO_CIVIL]': safeForm.estado_civil || '',
         '[CLI_EMAIL]': cli.email || '',
         '[CLIENTE_TELEFONE]': cli.telefone || '',
-        '[CLIENTE_CEP]': form.cep || cli.cep || '',
-        '[CLIENTE_RUA]': form.rua || cli.endereco_obra || '',
-        '[CLIENTE_NUMERO]': form.numero || cli.numero || '',
-        '[CLIENTE_COMPLEMENTO]': form.complemento || cli.complemento || '',
-        '[CLIENTE_BAIRRO]': form.bairro || cli.bairro || '',
-        '[CLIENTE_CIDADE]': form.municipio || cli.cidade || '',
-        '[CLIENTE_ESTADO]': form.estado || cli.estado || '',
-        '[OBRA_CEP]': form.obra_cep || '',
-        '[OBRA_RUA]': form.obra_rua || '',
-        '[OBRA_NUMERO]': form.obra_numero || '',
-        '[OBRA_COMPLEMENTO]': form.obra_complemento || '',
-        '[OBRA_BAIRRO]': form.obra_bairro || '',
-        '[OBRA_CIDADE]': form.obra_municipio || '',
-        '[OBRA_ESTADO]': form.obra_estado || '',
-        '[OBRA_ENDERECO_COMPLETO]': `${form.obra_rua || ''}, ${form.obra_numero || ''} - ${form.obra_bairro || ''}, ${form.obra_municipio || ''}`,
+        '[CLIENTE_CEP]': safeForm.cep || cli.cep || '',
+        '[CLIENTE_RUA]': safeForm.rua || cli.endereco_obra || '',
+        '[CLIENTE_NUMERO]': safeForm.numero || cli.numero || '',
+        '[CLIENTE_COMPLEMENTO]': safeForm.complemento || cli.complemento || '',
+        '[CLIENTE_BAIRRO]': safeForm.bairro || cli.bairro || '',
+        '[CLIENTE_CIDADE]': safeForm.municipio || cli.cidade || '',
+        '[CLIENTE_ESTADO]': safeForm.estado || cli.estado || '',
+        '[OBRA_CEP]': safeForm.obra_cep || '',
+        '[OBRA_RUA]': safeForm.obra_rua || '',
+        '[OBRA_NUMERO]': safeForm.obra_numero || '',
+        '[OBRA_COMPLEMENTO]': safeForm.obra_complemento || '',
+        '[OBRA_BAIRRO]': safeForm.obra_bairro || '',
+        '[OBRA_CIDADE]': safeForm.obra_municipio || '',
+        '[OBRA_ESTADO]': safeForm.obra_estado || '',
+        '[OBRA_ENDERECO_COMPLETO]': `${safeForm.obra_rua || ''}, ${safeForm.obra_numero || ''} - ${safeForm.obra_bairro || ''}, ${safeForm.obra_municipio || ''}`,
         '[METODO_PAGAMENTO]': metodoPagamento || '',
         '[DATA_PAGAMENTO]': formatDateStr(dataVenda) || '',
         '[DATA_PREVISTA_ENTREGA_IMOVEL]': formatDateStr(datas.data_acesso_imovel || '') || '',
@@ -197,7 +205,7 @@ Deno.serve(async (req: Request) => {
         conteudoFinal = conteudoFinal.split(key).join(replacement)
       }
 
-      const cidadeForFooter = form.municipio || cli.cidade || 'Balneário Piçarras'
+      const cidadeForFooter = safeForm.municipio || cli.cidade || 'Balneário Piçarras'
       const pdfBytes = await generatePdfFromText(conteudoFinal, cidadeForFooter, logoBytes)
 
       const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
