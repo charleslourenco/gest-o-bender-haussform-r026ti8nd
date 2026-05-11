@@ -1,8 +1,17 @@
 import React, { useState } from 'react'
-import { Transaction } from '@/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Upload, CheckCircle2, Circle, Search } from 'lucide-react'
+import {
+  Sparkles,
+  Upload,
+  CheckCircle2,
+  Circle,
+  Search,
+  Paperclip,
+  Eye,
+  Trash2,
+  X,
+} from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -17,11 +26,28 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { format, parseISO } from 'date-fns'
 
+export interface ExtendedTransaction {
+  id: string
+  type: 'receita' | 'despesa'
+  description: string
+  category: string
+  amount: number
+  dueDate: string
+  paidDate: string | null
+  status: string
+  source: any
+  createdAt: string
+  entityName: string
+  meioPagamento?: string
+  antecipado?: boolean
+  comprovanteUrl?: string
+}
+
 export function FinanceiroMovimentacoes({
   transactions,
   onRefresh,
 }: {
-  transactions: Transaction[]
+  transactions: ExtendedTransaction[]
   onRefresh: () => void
 }) {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -44,11 +70,19 @@ export function FinanceiroMovimentacoes({
       const base64 = ev.target?.result
       if (typeof base64 !== 'string') return
       try {
-        toast({ title: 'Analisando...', description: 'Edith está extraindo dados do boleto...' })
+        toast({
+          title: 'Analisando...',
+          description: 'Edith está extraindo dados do comprovante...',
+        })
         const { data, error } = await supabase.functions.invoke('financeiro-ai', {
           body: { action: 'ocr', payload: { imageBase64: base64 } },
         })
         if (error) throw error
+
+        const fileExt = file.name.split('.').pop()
+        const filePath = `comprovantes/${Date.now()}.${fileExt}`
+        await supabase.storage.from('financeiro').upload(filePath, file)
+
         await supabase.from('contas_pagar' as any).insert({
           user_id: user?.id,
           fornecedor: data.fornecedor || 'Extração IA',
@@ -57,39 +91,99 @@ export function FinanceiroMovimentacoes({
           categoria: data.categoria || 'Geral',
           codigo_barras: data.codigo_barras,
           meio_pagamento: data.meio_pagamento || 'Boleto',
+          comprovante_url: filePath,
         })
-        toast({ title: 'Sucesso', description: `Conta de ${data.fornecedor} registrada!` })
+        toast({
+          title: 'Sucesso',
+          description: `Conta de ${data.fornecedor} registrada com comprovante!`,
+        })
         onRefresh()
       } catch (err: any) {
         toast({ title: 'Erro', description: err.message, variant: 'destructive' })
       } finally {
         setIsProcessing(false)
+        if (e.target) e.target.value = ''
       }
     }
     reader.readAsDataURL(file)
   }
 
-  const togglePayment = async (t: Transaction) => {
+  const togglePayment = async (t: ExtendedTransaction) => {
     const newStatus = t.status === 'pago' ? 'aguardando' : 'pago'
     const newDate = newStatus === 'pago' ? new Date().toISOString().split('T')[0] : null
-    if (t.type === 'receita') {
-      await supabase
-        .from('contas_receber')
-        .update({ status_pagamento: newStatus, data_pagamento: newDate })
-        .eq('id', t.id)
-    } else {
-      await supabase
-        .from('contas_pagar' as any)
-        .update({ status_pagamento: newStatus, data_pagamento: newDate })
-        .eq('id', t.id)
-    }
+    const table = t.type === 'receita' ? 'contas_receber' : 'contas_pagar'
+    await supabase
+      .from(table)
+      .update({ status_pagamento: newStatus, data_pagamento: newDate })
+      .eq('id', t.id)
     onRefresh()
+  }
+
+  const handleDelete = async (t: ExtendedTransaction) => {
+    if (!confirm('Deseja realmente excluir este lançamento financeiro?')) return
+    const table = t.type === 'receita' ? 'contas_receber' : 'contas_pagar'
+
+    if (t.comprovanteUrl) {
+      await supabase.storage.from('financeiro').remove([t.comprovanteUrl])
+    }
+
+    await supabase.from(table).delete().eq('id', t.id)
+    toast({ title: 'Excluído', description: 'Lançamento removido com sucesso.' })
+    onRefresh()
+  }
+
+  const handleUploadComprovante = async (
+    t: ExtendedTransaction,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `comprovantes/${t.id}_${Date.now()}.${fileExt}`
+      const { error: uploadError } = await supabase.storage
+        .from('financeiro')
+        .upload(filePath, file)
+      if (uploadError) throw uploadError
+
+      const table = t.type === 'receita' ? 'contas_receber' : 'contas_pagar'
+      await supabase.from(table).update({ comprovante_url: filePath }).eq('id', t.id)
+
+      toast({ title: 'Sucesso', description: 'Comprovante anexado!' })
+      onRefresh()
+    } catch (error: any) {
+      toast({ title: 'Erro ao anexar', description: error.message, variant: 'destructive' })
+    } finally {
+      if (e.target) e.target.value = ''
+    }
+  }
+
+  const handleRemoveComprovante = async (t: ExtendedTransaction) => {
+    if (!t.comprovanteUrl) return
+    if (!confirm('Deseja remover o comprovante deste lançamento?')) return
+    try {
+      await supabase.storage.from('financeiro').remove([t.comprovanteUrl])
+      const table = t.type === 'receita' ? 'contas_receber' : 'contas_pagar'
+      await supabase.from(table).update({ comprovante_url: null }).eq('id', t.id)
+      toast({ title: 'Removido', description: 'Comprovante removido do registro.' })
+      onRefresh()
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    }
+  }
+
+  const getPublicUrl = (path: string) => {
+    return supabase.storage.from('financeiro').getPublicUrl(path).data.publicUrl
   }
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-  const filtered = transactions.filter((t) =>
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()),
+
+  const filtered = transactions.filter(
+    (t) =>
+      (t.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.entityName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.category || '').toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   return (
@@ -98,9 +192,9 @@ export function FinanceiroMovimentacoes({
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-emerald-600" />
           <div>
-            <h3 className="font-semibold text-emerald-900">Leitura Inteligente</h3>
+            <h3 className="font-semibold text-emerald-900">Edith Leitura Inteligente</h3>
             <p className="text-sm text-emerald-700/80">
-              Anexe um boleto para a Edith lançar automaticamente
+              Anexe um boleto ou nota fiscal para a Edith extrair os dados e lançar automaticamente.
             </p>
           </div>
         </div>
@@ -119,7 +213,8 @@ export function FinanceiroMovimentacoes({
             disabled={isProcessing}
           >
             <label htmlFor="ocr-upload">
-              <Upload className="h-4 w-4 mr-2" /> {isProcessing ? 'Lendo...' : 'Ler Boleto (OCR)'}
+              <Upload className="h-4 w-4 mr-2" />{' '}
+              {isProcessing ? 'Lendo...' : 'Ler Documento (OCR)'}
             </label>
           </Button>
         </div>
@@ -127,96 +222,149 @@ export function FinanceiroMovimentacoes({
 
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-semibold text-lg">Lançamentos</h3>
+          <h3 className="font-semibold text-lg">Lançamentos Financeiros</h3>
           <div className="relative w-64">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Buscar..."
+              placeholder="Buscar por nome, desc..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
             />
           </div>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data Inserção</TableHead>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>Credor / Devedor</TableHead>
-              <TableHead>Referência</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Meio Pgto</TableHead>
-              <TableHead>Antecipado</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]">Ação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="text-gray-500">
-                  {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
-                </TableCell>
-                <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
-                <TableCell className="text-gray-600 max-w-[200px] truncate" title={t.description}>
-                  {t.description}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="font-normal text-xs">
-                    {t.category}
-                  </Badge>
-                </TableCell>
-                <TableCell>{t.meioPagamento || '-'}</TableCell>
-                <TableCell>
-                  {t.antecipado ? (
-                    <Badge
-                      variant="secondary"
-                      className="bg-amber-100 text-amber-800 border-amber-200"
-                    >
-                      Sim
-                    </Badge>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell
-                  className={
-                    t.type === 'receita'
-                      ? 'text-emerald-600 font-semibold'
-                      : 'text-rose-600 font-semibold'
-                  }
-                >
-                  {t.type === 'receita' ? '+' : '-'} {formatCurrency(t.amount)}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={t.status === 'pago' ? 'default' : 'secondary'}
-                    className={t.status === 'pago' ? 'bg-emerald-500' : ''}
-                  >
-                    {t.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => togglePayment(t)}
-                    className="text-gray-400 hover:text-emerald-600 transition-colors"
-                  >
-                    {t.status === 'pago' ? (
-                      <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-                    ) : (
-                      <Circle className="h-6 w-6" />
-                    )}
-                  </button>
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data Inserção</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Credor / Devedor</TableHead>
+                <TableHead>Referência</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Meio Pgto</TableHead>
+                <TableHead>Antecipado</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[110px]">Anexo</TableHead>
+                <TableHead className="w-[100px]">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="text-gray-500 text-xs">
+                    {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
+                  </TableCell>
+                  <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
+                  <TableCell className="text-gray-600 max-w-[150px] truncate" title={t.description}>
+                    {t.description}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-normal text-[10px]">
+                      {t.category || '-'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-gray-600">{t.meioPagamento || '-'}</TableCell>
+                  <TableCell>
+                    {t.antecipado ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]"
+                      >
+                        Sim
+                      </Badge>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell
+                    className={
+                      t.type === 'receita'
+                        ? 'text-emerald-600 font-bold whitespace-nowrap'
+                        : 'text-rose-600 font-bold whitespace-nowrap'
+                    }
+                  >
+                    {t.type === 'receita' ? '+' : '-'} {formatCurrency(t.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={t.status === 'pago' ? 'default' : 'secondary'}
+                      className={t.status === 'pago' ? 'bg-emerald-500 text-white' : ''}
+                    >
+                      {t.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {t.comprovanteUrl ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-blue-50"
+                          asChild
+                        >
+                          <a
+                            href={getPublicUrl(t.comprovanteUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Ver Anexo"
+                          >
+                            <Eye className="h-4 w-4 text-blue-600" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-red-50"
+                          onClick={() => handleRemoveComprovante(t)}
+                          title="Remover Anexo"
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer text-blue-500 hover:text-blue-700 flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-blue-50 transition-colors">
+                        <Paperclip className="h-3 w-3" /> Anexar
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*,application/pdf"
+                          onChange={(e) => handleUploadComprovante(t, e)}
+                        />
+                      </label>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => togglePayment(t)}
+                        className="text-gray-400 hover:text-emerald-600 transition-colors p-1"
+                        title={t.status === 'pago' ? 'Desfazer Pagamento' : 'Confirmar Pagamento'}
+                      >
+                        {t.status === 'pago' ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        ) : (
+                          <Circle className="h-5 w-5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(t)}
+                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                        title="Excluir Lançamento"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

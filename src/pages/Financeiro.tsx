@@ -37,6 +37,7 @@ export default function Financeiro() {
         entityName: r.cliente?.nome || 'Cliente não identificado',
         meioPagamento: r.meio_pagamento,
         antecipado: r.antecipado,
+        comprovanteUrl: r.comprovante_url,
       }))
 
       const pagamentos = (pagarRes.data || []).map((p: any) => ({
@@ -53,6 +54,7 @@ export default function Financeiro() {
         entityName: p.fornecedor || 'Fornecedor',
         meioPagamento: p.meio_pagamento,
         antecipado: p.antecipado,
+        comprovanteUrl: p.comprovante_url,
       }))
 
       setTransactions(

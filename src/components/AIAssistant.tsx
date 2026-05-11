@@ -85,34 +85,48 @@ export function AIAssistant() {
 
       if (isEdith) {
         const today = new Date().toISOString().split('T')[0]
-        const [{ data: pagar }, { data: receber }, { data: assinaturas }] = await Promise.all([
-          supabase
-            .from('contas_pagar')
-            .select('fornecedor, valor, data_vencimento, descricao, categoria')
-            .eq('data_vencimento', today)
-            .neq('status_pagamento', 'pago'),
-          supabase
-            .from('contas_receber')
-            .select('cliente_id, valor, data_vencimento, descricao, categoria')
-            .eq('data_vencimento', today)
-            .neq('status_pagamento', 'pago'),
-          supabase
-            .from('assinaturas')
-            .select('id, documento_nome, signatario_nome, data_assinatura')
-            .eq('status', 'assinado'),
-        ])
+        const [{ data: pagar }, { data: receber }, { data: assinaturas }, { data: formularios }] =
+          await Promise.all([
+            supabase
+              .from('contas_pagar')
+              .select('fornecedor, valor, data_vencimento, descricao, categoria, status_pagamento')
+              .eq('data_vencimento', today)
+              .neq('status_pagamento', 'pago'),
+            supabase
+              .from('contas_receber')
+              .select('cliente_id, valor, data_vencimento, descricao, categoria, status_pagamento')
+              .eq('data_vencimento', today)
+              .neq('status_pagamento', 'pago'),
+            supabase
+              .from('assinaturas')
+              .select('id, documento_nome, signatario_nome, data_assinatura')
+              .eq('status', 'assinado')
+              .order('data_assinatura', { ascending: false })
+              .limit(5),
+            supabase
+              .from('formulario_comercial')
+              .select('id, cliente:clientes(nome), valor_total, pagamentos')
+              .order('criado_em', { ascending: false })
+              .limit(5),
+          ])
 
         const { data } = await supabase.functions.invoke('financeiro-ai', {
           body: {
-            action: 'chat',
+            action: 'command',
             payload: {
               text: userMsg,
               currentDate: today,
               history,
-              context: { pagar, receber, assinaturasPendentes: assinaturas },
+              context: {
+                pagar,
+                receber,
+                assinaturasPendentes: assinaturas,
+                contratosRecentes: formularios,
+              },
             },
           },
         })
+
         aiMessage = data?.message || ''
 
         const jsonMatch =
@@ -225,8 +239,8 @@ export function AIAssistant() {
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-[calc(80vh-380px)] min-h-[90px] max-h-[360px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
-              isOpen ? 'scale-100' : 'scale-90',
+              'h-[320px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              isOpen ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-90',
             )}
           />
           {hasNewMessage && !isOpen && (

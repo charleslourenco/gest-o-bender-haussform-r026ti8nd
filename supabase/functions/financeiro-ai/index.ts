@@ -19,12 +19,12 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content:
-              'Você é a Edith, assistente financeira. Extraia informações do boleto ou nota fiscal e retorne APENAS um JSON exato com as chaves: "fornecedor" (nome do emissor), "valor" (número float), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria apropriada), "meio_pagamento" (geralmente "Boleto").',
+              'Você é a Edith, super assistente financeira. Extraia informações precisas deste comprovante (boleto, recibo, nota fiscal) e retorne APENAS um JSON com as chaves: "fornecedor" (nome do emissor/credor), "valor" (número float), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria financeira), "meio_pagamento" (Boleto, Pix, Cartão, Transferência).',
           },
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Extraia os dados deste documento:' },
+              { type: 'text', text: 'Extraia os dados do comprovante em anexo:' },
               { type: 'image_url', image_url: { url: imageBase64 } },
             ],
           },
@@ -38,45 +38,60 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (action === 'chat') {
+    if (action === 'command' || action === 'chat') {
       const { text, currentDate, history, context } = payload
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é Dona Edith, assistente financeira educada e super proativa da Bender Haussform.
-Data de hoje: ${currentDate}.
 
-Abaixo está o contexto do banco de dados (o que vence hoje e quais contratos estão assinados aguardando faturamento):
-${JSON.stringify(context)}
+      const systemPrompt = `Você é Edith, a super assistente financeira proativa e atenta da Bender Haussform.
+Data de hoje: ${currentDate}
 
-Seu objetivo:
-1. Dar um resumo claro sobre as contas a pagar e receber do dia atual (que não estejam pagas ainda).
-2. Se houver assinaturas pendentes (contratos com status 'assinado'), avise o usuário proativamente e sugira adicioná-las no Contas a Receber.
-3. Se o usuário quiser registrar um novo pagamento ou recebimento (ou concordar em lançar um contrato), inclua no final da sua resposta um bloco JSON com o comando para a interface realizar a inserção. 
-O JSON deve ser formatado exatamente assim:
+[O SEU RADAR FINANCEIRO EM TEMPO REAL]
+Cruze as informações abaixo para gerar insights proativos:
+- Contas a Pagar (Hoje/Atrasadas): ${JSON.stringify(context?.pagar || [])}
+- Contas a Receber (Hoje/Atrasadas): ${JSON.stringify(context?.receber || [])}
+- Contratos Assinados Recentes (Pendentes de ação): ${JSON.stringify(context?.assinaturasPendentes || [])}
+- Projetos/Contratos Recentes (Produtos e Valores): ${JSON.stringify(context?.contratosRecentes || [])}
+
+Sua Personalidade:
+- Assertiva, perspicaz e guardiã do caixa. Você monitora os contratos do comercial (produtos, pagamentos) e alerta se algo assinado não estiver refletido no financeiro.
+- Faça check-ups: Se o usuário der "oi", fale sobre os vencimentos de hoje e se há contratos recém assinados precisando virar "contas a receber".
+
+Formato Obrigatório para Ações:
+Se o usuário pedir ou concordar em criar um lançamento, você DEVE retornar a sua resposta E um JSON no seguinte formato:
 \`\`\`json
 {
-  "acao": "criar_pagamento" | "criar_recebimento",
+  "acao": "criar_pagamento" ou "criar_recebimento",
   "dados": {
-    "credor_devedor": "Nome da pessoa, cliente ou empresa",
-    "valor": 150.00,
+    "credor_devedor": "Nome da empresa/cliente",
+    "valor": 1500.00,
     "data_vencimento": "YYYY-MM-DD",
     "descricao": "Referência do lançamento",
-    "categoria": "Categoria sugerida",
-    "meio_pagamento": "Pix",
+    "categoria": "Venda de Projetos, Despesa Fixa, etc.",
+    "meio_pagamento": "Boleto, Pix, Transferência",
     "antecipado": false
   }
 }
 \`\`\`
+Se a conversa não exigir criação de registro agora, converse naturalmente com elegância, alertando sobre pendências financeiras sem enviar JSON.`
 
-Apenas retorne o texto que o usuário vai ler e o bloco JSON se houver uma ação. Não precisa de JSON se for só uma resposta verbal.`,
-          },
-          ...(history || []),
-          { role: 'user', content: text || 'Resumo diário por favor.' },
-        ],
-        temperature: 0.2,
+      const messages: any[] = [{ role: 'system', content: systemPrompt }]
+
+      if (history && Array.isArray(history)) {
+        messages.push(...history)
+      }
+
+      if (text) {
+        messages.push({ role: 'user', content: text })
+      } else {
+        messages.push({
+          role: 'user',
+          content: 'Faça um resumo geral do meu financeiro hoje, seja proativa sobre os contratos.',
+        })
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.3,
       })
 
       return new Response(JSON.stringify({ message: response.choices[0].message.content }), {
