@@ -263,13 +263,34 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const handleDownloadSigned = async (url: string) => {
-    const signed = await getSignedUrl(url)
-    if (signed) {
-      const a = document.createElement('a')
-      a.href = signed
-      a.target = '_blank'
-      a.download = 'Contrato_Assinado.pdf'
-      a.click()
+    try {
+      let bucket = 'bender_clientes'
+      let path = url
+
+      if (url.startsWith('http')) {
+        const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/)
+        if (match) {
+          bucket = match[1]
+          path = decodeURIComponent(match[2])
+        }
+      }
+
+      const { data, error } = await supabase.storage.from(bucket).download(path)
+      if (error) throw error
+
+      if (data) {
+        const objectUrl = URL.createObjectURL(data)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = 'Documento_Assinado.pdf'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+      }
+    } catch (e: any) {
+      console.error('Erro ao baixar arquivo assinado:', e)
+      toast.error('Não foi possível baixar o arquivo assinado.')
     }
   }
 

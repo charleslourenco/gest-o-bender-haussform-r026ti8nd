@@ -40,39 +40,46 @@ export function DocumentRow({ doc, onSign }: DocumentRowProps) {
     }
 
     // Se filePath for apenas o caminho
-    const { data } = await supabase.storage.from('dossiers').createSignedUrl(filePath, 3600)
+    const { data } = await supabase.storage.from('bender_clientes').createSignedUrl(filePath, 3600)
     if (data?.signedUrl) return data.signedUrl
 
     // Fallback
-    const { data: publicData } = supabase.storage.from('dossiers').getPublicUrl(filePath)
+    const { data: publicData } = supabase.storage.from('bender_clientes').getPublicUrl(filePath)
     return publicData?.publicUrl
   }
 
   const handleDownload = async () => {
-    const url = await getDocumentUrl()
-    if (!url) return
+    const filePath = doc.path || doc.title
+    if (!filePath) return
 
-    if (url.startsWith('http')) {
-      const a = document.createElement('a')
-      a.href = url
-      a.download = doc.title
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    } else {
-      const { data, error } = await supabase.storage
-        .from('dossiers')
-        .download(doc.path || doc.title)
+    let bucket = 'bender_clientes'
+    let pathToDownload = filePath
+
+    if (filePath.startsWith('http')) {
+      const match = filePath.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/)
+      if (match) {
+        bucket = match[1]
+        pathToDownload = decodeURIComponent(match[2])
+      }
+    }
+
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(pathToDownload)
+
+      if (error) throw error
+
       if (data) {
         const objectUrl = URL.createObjectURL(data)
         const a = document.createElement('a')
         a.href = objectUrl
         a.download = doc.title
+        document.body.appendChild(a)
         a.click()
-      } else if (error) {
-        console.error('Erro ao baixar arquivo:', error)
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
       }
+    } catch (error) {
+      console.error('Erro ao baixar arquivo:', error)
     }
   }
 

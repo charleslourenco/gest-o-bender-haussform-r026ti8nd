@@ -63,13 +63,13 @@ export default function AssinaturaPage() {
     }
 
     const { data, error } = await supabase.storage
-      .from('dossiers')
+      .from('bender_clientes')
       .createSignedUrl(assinatura.documento_id, 3600)
 
     if (data?.signedUrl) {
       window.open(data.signedUrl, '_blank')
     } else {
-      const pub = supabase.storage.from('dossiers').getPublicUrl(assinatura.documento_id)
+      const pub = supabase.storage.from('bender_clientes').getPublicUrl(assinatura.documento_id)
       if (pub.data?.publicUrl) {
         window.open(pub.data.publicUrl, '_blank')
       } else {

@@ -1784,19 +1784,15 @@ export const Constants = {
 //   Policy "permissao_leitura_edge_function" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 // Table: documentos_cliente
-//   Policy "Acesso total documentos" (ALL, PERMISSIVE) roles={authenticated}
+//   Policy "documentos_cliente_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "documentos_cliente_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "documentos_cliente_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "documentos_cliente_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-//   Policy "Permitir leitura para usuários autenticados" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "doc_cli_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: is_admin(auth.uid())
-//   Policy "doc_cli_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: true
-//   Policy "doc_cli_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "doc_cli_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
 // Table: documentos_gerados
 //   Policy "documentos_gerados_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
