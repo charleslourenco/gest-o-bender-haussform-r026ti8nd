@@ -265,6 +265,7 @@ export type Database = {
       }
       contas_pagar: {
         Row: {
+          antecipado: boolean | null
           atualizado_em: string
           categoria: string | null
           codigo_barras: string | null
@@ -275,11 +276,13 @@ export type Database = {
           descricao: string | null
           fornecedor: string
           id: string
+          meio_pagamento: string | null
           status_pagamento: string
           user_id: string | null
           valor: number
         }
         Insert: {
+          antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
           codigo_barras?: string | null
@@ -290,11 +293,13 @@ export type Database = {
           descricao?: string | null
           fornecedor: string
           id?: string
+          meio_pagamento?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor: number
         }
         Update: {
+          antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
           codigo_barras?: string | null
@@ -305,6 +310,7 @@ export type Database = {
           descricao?: string | null
           fornecedor?: string
           id?: string
+          meio_pagamento?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor?: number
@@ -313,39 +319,54 @@ export type Database = {
       }
       contas_receber: {
         Row: {
+          antecipado: boolean | null
           atualizado_em: string
+          categoria: string | null
           cliente_id: string | null
+          comprovante_url: string | null
           criado_em: string
           data_pagamento: string | null
           data_vencimento: string
+          descricao: string | null
           formulario_comercial_id: string | null
           id: string
+          meio_pagamento: string | null
           numero_parcela: string
           status_pagamento: string
           user_id: string | null
           valor: number
         }
         Insert: {
+          antecipado?: boolean | null
           atualizado_em?: string
+          categoria?: string | null
           cliente_id?: string | null
+          comprovante_url?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento: string
+          descricao?: string | null
           formulario_comercial_id?: string | null
           id?: string
+          meio_pagamento?: string | null
           numero_parcela: string
           status_pagamento?: string
           user_id?: string | null
           valor: number
         }
         Update: {
+          antecipado?: boolean | null
           atualizado_em?: string
+          categoria?: string | null
           cliente_id?: string | null
+          comprovante_url?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento?: string
+          descricao?: string | null
           formulario_comercial_id?: string | null
           id?: string
+          meio_pagamento?: string | null
           numero_parcela?: string
           status_pagamento?: string
           user_id?: string | null
@@ -1507,6 +1528,8 @@ export const Constants = {
 //   comprovante_url: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   meio_pagamento: text (nullable)
+//   antecipado: boolean (nullable, default: false)
 // Table: contas_receber
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -1519,6 +1542,11 @@ export const Constants = {
 //   data_pagamento: date (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   meio_pagamento: text (nullable)
+//   antecipado: boolean (nullable, default: false)
+//   comprovante_url: text (nullable)
+//   descricao: text (nullable)
+//   categoria: text (nullable)
 // Table: document_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)

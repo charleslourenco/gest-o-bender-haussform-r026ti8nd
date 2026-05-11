@@ -239,7 +239,7 @@ export function AIAssistant() {
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-[320px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              'h-[288px] min-h-[288px] max-h-[288px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
               isOpen ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-90',
             )}
           />

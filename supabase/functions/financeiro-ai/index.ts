@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import OpenAI from 'npm:openai@4'
+import pdf from 'npm:pdf-parse@1.1.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
@@ -12,21 +13,44 @@ Deno.serve(async (req) => {
     const openai = new OpenAI({ apiKey: openaiKey })
 
     if (action === 'ocr') {
-      const { imageBase64 } = payload
+      const { imageBase64, isPdf } = payload
+      let pdfText = ''
+
+      if (isPdf) {
+        try {
+          const base64Data = imageBase64.split(',')[1] || imageBase64
+          const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+          const data = await pdf(buffer)
+          pdfText = data.text
+        } catch (e) {
+          console.error('PDF Parse Error', e)
+        }
+      }
+
+      const userContent: any[] = [
+        {
+          type: 'text',
+          text: 'Extraia os dados do comprovante em anexo (pode ser nota fiscal, fatura ou boleto), identifique bem o nome do cliente/fornecedor e as parcelas:',
+        },
+      ]
+
+      if (isPdf && pdfText) {
+        userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
+      } else {
+        userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
+      }
+
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
           {
             role: 'system',
             content:
-              'Você é a Edith, super assistente financeira. Extraia informações precisas deste comprovante (boleto, recibo, nota fiscal) e retorne APENAS um JSON com as chaves: "fornecedor" (nome do emissor/credor), "valor" (número float), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria financeira), "meio_pagamento" (Boleto, Pix, Cartão, Transferência).',
+              'Você é a Edith, super assistente financeira. Extraia informações precisas deste comprovante (boleto, recibo, nota fiscal, fatura de cartão) e retorne APENAS um JSON com as chaves: "fornecedor" (nome do cliente/emissor/credor/devedor), "valor" (número float, valor total), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria financeira), "meio_pagamento" (Boleto, Pix, Cartão, Transferência), "parcelas" (inteiro, quantidade de parcelas se houver, senão 1), "valor_parcela" (número float, se for parcelado), "tipo" (retorne "despesa" ou "receita" com base no contexto).',
           },
           {
             role: 'user',
-            content: [
-              { type: 'text', text: 'Extraia os dados do comprovante em anexo:' },
-              { type: 'image_url', image_url: { url: imageBase64 } },
-            ],
+            content: userContent,
           },
         ],
         response_format: { type: 'json_object' },

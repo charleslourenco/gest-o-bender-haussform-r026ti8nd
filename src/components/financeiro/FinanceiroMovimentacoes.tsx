@@ -75,7 +75,10 @@ export function FinanceiroMovimentacoes({
           description: 'Edith está extraindo dados do comprovante...',
         })
         const { data, error } = await supabase.functions.invoke('financeiro-ai', {
-          body: { action: 'ocr', payload: { imageBase64: base64 } },
+          body: {
+            action: 'ocr',
+            payload: { imageBase64: base64, isPdf: file.type === 'application/pdf' },
+          },
         })
         if (error) throw error
 
@@ -83,19 +86,55 @@ export function FinanceiroMovimentacoes({
         const filePath = `comprovantes/${Date.now()}.${fileExt}`
         await supabase.storage.from('financeiro').upload(filePath, file)
 
-        await supabase.from('contas_pagar' as any).insert({
-          user_id: user?.id,
-          fornecedor: data.fornecedor || 'Extração IA',
-          valor: data.valor || 0,
-          data_vencimento: data.data_vencimento || new Date().toISOString().split('T')[0],
-          categoria: data.categoria || 'Geral',
-          codigo_barras: data.codigo_barras,
-          meio_pagamento: data.meio_pagamento || 'Boleto',
-          comprovante_url: filePath,
-        })
+        const numParcelas = parseInt(data.parcelas) || 1
+        let baseValor = data.valor_parcela ? parseFloat(data.valor_parcela) : parseFloat(data.valor)
+        if (!data.valor_parcela && numParcelas > 1) {
+          baseValor = baseValor / numParcelas
+        }
+
+        const dueDate = data.data_vencimento ? new Date(data.data_vencimento) : new Date()
+        const isReceita = data.tipo === 'receita'
+        const table = isReceita ? 'contas_receber' : 'contas_pagar'
+
+        const inserts = []
+        for (let i = 0; i < numParcelas; i++) {
+          const currentDueDate = new Date(dueDate)
+          currentDueDate.setMonth(currentDueDate.getMonth() + i)
+
+          if (isReceita) {
+            inserts.push({
+              user_id: user?.id,
+              descricao:
+                (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) ||
+                `Recebimento de ${data.fornecedor || 'Cliente'}`,
+              valor: baseValor || 0,
+              data_vencimento: currentDueDate.toISOString().split('T')[0],
+              categoria: data.categoria || 'Geral',
+              meio_pagamento: data.meio_pagamento || 'Transferência',
+              comprovante_url: i === 0 ? filePath : null,
+              numero_parcela: `${i + 1}/${numParcelas}`,
+            })
+          } else {
+            inserts.push({
+              user_id: user?.id,
+              fornecedor: data.fornecedor || 'Fornecedor',
+              valor: baseValor || 0,
+              data_vencimento: currentDueDate.toISOString().split('T')[0],
+              descricao:
+                (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) || '',
+              categoria: data.categoria || 'Geral',
+              codigo_barras: data.codigo_barras,
+              meio_pagamento: data.meio_pagamento || 'Boleto',
+              comprovante_url: i === 0 ? filePath : null,
+            })
+          }
+        }
+
+        await supabase.from(table as any).insert(inserts)
+
         toast({
           title: 'Sucesso',
-          description: `Conta de ${data.fornecedor} registrada com comprovante!`,
+          description: `Registro(s) de ${data.fornecedor || 'Transação'} inserido(s) com sucesso!`,
         })
         onRefresh()
       } catch (err: any) {
@@ -239,6 +278,7 @@ export function FinanceiroMovimentacoes({
               <TableRow>
                 <TableHead>Data Inserção</TableHead>
                 <TableHead>Vencimento</TableHead>
+                <TableHead>Data Pgto</TableHead>
                 <TableHead>Credor / Devedor</TableHead>
                 <TableHead>Referência</TableHead>
                 <TableHead>Categoria</TableHead>
@@ -258,6 +298,9 @@ export function FinanceiroMovimentacoes({
                   </TableCell>
                   <TableCell className="font-medium">
                     {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
+                  </TableCell>
+                  <TableCell className="font-medium text-gray-600">
+                    {t.paidDate ? format(parseISO(t.paidDate), 'dd/MM/yyyy') : '-'}
                   </TableCell>
                   <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
                   <TableCell className="text-gray-600 max-w-[150px] truncate" title={t.description}>
