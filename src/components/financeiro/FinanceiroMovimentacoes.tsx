@@ -96,6 +96,17 @@ export function FinanceiroMovimentacoes({
         const isReceita = data.tipo === 'receita'
         const table = isReceita ? 'contas_receber' : 'contas_pagar'
 
+        let clienteId = null
+        if (isReceita && data.fornecedor) {
+          const { data: clientes } = await supabase
+            .from('clientes')
+            .select('id')
+            .ilike('nome', `%${data.fornecedor}%`)
+            .limit(1)
+            .maybeSingle()
+          if (clientes) clienteId = clientes.id
+        }
+
         const inserts = []
         for (let i = 0; i < numParcelas; i++) {
           const currentDueDate = new Date(dueDate)
@@ -104,6 +115,7 @@ export function FinanceiroMovimentacoes({
           if (isReceita) {
             inserts.push({
               user_id: user?.id,
+              cliente_id: clienteId,
               descricao:
                 (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) ||
                 `Recebimento de ${data.fornecedor || 'Cliente'}`,
@@ -278,7 +290,7 @@ export function FinanceiroMovimentacoes({
               <TableRow>
                 <TableHead>Data Inserção</TableHead>
                 <TableHead>Vencimento</TableHead>
-                <TableHead>Data Pgto</TableHead>
+                <TableHead>Recebimento/Pgto</TableHead>
                 <TableHead>Credor / Devedor</TableHead>
                 <TableHead>Referência</TableHead>
                 <TableHead>Categoria</TableHead>
@@ -296,10 +308,10 @@ export function FinanceiroMovimentacoes({
                   <TableCell className="text-gray-500 text-xs">
                     {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium whitespace-nowrap">
                     {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
                   </TableCell>
-                  <TableCell className="font-medium text-gray-600">
+                  <TableCell className="font-medium text-gray-600 whitespace-nowrap">
                     {t.paidDate ? format(parseISO(t.paidDate), 'dd/MM/yyyy') : '-'}
                   </TableCell>
                   <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>

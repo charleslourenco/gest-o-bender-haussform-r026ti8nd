@@ -129,49 +129,74 @@ export function AIAssistant() {
 
         aiMessage = data?.message || ''
 
-        const jsonMatch =
-          aiMessage.match(/```json\n([\s\S]*?)\n```/) || aiMessage.match(/{[\s\S]*"acao"[\s\S]*}/)
-        if (jsonMatch) {
-          try {
-            const jsonStr = jsonMatch[1] || jsonMatch[0]
-            const actionData = JSON.parse(jsonStr)
-            const { data: userData } = await supabase.auth.getUser()
+        let aiMessageCleaned = aiMessage
 
-            if (actionData.acao === 'criar_pagamento') {
-              await supabase.from('contas_pagar').insert({
-                user_id: userData.user?.id,
-                fornecedor: actionData.dados.credor_devedor || 'Desconhecido',
-                valor: actionData.dados.valor || 0,
-                data_vencimento: actionData.dados.data_vencimento || today,
-                descricao: actionData.dados.descricao,
-                categoria: actionData.dados.categoria,
-                meio_pagamento: actionData.dados.meio_pagamento,
-                antecipado: actionData.dados.antecipado || false,
-              })
-              window.dispatchEvent(new Event('financeiro-refresh'))
-            } else if (actionData.acao === 'criar_recebimento') {
-              await supabase.from('contas_receber').insert({
-                user_id: userData.user?.id,
-                descricao:
-                  actionData.dados.descricao || `Recebimento de ${actionData.dados.credor_devedor}`,
-                valor: actionData.dados.valor || 0,
-                data_vencimento: actionData.dados.data_vencimento || today,
-                categoria: actionData.dados.categoria,
-                meio_pagamento: actionData.dados.meio_pagamento,
-                antecipado: actionData.dados.antecipado || false,
-                numero_parcela: '1/1',
-              })
-              window.dispatchEvent(new Event('financeiro-refresh'))
+        const processAction = async (actionData: any) => {
+          const { data: userData } = await supabase.auth.getUser()
+          if (actionData.acao === 'criar_pagamento') {
+            await supabase.from('contas_pagar').insert({
+              user_id: userData.user?.id,
+              fornecedor: actionData.dados.credor_devedor || 'Desconhecido',
+              valor: actionData.dados.valor || 0,
+              data_vencimento: actionData.dados.data_vencimento || today,
+              descricao: actionData.dados.descricao,
+              categoria: actionData.dados.categoria,
+              meio_pagamento: actionData.dados.meio_pagamento,
+              antecipado: actionData.dados.antecipado || false,
+            })
+            window.dispatchEvent(new Event('financeiro-refresh'))
+          } else if (actionData.acao === 'criar_recebimento') {
+            let clienteId = null
+            if (actionData.dados.credor_devedor) {
+              const { data: clientes } = await supabase
+                .from('clientes')
+                .select('id')
+                .ilike('nome', `%${actionData.dados.credor_devedor}%`)
+                .limit(1)
+                .maybeSingle()
+              if (clientes) clienteId = clientes.id
             }
-            if (aiMessage.includes('```json')) {
-              aiMessage = aiMessage.replace(/```json\n[\s\S]*?\n```/, '')
-            } else {
-              aiMessage = aiMessage.replace(jsonStr, '')
-            }
-          } catch (e) {
-            console.error('Failed to parse action from Edith', e)
+
+            await supabase.from('contas_receber').insert({
+              user_id: userData.user?.id,
+              cliente_id: clienteId,
+              descricao:
+                actionData.dados.descricao || `Recebimento de ${actionData.dados.credor_devedor}`,
+              valor: actionData.dados.valor || 0,
+              data_vencimento: actionData.dados.data_vencimento || today,
+              categoria: actionData.dados.categoria,
+              meio_pagamento: actionData.dados.meio_pagamento,
+              antecipado: actionData.dados.antecipado || false,
+              numero_parcela: '1/1',
+            })
+            window.dispatchEvent(new Event('financeiro-refresh'))
           }
         }
+
+        const jsonRegex = /```json\n([\s\S]*?)\n```/g
+        let match
+        while ((match = jsonRegex.exec(aiMessage)) !== null) {
+          try {
+            const actionData = JSON.parse(match[1])
+            await processAction(actionData)
+          } catch (e) {
+            console.error('Failed to parse JSON', e)
+          }
+        }
+        aiMessageCleaned = aiMessageCleaned.replace(/```json\n[\s\S]*?\n```/g, '').trim()
+
+        const strayJsonMatch = aiMessageCleaned.match(/({[\s\S]*"acao"[\s\S]*})/)
+        if (strayJsonMatch) {
+          try {
+            const actionData = JSON.parse(strayJsonMatch[1])
+            await processAction(actionData)
+            aiMessageCleaned = aiMessageCleaned.replace(strayJsonMatch[1], '').trim()
+          } catch {
+            /* intentionally ignored */
+          }
+        }
+
+        aiMessage = aiMessageCleaned
       } else {
         const { data } = await supabase.functions.invoke('assistant-intelligence', {
           body: {
@@ -239,7 +264,7 @@ export function AIAssistant() {
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-[288px] min-h-[288px] max-h-[288px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              'h-[260px] min-h-[260px] max-h-[260px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
               isOpen ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-90',
             )}
           />
