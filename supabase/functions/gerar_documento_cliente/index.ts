@@ -314,7 +314,31 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
   for (const [emoji, replacement] of Object.entries(emojiMap)) {
     safeText = safeText.split(emoji).join(replacement)
   }
-  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '') // Keep basic ascii + latin1
+
+  const unicodeMap: Record<string, string> = {
+    '“': '"',
+    '”': '"',
+    '‘': "'",
+    '’': "'",
+    '–': '-',
+    '—': '-',
+    '…': '...',
+    º: 'o',
+    ª: 'a',
+    '°': 'o',
+    '\u201C': '"',
+    '\u201D': '"',
+    '\u2018': "'",
+    '\u2019': "'",
+    '\u2013': '-',
+    '\u2014': '-',
+    '\u2026': '...',
+  }
+  for (const [char, replacement] of Object.entries(unicodeMap)) {
+    safeText = safeText.split(char).join(replacement)
+  }
+
+  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
 
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -330,24 +354,20 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
   let isFirstPage = true
 
   const drawHeader = async (p: any, isFirst: boolean) => {
-    if (isFirst) {
-      if (logoBytes) {
-        try {
-          const image = await pdfDoc.embedPng(logoBytes)
-          const scale = 120 / image.width
-          const imgDims = { width: image.width * scale, height: image.height * scale }
-          p.drawImage(image, {
-            x: (pageWidth - imgDims.width) / 2,
-            y: pageHeight - margin + 20,
-            width: imgDims.width,
-            height: imgDims.height,
-          })
-          return imgDims.height + 10
-        } catch (e) {
-          console.warn('Failed to embed logo', e)
-        }
-      } else {
-        // Fallback comment: // TODO: inserir logo da Bender — buscar em bender_templates/logo.png
+    if (isFirst && logoBytes) {
+      try {
+        const image = await pdfDoc.embedPng(logoBytes)
+        const scale = 120 / image.width
+        const imgDims = { width: image.width * scale, height: image.height * scale }
+        p.drawImage(image, {
+          x: (pageWidth - imgDims.width) / 2,
+          y: pageHeight - margin + 20,
+          width: imgDims.width,
+          height: imgDims.height,
+        })
+        return imgDims.height + 10
+      } catch (e) {
+        console.warn('Failed to embed logo', e)
       }
     }
     return 0
@@ -371,11 +391,27 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     let lines = []
     let currentLine = ''
     for (const word of words) {
+      if (!word) continue
       const testLine = currentLine ? `${currentLine} ${word}` : word
       const width = font.widthOfTextAtSize(testLine, size)
       if (width > maxWidth) {
         if (currentLine) lines.push(currentLine)
-        currentLine = word
+
+        // If a single word is larger than maxWidth, break it
+        if (font.widthOfTextAtSize(word, size) > maxWidth) {
+          let brokenWord = ''
+          for (const char of word) {
+            if (font.widthOfTextAtSize(brokenWord + char + '-', size) > maxWidth) {
+              lines.push(brokenWord + '-')
+              brokenWord = char
+            } else {
+              brokenWord += char
+            }
+          }
+          currentLine = brokenWord
+        } else {
+          currentLine = word
+        }
       } else {
         currentLine = testLine
       }
@@ -443,8 +479,19 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
           color: rgb(1, 1, 1),
         })
         const textW = cellFont.widthOfTextAtSize(text, 10)
-        page.drawText(text, {
-          x: currentX + (cellWidths[c] - textW) / 2,
+
+        let displayTxt = text
+        if (textW > cellWidths[c] - 4) {
+          let truncated = ''
+          for (const char of text) {
+            if (cellFont.widthOfTextAtSize(truncated + char + '...', 10) > cellWidths[c] - 4) break
+            truncated += char
+          }
+          displayTxt = truncated + '...'
+        }
+        const dtW = cellFont.widthOfTextAtSize(displayTxt, 10)
+        page.drawText(displayTxt, {
+          x: currentX + (cellWidths[c] - dtW) / 2,
           y: currentY - 10,
           size: 10,
           font: cellFont,
@@ -457,7 +504,10 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     }
 
     const isMainTitle =
-      i === 0 || rawLine.startsWith('CONTRATO UNIFICADO') || rawLine.startsWith('TERMO DE ')
+      i === 0 ||
+      rawLine.startsWith('CONTRATO UNIFICADO') ||
+      rawLine.startsWith('TERMO DE ') ||
+      rawLine.startsWith('PROPOSTA')
     const isClauseTitle = rawLine.toUpperCase() === rawLine && rawLine.startsWith('CLÁUSULA')
     const isSubtitle = /^[0-9]+\.[0-9]+/.test(rawLine)
 
@@ -498,7 +548,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       let x = margin
 
       if (align === 'center') {
-        x = margin + (maxWidth - width) / 2
+        x = margin + Math.max(0, (maxWidth - width) / 2)
         page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
       } else if (align === 'justify' && j < wrappedLines.length - 1 && width > maxWidth * 0.7) {
         drawJustifiedLine(page, wl, currentY, font, size, rgb(0, 0, 0))

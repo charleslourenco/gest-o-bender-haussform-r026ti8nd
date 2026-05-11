@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
 
     let y = 700
     for (const sig of assinaturas || []) {
-      if (y < 200) {
+      if (y < 250) {
         certPage = mergedPdf.addPage([595.28, 841.89])
         y = 760
       }
@@ -110,6 +110,18 @@ Deno.serve(async (req: Request) => {
         `IP: ${sig.ip_assinatura || 'N/A'} | Código de Confirmação: ${sig.codigo_confirmacao}`,
         { x: 85, y, size: 10, font },
       )
+
+      if (sig.assinatura_imagem && sig.assinatura_imagem.startsWith('data:image/png;base64,')) {
+        try {
+          const base64Data = sig.assinatura_imagem.split(',')[1]
+          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+          const image = await mergedPdf.embedPng(imageBytes)
+          certPage.drawImage(image, { x: 350, y: y - 10, width: 120, height: 60 })
+        } catch (e) {
+          console.error('Falha ao embutir imagem da assinatura', e)
+        }
+      }
+
       y -= 25
 
       certPage.drawLine({

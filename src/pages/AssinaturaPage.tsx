@@ -246,7 +246,7 @@ export default function AssinaturaPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Assinatura (Rabisco)</Label>
+                  <Label>Faça aqui sua assinatura</Label>
                   <SignatureCanvas
                     onDraw={(base64) => setFormData({ ...formData, assinaturaBase64: base64 })}
                   />
