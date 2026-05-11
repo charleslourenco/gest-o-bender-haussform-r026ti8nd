@@ -32,12 +32,32 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadDocs = async () => {
-    const { data } = await supabase
-      .from('documentos_cliente')
-      .select('*, assinaturas(id, status), clientes(nome)')
-      .eq('cliente_id', dossie.cliente_id)
-      .order('criado_em', { ascending: false })
-    if (data) setDocs(data)
+    try {
+      const { data: docsData, error: docsError } = await supabase
+        .from('documentos_cliente')
+        .select('*, clientes(nome)')
+        .eq('cliente_id', dossie.cliente_id)
+        .order('criado_em', { ascending: false })
+
+      if (docsError) throw docsError
+
+      if (docsData) {
+        const { data: assinaturasData } = await supabase
+          .from('assinaturas')
+          .select('id, status, documento_id')
+          .eq('cliente_id', dossie.cliente_id)
+
+        const docsWithAssinaturas = docsData.map((doc) => ({
+          ...doc,
+          assinaturas: assinaturasData?.filter((a) => a.documento_id === doc.arquivo_url) || [],
+        }))
+
+        setDocs(docsWithAssinaturas)
+      }
+    } catch (e: any) {
+      console.error('Error loading docs:', e)
+      toast.error('Erro ao carregar lista de documentos.')
+    }
   }
 
   const loadTemplates = async () => {
@@ -58,6 +78,26 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   useEffect(() => {
     loadDocs()
     loadTemplates()
+
+    const channel = supabase
+      .channel('documentos_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documentos_cliente',
+          filter: `cliente_id=eq.${dossie.cliente_id}`,
+        },
+        () => {
+          loadDocs()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [dossie.cliente_id])
 
   const form = dossie.formulario || {}
