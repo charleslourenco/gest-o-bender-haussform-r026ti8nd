@@ -2,8 +2,8 @@
   "_versions": {
     "check-permission": 5,
     "admin-users": 7,
-    "gerar-dossie": 11,
-    "gerar_documento_cliente": 43,
+    "gerar-dossie": 12,
+    "gerar_documento_cliente": 44,
     "send-signature-email": 5,
     "finalize-signature-document": 11,
     "whatsapp-webhook": 23,

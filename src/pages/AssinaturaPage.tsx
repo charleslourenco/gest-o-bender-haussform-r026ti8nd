@@ -62,16 +62,21 @@ export default function AssinaturaPage() {
       return
     }
 
-    const { data, error } = await supabase.storage
+    // Tenta primeiro como public URL, pois o bucket bender_clientes é configurado como público
+    const { data: pubData } = supabase.storage
       .from('bender_clientes')
-      .createSignedUrl(assinatura.documento_id, 3600)
+      .getPublicUrl(assinatura.documento_id)
 
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, '_blank')
+    if (pubData?.publicUrl) {
+      window.open(pubData.publicUrl, '_blank')
     } else {
-      const pub = supabase.storage.from('bender_clientes').getPublicUrl(assinatura.documento_id)
-      if (pub.data?.publicUrl) {
-        window.open(pub.data.publicUrl, '_blank')
+      // Fallback para signed url em caso de erro na URL pública
+      const { data, error } = await supabase.storage
+        .from('bender_clientes')
+        .createSignedUrl(assinatura.documento_id, 3600)
+
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank')
       } else {
         toast.error('Não foi possível abrir o documento.')
       }

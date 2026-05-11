@@ -285,36 +285,7 @@ Deno.serve(async (req: Request) => {
 })
 
 async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint8Array | null) {
-  const emojiMap: Record<string, string> = {
-    '🎨': '[Estilo]',
-    '👤': '[Cliente]',
-    '📐': '[Analista]',
-    '🔨': '[Montador]',
-    '✦': '•',
-    '🧑‍💻': '[Projeto]',
-    '⚙️': '[Fabricação]',
-    '🚚': '[Entrega]',
-    '👷': '[Montagem]',
-    '☑️': '[X]',
-    '✖️': '[ ]',
-    '⚠️': '[Atenção]',
-    '📦': '[Logística]',
-    '🔹': '•',
-    '🏗️': '[Acompanhamento]',
-    '🎭': '[Ambientação]',
-    '🤝': '[Termo]',
-    '🛡️': '[Garantia]',
-    '📣': '[Comunicados]',
-    '📄': '[Documento]',
-    '📒': '[Caderno]',
-    '✅': '[X]',
-    '❌': '[ ]',
-  }
   let safeText = text
-  for (const [emoji, replacement] of Object.entries(emojiMap)) {
-    safeText = safeText.split(emoji).join(replacement)
-  }
-
   const unicodeMap: Record<string, string> = {
     '“': '"',
     '”': '"',
@@ -333,12 +304,36 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     '\u2013': '-',
     '\u2014': '-',
     '\u2026': '...',
+    '🎨': '',
+    '👤': '',
+    '📐': '',
+    '🔨': '',
+    '✦': '-',
+    '🧑‍💻': '',
+    '⚙️': '',
+    '🚚': '',
+    '👷': '',
+    '☑️': '[X]',
+    '✖️': '[ ]',
+    '⚠️': '!',
+    '📦': '',
+    '🔹': '-',
+    '🏗️': '',
+    '🎭': '',
+    '🤝': '',
+    '🛡️': '',
+    '📣': '',
+    '📄': '',
+    '📒': '',
+    '✅': '[X]',
+    '❌': '[ ]',
   }
   for (const [char, replacement] of Object.entries(unicodeMap)) {
     safeText = safeText.split(char).join(replacement)
   }
 
-  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
+  // Remove emojis explicitly, keep everything else to avoid corrupting valid words
+  safeText = safeText.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
 
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
