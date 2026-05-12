@@ -11,6 +11,8 @@ import DocumentacaoLead from './pages/DocumentacaoLead'
 import Users from './pages/Users'
 import AdminPage from './pages/admin/Admin'
 import AnaliseTecnica from './pages/AnaliseTecnica'
+import Producao from './pages/Producao'
+import Montagem from './pages/Montagem'
 import NotFound from './pages/NotFound'
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
@@ -46,6 +48,8 @@ const App = () => (
               <Route path="/clientes/:id" element={<AreaClientes />} />
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/analise-tecnica" element={<AnaliseTecnica />} />
+              <Route path="/producao" element={<Producao />} />
+              <Route path="/montagem" element={<Montagem />} />
               <Route path="/admin" element={<AdminPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

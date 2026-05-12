@@ -2,7 +2,7 @@
   "_versions": {
     "check-permission": 5,
     "admin-users": 7,
-    "gerar-dossie": 13,
+    "gerar-dossie": 14,
     "gerar_documento_cliente": 44,
     "send-signature-email": 5,
     "finalize-signature-document": 11,

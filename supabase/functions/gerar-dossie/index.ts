@@ -639,8 +639,8 @@ Deno.serve(async (req) => {
           .replace(/[^a-zA-Z]/g, '')
           .substring(0, 3)
           .toUpperCase()
-        const num = (index + 1).toString().padStart(2, '0')
-        return `${initials}-${prod}${num}`
+        const num = (index + 1).toString().padStart(4, '0')
+        return `${initials}-${prod}-${num}`
       }
 
       const cliInitials = getInitials(clienteNome)

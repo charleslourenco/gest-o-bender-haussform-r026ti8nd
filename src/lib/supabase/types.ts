@@ -1085,8 +1085,10 @@ export type Database = {
       }
       produtos_servicos_projeto: {
         Row: {
+          analista_id: string | null
           atualizado_em: string
           cliente_id: string | null
+          codigo_rastreio: string | null
           criado_em: string
           descricao: string | null
           formulario_comercial_id: string | null
@@ -1098,8 +1100,10 @@ export type Database = {
           valor_unitario: number
         }
         Insert: {
+          analista_id?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          codigo_rastreio?: string | null
           criado_em?: string
           descricao?: string | null
           formulario_comercial_id?: string | null
@@ -1111,8 +1115,10 @@ export type Database = {
           valor_unitario: number
         }
         Update: {
+          analista_id?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          codigo_rastreio?: string | null
           criado_em?: string
           descricao?: string | null
           formulario_comercial_id?: string | null
@@ -1124,6 +1130,13 @@ export type Database = {
           valor_unitario?: number
         }
         Relationships: [
+          {
+            foreignKeyName: 'produtos_servicos_projeto_analista_id_fkey'
+            columns: ['analista_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'produtos_servicos_projeto_cliente_id_fkey'
             columns: ['cliente_id']
@@ -1724,6 +1737,8 @@ export const Constants = {
 //   status_analise: text (not null, default: 'iniciar'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   analista_id: uuid (nullable)
+//   codigo_rastreio: text (nullable)
 // Table: templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1837,6 +1852,7 @@ export const Constants = {
 //   FOREIGN KEY produtos_servicos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_pkey: PRIMARY KEY (id)
 // Table: produtos_servicos_projeto
+//   FOREIGN KEY produtos_servicos_projeto_analista_id_fkey: FOREIGN KEY (analista_id) REFERENCES users(id) ON DELETE SET NULL
 //   FOREIGN KEY produtos_servicos_projeto_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY produtos_servicos_projeto_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)

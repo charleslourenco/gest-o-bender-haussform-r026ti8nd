@@ -8,6 +8,8 @@ import {
   Target,
   Lock,
   ClipboardList,
+  Factory,
+  Hammer,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -33,6 +35,8 @@ const menuItems = [
     url: '/analise-tecnica',
     module: 'Análise Técnica',
   },
+  { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
+  { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
   { title: 'Financeiro', icon: Wallet, url: '/financeiro', module: 'Financeiro' },
   { title: 'Usuários', icon: UserCog, url: '/usuarios', module: 'Usuários' },
 ]
