@@ -1,0 +1,213 @@
+import { useState, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { UploadCloud, CheckCircle2, AlertCircle, FileText, Loader2 } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
+import { Badge } from '@/components/ui/badge'
+
+export function ComprasOCR() {
+  const [isDragging, setIsDragging] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [notas, setNotas] = useState<any[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    fetchNotas()
+  }, [])
+
+  async function fetchNotas() {
+    const { data } = await supabase
+      .from('notas_fiscais' as any)
+      .select('*')
+      .order('criado_em', { ascending: false })
+    if (data) setNotas(data)
+  }
+
+  const handleProcessFile = async (file: File) => {
+    if (!file) return
+
+    setIsProcessing(true)
+    try {
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string
+        const isPdf = file.type === 'application/pdf'
+
+        toast({
+          title: 'Zenaide: Processando Documento...',
+          description: 'A IA está lendo a nota fiscal para extrair os dados.',
+        })
+
+        const response = await supabase.functions.invoke('financeiro-ai', {
+          body: {
+            action: 'ocr',
+            payload: { imageBase64: base64Data, isPdf },
+          },
+        })
+
+        if (response.error) throw response.error
+
+        const extractedData = JSON.parse(response.data)
+
+        // Save to database
+        const { data: newNota, error: dbError } = await supabase
+          .from('notas_fiscais' as any)
+          .insert({
+            fornecedor: extractedData.fornecedor || 'Desconhecido',
+            valor_total: extractedData.valor || 0,
+            data_emissao: extractedData.data_vencimento || new Date().toISOString().split('T')[0],
+            dados_ocr: extractedData,
+            status_reconciliacao: 'pendente',
+            numero_nota: `OCR-${Math.floor(Math.random() * 10000)}`,
+          })
+          .select()
+          .single()
+
+        if (dbError) throw dbError
+
+        toast({
+          title: 'Documento Validado!',
+          description: `Fornecedor: ${extractedData.fornecedor} | Total: R$ ${extractedData.valor}`,
+          variant: 'default',
+        })
+
+        fetchNotas()
+      }
+      reader.readAsDataURL(file)
+    } catch (error: any) {
+      toast({
+        title: 'Erro na leitura OCR',
+        description: error.message || 'Falha ao conectar com o serviço de OCR.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleProcessFile(e.dataTransfer.files[0])
+    }
+  }
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-1">
+        <Card>
+          <CardContent className="pt-6">
+            <div
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={onDrop}
+            >
+              {isProcessing ? (
+                <div className="flex flex-col items-center">
+                  <Loader2 className="h-10 w-10 text-steel-blue animate-spin mb-4" />
+                  <p className="text-sm font-medium">Extraindo dados (OCR)...</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <UploadCloud className="h-10 w-10 text-gray-400 mb-4" />
+                  <h3 className="font-semibold mb-1">Upload de Nota Fiscal / Fatura</h3>
+                  <p className="text-sm text-gray-500 mb-4">Arraste o PDF/Imagem ou clique</p>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-midnight-navy hover:bg-dark-denim"
+                  >
+                    Selecionar Arquivo
+                  </Button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*,.pdf"
+                    onChange={(e) => e.target.files && handleProcessFile(e.target.files[0])}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800">
+                <AlertCircle className="w-4 h-4" /> Inteligência da Zenaide
+              </h4>
+              <p className="text-xs text-blue-700/80 leading-relaxed">
+                Nossa IA utiliza OCR avançado para extrair automaticamente Fornecedor, Valor e Itens
+                da sua nota fiscal. Os documentos são enviados para conciliação automática com
+                Pedidos de Compra (POs).
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-2">
+        <Card className="h-full">
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-500" /> Notas Fiscais Processadas
+            </h3>
+            <div className="space-y-3">
+              {notas.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">
+                  Nenhuma nota processada recentemente.
+                </div>
+              ) : (
+                notas.map((nota) => (
+                  <div
+                    key={nota.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-emerald-100 p-2 rounded-full">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{nota.fornecedor}</p>
+                        <p className="text-xs text-gray-500">
+                          Nota: {nota.numero_nota} | Emissão:{' '}
+                          {nota.data_emissao
+                            ? new Date(nota.data_emissao).toLocaleDateString('pt-BR')
+                            : '-'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-sm">{formatCurrency(nota.valor_total)}</p>
+                      <Badge
+                        variant="outline"
+                        className={
+                          nota.status_reconciliacao === 'pendente'
+                            ? 'bg-amber-50 text-amber-600 border-amber-200 mt-1'
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 mt-1'
+                        }
+                      >
+                        {nota.status_reconciliacao === 'pendente'
+                          ? 'Conciliação Pendente'
+                          : 'Validado'}
+                      </Badge>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}

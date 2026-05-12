@@ -2126,8 +2126,13 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: users
+//   Policy "Admin atualiza usuários" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
+//     WITH CHECK: ((auth.uid() = id) OR is_admin(auth.uid()))
 //   Policy "Admin deleta" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
+//   Policy "Admin insere usuários" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: is_admin(auth.uid())
 //   Policy "Usuário edita seus dados" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
 //   Policy "Usuário insere sua conta" (INSERT, PERMISSIVE) roles={authenticated}

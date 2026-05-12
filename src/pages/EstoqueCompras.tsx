@@ -1,31 +1,40 @@
-import { PackageSearch, Wrench } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PackageSearch } from 'lucide-react'
+import { EstoqueOverview } from '@/components/estoque/EstoqueOverview'
+import { EstoqueLista } from '@/components/estoque/EstoqueLista'
+import { ComprasOCR } from '@/components/estoque/ComprasOCR'
 
 export default function EstoqueCompras() {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[80vh] text-center p-8 bg-off-white/50 rounded-xl border border-steel-blue/10">
-      <div className="relative mb-8">
-        <div className="bg-pale-cornflower p-6 rounded-full shadow-inner">
-          <PackageSearch className="w-16 h-16 text-steel-blue" />
-        </div>
-        <div className="absolute -bottom-2 -right-2 bg-dark-denim p-2 rounded-full text-off-white shadow-md">
-          <Wrench className="w-6 h-6" />
+    <div className="p-6 space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
+        <PackageSearch className="h-10 w-10 text-emerald-400" />
+        <div>
+          <h1 className="text-[32px] font-bold text-off-white">Estoque & Compras</h1>
+          <p className="text-pale-cornflower mt-1">
+            Gestão inteligente de suprimentos e conciliação de notas
+          </p>
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold text-midnight-navy mb-4">Estoque & Compras</h1>
-
-      <p className="text-lg text-slate-gray max-w-lg mb-8">
-        Este módulo está em fase de planejamento e desenvolvimento. Em breve, você terá controle
-        total sobre seus suprimentos e pedidos de compra.
-      </p>
-
-      <div className="inline-flex items-center gap-2 px-4 py-2 bg-steel-blue/10 text-midnight-navy font-medium rounded-full text-sm">
-        <span className="relative flex h-3 w-3">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-steel-blue opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-steel-blue"></span>
-        </span>
-        Em Construção
-      </div>
+      <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-full justify-start bg-white p-1 border-b rounded-none shrink-0 overflow-x-auto">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="estoque">Inventário</TabsTrigger>
+          <TabsTrigger value="compras">Pedidos & OCR</TabsTrigger>
+        </TabsList>
+        <div className="flex-1 overflow-y-auto mt-4 pb-20">
+          <TabsContent value="overview" className="m-0 border-none outline-none">
+            <EstoqueOverview />
+          </TabsContent>
+          <TabsContent value="estoque" className="m-0 border-none outline-none">
+            <EstoqueLista />
+          </TabsContent>
+          <TabsContent value="compras" className="m-0 border-none outline-none">
+            <ComprasOCR />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   )
 }
