@@ -46,6 +46,7 @@ const menuItems = [
     module: 'Estoque & Compras',
   },
   { title: 'Financeiro', icon: Wallet, url: '/financeiro', module: 'Financeiro' },
+  { title: 'Gestão de Pessoas', icon: Users, url: '/gestao-pessoas', module: 'Gestão de Pessoas' },
   { title: 'Usuários', icon: UserCog, url: '/usuarios', module: 'Usuários' },
 ]
 

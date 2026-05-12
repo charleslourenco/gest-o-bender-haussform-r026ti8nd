@@ -3,15 +3,14 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useAppStore } from '@/stores/main'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 export function Header() {
-  const { inventory, projects } = useAppStore()
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
+  const [totalAlerts, setTotalAlerts] = useState(0)
 
   useEffect(() => {
     const fetchEmpresa = async () => {
@@ -73,11 +72,20 @@ export function Header() {
     }
   }, [user?.id])
 
-  const lowStockCount = inventory.filter((i) => i.quantity <= i.minStock).length
-  const urgentProjects = projects.filter(
-    (p) => p.priority === 'Urgente' && p.stage !== 'Finalizado',
-  ).length
-  const totalAlerts = lowStockCount + urgentProjects
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const { count } = await supabase
+        .from('contas_pagar')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_pagamento', 'aguardando')
+        .lte('data_vencimento', today)
+
+      setTotalAlerts(count || 0)
+    }
+
+    fetchAlerts()
+  }, [])
 
   const userInitials = user?.user_metadata?.nome
     ? user.user_metadata.nome.substring(0, 2).toUpperCase()

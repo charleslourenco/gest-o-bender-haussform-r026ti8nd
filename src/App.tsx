@@ -15,6 +15,7 @@ import Producao from './pages/Producao'
 import Montagem from './pages/Montagem'
 import NotFound from './pages/NotFound'
 import EstoqueCompras from './pages/EstoqueCompras'
+import GestaoPessoas from './pages/GestaoPessoas'
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
 import Login from './pages/Login'
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/producao" element={<Producao />} />
               <Route path="/montagem" element={<Montagem />} />
               <Route path="/estoque-compras" element={<EstoqueCompras />} />
+              <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
               <Route path="/admin" element={<AdminPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
