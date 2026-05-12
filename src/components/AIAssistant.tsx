@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { Sparkles, MessageSquare, Send } from 'lucide-react'
+import { Sparkles, MessageSquare, Send, X } from 'lucide-react'
 
 import catarinaImg from '@/assets/catarina-6d3e7.png'
 import zenaideImg from '@/assets/zenaide-fa35c.png'
@@ -259,40 +259,25 @@ export function AIAssistant() {
   const charData = CHARACTERS[character]
 
   return (
-    <div className="flex-1 flex flex-col justify-end items-center relative min-h-[120px] pointer-events-none w-full px-2 overflow-hidden">
-      <div className="relative pointer-events-auto h-full w-full flex justify-center items-end">
-        <button
-          onClick={toggleAssistant}
-          className="relative group transition-transform hover:scale-105 active:scale-95 flex items-end justify-center h-full w-full"
-        >
-          <img
-            src={charData.img}
-            alt={charData.name}
-            className={cn(
-              'w-auto object-contain drop-shadow-2xl origin-bottom transition-all max-h-full max-h-[260px] max-w-full',
-              isOpen ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-90',
-            )}
-          />
-          {hasNewMessage && !isOpen && (
-            <div className="absolute top-2 right-1/4 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10">
-              <MessageSquare className="h-3 w-3" fill="currentColor" />
-            </div>
-          )}
-        </button>
-      </div>
-
+    <div className="fixed bottom-0 right-4 md:right-8 z-50 flex flex-col items-end pointer-events-none">
       {isOpen && (
-        <div className="animate-fade-in-up fixed bottom-8 left-[calc(var(--sidebar-width,16rem)+1rem)] w-80 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden pointer-events-auto z-50">
+        <div className="pointer-events-auto w-80 mb-4 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden animate-fade-in-up origin-bottom-right">
           <div className="flex items-center justify-between p-3 border-b bg-gray-50/50">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-500" />
               <h4 className="font-semibold text-sm text-gray-800">{charData.name}</h4>
             </div>
+            <button
+              onClick={toggleAssistant}
+              className="text-gray-400 hover:text-gray-600 transition-colors rounded-full p-1 hover:bg-gray-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
           <div
             ref={scrollRef}
-            className="p-3 max-h-60 overflow-y-auto flex flex-col gap-3 min-h-[80px]"
+            className="p-3 max-h-[350px] overflow-y-auto flex flex-col gap-3 min-h-[80px]"
           >
             {messages.map((m, i) => (
               <div
@@ -343,10 +328,31 @@ export function AIAssistant() {
               <Send className="h-4 w-4" />
             </button>
           </form>
-
-          <div className="absolute top-[calc(100%-3rem)] -left-2 w-4 h-4 bg-white border-b border-l border-gray-100 transform rotate-45 hidden md:block" />
         </div>
       )}
+
+      <div className="relative pointer-events-auto flex justify-center items-end group mr-2 md:mr-6">
+        <button
+          onClick={toggleAssistant}
+          className="relative transition-transform hover:scale-105 active:scale-95 flex items-end justify-center"
+        >
+          <img
+            src={charData.img}
+            alt={charData.name}
+            className={cn(
+              'w-auto object-contain drop-shadow-2xl origin-bottom transition-all max-h-[180px] md:max-h-[220px]',
+              isOpen
+                ? 'translate-y-0 opacity-100'
+                : 'translate-y-2 opacity-90 hover:opacity-100 hover:translate-y-0',
+            )}
+          />
+          {hasNewMessage && !isOpen && (
+            <div className="absolute top-4 right-0 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10 shadow-md">
+              <MessageSquare className="h-3 w-3" fill="currentColor" />
+            </div>
+          )}
+        </button>
+      </div>
     </div>
   )
 }
