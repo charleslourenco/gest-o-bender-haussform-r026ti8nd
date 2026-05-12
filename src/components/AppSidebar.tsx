@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import { AIAssistant } from './AIAssistant'
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
@@ -63,13 +64,13 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
       <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm">
-          M
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm shrink-0">
+          B
         </div>
-        <span className="font-bold text-lg text-sidebar-foreground truncate">Móveis Gestão</span>
+        <span className="font-bold text-lg text-sidebar-foreground truncate">Bender Haussform</span>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="flex flex-col h-full">
+        <SidebarGroup className="overflow-y-auto">
           <SidebarGroupLabel className="text-sidebar-foreground/70">
             Menu Principal
           </SidebarGroupLabel>
@@ -111,7 +112,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-auto">
+        <AIAssistant />
+
+        <SidebarGroup className="mt-auto shrink-0">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>

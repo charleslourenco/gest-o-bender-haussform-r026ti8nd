@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { X, Sparkles, MessageSquare, Send } from 'lucide-react'
+import { Sparkles, MessageSquare, Send } from 'lucide-react'
 
 import catarinaImg from '@/assets/catarina-6d3e7.png'
 import zenaideImg from '@/assets/zenaide-fa35c.png'
@@ -61,7 +61,12 @@ export function AIAssistant() {
       newChar = 'catarina'
     } else if (path.startsWith('/financeiro')) {
       newChar = 'edith'
-    } else if (path.startsWith('/analise-tecnica') || path.startsWith('/dashboard')) {
+    } else if (
+      path.startsWith('/analise-tecnica') ||
+      path.startsWith('/dashboard') ||
+      path.startsWith('/producao') ||
+      path.startsWith('/montagem')
+    ) {
       newChar = 'otto'
     } else if (path.startsWith('/estoque') || path.startsWith('/compras')) {
       newChar = 'zenaide'
@@ -254,22 +259,22 @@ export function AIAssistant() {
   const charData = CHARACTERS[character]
 
   return (
-    <div className="fixed bottom-20 left-[calc(var(--sidebar-width,16rem)/2)] -translate-x-1/2 z-50 flex justify-center items-end pointer-events-none">
-      <div className="relative pointer-events-auto">
+    <div className="flex-1 flex flex-col justify-end items-center relative min-h-[120px] pointer-events-none w-full px-2 overflow-hidden">
+      <div className="relative pointer-events-auto h-full w-full flex justify-center items-end">
         <button
           onClick={toggleAssistant}
-          className="relative group transition-transform hover:scale-105 active:scale-95 flex items-end"
+          className="relative group transition-transform hover:scale-105 active:scale-95 flex items-end justify-center h-full w-full"
         >
           <img
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'h-[260px] min-h-[260px] max-h-[260px] w-auto object-contain drop-shadow-2xl origin-bottom pb-2 transition-all',
+              'w-auto object-contain drop-shadow-2xl origin-bottom transition-all max-h-full max-h-[260px] max-w-full',
               isOpen ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-90',
             )}
           />
           {hasNewMessage && !isOpen && (
-            <div className="absolute top-6 right-2 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10">
+            <div className="absolute top-2 right-1/4 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10">
               <MessageSquare className="h-3 w-3" fill="currentColor" />
             </div>
           )}
@@ -277,7 +282,7 @@ export function AIAssistant() {
       </div>
 
       {isOpen && (
-        <div className="animate-fade-in-up absolute bottom-8 left-[calc(100%+0.5rem)] w-80 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden pointer-events-auto z-50">
+        <div className="animate-fade-in-up fixed bottom-8 left-[calc(var(--sidebar-width,16rem)+1rem)] w-80 bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden pointer-events-auto z-50">
           <div className="flex items-center justify-between p-3 border-b bg-gray-50/50">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-500" />
