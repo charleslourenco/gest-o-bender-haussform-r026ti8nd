@@ -2100,17 +2100,14 @@ export const Constants = {
 // Table: produtos_servicos_projeto
 //   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
-//   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={public}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (((formulario_comercial_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))) OR has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
 //   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
 //   Policy "produtos_servicos_projeto_select_analise" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
-//   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={public}
-//     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
-//   Policy "produtos_servicos_projeto_update_analise" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR is_admin(auth.uid()))
+//     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
+//   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (((formulario_comercial_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))) OR has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
 // Table: templates
 //   Policy "templates_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
