@@ -40,9 +40,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Mapeamento de contingência para nomes antigos
             const modName = p.modulo === 'Área de Clientes' ? 'Clientes' : p.modulo
 
-            // Garantir que a permissão mais alta (Admin) não seja sobrescrita por uma inferior em caso de duplicatas
-            if (perms[modName] !== 'Admin') {
-              perms[modName] = p.nivel_acesso
+            const currentLevel = perms[modName]
+            const newLevel = p.nivel_acesso
+
+            // Garantir que a permissão mais alta não seja sobrescrita por uma inferior em caso de duplicatas
+            const levels = { Admin: 4, Editor: 3, Leitor: 2, 'Sem Acesso': 1 }
+            const currentScore = currentLevel ? levels[currentLevel as keyof typeof levels] || 0 : 0
+            const newScore = levels[newLevel as keyof typeof levels] || 0
+
+            if (newScore > currentScore) {
+              perms[modName] = newLevel
             }
           })
           setPermissions(perms)
