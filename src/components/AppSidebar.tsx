@@ -69,8 +69,8 @@ export function AppSidebar() {
         </div>
         <span className="font-bold text-lg text-sidebar-foreground truncate">Bender Haussform</span>
       </SidebarHeader>
-      <SidebarContent className="flex flex-col h-full">
-        <SidebarGroup className="overflow-y-auto">
+      <SidebarContent className="flex flex-col h-full overflow-hidden">
+        <SidebarGroup className="flex-1 overflow-y-auto z-10">
           <SidebarGroupLabel className="text-sidebar-foreground/70">
             Menu Principal
           </SidebarGroupLabel>
@@ -112,9 +112,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <AIAssistant />
+        <div className="mt-auto flex justify-center items-end px-4 pt-2 pb-2 relative z-0 min-h-[120px] [&_img]:max-h-[100px] [&_img]:w-auto [&_img]:object-contain [&_img]:origin-bottom transition-all duration-300">
+          <AIAssistant />
+        </div>
 
-        <SidebarGroup className="mt-auto shrink-0">
+        <SidebarGroup className="shrink-0 z-20 bg-sidebar border-t border-border/40">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
