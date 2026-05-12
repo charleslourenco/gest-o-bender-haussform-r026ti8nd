@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/use-auth'
 
 const COLUMNS = [
   'Novo Lead',
+  'Aguardando Consultor',
   'Contactado',
   'Em Nutrição',
   'Designar Consultor',

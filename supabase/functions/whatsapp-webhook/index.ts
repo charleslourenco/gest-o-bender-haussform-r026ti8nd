@@ -10,11 +10,6 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json()
 
-    // Ignorar mensagens enviadas pelo próprio bot ou de grupos
-    if (payload.fromMe || payload.isGroup) {
-      return new Response('Ignored', { status: 200 })
-    }
-
     const rawPhone = payload.phone || payload.from || payload.sender || ''
     if (!rawPhone) return new Response('No phone', { status: 200 })
 
@@ -38,6 +33,43 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Ignorar mensagens de grupos
+    if (payload.isGroup) {
+      return new Response('Ignored', { status: 200 })
+    }
+
+    // Se for mensagem enviada pelo próprio bot/humano na mesma conta
+    if (payload.fromMe) {
+      const msgLower = messageText.toLowerCase()
+      // Detecta se o humano quer assumir a conversa
+      if (
+        msgLower.includes('assumir a conversa') ||
+        msgLower.includes('assumir o atendimento') ||
+        msgLower.includes('vou assumir') ||
+        msgLower.includes('vai assumir')
+      ) {
+        await supabase.from('whatsapp_sessions').update({ step: 99 }).eq('phone', phone)
+
+        const { data: lead } = await supabase
+          .from('leads')
+          .select('id, status, notas')
+          .eq('telefone', phone)
+          .order('criado_em', { ascending: false })
+          .limit(1)
+          .single()
+        if (lead && lead.status === 'Novo Lead') {
+          await supabase
+            .from('leads')
+            .update({
+              status: 'Aguardando Consultor',
+              notas: (lead.notas || '') + '\n[Sistema]: Um humano assumiu a conversa.',
+            })
+            .eq('id', lead.id)
+        }
+      }
+      return new Response('Ignored fromMe', { status: 200 })
+    }
 
     // Buscar ou criar o Lead
     // Utilizando limit(1) ao invés de maybeSingle() para evitar erros caso existam contatos duplicados (o que impedia a resposta em novos DDDs/números)
@@ -270,7 +302,7 @@ async function processResponse(
 
   if (isTransbordo) {
     nextStep = 99
-    // Mantém nextStatus como o status atual ('Novo Lead') para não sumir do Kanban na coluna inicial.
+    nextStatus = 'Aguardando Consultor'
   } else if (session.step === 0) {
     nextStep = 1 // Sai do 0 para indicar que já iniciou
   }

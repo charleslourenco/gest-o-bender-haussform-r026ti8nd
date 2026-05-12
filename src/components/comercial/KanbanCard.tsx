@@ -12,18 +12,29 @@ interface Props {
 }
 
 export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, onDelete }: Props) {
+  const isAguardando = lead.status === 'Aguardando Consultor'
+
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        'bg-off-white border-2 border-steel-blue rounded-lg p-4 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.1)] transition-all duration-200 cursor-grab active:cursor-grabbing group hover:border-dark-denim hover:shadow-[0_4px_12px_rgba(10,25,49,0.15)] hover:scale-[1.02]',
+        'bg-off-white border-2 rounded-lg p-4 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.1)] transition-all duration-200 cursor-grab active:cursor-grabbing group hover:shadow-[0_4px_12px_rgba(10,25,49,0.15)] hover:scale-[1.02]',
+        isAguardando
+          ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-50/50'
+          : 'border-steel-blue hover:border-dark-denim',
         isDragging && 'opacity-50 border-dark-denim border-[3px]',
       )}
     >
       <div className="flex justify-between items-start mb-2">
-        <h4 className="text-midnight-navy font-semibold text-[16px] leading-tight pr-2">
+        <h4 className="text-midnight-navy font-semibold text-[16px] leading-tight pr-2 flex items-center gap-2">
+          {isAguardando && (
+            <span className="flex h-2.5 w-2.5 relative" title="Aguardando Consultor">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+            </span>
+          )}
           {lead.nome}
         </h4>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
