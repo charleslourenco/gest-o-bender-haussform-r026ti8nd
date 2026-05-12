@@ -21,12 +21,16 @@ import { AppUser } from '@/types/user'
 import { cn } from '@/lib/utils'
 
 const MODULES = [
-  'Usuários',
-  'Administrativo',
+  'Dashboard',
   'Comercial',
   'Área de Clientes',
+  'Análise Técnica',
+  'Produção',
+  'Montagem',
+  'Estoque & Compras',
   'Financeiro',
-  'Dashboard',
+  'Usuários',
+  'Administrativo',
 ]
 const LEVELS = ['Sem Acesso', 'Leitor', 'Editor', 'Admin']
 
@@ -113,7 +117,7 @@ export function PermissionsMatrix() {
 
   return (
     <div className="border-2 border-steel-blue/20 rounded-xl bg-off-white overflow-x-auto shadow-sm">
-      <Table className="min-w-[1000px]">
+      <Table className="min-w-[1400px]">
         <TableHeader className="bg-dark-denim">
           <TableRow className="hover:bg-transparent border-b-steel-blue/20">
             <TableHead className="font-bold text-off-white p-4 sticky left-0 bg-dark-denim z-10 w-[200px]">

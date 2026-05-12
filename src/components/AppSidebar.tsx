@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Factory,
   Hammer,
+  Package,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -37,6 +38,12 @@ const menuItems = [
   },
   { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
   { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
+  {
+    title: 'Estoque & Compras',
+    icon: Package,
+    url: '/estoque-compras',
+    module: 'Estoque & Compras',
+  },
   { title: 'Financeiro', icon: Wallet, url: '/financeiro', module: 'Financeiro' },
   { title: 'Usuários', icon: UserCog, url: '/usuarios', module: 'Usuários' },
 ]
@@ -85,15 +92,15 @@ export function AppSidebar() {
                       )}
                     >
                       {canAccess ? (
-                        <Link to={item.url} className="flex items-center gap-3">
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium">{item.title}</span>
+                        <Link to={item.url} className="flex items-center gap-2">
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          <span className="font-medium truncate">{item.title}</span>
                         </Link>
                       ) : (
-                        <div className="flex items-center gap-3 w-full">
-                          <item.icon className="w-5 h-5" />
-                          <span className="font-medium">{item.title}</span>
-                          <Lock className="w-4 h-4 ml-auto text-sidebar-foreground/50" />
+                        <div className="flex items-center gap-2 w-full">
+                          <item.icon className="w-4 h-4 shrink-0" />
+                          <span className="font-medium truncate">{item.title}</span>
+                          <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
                         </div>
                       )}
                     </SidebarMenuButton>
@@ -120,15 +127,15 @@ export function AppSidebar() {
                   )}
                 >
                   {hasAccess('Administrativo') ? (
-                    <Link to="/admin" className="flex items-center gap-3">
-                      <Settings className="w-5 h-5" />
-                      <span className="font-medium">Administrativo</span>
+                    <Link to="/admin" className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">Administrativo</span>
                     </Link>
                   ) : (
-                    <div className="flex items-center gap-3 w-full">
-                      <Settings className="w-5 h-5" />
-                      <span className="font-medium">Administrativo</span>
-                      <Lock className="w-4 h-4 ml-auto text-sidebar-foreground/50" />
+                    <div className="flex items-center gap-2 w-full">
+                      <Settings className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">Administrativo</span>
+                      <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
                     </div>
                   )}
                 </SidebarMenuButton>

@@ -780,6 +780,41 @@ export type Database = {
           },
         ]
       }
+      kanban_historico: {
+        Row: {
+          card_id: string | null
+          criado_em: string
+          id: string
+          status_anterior: string | null
+          status_novo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          card_id?: string | null
+          criado_em?: string
+          id?: string
+          status_anterior?: string | null
+          status_novo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          card_id?: string | null
+          criado_em?: string
+          id?: string
+          status_anterior?: string | null
+          status_novo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'kanban_historico_card_id_fkey'
+            columns: ['card_id']
+            isOneToOne: false
+            referencedRelation: 'produtos_servicos_projeto'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       leads: {
         Row: {
           atualizado_em: string
@@ -1656,6 +1691,13 @@ export const Constants = {
 //   ambientes: jsonb (nullable, default: '[]'::jsonb)
 //   itens: jsonb (nullable, default: '[]'::jsonb)
 //   especificacoes: text (nullable)
+// Table: kanban_historico
+//   id: uuid (not null, default: gen_random_uuid())
+//   card_id: uuid (nullable)
+//   status_anterior: text (nullable)
+//   status_novo: text (not null)
+//   usuario_id: uuid (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -1827,6 +1869,10 @@ export const Constants = {
 //   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
 //   PRIMARY KEY formulario_comercial_pkey: PRIMARY KEY (id)
+// Table: kanban_historico
+//   FOREIGN KEY kanban_historico_card_id_fkey: FOREIGN KEY (card_id) REFERENCES produtos_servicos_projeto(id) ON DELETE CASCADE
+//   PRIMARY KEY kanban_historico_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY kanban_historico_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
@@ -1997,6 +2043,10 @@ export const Constants = {
 //   Policy "Users can update own formulario_comercial" (UPDATE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: kanban_historico
+//   Policy "kanban_history_access" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -2182,6 +2232,21 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION log_kanban_history()
+//   CREATE OR REPLACE FUNCTION public.log_kanban_history()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     IF NEW.status_analise IS DISTINCT FROM OLD.status_analise THEN
+//       INSERT INTO public.kanban_historico (card_id, status_anterior, status_novo, usuario_id)
+//       VALUES (NEW.id, OLD.status_analise, NEW.status_analise, auth.uid());
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION rls_auto_enable()
 //   CREATE OR REPLACE FUNCTION public.rls_auto_enable()
 //    RETURNS event_trigger
@@ -2249,6 +2314,8 @@ export const Constants = {
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
 // Table: placeholders
 //   set_placeholders_atualizado_em: CREATE TRIGGER set_placeholders_atualizado_em BEFORE UPDATE ON public.placeholders FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
+// Table: produtos_servicos_projeto
+//   on_kanban_status_change: CREATE TRIGGER on_kanban_status_change AFTER UPDATE ON public.produtos_servicos_projeto FOR EACH ROW EXECUTE FUNCTION log_kanban_history()
 // Table: templates
 //   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 
