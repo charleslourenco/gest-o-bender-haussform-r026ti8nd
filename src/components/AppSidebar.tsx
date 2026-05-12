@@ -112,7 +112,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <div className="mt-auto w-full flex flex-col items-center justify-end relative z-20 pt-2 pb-2">
+        <div className="mt-auto w-full flex flex-col items-center justify-center relative z-20 py-4 min-h-[90px]">
           <AIAssistant />
         </div>
 

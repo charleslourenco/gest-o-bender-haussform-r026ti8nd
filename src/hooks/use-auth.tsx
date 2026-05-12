@@ -37,7 +37,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!error && data) {
           const perms: Record<string, string> = {}
           data.forEach((p) => {
-            perms[p.modulo] = p.nivel_acesso
+            // Mapeamento de contingência para nomes antigos
+            const modName = p.modulo === 'Área de Clientes' ? 'Clientes' : p.modulo
+
+            // Garantir que a permissão mais alta (Admin) não seja sobrescrita por uma inferior em caso de duplicatas
+            if (perms[modName] !== 'Admin') {
+              perms[modName] = p.nivel_acesso
+            }
           })
           setPermissions(perms)
         }
