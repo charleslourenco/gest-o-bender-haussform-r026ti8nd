@@ -42,17 +42,38 @@ Deno.serve(async (req) => {
     let extraContext = ''
 
     if (character === 'Seu Otto') {
-      const { data: pendentes } = await supabase
+      const { data: todos } = await supabase
         .from('produtos_servicos_projeto')
-        .select('nome_produto, codigo_rastreio, status_analise, clientes(nome)')
-        .eq('status_analise', 'iniciar')
+        .select('id, nome_produto, codigo_rastreio, status_analise, clientes(nome)')
+        .order('atualizado_em', { ascending: false })
+        .limit(30)
+
+      const summary = (todos || []).reduce((acc: any, curr: any) => {
+        if (!acc[curr.status_analise]) acc[curr.status_analise] = []
+        acc[curr.status_analise].push({
+          nome: curr.nome_produto,
+          codigo: curr.codigo_rastreio,
+          cliente: curr.clientes?.nome,
+        })
+        return acc
+      }, {})
 
       extraContext = `
 [DADOS DE PRODUÇÃO EM TEMPO REAL]
 Hoje é ${new Date().toLocaleDateString('pt-BR')}.
-Cards recém-chegados na Análise Técnica (Aguardando na coluna Iniciar): ${JSON.stringify(pendentes || [])}
+Resumo dos 30 cards mais recentes no Kanban de Análise Técnica por Coluna: ${JSON.stringify(summary)}
 
-Dica: Aja como o experiente gerente de produção Seu Otto. Fale de forma proativa sobre organizar as demandas do Kanban, alertando sobre itens novos que precisam de um Analista Responsável.
+[DIRETRIZES DE ORIENTAÇÃO PARA O KANBAN DE ANÁLISE TÉCNICA]
+Você DEVE orientar o usuário sobre as atividades necessárias dependendo das movimentações e etapas dos projetos no Kanban.
+- Iniciar: "Um contrato foi liberado para o PCP os cards ja estao na primeira coluna e precisam de um usuario responsavel."
+- Medida fina: "Seu projeto esta avancando, nao esqueca de subir as fotos da medida fina na pasta do cliente no módulo clientes!!!"
+- Reunião de análise: "Chegamos em um momento importante para o sucesso do projeto, a reuniao de análise é onde o Consultor o Analista e o cliente definem tudo sobre o projeto. Use o assistente (Dossiê) para gravar a reuniao ou outro aplicativo, transforme a ata em documento, suba na pasta do cliente e solicite assinatura de todos os envolvidos."
+- Caderno técnico: "Aqui o trabalho deve ser meticuloso! o caderno técnico é o que garante o sucesso do projeto e a satisfacao do cliente. depois de concluí-lo suba ele na pasta do cliente e solicite a assinatura."
+- Alteração de projeto: "Caso aja alteracao de projeto informe que precisa ser preenchido o termo de alteracao de projeto e solicitada a assinatura do cliente."
+- Lista de materiais: "Uma das pecas chave para o sucesso de toda a operacao: aqui precisamos verificar exatamente tudo que vai ser usado no projeto com exatidão e respeito a economia de materiais e recursos. Especial atencao a itens que precisam ser feitos fora da fabrica como serralheria, estofados, portas de aluminio e vidros etc."
+- Concluído / Aguardando plano de corte: "Dê um caloroso parabens, dizendo que somos uma verdadeira equipe e o talento do usuario fez a diferenca."
+
+Dica: Aja como o experiente gerente de produção Seu Otto. Fale de forma proativa sobre organizar as demandas do Kanban e alertando sobre prazos e atividades críticas de acordo com a etapa que o projeto está. Não seja repetitivo ou mecânico; interaja livremente explicando as tarefas no sistema com essa dinâmica, baseando-se no resumo do Kanban atual.
 Mencione nomes de clientes e códigos (como JCS-SAL01) de forma natural para orientar o usuário.
 `
     }
