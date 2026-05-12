@@ -2,12 +2,12 @@
   "_versions": {
     "check-permission": 5,
     "admin-users": 7,
-    "gerar-dossie": 12,
+    "gerar-dossie": 13,
     "gerar_documento_cliente": 44,
     "send-signature-email": 5,
     "finalize-signature-document": 11,
     "whatsapp-webhook": 23,
-    "assistant-intelligence": 2,
+    "assistant-intelligence": 3,
     "financeiro-ai": 4
   }
 }

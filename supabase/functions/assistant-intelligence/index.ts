@@ -40,6 +40,23 @@ Deno.serve(async (req) => {
     })
 
     let extraContext = ''
+
+    if (character === 'Seu Otto') {
+      const { data: pendentes } = await supabase
+        .from('produtos_servicos_projeto')
+        .select('nome_produto, codigo_rastreio, status_analise, clientes(nome)')
+        .eq('status_analise', 'iniciar')
+
+      extraContext = `
+[DADOS DE PRODUÇÃO EM TEMPO REAL]
+Hoje é ${new Date().toLocaleDateString('pt-BR')}.
+Cards recém-chegados na Análise Técnica (Aguardando na coluna Iniciar): ${JSON.stringify(pendentes || [])}
+
+Dica: Aja como o experiente gerente de produção Seu Otto. Fale de forma proativa sobre organizar as demandas do Kanban, alertando sobre itens novos que precisam de um Analista Responsável.
+Mencione nomes de clientes e códigos (como JCS-SAL01) de forma natural para orientar o usuário.
+`
+    }
+
     if (character === 'Dona Edith') {
       const today = new Date().toISOString().split('T')[0]
       const { data: pagar } = await supabase

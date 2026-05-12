@@ -619,7 +619,33 @@ Deno.serve(async (req) => {
     console.log('5. Criando cards na Analise Tecnica...')
     let produtosInseridos = 0
     if (produtos.length > 0) {
-      const produtosParaInserir = produtos.map((p: any) => ({
+      const getInitials = (name: string) => {
+        if (!name) return 'CLI'
+        const skip = ['de', 'da', 'do', 'das', 'dos']
+        const parts = name
+          .trim()
+          .split(' ')
+          .filter((p) => p && !skip.includes(p.toLowerCase()))
+        if (parts.length === 1) return parts[0].substring(0, 3).toUpperCase()
+        return parts
+          .map((n) => n[0])
+          .join('')
+          .substring(0, 3)
+          .toUpperCase()
+      }
+
+      const getCode = (initials: string, prodName: string, index: number) => {
+        const prod = (prodName || 'PRO')
+          .replace(/[^a-zA-Z]/g, '')
+          .substring(0, 3)
+          .toUpperCase()
+        const num = (index + 1).toString().padStart(2, '0')
+        return `${initials}-${prod}${num}`
+      }
+
+      const cliInitials = getInitials(clienteNome)
+
+      const produtosParaInserir = produtos.map((p: any, idx: number) => ({
         formulario_comercial_id,
         cliente_id,
         nome_produto: p.nome || p.nome_produto || 'Produto',
@@ -628,6 +654,7 @@ Deno.serve(async (req) => {
         valor_unitario: p.valor_unitario || 0,
         valor_total: p.valor_total || p.valor_unitario * (p.qtd || 1),
         status_analise: 'iniciar',
+        codigo_rastreio: getCode(cliInitials, p.nome || p.nome_produto || 'Produto', idx),
       }))
 
       const { error: prodError } = await supabase
