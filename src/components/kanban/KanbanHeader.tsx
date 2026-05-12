@@ -100,7 +100,7 @@ export function KanbanHeader({
   return (
     <div className="p-6 pb-2">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-pale-cornflower">{title}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-midnight-navy">{title}</h1>
 
         {showCreateButton && (
           <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -162,21 +162,21 @@ export function KanbanHeader({
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-steel-blue" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por produto, cliente ou código..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-dark-denim border-steel-blue text-off-white placeholder:text-steel-blue/70"
+            className="pl-9 bg-white border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-steel-blue" />
+          <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
-            <SelectTrigger className="w-[200px] bg-dark-denim border-steel-blue text-off-white">
+            <SelectTrigger className="w-[200px] bg-white border-border text-foreground">
               <SelectValue placeholder="Filtrar Responsável" />
             </SelectTrigger>
-            <SelectContent className="bg-dark-denim border-steel-blue text-off-white">
+            <SelectContent className="bg-white border-border text-foreground">
               <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="unassigned">Não atribuídos</SelectItem>
               {uniqueAnalysts.map((id: string) => (
@@ -187,10 +187,10 @@ export function KanbanHeader({
             </SelectContent>
           </Select>
           <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-            <SelectTrigger className="w-[200px] bg-dark-denim border-steel-blue text-off-white">
+            <SelectTrigger className="w-[200px] bg-white border-border text-foreground">
               <SelectValue placeholder="Filtrar Consultor" />
             </SelectTrigger>
-            <SelectContent className="bg-dark-denim border-steel-blue text-off-white">
+            <SelectContent className="bg-white border-border text-foreground">
               <SelectItem value="all">Todos os Consultores</SelectItem>
               {uniqueConsultants.map((id: string) => (
                 <SelectItem key={id} value={id}>

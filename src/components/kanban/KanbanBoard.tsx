@@ -5,6 +5,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Loader2, AlertCircle, GripVertical, User, Package, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { KanbanHeader } from './KanbanHeader'
 
 interface ColumnDef {
   id: string
@@ -33,8 +34,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedAnalyst, setSelectedAnalyst] = useState('all')
+  const [selectedConsultant, setSelectedConsultant] = useState('all')
+  const [usersMap, setUsersMap] = useState<Record<string, any>>({})
+
   useEffect(() => {
     fetchItems()
+
+    const handleKanbanUpdated = () => fetchItems()
+    window.addEventListener('kanban_updated', handleKanbanUpdated)
 
     const channel = supabase
       .channel('kanban_changes')
@@ -52,6 +61,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       .subscribe()
 
     return () => {
+      window.removeEventListener('kanban_updated', handleKanbanUpdated)
       supabase.removeChannel(channel)
     }
   }, [columns])
@@ -89,6 +99,51 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       setLoading(false)
     }
   }
+
+  const uniqueAnalysts = Array.from(
+    new Set(items.map((i) => i.analista_id).filter(Boolean)),
+  ) as string[]
+  const uniqueConsultants = Array.from(
+    new Set(items.map((i) => i.formulario?.user_id).filter(Boolean)),
+  ) as string[]
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const allIds = Array.from(new Set([...uniqueAnalysts, ...uniqueConsultants]))
+      if (allIds.length === 0) return
+
+      const { data } = await supabase.from('users').select('id, nome, foto_perfil').in('id', allIds)
+      if (data) {
+        const map: Record<string, any> = {}
+        data.forEach((u) => {
+          map[u.id] = u
+        })
+        setUsersMap(map)
+      }
+    }
+    fetchUsers()
+  }, [items])
+
+  const filteredItems = items.filter((item) => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const matchName = item.nome_produto?.toLowerCase().includes(q)
+      const matchCode = item.codigo_rastreio?.toLowerCase().includes(q)
+      const matchClient = item.cliente?.nome?.toLowerCase().includes(q)
+      if (!matchName && !matchCode && !matchClient) return false
+    }
+
+    if (selectedAnalyst !== 'all') {
+      if (selectedAnalyst === 'unassigned' && item.analista_id !== null) return false
+      if (selectedAnalyst !== 'unassigned' && item.analista_id !== selectedAnalyst) return false
+    }
+
+    if (selectedConsultant !== 'all') {
+      if (item.formulario?.user_id !== selectedConsultant) return false
+    }
+
+    return true
+  })
 
   const handleDragStart = (e: React.DragEvent, itemId: string) => {
     e.dataTransfer.setData('itemId', itemId)
@@ -164,17 +219,30 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-off-white rounded-lg border border-steel-blue/10 shadow-sm">
-      <div className="mb-4 px-6 pt-6 pb-2 border-b border-steel-blue/10 bg-white">
-        <h1 className="text-2xl font-bold tracking-tight text-midnight-navy">{title}</h1>
-        <p className="text-midnight-navy/60 text-sm mt-1">
-          Arraste os cards entre as colunas para atualizar o status.
-        </p>
+      <div className="border-b border-steel-blue/10 bg-white">
+        <KanbanHeader
+          title={title}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedAnalyst={selectedAnalyst}
+          setSelectedAnalyst={setSelectedAnalyst}
+          selectedConsultant={selectedConsultant}
+          setSelectedConsultant={setSelectedConsultant}
+          uniqueAnalysts={uniqueAnalysts}
+          uniqueConsultants={uniqueConsultants}
+          usersMap={usersMap}
+        />
+        <div className="px-6 pb-4">
+          <p className="text-midnight-navy/60 text-sm mt-1">
+            Arraste os cards entre as colunas para atualizar o status.
+          </p>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 px-6 pb-6">
-        <div className="flex h-full gap-6 pb-4 pt-2">
+        <div className="flex h-full gap-6 pb-4 pt-4">
           {columns.map((col) => {
-            const colItems = items.filter((i) => i.status_analise === col.id)
+            const colItems = filteredItems.filter((i) => i.status_analise === col.id)
             return (
               <div
                 key={col.id}
