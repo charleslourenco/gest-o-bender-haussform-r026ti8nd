@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from './AppSidebar'
 import { Header } from './Header'
-import { AIAssistant } from './AIAssistant'
 
 export default function Layout() {
   return (
@@ -16,7 +15,6 @@ export default function Layout() {
               <Outlet />
             </div>
           </main>
-          <AIAssistant />
         </div>
       </div>
     </SidebarProvider>

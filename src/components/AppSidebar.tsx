@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
+import { AIAssistant } from './AIAssistant'
+
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
@@ -110,7 +112,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="shrink-0 z-20 bg-sidebar border-t border-border/40 mt-auto">
+        <div className="mt-auto w-full flex flex-col items-center justify-end relative z-20 pt-2 pb-2">
+          <AIAssistant />
+        </div>
+
+        <SidebarGroup className="shrink-0 z-30 bg-sidebar border-t border-border/40">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>

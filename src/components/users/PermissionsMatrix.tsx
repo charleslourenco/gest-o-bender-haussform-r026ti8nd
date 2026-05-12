@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 const MODULES = [
   'Dashboard',
   'Comercial',
-  'Área de Clientes',
+  'Clientes',
   'Análise Técnica',
   'Produção',
   'Montagem',
