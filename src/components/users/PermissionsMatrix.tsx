@@ -29,6 +29,7 @@ const MODULES = [
   'Montagem',
   'Estoque & Compras',
   'Financeiro',
+  'Gestão de Pessoas',
   'Usuários',
   'Administrativo',
 ]

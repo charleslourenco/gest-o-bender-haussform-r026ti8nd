@@ -34,6 +34,8 @@ export function KanbanHeader({
   usersMap,
 }: any) {
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const showCreateButton = ['Análise Técnica', 'Produção', 'Montagem'].includes(title)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [novoCard, setNovoCard] = useState({
     nome_produto: '',
@@ -100,58 +102,62 @@ export function KanbanHeader({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-pale-cornflower">{title}</h1>
 
-        <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <SheetTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Criar Card Avulso
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Criar Novo Card ({title})</SheetTitle>
-            </SheetHeader>
-            <div className="grid gap-4 py-6">
-              <div className="grid gap-2">
-                <Label htmlFor="nome_produto">Nome do Item/Produto *</Label>
-                <Input
-                  id="nome_produto"
-                  value={novoCard.nome_produto}
-                  onChange={(e) => setNovoCard({ ...novoCard, nome_produto: e.target.value })}
-                  placeholder="Ex: Armário Cozinha"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="qtd">Quantidade</Label>
-                <Input
-                  id="qtd"
-                  type="number"
-                  min="1"
-                  value={novoCard.qtd}
-                  onChange={(e) => setNovoCard({ ...novoCard, qtd: parseInt(e.target.value) || 1 })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="descricao">Descrição / Observações</Label>
-                <Input
-                  id="descricao"
-                  value={novoCard.descricao}
-                  onChange={(e) => setNovoCard({ ...novoCard, descricao: e.target.value })}
-                  placeholder="Detalhes adicionais..."
-                />
-              </div>
-            </div>
-            <SheetFooter>
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                Cancelar
+        {showCreateButton && (
+          <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <SheetTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Criar Card Avulso
               </Button>
-              <Button onClick={handleCreateCard} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                Salvar
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Criar Novo Card ({title})</SheetTitle>
+              </SheetHeader>
+              <div className="grid gap-4 py-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="nome_produto">Nome do Item/Produto *</Label>
+                  <Input
+                    id="nome_produto"
+                    value={novoCard.nome_produto}
+                    onChange={(e) => setNovoCard({ ...novoCard, nome_produto: e.target.value })}
+                    placeholder="Ex: Armário Cozinha"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="qtd">Quantidade</Label>
+                  <Input
+                    id="qtd"
+                    type="number"
+                    min="1"
+                    value={novoCard.qtd}
+                    onChange={(e) =>
+                      setNovoCard({ ...novoCard, qtd: parseInt(e.target.value) || 1 })
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="descricao">Descrição / Observações</Label>
+                  <Input
+                    id="descricao"
+                    value={novoCard.descricao}
+                    onChange={(e) => setNovoCard({ ...novoCard, descricao: e.target.value })}
+                    placeholder="Detalhes adicionais..."
+                  />
+                </div>
+              </div>
+              <SheetFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCreateCard} disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Salvar
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
