@@ -12,21 +12,67 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, Plus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import { useToast } from '@/hooks/use-toast'
 
 export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const { toast } = useToast()
+
+  const [newItem, setNewItem] = useState({
+    nome: '',
+    categoria: '',
+    quantidade: 0,
+    unidade: 'un',
+    estoque_minimo: 0,
+    valor_unitario: 0,
+    fornecedor: '',
+    terceirizado: false,
+  })
+
+  async function fetchItems() {
+    const { data } = await supabase
+      .from('estoque_itens' as any)
+      .select('*')
+      .order('nome')
+    if (data) setItems(data)
+  }
 
   useEffect(() => {
-    async function fetchItems() {
-      const { data } = await supabase
-        .from('estoque_itens' as any)
-        .select('*')
-        .order('nome')
-      if (data) setItems(data)
-    }
     fetchItems()
   }, [])
+
+  const handleSaveItem = async () => {
+    try {
+      const { error } = await supabase.from('estoque_itens' as any).insert(newItem)
+      if (error) throw error
+      toast({ title: 'Item Cadastrado', description: 'O item foi adicionado ao inventário.' })
+      setIsModalOpen(false)
+      setNewItem({
+        nome: '',
+        categoria: '',
+        quantidade: 0,
+        unidade: 'un',
+        estoque_minimo: 0,
+        valor_unitario: 0,
+        fornecedor: '',
+        terceirizado: false,
+      })
+      fetchItems()
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const filteredItems = items.filter(
     (i) =>
@@ -49,7 +95,7 @@ export function EstoqueLista() {
             className="pl-9"
           />
         </div>
-        <Button className="bg-steel-blue hover:bg-dark-denim">
+        <Button className="bg-steel-blue hover:bg-dark-denim" onClick={() => setIsModalOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> Novo Item
         </Button>
       </div>
@@ -60,6 +106,7 @@ export function EstoqueLista() {
             <TableRow>
               <TableHead>Item</TableHead>
               <TableHead>Categoria</TableHead>
+              <TableHead>Fornecedor</TableHead>
               <TableHead className="text-right">Quantidade</TableHead>
               <TableHead className="text-right">V. Unitário</TableHead>
               <TableHead className="text-right">V. Total</TableHead>
@@ -70,7 +117,18 @@ export function EstoqueLista() {
             {filteredItems.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.nome}</TableCell>
-                <TableCell>{item.categoria || '-'}</TableCell>
+                <TableCell>
+                  {item.categoria || '-'}
+                  {item.terceirizado && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px]"
+                    >
+                      Terceirizado
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell>{item.fornecedor || '-'}</TableCell>
                 <TableCell className="text-right">
                   {item.quantidade} <span className="text-xs text-gray-500">{item.unidade}</span>
                 </TableCell>
@@ -99,7 +157,7 @@ export function EstoqueLista() {
             ))}
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                   Nenhum item encontrado no estoque.
                 </TableCell>
               </TableRow>
@@ -107,6 +165,91 @@ export function EstoqueLista() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo Item de Estoque</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome do Item</Label>
+              <Input
+                value={newItem.nome}
+                onChange={(e) => setNewItem({ ...newItem, nome: e.target.value })}
+                placeholder="Ex: Dobradiça com amortecedor"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <Input
+                  value={newItem.categoria}
+                  onChange={(e) => setNewItem({ ...newItem, categoria: e.target.value })}
+                  placeholder="Ferragens"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Fornecedor</Label>
+                <Input
+                  value={newItem.fornecedor}
+                  onChange={(e) => setNewItem({ ...newItem, fornecedor: e.target.value })}
+                  placeholder="Nome do Fornecedor"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Qtd Inicial</Label>
+                <Input
+                  type="number"
+                  value={newItem.quantidade}
+                  onChange={(e) => setNewItem({ ...newItem, quantidade: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Unidade</Label>
+                <Input
+                  value={newItem.unidade}
+                  onChange={(e) => setNewItem({ ...newItem, unidade: e.target.value })}
+                  placeholder="un, m2, kg"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Unit. (R$)</Label>
+                <Input
+                  type="number"
+                  value={newItem.valor_unitario}
+                  onChange={(e) =>
+                    setNewItem({ ...newItem, valor_unitario: Number(e.target.value) })
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch
+                id="terceirizado"
+                checked={newItem.terceirizado}
+                onCheckedChange={(c) => setNewItem({ ...newItem, terceirizado: c })}
+              />
+              <Label htmlFor="terceirizado" className="cursor-pointer text-purple-700 font-medium">
+                Este é um item terceirizado (Ex: Vidros, Pedras)
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveItem}
+              className="bg-steel-blue text-white hover:bg-dark-denim"
+            >
+              Salvar Item
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

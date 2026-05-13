@@ -18,6 +18,56 @@ Deno.serve(async (req) => {
     if (!openaiKey) throw new Error('Chave da OpenAI não configurada.')
     const openai = new OpenAI({ apiKey: openaiKey })
 
+    if (action === 'ocr_lista_materiais') {
+      const { imageBase64, isPdf } = payload
+      let pdfText = ''
+
+      if (isPdf) {
+        try {
+          const base64Data = imageBase64.split(',')[1] || imageBase64
+          const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+          const data = await pdf(buffer)
+          pdfText = data.text
+        } catch (e) {
+          console.error('PDF Parse Error', e)
+        }
+      }
+
+      const userContent: any[] = [
+        {
+          type: 'text',
+          text: 'Extraia a lista de materiais deste documento. Retorne APENAS um JSON com a chave "itens", que é um array de objetos contendo "nome" (string), "quantidade" (número, caso não especificado usar 1), "unidade" (string: un, m, m2, etc) e "observacao" (string).',
+        },
+      ]
+
+      if (isPdf && pdfText) {
+        userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
+      } else {
+        userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Você é a Zenaide, assistente de PCP e Compras. Sua função é extrair itens de uma lista de materiais de projeto de móveis.',
+          },
+          {
+            role: 'user',
+            content: userContent,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0,
+      })
+
+      return new Response(response.choices[0].message.content, {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     if (action === 'ocr') {
       const { imageBase64, isPdf } = payload
       let pdfText = ''

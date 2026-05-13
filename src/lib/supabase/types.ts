@@ -642,6 +642,97 @@ export type Database = {
           },
         ]
       }
+      estoque_itens: {
+        Row: {
+          atualizado_em: string
+          categoria: string | null
+          criado_em: string
+          estoque_minimo: number
+          id: string
+          nome: string
+          quantidade: number
+          unidade: string
+          valor_unitario: number
+        }
+        Insert: {
+          atualizado_em?: string
+          categoria?: string | null
+          criado_em?: string
+          estoque_minimo?: number
+          id?: string
+          nome: string
+          quantidade?: number
+          unidade?: string
+          valor_unitario?: number
+        }
+        Update: {
+          atualizado_em?: string
+          categoria?: string | null
+          criado_em?: string
+          estoque_minimo?: number
+          id?: string
+          nome?: string
+          quantidade?: number
+          unidade?: string
+          valor_unitario?: number
+        }
+        Relationships: []
+      }
+      estoque_movimentacoes: {
+        Row: {
+          criado_em: string
+          id: string
+          item_id: string
+          nota_fiscal_id: string | null
+          pedido_id: string | null
+          quantidade: number
+          tipo: string
+          usuario_id: string | null
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          item_id: string
+          nota_fiscal_id?: string | null
+          pedido_id?: string | null
+          quantidade: number
+          tipo: string
+          usuario_id?: string | null
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          item_id?: string
+          nota_fiscal_id?: string | null
+          pedido_id?: string | null
+          quantidade?: number
+          tipo?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_movimentacoes_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_movimentacoes_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'notas_fiscais'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_movimentacoes_pedido_id_fkey'
+            columns: ['pedido_id']
+            isOneToOne: false
+            referencedRelation: 'pedidos_compra'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       formulario_comercial: {
         Row: {
           ambientes: Json | null
@@ -930,6 +1021,53 @@ export type Database = {
           },
         ]
       }
+      notas_fiscais: {
+        Row: {
+          arquivo_url: string | null
+          criado_em: string
+          dados_ocr: Json | null
+          data_emissao: string | null
+          fornecedor: string
+          id: string
+          numero_nota: string | null
+          pedido_id: string | null
+          status_reconciliacao: string
+          valor_total: number
+        }
+        Insert: {
+          arquivo_url?: string | null
+          criado_em?: string
+          dados_ocr?: Json | null
+          data_emissao?: string | null
+          fornecedor: string
+          id?: string
+          numero_nota?: string | null
+          pedido_id?: string | null
+          status_reconciliacao?: string
+          valor_total: number
+        }
+        Update: {
+          arquivo_url?: string | null
+          criado_em?: string
+          dados_ocr?: Json | null
+          data_emissao?: string | null
+          fornecedor?: string
+          id?: string
+          numero_nota?: string | null
+          pedido_id?: string | null
+          status_reconciliacao?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notas_fiscais_pedido_id_fkey'
+            columns: ['pedido_id']
+            isOneToOne: false
+            referencedRelation: 'pedidos_compra'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       pagamentos: {
         Row: {
           atualizado_em: string | null
@@ -1036,6 +1174,81 @@ export type Database = {
             columns: ['pagamento_id']
             isOneToOne: false
             referencedRelation: 'pagamentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pedidos_compra: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          data_pedido: string
+          fornecedor: string
+          id: string
+          notas: string | null
+          status: string
+          valor_total: number
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          data_pedido: string
+          fornecedor: string
+          id?: string
+          notas?: string | null
+          status?: string
+          valor_total?: number
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          data_pedido?: string
+          fornecedor?: string
+          id?: string
+          notas?: string | null
+          status?: string
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      pedidos_compra_itens: {
+        Row: {
+          id: string
+          item_id: string
+          pedido_id: string
+          quantidade: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          id?: string
+          item_id: string
+          pedido_id: string
+          quantidade: number
+          valor_total: number
+          valor_unitario: number
+        }
+        Update: {
+          id?: string
+          item_id?: string
+          pedido_id?: string
+          quantidade?: number
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pedidos_compra_itens_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'pedidos_compra_itens_pedido_id_fkey'
+            columns: ['pedido_id']
+            isOneToOne: false
+            referencedRelation: 'pedidos_compra'
             referencedColumns: ['id']
           },
         ]
@@ -1652,6 +1865,25 @@ export const Constants = {
 //   criado_por: uuid (nullable)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   concluido_em: timestamp with time zone (nullable)
+// Table: estoque_itens
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   categoria: text (nullable)
+//   quantidade: numeric (not null, default: 0)
+//   unidade: text (not null, default: 'un'::text)
+//   estoque_minimo: numeric (not null, default: 0)
+//   valor_unitario: numeric (not null, default: 0)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: estoque_movimentacoes
+//   id: uuid (not null, default: gen_random_uuid())
+//   item_id: uuid (not null)
+//   tipo: text (not null)
+//   quantidade: numeric (not null)
+//   nota_fiscal_id: uuid (nullable)
+//   pedido_id: uuid (nullable)
+//   usuario_id: uuid (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: formulario_comercial
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -1725,6 +1957,17 @@ export const Constants = {
 //   modulo: text (not null)
 //   nivel_acesso: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: notas_fiscais
+//   id: uuid (not null, default: gen_random_uuid())
+//   pedido_id: uuid (nullable)
+//   numero_nota: text (nullable)
+//   fornecedor: text (not null)
+//   valor_total: numeric (not null)
+//   data_emissao: date (nullable)
+//   arquivo_url: text (nullable)
+//   status_reconciliacao: text (not null, default: 'pendente'::text)
+//   dados_ocr: jsonb (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: pagamentos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1750,6 +1993,22 @@ export const Constants = {
 //   valor_parcela: numeric (nullable)
 //   meio_pagamento: text (nullable)
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+// Table: pedidos_compra
+//   id: uuid (not null, default: gen_random_uuid())
+//   fornecedor: text (not null)
+//   data_pedido: date (not null)
+//   status: text (not null, default: 'pendente'::text)
+//   valor_total: numeric (not null, default: 0)
+//   notas: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: pedidos_compra_itens
+//   id: uuid (not null, default: gen_random_uuid())
+//   pedido_id: uuid (not null)
+//   item_id: uuid (not null)
+//   quantidade: numeric (not null)
+//   valor_unitario: numeric (not null)
+//   valor_total: numeric (not null)
 // Table: placeholders
 //   id: uuid (not null, default: gen_random_uuid())
 //   placeholder: text (not null)
@@ -1863,6 +2122,14 @@ export const Constants = {
 //   FOREIGN KEY envelopes_assinatura_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY envelopes_assinatura_criado_por_fkey: FOREIGN KEY (criado_por) REFERENCES auth.users(id)
 //   PRIMARY KEY envelopes_assinatura_pkey: PRIMARY KEY (id)
+// Table: estoque_itens
+//   PRIMARY KEY estoque_itens_pkey: PRIMARY KEY (id)
+// Table: estoque_movimentacoes
+//   FOREIGN KEY estoque_movimentacoes_item_id_fkey: FOREIGN KEY (item_id) REFERENCES estoque_itens(id) ON DELETE CASCADE
+//   FOREIGN KEY estoque_movimentacoes_nota_fiscal_id_fkey: FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id) ON DELETE SET NULL
+//   FOREIGN KEY estoque_movimentacoes_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE SET NULL
+//   PRIMARY KEY estoque_movimentacoes_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY estoque_movimentacoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: formulario_comercial
 //   FOREIGN KEY fk_formulario_user: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
@@ -1882,6 +2149,9 @@ export const Constants = {
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: notas_fiscais
+//   FOREIGN KEY notas_fiscais_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE SET NULL
+//   PRIMARY KEY notas_fiscais_pkey: PRIMARY KEY (id)
 // Table: pagamentos
 //   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY pagamentos_formulario_id_fkey: FOREIGN KEY (formulario_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -1889,6 +2159,12 @@ export const Constants = {
 // Table: parcelas
 //   FOREIGN KEY parcelas_pagamento_id_fkey: FOREIGN KEY (pagamento_id) REFERENCES pagamentos(id) ON DELETE CASCADE
 //   PRIMARY KEY parcelas_pkey: PRIMARY KEY (id)
+// Table: pedidos_compra
+//   PRIMARY KEY pedidos_compra_pkey: PRIMARY KEY (id)
+// Table: pedidos_compra_itens
+//   FOREIGN KEY pedidos_compra_itens_item_id_fkey: FOREIGN KEY (item_id) REFERENCES estoque_itens(id) ON DELETE RESTRICT
+//   FOREIGN KEY pedidos_compra_itens_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE CASCADE
+//   PRIMARY KEY pedidos_compra_itens_pkey: PRIMARY KEY (id)
 // Table: placeholders
 //   PRIMARY KEY placeholders_pkey: PRIMARY KEY (id)
 //   UNIQUE placeholders_placeholder_user_id_key: UNIQUE (placeholder, user_id)
@@ -2022,6 +2298,14 @@ export const Constants = {
 //   Policy "envelopes_assinatura_update" (UPDATE, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true
+// Table: estoque_itens
+//   Policy "estoque_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: estoque_movimentacoes
+//   Policy "estoque_movimentacoes_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: formulario_comercial
 //   Policy "Acesso total formulario" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -2064,6 +2348,10 @@ export const Constants = {
 //     USING: is_admin(auth.uid())
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: notas_fiscais
+//   Policy "notas_fiscais_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: pagamentos
 //   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
@@ -2078,6 +2366,14 @@ export const Constants = {
 //     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
 //   Policy "Enable update for own parcels" (UPDATE, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))
+// Table: pedidos_compra
+//   Policy "pedidos_compra_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: pedidos_compra_itens
+//   Policy "pedidos_compra_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: placeholders
 //   Policy "placeholders_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)

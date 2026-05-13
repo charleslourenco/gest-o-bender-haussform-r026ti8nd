@@ -28,6 +28,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingDoc, setEditingDoc] = useState<any>(null)
   const [editingContent, setEditingContent] = useState('')
+  const [uploadTipo, setUploadTipo] = useState('upload_manual')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -181,7 +182,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
-  const handleUploadClick = () => {
+  const handleUploadClick = (tipo: string) => {
+    setUploadTipo(tipo)
     fileInputRef.current?.click()
   }
 
@@ -205,17 +207,25 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
-        tipo: 'upload_manual',
+        tipo: uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'upload_manual',
         template_nome: file.name,
         status: 'enviado',
         arquivo_url: filePath,
       })
 
+      if (uploadTipo === 'lista_materiais') {
+        await supabase.from('listas_materiais').insert({
+          cliente_id: dossie.cliente_id,
+          arquivo_url: filePath,
+          status: 'pendente',
+        })
+      }
+
       const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
         usuario_nome: userName,
-        acao: `Arquivo ${file.name} enviado manualmente`,
+        acao: `Arquivo ${file.name} enviado (${uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'Manual'})`,
       })
 
       toast.success('Arquivo enviado com sucesso!')
@@ -330,14 +340,31 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Button
-          variant="outline"
-          className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
-          onClick={handleUploadClick}
-          disabled={generating}
-        >
-          <Upload className="w-4 h-4 mr-2" /> Upload Manual
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
+              disabled={generating}
+            >
+              <Upload className="w-4 h-4 mr-2" /> Upload Documento ▼
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              onClick={() => handleUploadClick('lista_materiais')}
+              className="cursor-pointer font-medium text-amber-700"
+            >
+              📋 Lista de Materiais (Estoque)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => handleUploadClick('upload_manual')}
+              className="cursor-pointer"
+            >
+              📄 Documento Genérico
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="bg-off-white border-2 border-steel-blue rounded-lg p-6">

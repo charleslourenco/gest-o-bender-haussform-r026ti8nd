@@ -3,6 +3,7 @@ import { PackageSearch } from 'lucide-react'
 import { EstoqueOverview } from '@/components/estoque/EstoqueOverview'
 import { EstoqueLista } from '@/components/estoque/EstoqueLista'
 import { ComprasOCR } from '@/components/estoque/ComprasOCR'
+import { ConciliacaoListas } from '@/components/estoque/ConciliacaoListas'
 
 export default function EstoqueCompras() {
   return (
@@ -22,6 +23,7 @@ export default function EstoqueCompras() {
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="estoque">Inventário</TabsTrigger>
           <TabsTrigger value="compras">Pedidos & OCR</TabsTrigger>
+          <TabsTrigger value="listas">Listas & Conciliação</TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-y-auto mt-4 pb-20">
           <TabsContent value="overview" className="m-0 border-none outline-none">
@@ -32,6 +34,9 @@ export default function EstoqueCompras() {
           </TabsContent>
           <TabsContent value="compras" className="m-0 border-none outline-none">
             <ComprasOCR />
+          </TabsContent>
+          <TabsContent value="listas" className="m-0 border-none outline-none">
+            <ConciliacaoListas />
           </TabsContent>
         </div>
       </Tabs>
