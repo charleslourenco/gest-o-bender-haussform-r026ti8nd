@@ -645,24 +645,39 @@ Deno.serve(async (req) => {
 
       const cliInitials = getInitials(clienteNome)
 
-      const produtosParaInserir = produtos.map((p: any, idx: number) => ({
-        formulario_comercial_id,
-        cliente_id,
-        nome_produto: p.nome || p.nome_produto || 'Produto',
-        qtd: p.quantidade || p.qtd || 1,
-        descricao: p.descricao || '',
-        valor_unitario: p.valor_unitario || 0,
-        valor_total: p.valor_total || p.valor_unitario * (p.qtd || 1),
-        status_analise: 'iniciar',
-        codigo_rastreio: getCode(cliInitials, p.nome || p.nome_produto || 'Produto', idx),
-      }))
-
-      const { error: prodError } = await supabase
+      const { data: existingCards } = await supabase
         .from('produtos_servicos_projeto')
-        .insert(produtosParaInserir)
+        .select('nome_produto')
+        .eq('formulario_comercial_id', formulario_comercial_id)
 
-      if (prodError) throw new Error(`Erro ao inserir produtos: ${prodError.message}`)
-      produtosInseridos += produtosParaInserir.length
+      const existingNames = existingCards?.map((c) => c.nome_produto) || []
+
+      const produtosParaInserir = produtos
+        .filter((p: any) => !existingNames.includes(p.nome || p.nome_produto || 'Produto'))
+        .map((p: any, idx: number) => ({
+          formulario_comercial_id,
+          cliente_id,
+          nome_produto: p.nome || p.nome_produto || 'Produto',
+          qtd: p.quantidade || p.qtd || 1,
+          descricao: p.descricao || '',
+          valor_unitario: p.valor_unitario || 0,
+          valor_total: p.valor_total || p.valor_unitario * (p.qtd || 1),
+          status_analise: 'iniciar',
+          codigo_rastreio: getCode(
+            cliInitials,
+            p.nome || p.nome_produto || 'Produto',
+            existingNames.length + idx,
+          ),
+        }))
+
+      if (produtosParaInserir.length > 0) {
+        const { error: prodError } = await supabase
+          .from('produtos_servicos_projeto')
+          .insert(produtosParaInserir)
+
+        if (prodError) throw new Error(`Erro ao inserir produtos: ${prodError.message}`)
+        produtosInseridos += produtosParaInserir.length
+      }
     }
 
     console.log('6. Atualizando dossie...')
