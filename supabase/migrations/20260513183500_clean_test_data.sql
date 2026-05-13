@@ -23,5 +23,6 @@ BEGIN
     DELETE FROM public.ambientes;
 
     -- Clean up related files from storage buckets used for clients/dossiers/financeiro
-    DELETE FROM storage.objects WHERE bucket_id IN ('bender_clientes', 'dossiers', 'financeiro');
+    -- Direct deletion from storage.objects is not allowed via SQL.
+    -- Use the Supabase Storage API to clean up files if needed.
 END $block$;
