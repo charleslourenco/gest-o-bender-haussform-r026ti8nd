@@ -5,8 +5,6 @@ BEGIN
   ON CONFLICT (id) DO UPDATE SET public = true;
 END $$;
 
-DELETE FROM storage.objects WHERE bucket_id = 'ativos_dobrador';
-
 DROP POLICY IF EXISTS "Public Access ativos_dobrador" ON storage.objects;
 CREATE POLICY "Public Access ativos_dobrador" ON storage.objects
   FOR SELECT USING (bucket_id = 'ativos_dobrador');
