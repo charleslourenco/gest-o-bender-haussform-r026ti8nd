@@ -73,7 +73,7 @@ BEGIN
   
   RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS trg_generate_codigo_rastreio ON public.produtos_servicos_projeto;
 CREATE TRIGGER trg_generate_codigo_rastreio
@@ -104,4 +104,4 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$;
+$$;
