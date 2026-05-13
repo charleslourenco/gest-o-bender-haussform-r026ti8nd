@@ -70,19 +70,23 @@ export function BrandingTab() {
 
       let savedEmpresa = empresa
       if (empresa?.id) {
-        const { data } = await supabase
+        const { data, error: updateError } = await supabase
           .from('empresa')
-          .update({ nome, logo_url: finalLogoUrl })
+          .update({ nome, logo_url: finalLogoUrl, atualizado_em: new Date().toISOString() })
           .eq('id', empresa.id)
           .select()
           .maybeSingle()
+
+        if (updateError) throw updateError
         if (data) savedEmpresa = data
       } else {
-        const { data } = await supabase
+        const { data, error: insertError } = await supabase
           .from('empresa')
           .insert({ nome, logo_url: finalLogoUrl })
           .select()
           .maybeSingle()
+
+        if (insertError) throw insertError
         if (data) savedEmpresa = data
       }
 
