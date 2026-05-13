@@ -92,20 +92,17 @@ export function AppSidebar() {
         {empresa?.logo_url && !imgError ? (
           <img
             src={empresa.logo_url}
-            alt={empresa.nome || 'Logo da Empresa'}
+            alt={empresa.nome || 'Logo'}
             className="max-h-12 w-full object-contain"
             onError={() => setImgError(true)}
           />
-        ) : (
+        ) : empresa?.nome ? (
           <div className="flex flex-row items-center gap-2 w-full">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm shrink-0">
-              {empresa?.nome ? empresa.nome.charAt(0).toUpperCase() : 'B'}
-            </div>
             <span className="font-bold text-lg text-sidebar-foreground truncate">
-              {empresa?.nome || 'Bender Haussform'}
+              {empresa.nome}
             </span>
           </div>
-        )}
+        ) : null}
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         <SidebarGroup className="flex-1 overflow-y-auto z-10 pb-4">
