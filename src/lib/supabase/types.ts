@@ -2341,6 +2341,12 @@ export const Constants = {
 //     USING: (user_id = auth.uid())
 //     WITH CHECK: (user_id = auth.uid())
 // Table: empresa
+//   Policy "Admin pode atualizar empresa" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (is_admin(auth.uid()) OR ((auth.jwt() ->> 'email'::text) = 'admin@bender.com'::text))
+//   Policy "Admin pode deletar empresa" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (is_admin(auth.uid()) OR ((auth.jwt() ->> 'email'::text) = 'admin@bender.com'::text))
+//   Policy "Admin pode inserir empresa" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (is_admin(auth.uid()) OR ((auth.jwt() ->> 'email'::text) = 'admin@bender.com'::text))
 //   Policy "Leitura autenticada empresa" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "Leitura pública dados empresa" (SELECT, PERMISSIVE) roles={public}

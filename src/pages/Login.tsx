@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Loader2 } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -13,6 +14,30 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const [empresa, setEmpresa] = useState<{
+    nome: string
+    logo_url: string | null
+    atualizado_em?: string
+  } | null>(null)
+
+  useEffect(() => {
+    async function fetchEmpresa() {
+      const { data } = await supabase
+        .from('empresa')
+        .select('nome, logo_url, atualizado_em')
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (data) {
+        setEmpresa(data)
+      }
+    }
+    fetchEmpresa()
+
+    const handleBrandingUpdated = () => fetchEmpresa()
+    window.addEventListener('branding_updated', handleBrandingUpdated)
+    return () => window.removeEventListener('branding_updated', handleBrandingUpdated)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,11 +57,25 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-midnight-navy flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="h-10 w-10 bg-steel-blue rounded-lg flex items-center justify-center">
-            <span className="text-off-white font-bold text-xl">B</span>
-          </div>
-          <h2 className="text-3xl font-extrabold text-off-white">Bender Haussform</h2>
+        <div className="flex items-center justify-center gap-2 mb-8 w-full min-h-[64px]">
+          {empresa?.logo_url ? (
+            <img
+              src={`${empresa.logo_url}${empresa.logo_url.includes('?') ? '&' : '?'}t=${empresa.atualizado_em ? new Date(empresa.atualizado_em).getTime() : Date.now()}`}
+              alt={empresa.nome || 'Logo da Empresa'}
+              className="max-h-16 w-full object-contain"
+            />
+          ) : (
+            <>
+              <div className="h-10 w-10 bg-steel-blue rounded-lg flex items-center justify-center">
+                <span className="text-off-white font-bold text-xl">
+                  {empresa?.nome ? empresa.nome.charAt(0).toUpperCase() : 'B'}
+                </span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-off-white">
+                {empresa?.nome || 'Bender Haussform'}
+              </h2>
+            </>
+          )}
         </div>
         <h2 className="mt-6 text-center text-2xl font-bold text-off-white">Acesse sua conta</h2>
       </div>
