@@ -1,5 +1,7 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, UsersRound } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { UsersRound } from 'lucide-react'
+import { ListaCLT } from './gestao-pessoas/ListaCLT'
+import { ListaPJ } from './gestao-pessoas/ListaPJ'
 
 export default function GestaoPessoas() {
   return (
@@ -8,28 +10,30 @@ export default function GestaoPessoas() {
         <UsersRound className="h-10 w-10 text-emerald-400 hidden sm:block" />
         <div>
           <h1 className="text-off-white font-bold text-[32px]">Gestão de Pessoas</h1>
-          <p className="text-pale-cornflower mt-1">Gestão de equipe e controle de ponto</p>
+          <p className="text-pale-cornflower mt-1">
+            Gestão de equipe, parceiros e controle de férias
+          </p>
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-full max-w-md text-center bg-card shadow-sm border-border">
-          <CardHeader>
-            <div className="mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-              <Users className="w-8 h-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl text-foreground">Módulo em Desenvolvimento</CardTitle>
-            <CardDescription className="text-muted-foreground">Em breve disponível</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Este módulo está planejado para ser implementado no futuro. Aqui você poderá gerenciar
-              as permissões, horários, equipes e outras informações relacionadas aos colaboradores
-              da fábrica.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="clt" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="w-fit mb-4">
+          <TabsTrigger value="clt">Time CLT</TabsTrigger>
+          <TabsTrigger value="pj">Parceiros PJ</TabsTrigger>
+        </TabsList>
+        <TabsContent
+          value="clt"
+          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+        >
+          <ListaCLT />
+        </TabsContent>
+        <TabsContent
+          value="pj"
+          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+        >
+          <ListaPJ />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
