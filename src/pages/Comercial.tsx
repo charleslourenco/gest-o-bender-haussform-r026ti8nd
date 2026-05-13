@@ -58,11 +58,14 @@ export default function Comercial() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white">
-      <div className="bg-midnight-navy p-6 shrink-0 flex justify-between items-center">
-        <h1 className="text-off-white font-bold text-[32px]">Kanban Comercial</h1>
+    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-6">
+      <div className="bg-midnight-navy p-6 shrink-0 rounded-xl shadow-sm flex justify-between items-center">
+        <div>
+          <h1 className="text-off-white font-bold text-[32px]">Kanban Comercial</h1>
+          <p className="text-pale-cornflower mt-1">Gestão de leads e oportunidades de venda</p>
+        </div>
       </div>
-      <div className="flex-1 overflow-hidden min-h-0 p-6 pt-6">
+      <div className="flex-1 overflow-hidden min-h-0 bg-off-white rounded-xl">
         <KanbanBoard />
       </div>
     </div>

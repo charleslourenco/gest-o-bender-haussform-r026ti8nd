@@ -58,11 +58,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex-1 bg-muted/20 min-h-full pb-12">
-      <div className="bg-background border-b p-6">
-        <h1 className="text-2xl font-bold text-foreground">Administrativo</h1>
+    <div className="flex-1 bg-muted/20 min-h-full pb-12 flex flex-col space-y-6 p-6">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0">
+        <h1 className="text-[32px] font-bold text-off-white">Administrativo</h1>
+        <p className="text-pale-cornflower mt-1">Gestão de templates e branding da empresa</p>
       </div>
-      <div className="p-6">
+      <div className="flex-1">
         <Tabs defaultValue="branding" className="w-full">
           <TabsList className="bg-muted w-full flex flex-col sm:flex-row h-auto p-1 rounded-lg gap-2 sm:gap-1 mb-6">
             <TabsTrigger

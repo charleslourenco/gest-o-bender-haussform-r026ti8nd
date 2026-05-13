@@ -193,8 +193,11 @@ export default function Users() {
       <div className="flex flex-col gap-6 p-4 md:p-8 w-full max-w-[1400px] mx-auto animate-in fade-in duration-300">
         <Tabs defaultValue="lista" className="w-full space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-midnight-navy p-6 rounded-xl shadow-sm">
-            <h1 className="text-[32px] font-bold tracking-tight text-off-white">Usuários</h1>
-            <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div>
+              <h1 className="text-[32px] font-bold tracking-tight text-off-white">Usuários</h1>
+              <p className="text-pale-cornflower mt-1 font-normal">Controle de acesso e equipe</p>
+            </div>
+            <div className="flex items-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
               <TabsList className="bg-dark-denim border-none p-1 rounded-lg">
                 <TabsTrigger
                   value="lista"
