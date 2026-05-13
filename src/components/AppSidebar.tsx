@@ -56,16 +56,19 @@ export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     async function fetchEmpresa() {
       const { data } = await supabase
         .from('empresa')
         .select('nome, logo_url')
+        .order('criado_em', { ascending: false })
         .limit(1)
         .maybeSingle()
       if (data) {
         setEmpresa(data)
+        setImgError(false)
       }
     }
     fetchEmpresa()
@@ -86,11 +89,12 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
       <SidebarHeader className="p-4 flex flex-col justify-center min-h-[64px]">
-        {empresa?.logo_url ? (
+        {empresa?.logo_url && !imgError ? (
           <img
             src={empresa.logo_url}
             alt={empresa.nome || 'Logo da Empresa'}
             className="max-h-12 w-full object-contain"
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="flex flex-row items-center gap-2 w-full">

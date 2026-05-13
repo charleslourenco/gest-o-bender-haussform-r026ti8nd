@@ -18,7 +18,13 @@ export function BrandingTab() {
   }, [])
 
   const fetchEmpresa = async () => {
-    const { data } = await supabase.from('empresa').select('*').limit(1).single()
+    const { data } = await supabase
+      .from('empresa')
+      .select('*')
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
     if (data) {
       setEmpresa(data)
       setNome(data.nome)
@@ -62,12 +68,29 @@ export function BrandingTab() {
         finalLogoUrl = publicUrl
       }
 
-      if (empresa) {
-        await supabase.from('empresa').update({ nome, logo_url: finalLogoUrl }).eq('id', empresa.id)
+      let savedEmpresa = empresa
+      if (empresa?.id) {
+        const { data } = await supabase
+          .from('empresa')
+          .update({ nome, logo_url: finalLogoUrl })
+          .eq('id', empresa.id)
+          .select()
+          .maybeSingle()
+        if (data) savedEmpresa = data
       } else {
-        await supabase.from('empresa').insert({ nome, logo_url: finalLogoUrl })
+        const { data } = await supabase
+          .from('empresa')
+          .insert({ nome, logo_url: finalLogoUrl })
+          .select()
+          .maybeSingle()
+        if (data) savedEmpresa = data
       }
 
+      setEmpresa(savedEmpresa)
+      if (savedEmpresa?.logo_url) {
+        setLogoUrl(savedEmpresa.logo_url)
+      }
+      setFile(null)
       toast.success('Branding salvo com sucesso!')
       window.dispatchEvent(new Event('branding_updated'))
     } catch (err: any) {
