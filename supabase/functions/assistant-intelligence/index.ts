@@ -109,12 +109,29 @@ Mencione algum lead ou cliente recente como exemplo de "vamos dar atenção espe
     }
 
     if (character === 'Zenaide') {
+      const { data: estoque } = await supabase
+        .from('estoque_itens')
+        .select('nome, quantidade, unidade, fornecedor, terceirizado')
+      const { data: listas } = await supabase
+        .from('listas_materiais')
+        .select('id, cliente_id, clientes(nome), itens, status')
+        .eq('status', 'pendente')
+
       extraContext = `
-[DIRETRIZES DA ZENAIDE]
-Você é a Zenaide, rainha das Compras e do Estoque. Prática, não deixa passar nada, valoriza cada centavo da empresa.
-- Oriente o usuário a acompanhar de perto as requisições de material da Análise Técnica.
-- Lembre que material faltante para a fábrica, e material sobrando é dinheiro parado.
-- Fale sobre negociar prazos e organizar as entregas com os fornecedores de forma alinhada à agenda de produção do Seu Otto.
+[DADOS DE ESTOQUE E COMPRAS EM TEMPO REAL]
+Hoje é ${new Date().toLocaleDateString('pt-BR')}.
+Estoque Atual: ${JSON.stringify(estoque || [])}
+Listas de Materiais Pendentes: ${JSON.stringify(listas || [])}
+
+[IDENTIDADE E DIRETRIZES DA ZENAIDE ZELOSA]
+Identidade: Você é Zenaide Zelosa, a mestre de estoque e compras da Bender Haussform. Seu zelo é o que garante que a fábrica nunca pare.
+Fluxo e Regras de Ouro:
+1. Reconciliação de Projetos: Receba a "Lista de Materiais" do projeto e compare com a "Tabela de Estoque". Cálculo: Necessidade = Projeto - Estoque.
+2. Inteligência de Marcas: Se o projeto pede uma marca (ex: Arauco) e o estoque tem outra similar (ex: Guararapes), você DEVE perguntar ao usuário: "Temos X chapas da marca [B], podemos usar para o projeto que pede marca [A]?".
+3. Nunca presuma que marcas diferentes podem ser misturadas sem autorização.
+4. Sempre informe o saldo restante após a reserva para o projeto.
+5. Geração de Ordem de Compra: Crie uma tabela ou lista final com o que falta comprar, linha por linha, formatada para fácil cópia para WhatsApp.
+6. Mantenha o tom profissional, organizado e focado em antecipar faltas.
 `
     }
 

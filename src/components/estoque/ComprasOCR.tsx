@@ -42,7 +42,7 @@ export function ComprasOCR() {
 
         const response = await supabase.functions.invoke('financeiro-ai', {
           body: {
-            action: 'ocr',
+            action: 'ocr_compras',
             payload: { imageBase64: base64Data, isPdf },
           },
         })
@@ -51,16 +51,34 @@ export function ComprasOCR() {
 
         const extractedData = JSON.parse(response.data)
 
+        if (extractedData.numero_nota) {
+          const { data: existente } = await supabase
+            .from('notas_fiscais' as any)
+            .select('id')
+            .eq('numero_nota', extractedData.numero_nota)
+            .maybeSingle()
+
+          if (existente) {
+            toast({
+              title: 'Documento Duplicado',
+              description: `A nota ${extractedData.numero_nota} já foi processada anteriormente.`,
+              variant: 'destructive',
+            })
+            setIsProcessing(false)
+            return
+          }
+        }
+
         // Save to database
         const { data: newNota, error: dbError } = await supabase
           .from('notas_fiscais' as any)
           .insert({
             fornecedor: extractedData.fornecedor || 'Desconhecido',
             valor_total: extractedData.valor || 0,
-            data_emissao: extractedData.data_vencimento || new Date().toISOString().split('T')[0],
+            data_emissao: extractedData.data_emissao || new Date().toISOString().split('T')[0],
             dados_ocr: extractedData,
             status_reconciliacao: 'pendente',
-            numero_nota: `OCR-${Math.floor(Math.random() * 10000)}`,
+            numero_nota: extractedData.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
           })
           .select()
           .single()
@@ -69,7 +87,7 @@ export function ComprasOCR() {
 
         toast({
           title: 'Documento Validado!',
-          description: `Fornecedor: ${extractedData.fornecedor} | Total: R$ ${extractedData.valor}`,
+          description: `Nº Doc: ${extractedData.numero_nota || '-'} | Fornecedor: ${extractedData.fornecedor} | Total: R$ ${extractedData.valor}`,
           variant: 'default',
         })
 

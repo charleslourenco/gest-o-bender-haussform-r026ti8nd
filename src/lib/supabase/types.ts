@@ -648,9 +648,11 @@ export type Database = {
           categoria: string | null
           criado_em: string
           estoque_minimo: number
+          fornecedor: string | null
           id: string
           nome: string
           quantidade: number
+          terceirizado: boolean | null
           unidade: string
           valor_unitario: number
         }
@@ -659,9 +661,11 @@ export type Database = {
           categoria?: string | null
           criado_em?: string
           estoque_minimo?: number
+          fornecedor?: string | null
           id?: string
           nome: string
           quantidade?: number
+          terceirizado?: boolean | null
           unidade?: string
           valor_unitario?: number
         }
@@ -670,9 +674,11 @@ export type Database = {
           categoria?: string | null
           criado_em?: string
           estoque_minimo?: number
+          fornecedor?: string | null
           id?: string
           nome?: string
           quantidade?: number
+          terceirizado?: boolean | null
           unidade?: string
           valor_unitario?: number
         }
@@ -961,6 +967,44 @@ export type Database = {
             columns: ['consultor_id']
             isOneToOne: false
             referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      listas_materiais: {
+        Row: {
+          arquivo_url: string | null
+          atualizado_em: string | null
+          cliente_id: string | null
+          criado_em: string | null
+          id: string
+          itens: Json | null
+          status: string | null
+        }
+        Insert: {
+          arquivo_url?: string | null
+          atualizado_em?: string | null
+          cliente_id?: string | null
+          criado_em?: string | null
+          id?: string
+          itens?: Json | null
+          status?: string | null
+        }
+        Update: {
+          arquivo_url?: string | null
+          atualizado_em?: string | null
+          cliente_id?: string | null
+          criado_em?: string | null
+          id?: string
+          itens?: Json | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'listas_materiais_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
             referencedColumns: ['id']
           },
         ]
@@ -1875,6 +1919,8 @@ export const Constants = {
 //   valor_unitario: numeric (not null, default: 0)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   fornecedor: text (nullable)
+//   terceirizado: boolean (nullable, default: false)
 // Table: estoque_movimentacoes
 //   id: uuid (not null, default: gen_random_uuid())
 //   item_id: uuid (not null)
@@ -1945,6 +1991,14 @@ export const Constants = {
 //   criado_por_nome: text (nullable)
 //   kanban_ativo: boolean (not null, default: true)
 //   data_venda: timestamp with time zone (nullable)
+// Table: listas_materiais
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   arquivo_url: text (nullable)
+//   status: text (nullable, default: 'pendente'::text)
+//   itens: jsonb (nullable, default: '[]'::jsonb)
+//   criado_em: timestamp with time zone (nullable, default: now())
+//   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -2143,6 +2197,9 @@ export const Constants = {
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
+// Table: listas_materiais
+//   FOREIGN KEY listas_materiais_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY listas_materiais_pkey: PRIMARY KEY (id)
 // Table: logs_ia
 //   PRIMARY KEY logs_ia_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY logs_ia_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2333,6 +2390,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: leads
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: listas_materiais
+//   Policy "listas_materiais_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: logs_ia

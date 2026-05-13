@@ -68,6 +68,56 @@ Deno.serve(async (req) => {
       })
     }
 
+    if (action === 'ocr_compras') {
+      const { imageBase64, isPdf } = payload
+      let pdfText = ''
+
+      if (isPdf) {
+        try {
+          const base64Data = imageBase64.split(',')[1] || imageBase64
+          const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+          const data = await pdf(buffer)
+          pdfText = data.text
+        } catch (e) {
+          console.error('PDF Parse Error', e)
+        }
+      }
+
+      const userContent: any[] = [
+        {
+          type: 'text',
+          text: 'Extraia os dados deste documento (Nota Fiscal, Romaneio ou Pedido).',
+        },
+      ]
+
+      if (isPdf && pdfText) {
+        userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
+      } else {
+        userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
+      }
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor" (string), "valor" (número float), "data_emissao" (string YYYY-MM-DD), "numero_nota" (string, usar se for NF ou romaneio), e "itens" (array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero)).',
+          },
+          {
+            role: 'user',
+            content: userContent,
+          },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0,
+      })
+
+      return new Response(response.choices[0].message.content, {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     if (action === 'ocr') {
       const { imageBase64, isPdf } = payload
       let pdfText = ''
