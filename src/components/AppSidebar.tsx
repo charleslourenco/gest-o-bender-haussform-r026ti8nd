@@ -69,6 +69,10 @@ export function AppSidebar() {
       }
     }
     fetchEmpresa()
+
+    const handleBrandingUpdated = () => fetchEmpresa()
+    window.addEventListener('branding_updated', handleBrandingUpdated)
+    return () => window.removeEventListener('branding_updated', handleBrandingUpdated)
   }, [])
 
   const isSuperAdmin = user?.email === 'admin@bender.com'

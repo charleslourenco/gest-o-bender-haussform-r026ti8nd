@@ -50,14 +50,14 @@ export function BrandingTab() {
         const fileExt = file.name.split('.').pop()
         const fileName = `logo-${Date.now()}.${fileExt}`
         const { error: uploadError } = await supabase.storage
-          .from('bender_assets')
+          .from('ativos_dobrador')
           .upload(fileName, file)
 
         if (uploadError) throw new Error('Falha no upload da logo.')
 
         const {
           data: { publicUrl },
-        } = supabase.storage.from('bender_assets').getPublicUrl(fileName)
+        } = supabase.storage.from('ativos_dobrador').getPublicUrl(fileName)
 
         finalLogoUrl = publicUrl
       }
