@@ -194,7 +194,6 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         .from('formulario_comercial')
         .update(payload)
         .eq('cliente_id', dossie.cliente_id)
-        .eq('user_id', authData.user?.id)
         .select('id')
 
       if (error) throw error
@@ -202,44 +201,19 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
       const formId = formUpdateData?.[0]?.id
 
       if (formId && data.produtos && data.produtos.length > 0) {
-        const getInitials = (name: string) => {
-          if (!name) return 'CLI'
-          const skip = ['de', 'da', 'do', 'das', 'dos']
-          const parts = name
-            .trim()
-            .split(' ')
-            .filter((p: string) => p && !skip.includes(p.toLowerCase()))
-          if (parts.length === 1) return parts[0].substring(0, 3).toUpperCase()
-          return parts
-            .map((n: string) => n[0])
-            .join('')
-            .substring(0, 3)
-            .toUpperCase()
-        }
-
-        const getCode = (initials: string, prodName: string, index: number) => {
-          const prod = (prodName || 'PRO')
-            .replace(/[^a-zA-Z]/g, '')
-            .substring(0, 3)
-            .toUpperCase()
-          const num = (index + 1).toString().padStart(4, '0')
-          return `${initials}-${prod}-${num}`
-        }
-
         const { data: existingCards } = await supabase
           .from('produtos_servicos_projeto')
           .select('nome_produto')
           .eq('formulario_comercial_id', formId)
 
         const existingNames = existingCards?.map((c) => c.nome_produto) || []
-        const cliInitials = getInitials(data.nome)
 
         const newCards = data.produtos
           .filter(
             (p: any) =>
               !existingNames.includes(p.nome || p.descricao || p.nome_produto || 'Produto'),
           )
-          .map((p: any, idx: number) => ({
+          .map((p: any) => ({
             formulario_comercial_id: formId,
             cliente_id: dossie.cliente_id,
             nome_produto: p.nome || p.nome_produto || p.descricao || 'Produto',
@@ -248,11 +222,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             valor_unitario: p.valor_unitario || 0,
             valor_total: p.valor_total || (p.valor_unitario || 0) * (p.quantidade || p.qtd || 1),
             status_analise: 'iniciar',
-            codigo_rastreio: getCode(
-              cliInitials,
-              p.nome || p.nome_produto || p.descricao || 'Produto',
-              existingNames.length + idx,
-            ),
+            codigo_rastreio: null, // Sistema gerará via trigger automaticamente
           }))
 
         if (newCards.length > 0) {

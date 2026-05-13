@@ -619,32 +619,6 @@ Deno.serve(async (req) => {
     console.log('5. Criando cards na Analise Tecnica...')
     let produtosInseridos = 0
     if (produtos.length > 0) {
-      const getInitials = (name: string) => {
-        if (!name) return 'CLI'
-        const skip = ['de', 'da', 'do', 'das', 'dos']
-        const parts = name
-          .trim()
-          .split(' ')
-          .filter((p) => p && !skip.includes(p.toLowerCase()))
-        if (parts.length === 1) return parts[0].substring(0, 3).toUpperCase()
-        return parts
-          .map((n) => n[0])
-          .join('')
-          .substring(0, 3)
-          .toUpperCase()
-      }
-
-      const getCode = (initials: string, prodName: string, index: number) => {
-        const prod = (prodName || 'PRO')
-          .replace(/[^a-zA-Z]/g, '')
-          .substring(0, 3)
-          .toUpperCase()
-        const num = (index + 1).toString().padStart(4, '0')
-        return `${initials}-${prod}-${num}`
-      }
-
-      const cliInitials = getInitials(clienteNome)
-
       const { data: existingCards } = await supabase
         .from('produtos_servicos_projeto')
         .select('nome_produto')
@@ -654,7 +628,7 @@ Deno.serve(async (req) => {
 
       const produtosParaInserir = produtos
         .filter((p: any) => !existingNames.includes(p.nome || p.nome_produto || 'Produto'))
-        .map((p: any, idx: number) => ({
+        .map((p: any) => ({
           formulario_comercial_id,
           cliente_id,
           nome_produto: p.nome || p.nome_produto || 'Produto',
@@ -663,11 +637,7 @@ Deno.serve(async (req) => {
           valor_unitario: p.valor_unitario || 0,
           valor_total: p.valor_total || p.valor_unitario * (p.qtd || 1),
           status_analise: 'iniciar',
-          codigo_rastreio: getCode(
-            cliInitials,
-            p.nome || p.nome_produto || 'Produto',
-            existingNames.length + idx,
-          ),
+          codigo_rastreio: null, // Sistema gerará via trigger automaticamente
         }))
 
       if (produtosParaInserir.length > 0) {
