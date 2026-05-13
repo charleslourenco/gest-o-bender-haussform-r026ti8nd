@@ -318,7 +318,7 @@ export function AIAssistant() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder={`Fale com ${charData.name}...`}
-              className="h-9 text-sm focus-visible:ring-1 border-gray-200"
+              className="h-9 text-sm text-gray-900 focus-visible:ring-1 border-gray-200"
             />
             <button
               type="submit"
