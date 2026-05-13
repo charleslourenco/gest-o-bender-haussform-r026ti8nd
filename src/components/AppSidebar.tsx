@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { supabase } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   Users,
@@ -53,6 +55,21 @@ const menuItems = [
 export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
+  const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
+
+  useEffect(() => {
+    async function fetchEmpresa() {
+      const { data } = await supabase
+        .from('empresa')
+        .select('nome, logo_url')
+        .limit(1)
+        .maybeSingle()
+      if (data) {
+        setEmpresa(data)
+      }
+    }
+    fetchEmpresa()
+  }, [])
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
 
@@ -64,11 +81,23 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
-      <SidebarHeader className="p-4 flex flex-row items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm shrink-0">
-          B
-        </div>
-        <span className="font-bold text-lg text-sidebar-foreground truncate">Bender Haussform</span>
+      <SidebarHeader className="p-4 flex flex-col justify-center min-h-[64px]">
+        {empresa?.logo_url ? (
+          <img
+            src={empresa.logo_url}
+            alt={empresa.nome || 'Logo da Empresa'}
+            className="max-h-12 w-full object-contain"
+          />
+        ) : (
+          <div className="flex flex-row items-center gap-2 w-full">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-xl shadow-sm shrink-0">
+              {empresa?.nome ? empresa.nome.charAt(0).toUpperCase() : 'B'}
+            </div>
+            <span className="font-bold text-lg text-sidebar-foreground truncate">
+              {empresa?.nome || 'Bender Haussform'}
+            </span>
+          </div>
+        )}
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         <SidebarGroup className="flex-1 overflow-y-auto z-10 pb-4">
