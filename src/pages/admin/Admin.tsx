@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BrandingTab } from './BrandingTab'
 import { TemplatesTab } from './TemplatesTab'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, Settings } from 'lucide-react'
 
 export default function AdminPage() {
   const { user } = useAuth()
@@ -58,10 +58,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex-1 bg-muted/20 min-h-full pb-12 flex flex-col space-y-6 p-6">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0">
-        <h1 className="text-[32px] font-bold text-off-white">Administrativo</h1>
-        <p className="text-pale-cornflower mt-1">Gestão de templates e branding da empresa</p>
+    <div className="flex-1 bg-muted/20 min-h-full pb-12 flex flex-col space-y-6 p-6 animate-in fade-in duration-300">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
+        <Settings className="h-10 w-10 text-emerald-400 hidden sm:block" />
+        <div>
+          <h1 className="text-[32px] font-bold text-off-white">Administrativo</h1>
+          <p className="text-pale-cornflower mt-1">Gestão de templates e branding da empresa</p>
+        </div>
       </div>
       <div className="flex-1">
         <Tabs defaultValue="branding" className="w-full">

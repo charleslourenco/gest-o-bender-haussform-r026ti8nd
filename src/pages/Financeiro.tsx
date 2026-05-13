@@ -16,7 +16,7 @@ export default function Financeiro() {
   const fetchData = useCallback(async () => {
     try {
       const [receberRes, pagarRes] = await Promise.all([
-        supabase.from('contas_receber').select('*, cliente:clientes(nome)'),
+        supabase.from('contas_receber').select('*, cliente:clientes!inner(nome)'),
         supabase.from('contas_pagar' as any).select('*'),
       ])
 
@@ -83,7 +83,7 @@ export default function Financeiro() {
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
       <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <Wallet className="h-10 w-10 text-emerald-400" />
+        <Wallet className="h-10 w-10 text-emerald-400 hidden sm:block" />
         <div>
           <h1 className="text-[32px] font-bold text-off-white">Financeiro Inteligente</h1>
           <p className="text-pale-cornflower mt-1">Gerenciado com apoio da assistente Edith</p>

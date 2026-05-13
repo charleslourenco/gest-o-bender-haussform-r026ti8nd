@@ -111,7 +111,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm flex items-center gap-4">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
         <Presentation className="h-10 w-10 text-emerald-400 hidden sm:block" />
         <div>
           <h1 className="text-[32px] font-bold text-off-white">Dashboard</h1>

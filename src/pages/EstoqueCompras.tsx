@@ -9,7 +9,7 @@ export default function EstoqueCompras() {
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
       <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <PackageSearch className="h-10 w-10 text-emerald-400" />
+        <PackageSearch className="h-10 w-10 text-emerald-400 hidden sm:block" />
         <div>
           <h1 className="text-[32px] font-bold text-off-white">Estoque & Compras</h1>
           <p className="text-pale-cornflower mt-1">

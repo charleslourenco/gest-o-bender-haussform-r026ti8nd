@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     if (character === 'Seu Otto') {
       const { data: todos } = await supabase
         .from('produtos_servicos_projeto')
-        .select('id, nome_produto, codigo_rastreio, status_analise, clientes(nome)')
+        .select('id, nome_produto, codigo_rastreio, status_analise, clientes!inner(nome)')
         .order('atualizado_em', { ascending: false })
         .limit(100)
 
@@ -114,7 +114,7 @@ Mencione algum lead ou cliente recente como exemplo de "vamos dar atenção espe
         .select('nome, quantidade, unidade, fornecedor, terceirizado')
       const { data: listas } = await supabase
         .from('listas_materiais')
-        .select('id, cliente_id, clientes(nome), itens, status')
+        .select('id, cliente_id, clientes!inner(nome), itens, status')
         .eq('status', 'pendente')
 
       extraContext = `
@@ -145,7 +145,7 @@ Fluxo e Regras de Ouro:
 
       const { data: receber } = await supabase
         .from('contas_receber')
-        .select('valor, data_vencimento, cliente_id, cliente:clientes(nome)')
+        .select('valor, data_vencimento, cliente_id, cliente:clientes!inner(nome)')
         .eq('status_pagamento', 'aguardando')
         .lte('data_vencimento', today)
 
