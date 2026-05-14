@@ -10,7 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Plus } from 'lucide-react'
+import { Search, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -27,6 +27,7 @@ export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
   const [newItem, setNewItem] = useState({
@@ -50,7 +51,25 @@ export function EstoqueLista() {
 
   useEffect(() => {
     fetchItems()
+    checkAdmin()
   }, [])
+
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar este item do inventário?')) return
+    await supabase.from('estoque_itens').delete().eq('id', id)
+    fetchItems()
+    toast({ title: 'Item apagado' })
+  }
 
   const handleSaveItem = async () => {
     try {
@@ -111,6 +130,7 @@ export function EstoqueLista() {
               <TableHead className="text-right">V. Unitário</TableHead>
               <TableHead className="text-right">V. Total</TableHead>
               <TableHead className="text-center">Status</TableHead>
+              {isAdmin && <TableHead className="text-right">Ação</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -153,6 +173,19 @@ export function EstoqueLista() {
                     </Badge>
                   )}
                 </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(item.id)}
+                      className="text-red-500 hover:bg-red-50 h-8 w-8"
+                      title="Apagar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
             {filteredItems.length === 0 && (

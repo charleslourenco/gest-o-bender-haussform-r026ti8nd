@@ -12,7 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { Check, X, Clock, ExternalLink, RefreshCw } from 'lucide-react'
+import { Check, X, Clock, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
 
 type Solicitacao = {
   id: string
@@ -34,6 +34,7 @@ type Solicitacao = {
 export function SolicitacoesCompra() {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
   const fetchSolicitacoes = async () => {
@@ -61,7 +62,25 @@ export function SolicitacoesCompra() {
 
   useEffect(() => {
     fetchSolicitacoes()
+    checkAdmin()
   }, [])
+
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar esta solicitação?')) return
+    await supabase.from('solicitacoes_compra').delete().eq('id', id)
+    fetchSolicitacoes()
+    toast({ title: 'Solicitação apagada' })
+  }
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase
@@ -210,6 +229,17 @@ export function SolicitacoesCompra() {
                           onClick={() => handleUpdateStatus(s.id, 'Comprado')}
                         >
                           Marcar Comprado
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(s.id)}
+                          className="ml-2 text-red-500 hover:bg-red-50 h-8 w-8 inline-flex align-middle"
+                          title="Apagar"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </TableCell>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { UploadCloud, CheckCircle2, AlertCircle, FileText, Loader2 } from 'lucide-react'
+import { UploadCloud, CheckCircle2, AlertCircle, FileText, Loader2, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
@@ -12,10 +12,29 @@ export function ComprasOCR() {
   const [notas, setNotas] = useState<any[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     fetchNotas()
+    checkAdmin()
   }, [])
+
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar esta nota?')) return
+    await supabase.from('notas_fiscais').delete().eq('id', id)
+    fetchNotas()
+    toast({ title: 'Nota apagada' })
+  }
 
   async function fetchNotas() {
     const { data } = await supabase
@@ -27,6 +46,14 @@ export function ComprasOCR() {
 
   const handleProcessFile = async (file: File) => {
     if (!file) return
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: 'Formato inválido',
+        description: 'Por favor, envie apenas arquivos PDF.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     setIsProcessing(true)
     try {
@@ -152,8 +179,11 @@ export function ComprasOCR() {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept="image/*,.pdf"
-                    onChange={(e) => e.target.files && handleProcessFile(e.target.files[0])}
+                    accept=".pdf"
+                    onChange={(e) => {
+                      if (e.target.files) handleProcessFile(e.target.files[0])
+                      if (fileInputRef.current) fileInputRef.current.value = ''
+                    }}
                   />
                 </div>
               )}
@@ -206,18 +236,30 @@ export function ComprasOCR() {
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-sm">{formatCurrency(nota.valor_total)}</p>
-                      <Badge
-                        variant="outline"
-                        className={
-                          nota.status_reconciliacao === 'pendente'
-                            ? 'bg-amber-50 text-amber-600 border-amber-200 mt-1'
-                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 mt-1'
-                        }
-                      >
-                        {nota.status_reconciliacao === 'pendente'
-                          ? 'Conciliação Pendente'
-                          : 'Validado'}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2 mt-1">
+                        <Badge
+                          variant="outline"
+                          className={
+                            nota.status_reconciliacao === 'pendente'
+                              ? 'bg-amber-50 text-amber-600 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                          }
+                        >
+                          {nota.status_reconciliacao === 'pendente'
+                            ? 'Conciliação Pendente'
+                            : 'Validado'}
+                        </Badge>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(nota.id)}
+                            className="text-red-500 h-6 px-2 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" /> Apagar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))

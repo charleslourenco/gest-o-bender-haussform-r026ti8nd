@@ -847,6 +847,36 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_itens_cliente: {
+        Row: {
+          cliente_nome: string
+          entregue_em: string | null
+          id: string
+          produto: string
+          recebido_em: string
+          responsavel_entrega: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          cliente_nome: string
+          entregue_em?: string | null
+          id?: string
+          produto: string
+          recebido_em?: string
+          responsavel_entrega?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          cliente_nome?: string
+          entregue_em?: string | null
+          id?: string
+          produto?: string
+          recebido_em?: string
+          responsavel_entrega?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       estoque_movimentacoes: {
         Row: {
           criado_em: string
@@ -2278,6 +2308,14 @@ export const Constants = {
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   fornecedor: text (nullable)
 //   terceirizado: boolean (nullable, default: false)
+// Table: estoque_itens_cliente
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_nome: text (not null)
+//   produto: text (not null)
+//   recebido_em: timestamp with time zone (not null, default: now())
+//   entregue_em: timestamp with time zone (nullable)
+//   responsavel_entrega: text (nullable)
+//   usuario_id: uuid (nullable)
 // Table: estoque_movimentacoes
 //   id: uuid (not null, default: gen_random_uuid())
 //   item_id: uuid (not null)
@@ -2590,6 +2628,9 @@ export const Constants = {
 //   PRIMARY KEY equipe_clt_pkey: PRIMARY KEY (id)
 // Table: estoque_itens
 //   PRIMARY KEY estoque_itens_pkey: PRIMARY KEY (id)
+// Table: estoque_itens_cliente
+//   PRIMARY KEY estoque_itens_cliente_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY estoque_itens_cliente_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
 // Table: estoque_movimentacoes
 //   FOREIGN KEY estoque_movimentacoes_item_id_fkey: FOREIGN KEY (item_id) REFERENCES estoque_itens(id) ON DELETE CASCADE
 //   FOREIGN KEY estoque_movimentacoes_nota_fiscal_id_fkey: FOREIGN KEY (nota_fiscal_id) REFERENCES notas_fiscais(id) ON DELETE SET NULL
@@ -2791,6 +2832,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: estoque_itens
 //   Policy "estoque_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: estoque_itens_cliente
+//   Policy "estoque_itens_cliente_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: estoque_movimentacoes

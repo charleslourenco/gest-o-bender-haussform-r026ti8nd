@@ -27,9 +27,10 @@ Deno.serve(async (req) => {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text
+          pdfText = data.text.substring(0, 15000) // Limit string length to avoid context window explosion
         } catch (e) {
           console.error('PDF Parse Error', e)
+          throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
       }
 
@@ -52,7 +53,7 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content:
-              'Você é a Zenaide, assistente de PCP e Compras. Sua função é extrair itens de uma lista de materiais de projeto de móveis.',
+              'Você é a Zenaide, assistente de PCP e Compras. Extraia itens da lista de materiais e retorne APENAS um objeto JSON válido sem formatações extras.',
           },
           {
             role: 'user',
@@ -77,9 +78,10 @@ Deno.serve(async (req) => {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text
+          pdfText = data.text.substring(0, 15000)
         } catch (e) {
           console.error('PDF Parse Error', e)
+          throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
       }
 
@@ -127,9 +129,10 @@ Deno.serve(async (req) => {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text
+          pdfText = data.text.substring(0, 15000)
         } catch (e) {
           console.error('PDF Parse Error', e)
+          throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
       }
 

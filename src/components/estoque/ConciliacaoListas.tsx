@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Loader2, Copy, Bot, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { FileText, Loader2, Copy, Bot, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -18,11 +18,30 @@ export function ConciliacaoListas() {
   const [listas, setListas] = useState<any[]>([])
   const [estoque, setEstoque] = useState<any[]>([])
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
     fetchData()
+    checkAdmin()
   }, [])
+
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar esta lista?')) return
+    await supabase.from('listas_materiais').delete().eq('id', id)
+    fetchData()
+    toast({ title: 'Lista apagada' })
+  }
 
   async function fetchData() {
     const [resListas, resEstoque] = await Promise.all([
@@ -47,16 +66,25 @@ export function ConciliacaoListas() {
       if (fileError) throw fileError
 
       const buffer = await fileData.arrayBuffer()
-      const base64 = btoa(
-        new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''),
-      )
       const mimeType = fileData.type
+
+      if (mimeType !== 'application/pdf') {
+        throw new Error('Apenas arquivos PDF são suportados para processamento automático.')
+      }
+
+      // Safe base64 conversion for large files
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(new Blob([buffer], { type: mimeType }))
+      })
       const dataUrl = `data:${mimeType};base64,${base64}`
 
       const response = await supabase.functions.invoke('financeiro-ai', {
         body: {
           action: 'ocr_lista_materiais',
-          payload: { imageBase64: dataUrl, isPdf: mimeType === 'application/pdf' },
+          payload: { imageBase64: dataUrl, isPdf: true },
         },
       })
 
@@ -132,27 +160,40 @@ export function ConciliacaoListas() {
                       </p>
                     </div>
                   </div>
-                  {!isConciliado ? (
-                    <Button
-                      onClick={() => handleProcessarZenaide(lista)}
-                      disabled={processingId === lista.id}
-                      className="bg-midnight-navy hover:bg-dark-denim text-white font-bold shadow"
-                    >
-                      {processingId === lista.id ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Bot className="w-4 h-4 mr-2" />
-                      )}
-                      Processar com Zenaide (OCR)
-                    </Button>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Conciliado
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!isConciliado ? (
+                      <Button
+                        onClick={() => handleProcessarZenaide(lista)}
+                        disabled={processingId === lista.id}
+                        className="bg-midnight-navy hover:bg-dark-denim text-white font-bold shadow"
+                      >
+                        {processingId === lista.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Bot className="w-4 h-4 mr-2" />
+                        )}
+                        Processar com Zenaide (OCR)
+                      </Button>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Conciliado
+                      </Badge>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDelete(lista.id)}
+                        className="text-red-500 hover:bg-red-50 border-red-200"
+                        title="Apagar Lista"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {isConciliado && lista.itens && lista.itens.length > 0 && (

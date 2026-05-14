@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { RefreshCw, Send, Check } from 'lucide-react'
+import { RefreshCw, Send, Check, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,7 @@ export function ItensCliente() {
   const [responsavel, setResponsavel] = useState('')
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
   const fetchItens = async () => {
@@ -65,7 +66,25 @@ export function ItensCliente() {
 
   useEffect(() => {
     fetchItens()
+    checkAdmin()
   }, [])
+
+  async function checkAdmin() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja apagar este item?')) return
+    await supabase.from('estoque_itens_cliente').delete().eq('id', id)
+    fetchItens()
+    toast({ title: 'Item apagado' })
+  }
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -275,6 +294,17 @@ export function ItensCliente() {
                             <Check className="h-3 w-3 mr-1" />
                             Entregue
                           </Badge>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(item.id)}
+                            className="ml-2 text-red-500 hover:bg-red-50 h-8 w-8"
+                            title="Apagar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
