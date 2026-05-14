@@ -2,8 +2,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UsersRound } from 'lucide-react'
 import { ListaCLT } from './gestao-pessoas/ListaCLT'
 import { ListaPJ } from './gestao-pessoas/ListaPJ'
+import { useParams } from 'react-router-dom'
+import { PastaCLT } from './gestao-pessoas/PastaCLT'
+import { PastaPJ } from './gestao-pessoas/PastaPJ'
 
 export default function GestaoPessoas() {
+  const { tipo, id } = useParams<{ tipo: string; id: string }>()
+
+  if (tipo === 'clt' && id) {
+    return <PastaCLT id={id === 'novo' ? null : id} />
+  }
+
+  if (tipo === 'pj' && id) {
+    return <PastaPJ id={id === 'novo' ? null : id} />
+  }
+
   return (
     <div className="h-full flex flex-col p-6 space-y-6 bg-off-white">
       <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">

@@ -470,6 +470,51 @@ export type Database = {
           },
         ]
       }
+      documentos_equipe: {
+        Row: {
+          arquivo_url: string
+          clt_id: string | null
+          criado_em: string | null
+          id: string
+          nome: string
+          pj_id: string | null
+          tipo: string | null
+        }
+        Insert: {
+          arquivo_url: string
+          clt_id?: string | null
+          criado_em?: string | null
+          id?: string
+          nome: string
+          pj_id?: string | null
+          tipo?: string | null
+        }
+        Update: {
+          arquivo_url?: string
+          clt_id?: string | null
+          criado_em?: string | null
+          id?: string
+          nome?: string
+          pj_id?: string | null
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documentos_equipe_clt_id_fkey'
+            columns: ['clt_id']
+            isOneToOne: false
+            referencedRelation: 'equipe_clt'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documentos_equipe_pj_id_fkey'
+            columns: ['pj_id']
+            isOneToOne: false
+            referencedRelation: 'parceiros_pj'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       documentos_gerados: {
         Row: {
           cliente_id: string | null
@@ -641,6 +686,84 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      equipe_clt: {
+        Row: {
+          atualizado_em: string | null
+          bairro: string | null
+          cep: string | null
+          cnh: string | null
+          cnh_categoria: string | null
+          complemento: string | null
+          cpf: string | null
+          criado_em: string | null
+          ctps: string | null
+          data_admissao: string | null
+          data_nascimento: string | null
+          email: string | null
+          estado: string | null
+          ferias_adiantadas_dias: number | null
+          id: string
+          municipio: string | null
+          nome_completo: string
+          numero: string | null
+          pis: string | null
+          rg: string | null
+          rua: string | null
+          salario_base: number | null
+          telefone: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cnh?: string | null
+          cnh_categoria?: string | null
+          complemento?: string | null
+          cpf?: string | null
+          criado_em?: string | null
+          ctps?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          email?: string | null
+          estado?: string | null
+          ferias_adiantadas_dias?: number | null
+          id?: string
+          municipio?: string | null
+          nome_completo: string
+          numero?: string | null
+          pis?: string | null
+          rg?: string | null
+          rua?: string | null
+          salario_base?: number | null
+          telefone?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cnh?: string | null
+          cnh_categoria?: string | null
+          complemento?: string | null
+          cpf?: string | null
+          criado_em?: string | null
+          ctps?: string | null
+          data_admissao?: string | null
+          data_nascimento?: string | null
+          email?: string | null
+          estado?: string | null
+          ferias_adiantadas_dias?: number | null
+          id?: string
+          municipio?: string | null
+          nome_completo?: string
+          numero?: string | null
+          pis?: string | null
+          rg?: string | null
+          rua?: string | null
+          salario_base?: number | null
+          telefone?: string | null
+        }
+        Relationships: []
       }
       estoque_itens: {
         Row: {
@@ -1171,6 +1294,75 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      parceiros_pj: {
+        Row: {
+          ajuda_custo: number | null
+          atualizado_em: string | null
+          bairro: string | null
+          cep: string | null
+          cnpj: string | null
+          comissoes: number | null
+          complemento: string | null
+          criado_em: string | null
+          email: string | null
+          estado: string | null
+          id: string
+          municipio: string | null
+          numero: string | null
+          razao_social: string
+          rua: string | null
+          socio_cpf: string | null
+          socio_data_nascimento: string | null
+          socio_nome: string | null
+          socio_rg: string | null
+          telefone: string | null
+        }
+        Insert: {
+          ajuda_custo?: number | null
+          atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          comissoes?: number | null
+          complemento?: string | null
+          criado_em?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          municipio?: string | null
+          numero?: string | null
+          razao_social: string
+          rua?: string | null
+          socio_cpf?: string | null
+          socio_data_nascimento?: string | null
+          socio_nome?: string | null
+          socio_rg?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          ajuda_custo?: number | null
+          atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          comissoes?: number | null
+          complemento?: string | null
+          criado_em?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          municipio?: string | null
+          numero?: string | null
+          razao_social?: string
+          rua?: string | null
+          socio_cpf?: string | null
+          socio_data_nascimento?: string | null
+          socio_nome?: string | null
+          socio_rg?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
       }
       parcelas: {
         Row: {
@@ -1870,6 +2062,14 @@ export const Constants = {
 //   template_nome: text (nullable)
 //   arquivo_assinado_url: text (nullable)
 //   conteudo_preenchido: text (nullable)
+// Table: documentos_equipe
+//   id: uuid (not null, default: gen_random_uuid())
+//   clt_id: uuid (nullable)
+//   pj_id: uuid (nullable)
+//   nome: text (not null)
+//   arquivo_url: text (not null)
+//   tipo: text (nullable)
+//   criado_em: timestamp with time zone (nullable, default: now())
 // Table: documentos_gerados
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -1909,6 +2109,30 @@ export const Constants = {
 //   criado_por: uuid (nullable)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   concluido_em: timestamp with time zone (nullable)
+// Table: equipe_clt
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome_completo: text (not null)
+//   rg: text (nullable)
+//   cpf: text (nullable)
+//   data_nascimento: date (nullable)
+//   data_admissao: date (nullable)
+//   ctps: text (nullable)
+//   pis: text (nullable)
+//   cnh: text (nullable)
+//   cnh_categoria: text (nullable)
+//   telefone: text (nullable)
+//   email: text (nullable)
+//   cep: text (nullable)
+//   rua: text (nullable)
+//   numero: text (nullable)
+//   complemento: text (nullable)
+//   bairro: text (nullable)
+//   municipio: text (nullable)
+//   estado: text (nullable)
+//   salario_base: numeric (nullable)
+//   ferias_adiantadas_dias: integer (nullable, default: 0)
+//   criado_em: timestamp with time zone (nullable, default: now())
+//   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: estoque_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -2034,6 +2258,27 @@ export const Constants = {
 //   tipo_pagamento: text (nullable)
 //   data_pagamento: date (nullable)
 //   meio_pagamento: text (nullable)
+//   atualizado_em: timestamp with time zone (nullable, default: now())
+// Table: parceiros_pj
+//   id: uuid (not null, default: gen_random_uuid())
+//   razao_social: text (not null)
+//   cnpj: text (nullable)
+//   cep: text (nullable)
+//   rua: text (nullable)
+//   numero: text (nullable)
+//   complemento: text (nullable)
+//   bairro: text (nullable)
+//   municipio: text (nullable)
+//   estado: text (nullable)
+//   socio_nome: text (nullable)
+//   socio_rg: text (nullable)
+//   socio_cpf: text (nullable)
+//   socio_data_nascimento: date (nullable)
+//   telefone: text (nullable)
+//   email: text (nullable)
+//   ajuda_custo: numeric (nullable)
+//   comissoes: numeric (nullable)
+//   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: parcelas
 //   id: uuid (not null, default: gen_random_uuid())
@@ -2161,6 +2406,11 @@ export const Constants = {
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY documentos_cliente_template_id_fkey: FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL
+// Table: documentos_equipe
+//   CHECK documentos_equipe_check: CHECK (((clt_id IS NOT NULL) OR (pj_id IS NOT NULL)))
+//   FOREIGN KEY documentos_equipe_clt_id_fkey: FOREIGN KEY (clt_id) REFERENCES equipe_clt(id) ON DELETE CASCADE
+//   FOREIGN KEY documentos_equipe_pj_id_fkey: FOREIGN KEY (pj_id) REFERENCES parceiros_pj(id) ON DELETE CASCADE
+//   PRIMARY KEY documentos_equipe_pkey: PRIMARY KEY (id)
 // Table: documentos_gerados
 //   FOREIGN KEY documentos_gerados_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_gerados_pkey: PRIMARY KEY (id)
@@ -2176,6 +2426,8 @@ export const Constants = {
 //   FOREIGN KEY envelopes_assinatura_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY envelopes_assinatura_criado_por_fkey: FOREIGN KEY (criado_por) REFERENCES auth.users(id)
 //   PRIMARY KEY envelopes_assinatura_pkey: PRIMARY KEY (id)
+// Table: equipe_clt
+//   PRIMARY KEY equipe_clt_pkey: PRIMARY KEY (id)
 // Table: estoque_itens
 //   PRIMARY KEY estoque_itens_pkey: PRIMARY KEY (id)
 // Table: estoque_movimentacoes
@@ -2213,6 +2465,8 @@ export const Constants = {
 //   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY pagamentos_formulario_id_fkey: FOREIGN KEY (formulario_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY pagamentos_pkey: PRIMARY KEY (id)
+// Table: parceiros_pj
+//   PRIMARY KEY parceiros_pj_pkey: PRIMARY KEY (id)
 // Table: parcelas
 //   FOREIGN KEY parcelas_pagamento_id_fkey: FOREIGN KEY (pagamento_id) REFERENCES pagamentos(id) ON DELETE CASCADE
 //   PRIMARY KEY parcelas_pkey: PRIMARY KEY (id)
@@ -2318,6 +2572,10 @@ export const Constants = {
 //   Policy "documentos_cliente_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: documentos_equipe
+//   Policy "documentos_equipe_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: documentos_gerados
 //   Policy "documentos_gerados_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -2359,6 +2617,10 @@ export const Constants = {
 //   Policy "envelopes_assinatura_select" (SELECT, PERMISSIVE) roles={public}
 //     USING: true
 //   Policy "envelopes_assinatura_update" (UPDATE, PERMISSIVE) roles={public}
+//     USING: true
+//     WITH CHECK: true
+// Table: equipe_clt
+//   Policy "equipe_clt_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: estoque_itens
@@ -2433,6 +2695,10 @@ export const Constants = {
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
 //   Policy "Enable read access for own payments" (SELECT, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
+// Table: parceiros_pj
+//   Policy "parceiros_pj_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: parcelas
 //   Policy "Enable delete for own parcels" (DELETE, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM (pagamentos p      JOIN formulario_comercial f ON ((f.id = p.formulario_id)))   WHERE ((p.id = parcelas.pagamento_id) AND (f.user_id = auth.uid()))))

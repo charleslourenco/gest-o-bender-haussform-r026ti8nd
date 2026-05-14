@@ -52,8 +52,13 @@ Deno.serve(async (req: Request) => {
     const mergedPdf = await PDFDocument.create()
     const filePath = documento_id
 
+    const bucket =
+      filePath.includes('/') && !filePath.startsWith('contratos/')
+        ? 'documentos_equipe'
+        : 'bender_clientes'
+
     const { data: fileData, error: fileError } = await supabase.storage
-      .from('bender_clientes')
+      .from(bucket)
       .download(filePath)
 
     if (fileError || !fileData) {
@@ -136,6 +141,9 @@ Deno.serve(async (req: Request) => {
     const pdfBytes = await mergedPdf.save()
 
     let nomeCliente = 'Cliente'
+    let cltOrPjId = null
+    let cltOrPjType = ''
+
     if (cliente_id) {
       const { data: clienteData } = await supabase
         .from('clientes')
@@ -143,6 +151,17 @@ Deno.serve(async (req: Request) => {
         .eq('id', cliente_id)
         .single()
       if (clienteData?.nome) nomeCliente = clienteData.nome
+    } else {
+      const firstSig = assinaturas?.[0]
+      if (firstSig?.clt_id) {
+        cltOrPjId = firstSig.clt_id
+        cltOrPjType = 'clt'
+        nomeCliente = 'Colaborador'
+      } else if (firstSig?.pj_id) {
+        cltOrPjId = firstSig.pj_id
+        cltOrPjType = 'pj'
+        nomeCliente = 'Parceiro'
+      }
     }
 
     const safeNome = nomeCliente
@@ -150,10 +169,17 @@ Deno.serve(async (req: Request) => {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9]/g, '_')
     const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
-    const finalFilePath = `contratos/${cliente_id}/${fileName}`
+
+    let finalFilePath = `contratos/${cliente_id}/${fileName}`
+    let uploadBucket = 'bender_clientes'
+
+    if (cltOrPjId) {
+      finalFilePath = `${cltOrPjId}/${fileName}`
+      uploadBucket = 'documentos_equipe'
+    }
 
     const { error: uploadError } = await supabase.storage
-      .from('bender_clientes')
+      .from(uploadBucket)
       .upload(finalFilePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
     if (uploadError) throw uploadError
@@ -166,12 +192,19 @@ Deno.serve(async (req: Request) => {
           status: 'Assinado',
         })
         .eq('id', docCliente.id)
+    } else if (cltOrPjId) {
+      await supabase.from('documentos_equipe').insert({
+        [cltOrPjType === 'clt' ? 'clt_id' : 'pj_id']: cltOrPjId,
+        nome: `[ASSINADO] ${assinaturas?.[0]?.documento_nome || 'Documento'}.pdf`,
+        arquivo_url: finalFilePath,
+        tipo: 'application/pdf',
+      })
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (RESEND_API_KEY) {
       const { data: urlData } = await supabase.storage
-        .from('bender_clientes')
+        .from(uploadBucket)
         .createSignedUrl(finalFilePath, 315360000)
       const signedUrl = urlData?.signedUrl || ''
 

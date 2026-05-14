@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, Plus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import {
   Table,
   TableBody,
@@ -11,13 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { SheetCLT } from './SheetCLT'
 
 export function ListaCLT() {
   const [data, setData] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const navigate = useNavigate()
 
   const fetchData = async () => {
     let q = supabase.from('equipe_clt').select('*').order('nome_completo')
@@ -29,16 +28,6 @@ export function ListaCLT() {
   useEffect(() => {
     fetchData()
   }, [search])
-
-  const openNew = () => {
-    setSelectedId(null)
-    setIsSheetOpen(true)
-  }
-
-  const openEdit = (id: string) => {
-    setSelectedId(id)
-    setIsSheetOpen(true)
-  }
 
   return (
     <div className="flex flex-col h-full bg-card rounded-xl border border-border shadow-sm p-4">
@@ -52,7 +41,7 @@ export function ListaCLT() {
             className="pl-9"
           />
         </div>
-        <Button onClick={openNew} className="shrink-0">
+        <Button onClick={() => navigate('/gestao-pessoas/clt/novo')} className="shrink-0">
           <Plus className="w-4 h-4 mr-2 hidden sm:block" /> Novo Colaborador
         </Button>
       </div>
@@ -77,7 +66,7 @@ export function ListaCLT() {
               <TableRow
                 key={item.id}
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => openEdit(item.id)}
+                onClick={() => navigate(`/gestao-pessoas/clt/${item.id}`)}
               >
                 <TableCell className="font-medium">{item.nome_completo}</TableCell>
                 <TableCell>
@@ -90,13 +79,6 @@ export function ListaCLT() {
           </TableBody>
         </Table>
       </div>
-
-      <SheetCLT
-        isOpen={isSheetOpen}
-        onOpenChange={setIsSheetOpen}
-        id={selectedId}
-        onSaved={fetchData}
-      />
     </div>
   )
 }
