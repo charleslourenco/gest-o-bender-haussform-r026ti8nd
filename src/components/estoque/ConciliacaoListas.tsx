@@ -1,8 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Loader2, Copy, Bot, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react'
+import {
+  FileText,
+  Loader2,
+  Copy,
+  Bot,
+  AlertTriangle,
+  CheckCircle2,
+  Trash2,
+  UploadCloud,
+  AlertCircle,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -18,7 +28,10 @@ export function ConciliacaoListas() {
   const [listas, setListas] = useState<any[]>([])
   const [estoque, setEstoque] = useState<any[]>([])
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isProcessingUpload, setIsProcessingUpload] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -60,26 +73,49 @@ export function ConciliacaoListas() {
     try {
       toast({ title: 'Zenaide: Lendo Lista...', description: 'Extraindo materiais do documento.' })
 
-      const { data: fileData, error: fileError } = await supabase.storage
-        .from('bender_clientes')
-        .download(lista.arquivo_url)
-      if (fileError) throw fileError
+      let dataUrl = ''
 
-      const buffer = await fileData.arrayBuffer()
-      const mimeType = fileData.type
+      if (lista.arquivo_url) {
+        const { data: fileData, error: fileError } = await supabase.storage
+          .from('bender_clientes')
+          .download(lista.arquivo_url)
 
-      if (mimeType !== 'application/pdf') {
-        throw new Error('Apenas arquivos PDF são suportados para processamento automático.')
+        if (fileError) {
+          const { data: fallbackData, error: fallbackError } = await supabase.storage
+            .from('documentos_equipe')
+            .download(lista.arquivo_url)
+
+          if (fallbackError) throw fallbackError
+
+          if (fallbackData) {
+            const buffer = await fallbackData.arrayBuffer()
+            const mimeType = fallbackData.type
+            if (mimeType !== 'application/pdf') {
+              throw new Error('Apenas arquivos PDF são suportados para processamento automático.')
+            }
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve((reader.result as string).split(',')[1])
+              reader.onerror = reject
+              reader.readAsDataURL(new Blob([buffer], { type: mimeType }))
+            })
+            dataUrl = `data:${mimeType};base64,${base64}`
+          }
+        } else if (fileData) {
+          const buffer = await fileData.arrayBuffer()
+          const mimeType = fileData.type
+          if (mimeType !== 'application/pdf') {
+            throw new Error('Apenas arquivos PDF são suportados para processamento automático.')
+          }
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve((reader.result as string).split(',')[1])
+            reader.onerror = reject
+            reader.readAsDataURL(new Blob([buffer], { type: mimeType }))
+          })
+          dataUrl = `data:${mimeType};base64,${base64}`
+        }
       }
-
-      // Safe base64 conversion for large files
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve((reader.result as string).split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(new Blob([buffer], { type: mimeType }))
-      })
-      const dataUrl = `data:${mimeType};base64,${base64}`
 
       const response = await supabase.functions.invoke('financeiro-ai', {
         body: {
@@ -88,13 +124,20 @@ export function ConciliacaoListas() {
         },
       })
 
-      if (response.error) throw response.error
+      if (response.error) {
+        console.error('Function error:', response.error)
+        throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
+      }
 
       let parsed = response.data
       if (typeof parsed === 'string') {
+        if (parsed === '[object Object]') {
+          throw new Error('Falha ao interpretar dados do OCR (recebido object).')
+        }
         try {
           parsed = JSON.parse(parsed)
         } catch (e) {
+          console.error('Parse error:', e, parsed)
           throw new Error('Falha ao interpretar dados do OCR.')
         }
       }
@@ -110,6 +153,58 @@ export function ConciliacaoListas() {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  const handleUploadList = async (file: File) => {
+    if (!file) return
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: 'Formato inválido',
+        description: 'Por favor, envie PDF.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsProcessingUpload(true)
+    try {
+      toast({
+        title: 'Fazendo upload da lista...',
+        description: 'Enviando documento para o sistema.',
+      })
+
+      const fileName = `lista_avulsa_${Date.now()}.pdf`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documentos_equipe')
+        .upload(fileName, file, { contentType: 'application/pdf' })
+
+      if (uploadError) throw uploadError
+
+      const { error: insertError } = await supabase.from('listas_materiais' as any).insert({
+        arquivo_url: fileName,
+        status: 'pendente',
+      })
+
+      if (insertError) throw insertError
+
+      toast({
+        title: 'Sucesso',
+        description: 'Lista enviada. Agora você pode processá-la com a Zenaide.',
+      })
+      fetchData()
+    } catch (e: any) {
+      toast({ title: 'Erro no Upload', description: e.message, variant: 'destructive' })
+    } finally {
+      setIsProcessingUpload(false)
+    }
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleUploadList(e.dataTransfer.files[0])
     }
   }
 
@@ -145,174 +240,237 @@ export function ConciliacaoListas() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {listas.map((lista) => {
-          const isConciliado = lista.status === 'conciliado'
-          return (
-            <Card
-              key={lista.id}
-              className="overflow-hidden border-2 hover:border-steel-blue/50 transition-colors"
-            >
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-steel-blue/10 p-3 rounded-full">
-                      <FileText className="w-6 h-6 text-steel-blue" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-lg text-midnight-navy">
-                        Lista de Materiais - {lista.clientes?.nome || 'Cliente'}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        Enviada em {new Date(lista.criado_em).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <Card>
+            <CardContent className="pt-6">
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  isDragging ? 'border-steel-blue bg-steel-blue/5' : 'border-gray-200 bg-gray-50'
+                }`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={onDrop}
+              >
+                {isProcessingUpload ? (
+                  <div className="flex flex-col items-center">
+                    <Loader2 className="h-10 w-10 text-steel-blue animate-spin mb-4" />
+                    <p className="text-sm font-medium">Fazendo upload...</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {!isConciliado ? (
-                      <Button
-                        onClick={() => handleProcessarZenaide(lista)}
-                        disabled={processingId === lista.id}
-                        className="bg-midnight-navy hover:bg-dark-denim text-white font-bold shadow"
-                      >
-                        {processingId === lista.id ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Bot className="w-4 h-4 mr-2" />
-                        )}
-                        Processar com Zenaide (OCR)
-                      </Button>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Processado / Conciliado
-                      </Badge>
-                    )}
-                    {isAdmin && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleDelete(lista.id)}
-                        className="text-red-500 hover:bg-red-50 border-red-200"
-                        title="Apagar Lista"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {isConciliado && lista.itens && lista.itens.length > 0 && (
-                  <div className="mt-6 border rounded-lg overflow-hidden shadow-sm">
-                    <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow>
-                          <TableHead className="font-bold text-slate-700">Item (Projeto)</TableHead>
-                          <TableHead className="font-bold text-slate-700">
-                            Fornecedor / Tipo
-                          </TableHead>
-                          <TableHead className="text-right font-bold text-slate-700">
-                            Qtd Necessária
-                          </TableHead>
-                          <TableHead className="text-right font-bold text-slate-700">
-                            Em Estoque
-                          </TableHead>
-                          <TableHead className="text-right font-bold text-slate-700">
-                            Falta Comprar
-                          </TableHead>
-                          <TableHead className="text-center font-bold text-slate-700">
-                            Ação
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lista.itens.map((item: any, idx: number) => {
-                          const itemEstoque = estoque.find(
-                            (e) =>
-                              e.nome.toLowerCase().includes(item.nome.toLowerCase()) ||
-                              item.nome.toLowerCase().includes(e.nome.toLowerCase()),
-                          )
-
-                          const estoqueQtd = itemEstoque ? Number(itemEstoque.quantidade) : 0
-                          const falta = Math.max(0, Number(item.quantidade) - estoqueQtd)
-                          const isTerceirizado =
-                            itemEstoque?.terceirizado ||
-                            item.nome.toLowerCase().includes('terceirizado')
-
-                          return (
-                            <TableRow key={idx} className={falta > 0 ? 'bg-red-50/20' : ''}>
-                              <TableCell className="font-medium text-midnight-navy">
-                                {item.nome}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex flex-col items-start gap-1">
-                                  <span className="text-sm font-medium text-slate-600">
-                                    {itemEstoque?.fornecedor || 'Não cadastrado no sistema'}
-                                  </span>
-                                  {isTerceirizado && (
-                                    <Badge
-                                      variant="secondary"
-                                      className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-xs border-purple-200"
-                                    >
-                                      Terceirizado
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right font-bold text-slate-700">
-                                {item.quantidade}
-                              </TableCell>
-                              <TableCell className="text-right font-medium text-slate-500">
-                                {estoqueQtd}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {falta > 0 ? (
-                                  <span className="text-red-600 font-bold bg-red-100 px-2 py-1 rounded-md">
-                                    {falta}
-                                  </span>
-                                ) : (
-                                  <span className="text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded-md">
-                                    OK
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {falta > 0 && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleCopiarPedido(item, itemEstoque)}
-                                    className="border-steel-blue text-steel-blue hover:bg-steel-blue hover:text-white font-medium"
-                                  >
-                                    <Copy className="w-4 h-4 mr-1" /> Copiar Pedido
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          )
-                        })}
-                      </TableBody>
-                    </Table>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <UploadCloud className="h-10 w-10 text-gray-400 mb-4" />
+                    <h3 className="font-semibold mb-1">Upload de Lista (PDF)</h3>
+                    <p className="text-sm text-gray-500 mb-4">Arraste a lista de materiais aqui</p>
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-midnight-navy hover:bg-dark-denim"
+                    >
+                      Selecionar Arquivo
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        if (e.target.files) handleUploadList(e.target.files[0])
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
+                    />
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          )
-        })}
-        {listas.length === 0 && (
-          <div className="text-center py-16 bg-white border-2 border-dashed rounded-xl">
-            <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-10 h-10 text-slate-300" />
+              </div>
+
+              <div className="mt-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+                <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800">
+                  <AlertCircle className="w-4 h-4" /> Inteligência da Zenaide
+                </h4>
+                <p className="text-xs text-blue-700/80 leading-relaxed">
+                  Envie a lista de materiais em PDF. A Zenaide lerá todos os itens e fará a
+                  conciliação cruzando os dados com o inventário atual, apontando exatamente o que
+                  precisa ser comprado.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-2 space-y-6">
+          {listas.map((lista) => {
+            const isConciliado = lista.status === 'conciliado'
+            return (
+              <Card
+                key={lista.id}
+                className="overflow-hidden border-2 hover:border-steel-blue/50 transition-colors"
+              >
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-steel-blue/10 p-3 rounded-full">
+                        <FileText className="w-6 h-6 text-steel-blue" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-midnight-navy">
+                          Lista de Materiais{' '}
+                          {lista.clientes?.nome ? `- ${lista.clientes.nome}` : '(Avulsa)'}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          Enviada em {new Date(lista.criado_em).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isConciliado ? (
+                        <Button
+                          onClick={() => handleProcessarZenaide(lista)}
+                          disabled={processingId === lista.id}
+                          className="bg-midnight-navy hover:bg-dark-denim text-white font-bold shadow"
+                        >
+                          {processingId === lista.id ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Bot className="w-4 h-4 mr-2" />
+                          )}
+                          Processar com Zenaide (OCR)
+                        </Button>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Processado / Conciliado
+                        </Badge>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleDelete(lista.id)}
+                          className="text-red-500 hover:bg-red-50 border-red-200"
+                          title="Apagar Lista"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isConciliado && lista.itens && lista.itens.length > 0 && (
+                    <div className="mt-6 border rounded-lg overflow-hidden shadow-sm">
+                      <Table>
+                        <TableHeader className="bg-slate-50">
+                          <TableRow>
+                            <TableHead className="font-bold text-slate-700">
+                              Item (Projeto)
+                            </TableHead>
+                            <TableHead className="font-bold text-slate-700">
+                              Fornecedor / Tipo
+                            </TableHead>
+                            <TableHead className="text-right font-bold text-slate-700">
+                              Qtd Necessária
+                            </TableHead>
+                            <TableHead className="text-right font-bold text-slate-700">
+                              Em Estoque
+                            </TableHead>
+                            <TableHead className="text-right font-bold text-slate-700">
+                              Falta Comprar
+                            </TableHead>
+                            <TableHead className="text-center font-bold text-slate-700">
+                              Ação
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lista.itens.map((item: any, idx: number) => {
+                            const itemEstoque = estoque.find(
+                              (e) =>
+                                e.nome.toLowerCase().includes(item.nome.toLowerCase()) ||
+                                item.nome.toLowerCase().includes(e.nome.toLowerCase()),
+                            )
+
+                            const estoqueQtd = itemEstoque ? Number(itemEstoque.quantidade) : 0
+                            const falta = Math.max(0, Number(item.quantidade) - estoqueQtd)
+                            const isTerceirizado =
+                              itemEstoque?.terceirizado ||
+                              item.nome.toLowerCase().includes('terceirizado')
+
+                            return (
+                              <TableRow key={idx} className={falta > 0 ? 'bg-red-50/20' : ''}>
+                                <TableCell className="font-medium text-midnight-navy">
+                                  {item.nome}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col items-start gap-1">
+                                    <span className="text-sm font-medium text-slate-600">
+                                      {itemEstoque?.fornecedor || 'Não cadastrado no sistema'}
+                                    </span>
+                                    {isTerceirizado && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-xs border-purple-200"
+                                      >
+                                        Terceirizado
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-slate-700">
+                                  {item.quantidade}
+                                </TableCell>
+                                <TableCell className="text-right font-medium text-slate-500">
+                                  {estoqueQtd}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {falta > 0 ? (
+                                    <span className="text-red-600 font-bold bg-red-100 px-2 py-1 rounded-md">
+                                      {falta}
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded-md">
+                                      OK
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {falta > 0 && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleCopiarPedido(item, itemEstoque)}
+                                      className="border-steel-blue text-steel-blue hover:bg-steel-blue hover:text-white font-medium"
+                                    >
+                                      <Copy className="w-4 h-4 mr-1" /> Copiar Pedido
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+          {listas.length === 0 && (
+            <div className="text-center py-16 bg-white border-2 border-dashed rounded-xl h-full flex flex-col justify-center items-center">
+              <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                <FileText className="w-10 h-10 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-700">Nenhuma lista pendente</h3>
+              <p className="text-sm mt-1 text-slate-500 max-w-md">
+                Faça o upload de uma lista ao lado ou importe através do perfil do cliente. As
+                listas aparecerão aqui para serem conciliadas.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-slate-700">Nenhuma lista pendente</h3>
-            <p className="text-sm mt-1 text-slate-500 max-w-md mx-auto">
-              As listas de materiais importadas diretamente no perfil dos clientes (na aba de
-              Documentos) aparecerão automaticamente aqui para a Zenaide conciliar.
-            </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

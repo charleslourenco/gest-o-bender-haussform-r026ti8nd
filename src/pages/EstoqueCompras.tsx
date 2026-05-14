@@ -40,12 +40,14 @@ export default function EstoqueCompras() {
           </TabsContent>
           <TabsContent value="documentos" className="m-0 border-none outline-none space-y-8">
             <section>
-              <h2 className="text-xl font-bold text-midnight-navy mb-4">Notas Fiscais (OCR)</h2>
+              <h2 className="text-xl font-bold text-midnight-navy mb-4">
+                Entrada de Mercadorias (NF/OCR)
+              </h2>
               <ComprasOCR />
             </section>
             <section>
               <h2 className="text-xl font-bold text-midnight-navy mb-4">
-                Listas de Materiais & Projetos
+                Lista de Materiais por projeto
               </h2>
               <ConciliacaoListas />
             </section>

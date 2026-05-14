@@ -74,14 +74,20 @@ export function ComprasOCR() {
           },
         })
 
-        if (response.error) throw response.error
+        if (response.error) {
+          console.error('Function error:', response.error)
+          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
+        }
 
         let extractedData = response.data
         if (typeof extractedData === 'string') {
+          if (extractedData === '[object Object]') {
+            throw new Error('Falha ao interpretar dados do OCR (recebido object).')
+          }
           try {
             extractedData = JSON.parse(extractedData)
           } catch (e) {
-            console.error('Failed to parse OCR response', e)
+            console.error('Failed to parse OCR response', e, extractedData)
             throw new Error('Falha ao interpretar dados do OCR.')
           }
         }
