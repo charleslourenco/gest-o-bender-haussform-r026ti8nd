@@ -2,10 +2,25 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import { Loader2, AlertCircle, GripVertical, User, Package, CalendarClock } from 'lucide-react'
+import {
+  Loader2,
+  AlertCircle,
+  GripVertical,
+  User,
+  Package,
+  CalendarClock,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { KanbanHeader } from './KanbanHeader'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface ColumnDef {
   id: string
@@ -38,6 +53,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [selectedAnalyst, setSelectedAnalyst] = useState('all')
   const [selectedConsultant, setSelectedConsultant] = useState('all')
   const [usersMap, setUsersMap] = useState<Record<string, any>>({})
+  const [allUsers, setAllUsers] = useState<any[]>([])
 
   useEffect(() => {
     fetchItems()
@@ -109,20 +125,22 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const allIds = Array.from(new Set([...uniqueAnalysts, ...uniqueConsultants]))
-      if (allIds.length === 0) return
-
-      const { data } = await supabase.from('users').select('id, nome, foto_perfil').in('id', allIds)
+      const { data } = await supabase
+        .from('users')
+        .select('id, nome, foto_perfil')
+        .eq('status', true)
+        .order('nome')
       if (data) {
         const map: Record<string, any> = {}
         data.forEach((u) => {
           map[u.id] = u
         })
         setUsersMap(map)
+        setAllUsers(data)
       }
     }
     fetchUsers()
-  }, [items])
+  }, [])
 
   const filteredItems = items.filter((item) => {
     if (searchQuery) {
@@ -168,6 +186,32 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.currentTarget.classList.remove('bg-steel-blue/10')
+  }
+
+  const handleDeleteCard = async (id: string) => {
+    if (!confirm('Deseja realmente excluir este card?')) return
+    try {
+      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', id)
+      if (error) throw error
+      toast.success('Card excluído com sucesso!')
+      setItems((prev) => prev.filter((i) => i.id !== id))
+    } catch (err: any) {
+      toast.error('Erro ao excluir card: ' + err.message)
+    }
+  }
+
+  const handleAssignAnalyst = async (id: string, analystId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('produtos_servicos_projeto')
+        .update({ analista_id: analystId, atualizado_em: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+      toast.success('Responsável atualizado com sucesso!')
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, analista_id: analystId } : i)))
+    } catch (err: any) {
+      toast.error('Erro ao atribuir responsável: ' + err.message)
+    }
   }
 
   const handleDrop = async (e: React.DragEvent, columnId: string) => {
@@ -272,11 +316,24 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       onDragEnd={handleDragEnd}
                       className="group relative cursor-grab rounded-lg border border-steel-blue/20 bg-white p-4 shadow-sm hover:border-steel-blue/50 hover:shadow-md active:cursor-grabbing transition-all duration-200"
                     >
-                      <div className="absolute top-4 right-3 text-steel-blue/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <GripVertical className="h-4 w-4" />
+                      <div className="absolute top-4 right-3 text-steel-blue/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white pl-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteCard(item.id)
+                          }}
+                          className="p-1 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="Excluir card"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                        <div className="p-1 cursor-grab active:cursor-grabbing">
+                          <GripVertical className="h-4 w-4" />
+                        </div>
                       </div>
 
-                      <div className="mb-3 pr-6">
+                      <div className="mb-3 pr-16">
                         <h4 className="font-semibold text-midnight-navy leading-snug">
                           {item.nome_produto}
                         </h4>
@@ -306,6 +363,36 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
                           </div>
                         </div>
+                      </div>
+
+                      <div
+                        className="mt-4 pt-3 border-t border-steel-blue/10"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Select
+                          value={item.analista_id || 'unassigned'}
+                          onValueChange={(val) =>
+                            handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                          }
+                        >
+                          <SelectTrigger className="h-8 text-xs border-steel-blue/20 bg-pale-cornflower/20 w-full focus:ring-0 focus:ring-offset-0">
+                            <SelectValue placeholder="Atribuir responsável..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem
+                              value="unassigned"
+                              className="text-xs text-muted-foreground"
+                            >
+                              Não atribuído
+                            </SelectItem>
+                            {allUsers.map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   ))}
