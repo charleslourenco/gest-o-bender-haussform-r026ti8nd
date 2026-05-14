@@ -75,7 +75,7 @@ export function AIAssistant() {
     if (character !== newChar) {
       setCharacter(newChar)
       setMessages([])
-      setIsOpen(true) // Always open initially when switching
+      setIsOpen(false) // Start closed by default
       setHasNewMessage(false)
     }
   }, [location.pathname, character])
