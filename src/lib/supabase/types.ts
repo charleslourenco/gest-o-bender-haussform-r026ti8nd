@@ -1275,6 +1275,36 @@ export type Database = {
           },
         ]
       }
+      notificacoes: {
+        Row: {
+          criado_em: string
+          id: string
+          lida: boolean
+          link: string | null
+          mensagem: string
+          titulo: string
+          usuario_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem: string
+          titulo: string
+          usuario_id: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem?: string
+          titulo?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
       pagamentos: {
         Row: {
           atualizado_em: string | null
@@ -1673,6 +1703,65 @@ export type Database = {
             columns: ['formulario_comercial_id']
             isOneToOne: false
             referencedRelation: 'formulario_comercial'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      solicitacoes_compra: {
+        Row: {
+          atualizado_em: string
+          cor: string | null
+          criado_em: string
+          id: string
+          link: string | null
+          modelo: string | null
+          motivo: string | null
+          nome_item: string
+          quantidade: number
+          status: string
+          tamanho: string | null
+          unidade: string
+          urgencia: string
+          usuario_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cor?: string | null
+          criado_em?: string
+          id?: string
+          link?: string | null
+          modelo?: string | null
+          motivo?: string | null
+          nome_item: string
+          quantidade: number
+          status?: string
+          tamanho?: string | null
+          unidade: string
+          urgencia?: string
+          usuario_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          cor?: string | null
+          criado_em?: string
+          id?: string
+          link?: string | null
+          modelo?: string | null
+          motivo?: string | null
+          nome_item?: string
+          quantidade?: number
+          status?: string
+          tamanho?: string | null
+          unidade?: string
+          urgencia?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'solicitacoes_compra_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
             referencedColumns: ['id']
           },
         ]
@@ -2290,6 +2379,14 @@ export const Constants = {
 //   status_reconciliacao: text (not null, default: 'pendente'::text)
 //   dados_ocr: jsonb (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: notificacoes
+//   id: uuid (not null, default: gen_random_uuid())
+//   usuario_id: uuid (not null)
+//   titulo: text (not null)
+//   mensagem: text (not null)
+//   lida: boolean (not null, default: false)
+//   link: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: pagamentos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -2383,6 +2480,21 @@ export const Constants = {
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   analista_id: uuid (nullable)
 //   codigo_rastreio: text (nullable)
+// Table: solicitacoes_compra
+//   id: uuid (not null, default: gen_random_uuid())
+//   usuario_id: uuid (not null)
+//   nome_item: text (not null)
+//   quantidade: numeric (not null)
+//   unidade: text (not null)
+//   link: text (nullable)
+//   cor: text (nullable)
+//   tamanho: text (nullable)
+//   modelo: text (nullable)
+//   motivo: text (nullable)
+//   urgencia: text (not null, default: 'Média'::text)
+//   status: text (not null, default: 'Pendente'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -2509,6 +2621,9 @@ export const Constants = {
 // Table: notas_fiscais
 //   FOREIGN KEY notas_fiscais_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE SET NULL
 //   PRIMARY KEY notas_fiscais_pkey: PRIMARY KEY (id)
+// Table: notificacoes
+//   PRIMARY KEY notificacoes_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY notificacoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: pagamentos
 //   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY pagamentos_formulario_id_fkey: FOREIGN KEY (formulario_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -2537,6 +2652,9 @@ export const Constants = {
 //   FOREIGN KEY produtos_servicos_projeto_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY produtos_servicos_projeto_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
+// Table: solicitacoes_compra
+//   PRIMARY KEY solicitacoes_compra_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY solicitacoes_compra_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
 // Table: templates
 //   PRIMARY KEY templates_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY templates_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -2738,6 +2856,14 @@ export const Constants = {
 //   Policy "notas_fiscais_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: notificacoes
+//   Policy "Enable insert for system or admins" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "Enable read access for own notifications" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
+//   Policy "Enable update for own notifications" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
+//     WITH CHECK: (usuario_id = auth.uid())
 // Table: pagamentos
 //   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
@@ -2794,6 +2920,16 @@ export const Constants = {
 //     USING: (has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
 //   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (((formulario_comercial_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))) OR has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
+// Table: solicitacoes_compra
+//   Policy "Enable delete for own or admin" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+//   Policy "Enable insert for authenticated users" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "Enable read access for all authenticated users" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "Enable update for own or admin" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+//     WITH CHECK: true
 // Table: templates
 //   Policy "templates_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
@@ -2999,6 +3135,25 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION notify_solicitacao_comprada()
+//   CREATE OR REPLACE FUNCTION public.notify_solicitacao_comprada()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     IF NEW.status = 'Comprado' AND OLD.status != 'Comprado' THEN
+//       INSERT INTO public.notificacoes (usuario_id, titulo, mensagem)
+//       VALUES (
+//         NEW.usuario_id,
+//         'Material Disponível!',
+//         'Sua solicitação do item "' || NEW.nome_item || '" foi marcada como Comprada/Disponível.'
+//       );
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION rls_auto_enable()
 //   CREATE OR REPLACE FUNCTION public.rls_auto_enable()
 //    RETURNS event_trigger
@@ -3069,6 +3224,9 @@ export const Constants = {
 // Table: produtos_servicos_projeto
 //   on_kanban_status_change: CREATE TRIGGER on_kanban_status_change AFTER UPDATE ON public.produtos_servicos_projeto FOR EACH ROW EXECUTE FUNCTION log_kanban_history()
 //   trg_generate_codigo_rastreio: CREATE TRIGGER trg_generate_codigo_rastreio BEFORE INSERT ON public.produtos_servicos_projeto FOR EACH ROW EXECUTE FUNCTION generate_codigo_rastreio()
+// Table: solicitacoes_compra
+//   on_solicitacao_comprada: CREATE TRIGGER on_solicitacao_comprada AFTER UPDATE ON public.solicitacoes_compra FOR EACH ROW EXECUTE FUNCTION notify_solicitacao_comprada()
+//   set_solicitacoes_compra_atualizado_em: CREATE TRIGGER set_solicitacoes_compra_atualizado_em BEFORE UPDATE ON public.solicitacoes_compra FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: templates
 //   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 

@@ -5,6 +5,7 @@ import { EstoqueLista } from '@/components/estoque/EstoqueLista'
 import { ComprasOCR } from '@/components/estoque/ComprasOCR'
 import { ConciliacaoListas } from '@/components/estoque/ConciliacaoListas'
 import { SolicitacoesCompra } from '@/components/estoque/SolicitacoesCompra'
+import { ItensCliente } from '@/components/estoque/ItensCliente'
 
 export default function EstoqueCompras() {
   return (
@@ -26,6 +27,7 @@ export default function EstoqueCompras() {
           <TabsTrigger value="estoque">Inventário</TabsTrigger>
           <TabsTrigger value="compras">Pedidos & OCR</TabsTrigger>
           <TabsTrigger value="listas">Listas & Conciliação</TabsTrigger>
+          <TabsTrigger value="itens-cliente">Itens de Cliente</TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-y-auto mt-4 pb-20">
           <TabsContent value="overview" className="m-0 border-none outline-none">
@@ -42,6 +44,9 @@ export default function EstoqueCompras() {
           </TabsContent>
           <TabsContent value="listas" className="m-0 border-none outline-none">
             <ConciliacaoListas />
+          </TabsContent>
+          <TabsContent value="itens-cliente" className="m-0 border-none outline-none">
+            <ItensCliente />
           </TabsContent>
         </div>
       </Tabs>
