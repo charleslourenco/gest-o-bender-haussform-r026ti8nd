@@ -46,10 +46,10 @@ export function ComprasOCR() {
 
   const handleProcessFile = async (file: File) => {
     if (!file) return
-    if (file.type !== 'application/pdf') {
+    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
       toast({
         title: 'Formato inválido',
-        description: 'Por favor, envie apenas arquivos PDF.',
+        description: 'Por favor, envie PDF ou Imagens (JPG/PNG).',
         variant: 'destructive',
       })
       return
@@ -96,6 +96,11 @@ export function ComprasOCR() {
           }
         }
 
+        const hasItens =
+          extractedData.itens &&
+          Array.isArray(extractedData.itens) &&
+          extractedData.itens.length > 0
+
         // Save to database
         const { data: newNota, error: dbError } = await supabase
           .from('notas_fiscais' as any)
@@ -104,7 +109,7 @@ export function ComprasOCR() {
             valor_total: extractedData.valor || 0,
             data_emissao: extractedData.data_emissao || new Date().toISOString().split('T')[0],
             dados_ocr: extractedData,
-            status_reconciliacao: 'pendente',
+            status_reconciliacao: hasItens ? 'conciliado' : 'pendente',
             numero_nota: extractedData.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
           })
           .select()
@@ -112,8 +117,67 @@ export function ComprasOCR() {
 
         if (dbError) throw dbError
 
+        // População Automática do Inventário
+        let inventoryInserted = 0
+        if (hasItens && newNota) {
+          for (const item of extractedData.itens) {
+            const nomeProduto = item.produto || 'Item Desconhecido'
+            const qtd = Number(item.quantidade) || 1
+            const precoUnitario = Number(item.preco_unitario) || 0
+
+            const { data: existingItem } = await supabase
+              .from('estoque_itens')
+              .select('id, quantidade')
+              .ilike('nome', `%${nomeProduto}%`)
+              .limit(1)
+              .maybeSingle()
+
+            let itemId = ''
+            if (existingItem) {
+              itemId = existingItem.id
+              await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Number(existingItem.quantidade) + qtd,
+                  valor_unitario: precoUnitario,
+                  fornecedor: extractedData.fornecedor || 'Desconhecido',
+                  atualizado_em: new Date().toISOString(),
+                })
+                .eq('id', existingItem.id)
+            } else {
+              const { data: insertedItem } = await supabase
+                .from('estoque_itens')
+                .insert({
+                  nome: nomeProduto,
+                  quantidade: qtd,
+                  valor_unitario: precoUnitario,
+                  fornecedor: extractedData.fornecedor || 'Desconhecido',
+                  unidade: 'un',
+                  estoque_minimo: 5,
+                })
+                .select('id')
+                .single()
+
+              if (insertedItem) itemId = insertedItem.id
+            }
+
+            if (itemId) {
+              inventoryInserted++
+              await supabase.from('estoque_movimentacoes').insert({
+                item_id: itemId,
+                nota_fiscal_id: newNota.id,
+                tipo: 'entrada',
+                quantidade: qtd,
+              })
+            }
+          }
+        }
+
         toast({
-          title: 'Documento Validado!',
+          title:
+            inventoryInserted > 0
+              ? 'Documento Processado e Estoque Atualizado!'
+              : 'Documento Validado!',
           description: `Nº Doc: ${extractedData.numero_nota || '-'} | Fornecedor: ${extractedData.fornecedor} | Total: R$ ${extractedData.valor}`,
           variant: 'default',
         })
@@ -168,7 +232,7 @@ export function ComprasOCR() {
                 <div className="flex flex-col items-center">
                   <UploadCloud className="h-10 w-10 text-gray-400 mb-4" />
                   <h3 className="font-semibold mb-1">Upload de Nota Fiscal / Fatura</h3>
-                  <p className="text-sm text-gray-500 mb-4">Arraste o PDF/Imagem ou clique</p>
+                  <p className="text-sm text-gray-500 mb-4">Arraste o PDF ou Imagem (JPG/PNG)</p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
                     className="bg-midnight-navy hover:bg-dark-denim"
@@ -179,7 +243,7 @@ export function ComprasOCR() {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept=".pdf"
+                    accept=".pdf,image/png,image/jpeg,image/jpg"
                     onChange={(e) => {
                       if (e.target.files) handleProcessFile(e.target.files[0])
                       if (fileInputRef.current) fileInputRef.current.value = ''

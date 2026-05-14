@@ -21,17 +21,27 @@ Deno.serve(async (req) => {
     if (action === 'ocr_lista_materiais') {
       const { imageBase64, isPdf } = payload
       let pdfText = ''
+      let isScannedPdf = false
 
       if (isPdf) {
         try {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text.substring(0, 15000) // Limit string length to avoid context window explosion
+          pdfText = data.text.trim().substring(0, 15000) // Limit string length to avoid context window explosion
+          if (!pdfText || pdfText.length < 10) {
+            isScannedPdf = true
+          }
         } catch (e) {
           console.error('PDF Parse Error', e)
           throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
+      }
+
+      if (isScannedPdf) {
+        throw new Error(
+          'O PDF parece ser escaneado (sem texto legível). Por favor, tire um print/foto do documento e faça o upload como imagem (JPG/PNG).',
+        )
       }
 
       const userContent: any[] = [
@@ -43,7 +53,7 @@ Deno.serve(async (req) => {
 
       if (isPdf && pdfText) {
         userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
-      } else {
+      } else if (!isPdf) {
         userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
       }
 
@@ -72,17 +82,27 @@ Deno.serve(async (req) => {
     if (action === 'ocr_compras') {
       const { imageBase64, isPdf } = payload
       let pdfText = ''
+      let isScannedPdf = false
 
       if (isPdf) {
         try {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text.substring(0, 15000)
+          pdfText = data.text.trim().substring(0, 15000)
+          if (!pdfText || pdfText.length < 10) {
+            isScannedPdf = true
+          }
         } catch (e) {
           console.error('PDF Parse Error', e)
           throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
+      }
+
+      if (isScannedPdf) {
+        throw new Error(
+          'O PDF parece ser escaneado (sem texto legível). Por favor, tire um print/foto da nota e faça o upload como imagem (JPG/PNG).',
+        )
       }
 
       const userContent: any[] = [
@@ -94,7 +114,7 @@ Deno.serve(async (req) => {
 
       if (isPdf && pdfText) {
         userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
-      } else {
+      } else if (!isPdf) {
         userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
       }
 
@@ -123,17 +143,27 @@ Deno.serve(async (req) => {
     if (action === 'ocr') {
       const { imageBase64, isPdf } = payload
       let pdfText = ''
+      let isScannedPdf = false
 
       if (isPdf) {
         try {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text.substring(0, 15000)
+          pdfText = data.text.trim().substring(0, 15000)
+          if (!pdfText || pdfText.length < 10) {
+            isScannedPdf = true
+          }
         } catch (e) {
           console.error('PDF Parse Error', e)
           throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
         }
+      }
+
+      if (isScannedPdf) {
+        throw new Error(
+          'O PDF parece ser escaneado (sem texto legível). Por favor, tire um print/foto do comprovante e faça o upload como imagem (JPG/PNG).',
+        )
       }
 
       const userContent: any[] = [
@@ -145,7 +175,7 @@ Deno.serve(async (req) => {
 
       if (isPdf && pdfText) {
         userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
-      } else {
+      } else if (!isPdf) {
         userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
       }
 
