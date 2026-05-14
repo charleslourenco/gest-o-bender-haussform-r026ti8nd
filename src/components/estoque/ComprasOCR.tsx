@@ -76,9 +76,17 @@ export function ComprasOCR() {
 
         if (response.error) throw response.error
 
-        const extractedData = JSON.parse(response.data)
+        let extractedData = response.data
+        if (typeof extractedData === 'string') {
+          try {
+            extractedData = JSON.parse(extractedData)
+          } catch (e) {
+            console.error('Failed to parse OCR response', e)
+            throw new Error('Falha ao interpretar dados do OCR.')
+          }
+        }
 
-        if (extractedData.numero_nota) {
+        if (extractedData?.numero_nota) {
           const { data: existente } = await supabase
             .from('notas_fiscais' as any)
             .select('id')
@@ -97,7 +105,7 @@ export function ComprasOCR() {
         }
 
         const hasItens =
-          extractedData.itens &&
+          extractedData?.itens &&
           Array.isArray(extractedData.itens) &&
           extractedData.itens.length > 0
 
@@ -105,12 +113,12 @@ export function ComprasOCR() {
         const { data: newNota, error: dbError } = await supabase
           .from('notas_fiscais' as any)
           .insert({
-            fornecedor: extractedData.fornecedor || 'Desconhecido',
-            valor_total: extractedData.valor || 0,
-            data_emissao: extractedData.data_emissao || new Date().toISOString().split('T')[0],
+            fornecedor: extractedData?.fornecedor || 'Desconhecido',
+            valor_total: extractedData?.valor || 0,
+            data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
             dados_ocr: extractedData,
             status_reconciliacao: hasItens ? 'conciliado' : 'pendente',
-            numero_nota: extractedData.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
+            numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
           })
           .select()
           .single()
@@ -140,7 +148,7 @@ export function ComprasOCR() {
                 .update({
                   quantidade: Number(existingItem.quantidade) + qtd,
                   valor_unitario: precoUnitario,
-                  fornecedor: extractedData.fornecedor || 'Desconhecido',
+                  fornecedor: extractedData?.fornecedor || 'Desconhecido',
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existingItem.id)
@@ -151,7 +159,7 @@ export function ComprasOCR() {
                   nome: nomeProduto,
                   quantidade: qtd,
                   valor_unitario: precoUnitario,
-                  fornecedor: extractedData.fornecedor || 'Desconhecido',
+                  fornecedor: extractedData?.fornecedor || 'Desconhecido',
                   unidade: 'un',
                   estoque_minimo: 5,
                 })
@@ -178,7 +186,7 @@ export function ComprasOCR() {
             inventoryInserted > 0
               ? 'Documento Processado e Estoque Atualizado!'
               : 'Documento Validado!',
-          description: `Nº Doc: ${extractedData.numero_nota || '-'} | Fornecedor: ${extractedData.fornecedor} | Total: R$ ${extractedData.valor}`,
+          description: `Nº Doc: ${extractedData?.numero_nota || '-'} | Fornecedor: ${extractedData?.fornecedor || '-'} | Total: R$ ${extractedData?.valor || 0}`,
           variant: 'default',
         })
 
