@@ -318,8 +318,8 @@ export function ComprasOCR() {
                           }
                         >
                           {nota.status_reconciliacao === 'pendente'
-                            ? 'Conciliação Pendente'
-                            : 'Validado'}
+                            ? 'Lido (Conciliação Pendente)'
+                            : 'Processado / Validado'}
                         </Badge>
                         {isAdmin && (
                           <Button

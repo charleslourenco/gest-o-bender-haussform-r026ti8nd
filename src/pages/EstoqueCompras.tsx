@@ -25,8 +25,7 @@ export default function EstoqueCompras() {
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
           <TabsTrigger value="estoque">Inventário</TabsTrigger>
-          <TabsTrigger value="compras">Pedidos & OCR</TabsTrigger>
-          <TabsTrigger value="listas">Listas & Conciliação</TabsTrigger>
+          <TabsTrigger value="documentos">Documentos & OCR</TabsTrigger>
           <TabsTrigger value="itens-cliente">Itens de Cliente</TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-y-auto mt-4 pb-20">
@@ -39,11 +38,17 @@ export default function EstoqueCompras() {
           <TabsContent value="estoque" className="m-0 border-none outline-none">
             <EstoqueLista />
           </TabsContent>
-          <TabsContent value="compras" className="m-0 border-none outline-none">
-            <ComprasOCR />
-          </TabsContent>
-          <TabsContent value="listas" className="m-0 border-none outline-none">
-            <ConciliacaoListas />
+          <TabsContent value="documentos" className="m-0 border-none outline-none space-y-8">
+            <section>
+              <h2 className="text-xl font-bold text-midnight-navy mb-4">Notas Fiscais (OCR)</h2>
+              <ComprasOCR />
+            </section>
+            <section>
+              <h2 className="text-xl font-bold text-midnight-navy mb-4">
+                Listas de Materiais & Projetos
+              </h2>
+              <ConciliacaoListas />
+            </section>
           </TabsContent>
           <TabsContent value="itens-cliente" className="m-0 border-none outline-none">
             <ItensCliente />

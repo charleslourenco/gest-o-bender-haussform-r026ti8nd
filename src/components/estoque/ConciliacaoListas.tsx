@@ -89,11 +89,19 @@ export function ConciliacaoListas() {
       })
 
       if (response.error) throw response.error
-      const parsed = JSON.parse(response.data)
+
+      let parsed = response.data
+      if (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed)
+        } catch (e) {
+          throw new Error('Falha ao interpretar dados do OCR.')
+        }
+      }
 
       await supabase
         .from('listas_materiais' as any)
-        .update({ status: 'conciliado', itens: parsed.itens || [] })
+        .update({ status: 'conciliado', itens: parsed?.itens || [] })
         .eq('id', lista.id)
 
       toast({ title: 'Sucesso', description: 'Lista processada e conciliada com sucesso!' })
@@ -179,7 +187,7 @@ export function ConciliacaoListas() {
                         variant="outline"
                         className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
                       >
-                        <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Conciliado
+                        <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Processado / Conciliado
                       </Badge>
                     )}
                     {isAdmin && (
