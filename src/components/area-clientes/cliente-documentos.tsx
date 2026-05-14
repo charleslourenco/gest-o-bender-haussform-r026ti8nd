@@ -355,7 +355,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               onClick={() => handleUploadClick('lista_materiais')}
               className="cursor-pointer font-medium text-amber-700"
             >
-              📋 Lista de Materiais (Estoque)
+              📋 Lista de Materiais por projeto
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => handleUploadClick('upload_manual')}
