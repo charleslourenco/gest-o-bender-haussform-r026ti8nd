@@ -113,6 +113,7 @@ export type Database = {
         Row: {
           assinatura_imagem: string | null
           cliente_id: string | null
+          clt_id: string | null
           codigo_confirmacao: string
           criado_em: string
           data_assinatura: string | null
@@ -121,6 +122,7 @@ export type Database = {
           expira_em: string
           id: string
           ip_assinatura: string | null
+          pj_id: string | null
           signatario_cpf: string | null
           signatario_data_nascimento: string | null
           signatario_email: string | null
@@ -132,6 +134,7 @@ export type Database = {
         Insert: {
           assinatura_imagem?: string | null
           cliente_id?: string | null
+          clt_id?: string | null
           codigo_confirmacao: string
           criado_em?: string
           data_assinatura?: string | null
@@ -140,6 +143,7 @@ export type Database = {
           expira_em: string
           id?: string
           ip_assinatura?: string | null
+          pj_id?: string | null
           signatario_cpf?: string | null
           signatario_data_nascimento?: string | null
           signatario_email?: string | null
@@ -151,6 +155,7 @@ export type Database = {
         Update: {
           assinatura_imagem?: string | null
           cliente_id?: string | null
+          clt_id?: string | null
           codigo_confirmacao?: string
           criado_em?: string
           data_assinatura?: string | null
@@ -159,6 +164,7 @@ export type Database = {
           expira_em?: string
           id?: string
           ip_assinatura?: string | null
+          pj_id?: string | null
           signatario_cpf?: string | null
           signatario_data_nascimento?: string | null
           signatario_email?: string | null
@@ -173,6 +179,20 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assinaturas_clt_id_fkey'
+            columns: ['clt_id']
+            isOneToOne: false
+            referencedRelation: 'equipe_clt'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'assinaturas_pj_id_fkey'
+            columns: ['pj_id']
+            isOneToOne: false
+            referencedRelation: 'parceiros_pj'
             referencedColumns: ['id']
           },
         ]
@@ -649,32 +669,38 @@ export type Database = {
       envelopes_assinatura: {
         Row: {
           cliente_id: string | null
+          clt_id: string | null
           concluido_em: string | null
           criado_em: string | null
           criado_por: string | null
           documento_id: string
           id: string
           nome_documento: string
+          pj_id: string | null
           status: string | null
         }
         Insert: {
           cliente_id?: string | null
+          clt_id?: string | null
           concluido_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
           documento_id: string
           id?: string
           nome_documento: string
+          pj_id?: string | null
           status?: string | null
         }
         Update: {
           cliente_id?: string | null
+          clt_id?: string | null
           concluido_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
           documento_id?: string
           id?: string
           nome_documento?: string
+          pj_id?: string | null
           status?: string | null
         }
         Relationships: [
@@ -683,6 +709,20 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'envelopes_assinatura_clt_id_fkey'
+            columns: ['clt_id']
+            isOneToOne: false
+            referencedRelation: 'equipe_clt'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'envelopes_assinatura_pj_id_fkey'
+            columns: ['pj_id']
+            isOneToOne: false
+            referencedRelation: 'parceiros_pj'
             referencedColumns: ['id']
           },
         ]
@@ -1987,6 +2027,8 @@ export const Constants = {
 //   ip_assinatura: text (nullable)
 //   signatario_data_nascimento: date (nullable)
 //   assinatura_imagem: text (nullable)
+//   clt_id: uuid (nullable)
+//   pj_id: uuid (nullable)
 // Table: clientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -2109,6 +2151,8 @@ export const Constants = {
 //   criado_por: uuid (nullable)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   concluido_em: timestamp with time zone (nullable)
+//   clt_id: uuid (nullable)
+//   pj_id: uuid (nullable)
 // Table: equipe_clt
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome_completo: text (not null)
@@ -2385,6 +2429,8 @@ export const Constants = {
 //   UNIQUE assinantes_token_acesso_key: UNIQUE (token_acesso)
 // Table: assinaturas
 //   FOREIGN KEY assinaturas_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY assinaturas_clt_id_fkey: FOREIGN KEY (clt_id) REFERENCES equipe_clt(id) ON DELETE CASCADE
+//   FOREIGN KEY assinaturas_pj_id_fkey: FOREIGN KEY (pj_id) REFERENCES parceiros_pj(id) ON DELETE CASCADE
 //   PRIMARY KEY assinaturas_pkey: PRIMARY KEY (id)
 // Table: clientes
 //   UNIQUE clientes_cpf_key: UNIQUE (cpf)
@@ -2424,7 +2470,9 @@ export const Constants = {
 //   PRIMARY KEY empresa_pkey: PRIMARY KEY (id)
 // Table: envelopes_assinatura
 //   FOREIGN KEY envelopes_assinatura_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY envelopes_assinatura_clt_id_fkey: FOREIGN KEY (clt_id) REFERENCES equipe_clt(id) ON DELETE CASCADE
 //   FOREIGN KEY envelopes_assinatura_criado_por_fkey: FOREIGN KEY (criado_por) REFERENCES auth.users(id)
+//   FOREIGN KEY envelopes_assinatura_pj_id_fkey: FOREIGN KEY (pj_id) REFERENCES parceiros_pj(id) ON DELETE CASCADE
 //   PRIMARY KEY envelopes_assinatura_pkey: PRIMARY KEY (id)
 // Table: equipe_clt
 //   PRIMARY KEY equipe_clt_pkey: PRIMARY KEY (id)

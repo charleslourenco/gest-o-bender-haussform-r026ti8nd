@@ -4,6 +4,7 @@ import { EstoqueOverview } from '@/components/estoque/EstoqueOverview'
 import { EstoqueLista } from '@/components/estoque/EstoqueLista'
 import { ComprasOCR } from '@/components/estoque/ComprasOCR'
 import { ConciliacaoListas } from '@/components/estoque/ConciliacaoListas'
+import { SolicitacoesCompra } from '@/components/estoque/SolicitacoesCompra'
 
 export default function EstoqueCompras() {
   return (
@@ -21,6 +22,7 @@ export default function EstoqueCompras() {
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start bg-white p-1 border-b rounded-none shrink-0 overflow-x-auto">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
           <TabsTrigger value="estoque">Inventário</TabsTrigger>
           <TabsTrigger value="compras">Pedidos & OCR</TabsTrigger>
           <TabsTrigger value="listas">Listas & Conciliação</TabsTrigger>
@@ -28,6 +30,9 @@ export default function EstoqueCompras() {
         <div className="flex-1 overflow-y-auto mt-4 pb-20">
           <TabsContent value="overview" className="m-0 border-none outline-none">
             <EstoqueOverview />
+          </TabsContent>
+          <TabsContent value="solicitacoes" className="m-0 border-none outline-none">
+            <SolicitacoesCompra />
           </TabsContent>
           <TabsContent value="estoque" className="m-0 border-none outline-none">
             <EstoqueLista />
