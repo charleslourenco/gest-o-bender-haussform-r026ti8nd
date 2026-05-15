@@ -336,10 +336,18 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           uniqueConsultants={uniqueConsultants}
           usersMap={usersMap}
         />
-        <div className="px-6 pb-4">
-          <p className="text-midnight-navy/60 text-sm mt-1">
+        <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
+          <p className="text-midnight-navy/60 text-sm">
             Arraste os cards entre as colunas para atualizar o status.
           </p>
+          <Button
+            onClick={() => setShowSobrasRegister(true)}
+            className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+            size="sm"
+          >
+            <Scissors className="w-4 h-4 mr-2" />
+            Registrar Retalho
+          </Button>
         </div>
       </div>
 
