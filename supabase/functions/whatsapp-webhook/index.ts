@@ -39,40 +39,41 @@ Deno.serve(async (req) => {
       return new Response('Ignored', { status: 200 })
     }
 
-    // Se for mensagem enviada pelo próprio bot/humano na mesma conta
+    // Se for mensagem enviada pelo próprio humano na mesma conta, a Ana assume a conversa
     if (payload.fromMe) {
-      const msgLower = messageText.toLowerCase()
-      // Detecta se o humano quer assumir a conversa
-      if (
-        msgLower.includes('assumir a conversa') ||
-        msgLower.includes('assumir o atendimento') ||
-        msgLower.includes('vou assumir') ||
-        msgLower.includes('vai assumir')
-      ) {
+      let { data: leads } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('telefone', phone)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+      let currentLead = leads && leads.length > 0 ? leads[0] : null
+
+      if (currentLead) {
+        // Assume a conversa automaticamente
         await supabase.from('whatsapp_sessions').update({ step: 99 }).eq('phone', phone)
 
-        const { data: lead } = await supabase
-          .from('leads')
-          .select('id, status, notas')
-          .eq('telefone', phone)
-          .order('criado_em', { ascending: false })
-          .limit(1)
-          .single()
-        if (lead && lead.status === 'Novo Lead') {
-          await supabase
-            .from('leads')
-            .update({
-              status: 'Aguardando Consultor',
-              notas: (lead.notas || '') + '\n[Sistema]: Um humano assumiu a conversa.',
-            })
-            .eq('id', lead.id)
+        let newStatus = currentLead.status
+        if (currentLead.status === 'Novo Lead') {
+          newStatus = 'Aguardando Consultor'
         }
+
+        // Registra a mensagem do humano como Ana
+        const finalNotes = (currentLead.notas || '') + `\n[Ana]: ${messageText}`
+        await supabase
+          .from('leads')
+          .update({
+            notas: finalNotes,
+            status: newStatus,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq('id', currentLead.id)
       }
+
       return new Response('Ignored fromMe', { status: 200 })
     }
 
-    // Buscar ou criar o Lead
-    // Utilizando limit(1) ao invés de maybeSingle() para evitar erros caso existam contatos duplicados (o que impedia a resposta em novos DDDs/números)
+    // Buscar Lead Existente
     let { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -86,6 +87,7 @@ Deno.serve(async (req) => {
 
     let lead = leads && leads.length > 0 ? leads[0] : null
     const nowStr = new Date().toISOString()
+    const previousUpdatedAt = lead ? new Date(lead.atualizado_em) : new Date()
 
     if (!lead) {
       const { data: newLead, error } = await supabase
@@ -93,10 +95,10 @@ Deno.serve(async (req) => {
         .insert({
           nome: senderName,
           telefone: phone,
-          email: `${phone}@whatsapp.com`, // Email fake pois o campo é obrigatório
+          email: `${phone}@whatsapp.com`,
           origem: 'WhatsApp',
           status: 'Novo Lead',
-          notas: `[Iniciado atendimento via WhatsApp com Catarina]\n[Cliente]: ${messageText}`,
+          notas: `[Cliente]: ${messageText}`,
           atualizado_em: nowStr,
         })
         .select('*')
@@ -104,16 +106,6 @@ Deno.serve(async (req) => {
 
       if (error) throw error
       lead = newLead
-    } else {
-      const newNotes = (lead.notas ? lead.notas + '\n' : '') + `[Cliente]: ${messageText}`
-      await supabase
-        .from('leads')
-        .update({
-          notas: newNotes,
-          atualizado_em: nowStr,
-        })
-        .eq('id', lead.id)
-      lead.notas = newNotes
     }
 
     // Buscar ou criar a sessão do fluxo
@@ -142,7 +134,10 @@ Deno.serve(async (req) => {
       if (lead)
         await supabase
           .from('leads')
-          .update({ status: 'Novo Lead', notas: '[Sessão reiniciada pelo usuário]' })
+          .update({
+            status: 'Novo Lead',
+            notas: (lead.notas || '') + '\n[Sessão reiniciada pelo usuário]',
+          })
           .eq('id', lead.id)
 
       const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
@@ -164,14 +159,62 @@ Deno.serve(async (req) => {
       return new Response('Reset OK', { status: 200 })
     }
 
-    // Se já finalizou (99), ignora (foi pro transbordo/humano)
+    // Se já finalizou (99), a conversa está com a Ana, aplica o Modo Sentinela
     if (session.step === 99 || lead.status !== 'Novo Lead') {
+      const now = new Date()
+      const diffMins = (now.getTime() - previousUpdatedAt.getTime()) / 60000
+
+      let finalNotes = lead.notas || ''
+      // Só concatena o Cliente se o lead já existia
+      if (diffMins > 0) {
+        finalNotes = (finalNotes ? finalNotes + '\n' : '') + `[Cliente]: ${messageText}`
+      }
+
+      // Se passou 15 minutos ou mais desde a última interação (seja do cliente ou da Ana)
+      if (diffMins >= 15) {
+        const lastLine = lead.notas ? lead.notas.split('\n').pop() : ''
+        // Só intromete se a última mensagem não foi justamente o aviso de ocupado da Catarina
+        if (!lastLine?.includes('a Ana não está conseguindo atender agora')) {
+          const botMsg = `Oi ${senderName.split(' ')[0]}, a Ana não está conseguindo atender agora mas assim que ela estiver disponível ela te chama ok?`
+          finalNotes += `\n[Catarina]: ${botMsg}`
+
+          const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
+          const zapiToken = Deno.env.get('ZAPI_TOKEN')
+          if (zapiInstance && zapiToken) {
+            await fetch(
+              `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Client-Token':
+                    Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+                },
+                body: JSON.stringify({ phone, message: botMsg }),
+              },
+            ).catch(() => {})
+          }
+        }
+      }
+
+      await supabase
+        .from('leads')
+        .update({
+          notas: finalNotes,
+          atualizado_em: nowStr,
+        })
+        .eq('id', lead.id)
+
       return new Response('Handed over', { status: 200 })
     }
 
-    // Preparar mensagens para a OpenAI
-    const systemPrompt = `Você é a Catarina, consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
-Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível.
+    // Se não é transbordo e lead já existia, atualizamos a nota em memória para a IA
+    if (lead.atualizado_em !== nowStr) {
+      lead.notas = (lead.notas ? lead.notas + '\n' : '') + `[Cliente]: ${messageText}`
+    }
+
+    const systemPrompt = `Você é a Catarina, SDR (Sales Development Representative) e consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
+Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível. Você atua como parceira da Ana, nossa especialista comercial.
 
 Nossa fábrica e loja ficam localizadas em **Balneário Piçarras - SC**.
 Nossos principais serviços são:
@@ -189,26 +232,27 @@ Você precisa descobrir as seguintes informações (faça UMA pergunta por vez, 
 5. Ideia de investimento estimado.
 
 Regras de Ouro:
-- NA SUA PRIMEIRA MENSAGEM, você DEVE se apresentar de forma agradável informando seu nome, cargo e de onde somos, por exemplo: "Olá! Sou a Catarina, Consultora Virtual da Bender Haussform, de Balneário Piçarras - SC."
+- VERIFIQUE O HISTÓRICO: O histórico da conversa está nas mensagens anteriores. Se você já falou com o cliente antes, NÃO se apresente novamente e retome o assunto de forma natural (ex: "Dando sequência ao que falávamos...").
+- PRIMEIRA MENSAGEM: Se não houver histórico de conversas, apresente-se amigavelmente. Ex: "Olá! Sou a Catarina, Consultora Virtual da Bender Haussform, de Balneário Piçarras - SC."
+- TRANSIÇÃO PARA A ANA: Quando for realizar o transbordo, SEMPRE diga que vai repassar a conversa para a **Ana**. (Ex: "Vou repassar suas informações para a Ana, nossa especialista...").
 - Trate o cliente pelo nome se souber (nome atual fornecido pelo WhatsApp: ${senderName}).
 - Seja natural, não pareça um formulário robótico. Reaja ao que o cliente diz.
-- Atendemos exclusivamente o litoral de SC e regiões próximas a Balneário Piçarras. Se o cliente for de uma cidade fora da nossa área de cobertura, informe educadamente que atendemos apenas nestas regiões específicas, MAS NÃO ENCERRE o atendimento bruscamente (não dê transbordo imediato por causa disso).
-- Se o cliente perguntar sobre nossos serviços, liste os nossos 4 pilares descritos acima.
+- Atendemos exclusivamente o litoral de SC e regiões próximas a Balneário Piçarras. Se o cliente for de uma cidade fora da área, informe educadamente, MAS NÃO ENCERRE o atendimento bruscamente.
 - NÃO ENCERRE O ATENDIMENTO CEDO DEMAIS. Só marque transbordo = true QUANDO:
-  a) O cliente pedir explicitamente para falar com um consultor/humano/especialista; OU
+  a) O cliente pedir explicitamente para falar com um consultor/humano/Ana; OU
   b) O assunto for assistência técnica/reparo; OU
-  c) Você já tiver finalizado a coleta de TODAS as informações principais (os 5 pontos de triagem) e for a hora de repassar ao consultor.
-- Ao marcar transbordo = true, SEMPRE envie uma última mensagem avisando o cliente que um de nossos especialistas vai assumir a conversa em breve.
+  c) Você já tiver finalizado a coleta de TODAS as informações principais (os 5 pontos de triagem) e for a hora de repassar para a Ana.
+- Ao marcar transbordo = true, SEMPRE envie uma última mensagem avisando o cliente que a **Ana** vai assumir a conversa em breve.
 - Retorne SEMPRE um JSON válido com a seguinte estrutura:
 {
   "resposta": "Sua resposta aqui. Pode usar ||| para quebrar em múltiplas mensagens",
   "transbordo": boolean,
   "dados_extraidos": {
-    "ambiente": "string com o que descobriu AGORA (ou null)",
-    "origem": "string com o que descobriu AGORA (ou null)",
-    "localizacao": "string com o que descobriu AGORA (ou null)",
-    "status_imovel": "string com o que descobriu AGORA (ou null)",
-    "investimento": "string com o que descobriu AGORA (ou null)"
+    "ambiente": "string (ou null)",
+    "origem": "string (ou null)",
+    "localizacao": "string (ou null)",
+    "status_imovel": "string (ou null)",
+    "investimento": "string (ou null)"
   }
 }
 IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem. Para informações antigas ou ainda não fornecidas, use null.`
@@ -222,6 +266,8 @@ IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o
           messages.push({ role: 'user', content: line.substring(11).trim() })
         } else if (line.startsWith('[Catarina]: ')) {
           messages.push({ role: 'assistant', content: line.substring(12).trim() })
+        } else if (line.startsWith('[Ana]: ')) {
+          messages.push({ role: 'assistant', content: line.substring(7).trim() })
         }
       }
     }
@@ -258,11 +304,9 @@ IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o
 
       const isConfigError = apiError.message?.includes('OPENAI_API_KEY')
 
-      // Envia uma mensagem amigável sem dar transbordo automático em caso de erro de configuração,
-      // para não travar a sessão em "Aguardando Atendimento" por acidente.
       const fallbackResponse = isConfigError
         ? `Desculpe, meu sistema está temporariamente indisponível. Por favor, tente enviar sua mensagem novamente em instantes.`
-        : `Tive uma falha técnica de conexão. Você pode tentar novamente ou aguardar nosso consultor.`
+        : `Tive uma falha técnica de conexão. Você pode tentar novamente ou aguardar a Ana falar com você.`
 
       await processResponse(supabase, lead, session, phone, fallbackResponse, !isConfigError, {})
       return new Response('OK', { status: 200 })
@@ -304,7 +348,7 @@ async function processResponse(
     nextStep = 99
     nextStatus = 'Aguardando Consultor'
   } else if (session.step === 0) {
-    nextStep = 1 // Sai do 0 para indicar que já iniciou
+    nextStep = 1
   }
 
   await supabase
@@ -316,6 +360,7 @@ async function processResponse(
         dados.origem && dados.origem !== 'null'
           ? `WhatsApp - ${String(dados.origem).substring(0, 50)}`
           : lead.origem,
+      atualizado_em: new Date().toISOString(),
     })
     .eq('id', lead.id)
 
@@ -326,7 +371,6 @@ async function processResponse(
       .eq('id', session.id)
   }
 
-  // Envia mensagem pelo Z-API
   const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
   const zapiToken = Deno.env.get('ZAPI_TOKEN')
 
@@ -360,7 +404,6 @@ async function processResponse(
           console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
         }
 
-        // Small delay between messages to simulate human typing and guarantee order
         if (messages.length > 1) {
           await new Promise((resolve) => setTimeout(resolve, 1500))
         }
