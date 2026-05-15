@@ -805,6 +805,93 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_caixas: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          nome: string
+          projeto_id: string | null
+          status: string
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome: string
+          projeto_id?: string | null
+          status?: string
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          projeto_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_caixas_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_caixas_projeto_id_fkey'
+            columns: ['projeto_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      estoque_caixas_itens: {
+        Row: {
+          caixa_id: string | null
+          criado_em: string
+          id: string
+          item_id: string | null
+          quantidade: number
+          status: string
+        }
+        Insert: {
+          caixa_id?: string | null
+          criado_em?: string
+          id?: string
+          item_id?: string | null
+          quantidade: number
+          status?: string
+        }
+        Update: {
+          caixa_id?: string | null
+          criado_em?: string
+          id?: string
+          item_id?: string | null
+          quantidade?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_caixas_itens_caixa_id_fkey'
+            columns: ['caixa_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_caixas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_caixas_itens_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       estoque_itens: {
         Row: {
           atualizado_em: string
@@ -931,6 +1018,36 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      estoque_sobras: {
+        Row: {
+          altura: number
+          area: number
+          criado_em: string
+          id: string
+          largura: number
+          nome: string
+          status: string
+        }
+        Insert: {
+          altura: number
+          area: number
+          criado_em?: string
+          id?: string
+          largura: number
+          nome: string
+          status?: string
+        }
+        Update: {
+          altura?: number
+          area?: number
+          criado_em?: string
+          id?: string
+          largura?: number
+          nome?: string
+          status?: string
+        }
+        Relationships: []
       }
       formulario_comercial: {
         Row: {
@@ -2296,6 +2413,21 @@ export const Constants = {
 //   ferias_adiantadas_dias: integer (nullable, default: 0)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+// Table: estoque_caixas
+//   id: uuid (not null, default: gen_random_uuid())
+//   cliente_id: uuid (nullable)
+//   projeto_id: uuid (nullable)
+//   nome: text (not null)
+//   status: text (not null, default: 'separacao'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+// Table: estoque_caixas_itens
+//   id: uuid (not null, default: gen_random_uuid())
+//   caixa_id: uuid (nullable)
+//   item_id: uuid (nullable)
+//   quantidade: numeric (not null)
+//   status: text (not null, default: 'reservado'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: estoque_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -2324,6 +2456,14 @@ export const Constants = {
 //   nota_fiscal_id: uuid (nullable)
 //   pedido_id: uuid (nullable)
 //   usuario_id: uuid (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+// Table: estoque_sobras
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   largura: numeric (not null)
+//   altura: numeric (not null)
+//   area: numeric (not null)
+//   status: text (not null, default: 'disponivel'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
 // Table: formulario_comercial
 //   id: uuid (not null, default: gen_random_uuid())
@@ -2626,6 +2766,14 @@ export const Constants = {
 //   PRIMARY KEY envelopes_assinatura_pkey: PRIMARY KEY (id)
 // Table: equipe_clt
 //   PRIMARY KEY equipe_clt_pkey: PRIMARY KEY (id)
+// Table: estoque_caixas
+//   FOREIGN KEY estoque_caixas_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   PRIMARY KEY estoque_caixas_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY estoque_caixas_projeto_id_fkey: FOREIGN KEY (projeto_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
+// Table: estoque_caixas_itens
+//   FOREIGN KEY estoque_caixas_itens_caixa_id_fkey: FOREIGN KEY (caixa_id) REFERENCES estoque_caixas(id) ON DELETE CASCADE
+//   FOREIGN KEY estoque_caixas_itens_item_id_fkey: FOREIGN KEY (item_id) REFERENCES estoque_itens(id) ON DELETE CASCADE
+//   PRIMARY KEY estoque_caixas_itens_pkey: PRIMARY KEY (id)
 // Table: estoque_itens
 //   PRIMARY KEY estoque_itens_pkey: PRIMARY KEY (id)
 // Table: estoque_itens_cliente
@@ -2637,6 +2785,8 @@ export const Constants = {
 //   FOREIGN KEY estoque_movimentacoes_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE SET NULL
 //   PRIMARY KEY estoque_movimentacoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY estoque_movimentacoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: estoque_sobras
+//   PRIMARY KEY estoque_sobras_pkey: PRIMARY KEY (id)
 // Table: formulario_comercial
 //   FOREIGN KEY fk_formulario_user: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   FOREIGN KEY formulario_comercial_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
@@ -2830,6 +2980,14 @@ export const Constants = {
 //   Policy "equipe_clt_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: estoque_caixas
+//   Policy "estoque_caixas_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: estoque_caixas_itens
+//   Policy "estoque_caixas_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: estoque_itens
 //   Policy "estoque_itens_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -2840,6 +2998,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: estoque_movimentacoes
 //   Policy "estoque_movimentacoes_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: estoque_sobras
+//   Policy "estoque_sobras_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: formulario_comercial
@@ -3090,6 +3252,27 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION handle_caixa_item_reservado()
+//   CREATE OR REPLACE FUNCTION public.handle_caixa_item_reservado()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF TG_OP = 'INSERT' THEN
+//       UPDATE public.estoque_itens SET quantidade = quantidade - NEW.quantidade WHERE id = NEW.item_id;
+//     ELSIF TG_OP = 'DELETE' THEN
+//       IF OLD.status = 'reservado' THEN
+//         UPDATE public.estoque_itens SET quantidade = quantidade + OLD.quantidade WHERE id = OLD.item_id;
+//       END IF;
+//     ELSIF TG_OP = 'UPDATE' THEN
+//       IF NEW.quantidade <> OLD.quantidade AND NEW.status = 'reservado' THEN
+//         UPDATE public.estoque_itens SET quantidade = quantidade - (NEW.quantidade - OLD.quantidade) WHERE id = NEW.item_id;
+//       END IF;
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION handle_new_user()
 //   CREATE OR REPLACE FUNCTION public.handle_new_user()
 //    RETURNS trigger
@@ -3264,6 +3447,8 @@ export const Constants = {
 // --- TRIGGERS ---
 // Table: assinaturas
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
+// Table: estoque_caixas_itens
+//   trg_caixa_item_reservado: CREATE TRIGGER trg_caixa_item_reservado AFTER INSERT OR DELETE OR UPDATE ON public.estoque_caixas_itens FOR EACH ROW EXECUTE FUNCTION handle_caixa_item_reservado()
 // Table: placeholders
 //   set_placeholders_atualizado_em: CREATE TRIGGER set_placeholders_atualizado_em BEFORE UPDATE ON public.placeholders FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: produtos_servicos_projeto

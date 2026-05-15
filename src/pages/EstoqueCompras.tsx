@@ -6,7 +6,8 @@ import { ComprasOCR } from '@/components/estoque/ComprasOCR'
 import { ConciliacaoListas } from '@/components/estoque/ConciliacaoListas'
 import { SolicitacoesCompra } from '@/components/estoque/SolicitacoesCompra'
 import { ItensCliente } from '@/components/estoque/ItensCliente'
-import { SeparacaoSobras } from '@/components/estoque/SeparacaoSobras'
+import { CaixasVirtuais } from '@/components/estoque/CaixasVirtuais'
+import { GestaoSobras } from '@/components/estoque/GestaoSobras'
 
 export default function EstoqueCompras() {
   return (
@@ -28,7 +29,8 @@ export default function EstoqueCompras() {
           <TabsTrigger value="estoque">Inventário</TabsTrigger>
           <TabsTrigger value="documentos">Documentos & OCR</TabsTrigger>
           <TabsTrigger value="itens-cliente">Itens de Cliente</TabsTrigger>
-          <TabsTrigger value="separacao-sobras">Separação & Sobras</TabsTrigger>
+          <TabsTrigger value="separacao">Separação (Caixas)</TabsTrigger>
+          <TabsTrigger value="sobras">Gestão de Sobras</TabsTrigger>
         </TabsList>
         <div className="flex-1 overflow-y-auto mt-4 pb-20">
           <TabsContent value="overview" className="m-0 border-none outline-none">
@@ -57,8 +59,11 @@ export default function EstoqueCompras() {
           <TabsContent value="itens-cliente" className="m-0 border-none outline-none">
             <ItensCliente />
           </TabsContent>
-          <TabsContent value="separacao-sobras" className="m-0 border-none outline-none">
-            <SeparacaoSobras />
+          <TabsContent value="separacao" className="m-0 border-none outline-none">
+            <CaixasVirtuais />
+          </TabsContent>
+          <TabsContent value="sobras" className="m-0 border-none outline-none">
+            <GestaoSobras />
           </TabsContent>
         </div>
       </Tabs>
