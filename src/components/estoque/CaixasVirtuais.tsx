@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, PackageOpen, Check, Box } from 'lucide-react'
+import { Plus, PackageOpen, Check, Box, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -114,6 +114,28 @@ export function CaixasVirtuais() {
     }
   }
 
+  async function handleDeletarCaixa(caixaId: string) {
+    if (
+      !confirm(
+        'Tem certeza que deseja apagar esta caixa? Todos os materiais reservados voltarão ao estoque livre.',
+      )
+    )
+      return
+
+    const { error } = await supabase
+      .from('estoque_caixas' as any)
+      .delete()
+      .eq('id', caixaId)
+
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Caixa apagada', description: 'Itens retornados ao estoque.' })
+      fetchCaixas()
+      fetchItensEstoque()
+    }
+  }
+
   async function handleEntregarCaixa(caixaId: string) {
     if (!confirm('Confirmar a entrega de todos os itens desta caixa?')) return
 
@@ -175,16 +197,27 @@ export function CaixasVirtuais() {
                   </CardTitle>
                   <p className="text-sm text-gray-500 mt-1">Cliente: {caixa.cliente?.nome}</p>
                 </div>
-                <Badge
-                  variant={caixa.status === 'entregue' ? 'outline' : 'secondary'}
-                  className={
-                    caixa.status === 'entregue'
-                      ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
-                      : 'bg-steel-blue/10 text-steel-blue'
-                  }
-                >
-                  {caixa.status.toUpperCase()}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={caixa.status === 'entregue' ? 'outline' : 'secondary'}
+                    className={
+                      caixa.status === 'entregue'
+                        ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
+                        : 'bg-steel-blue/10 text-steel-blue'
+                    }
+                  >
+                    {caixa.status.toUpperCase()}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 -mr-2"
+                    onClick={() => handleDeletarCaixa(caixa.id)}
+                    title="Apagar caixa e retornar itens livres ao estoque"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pt-4">
