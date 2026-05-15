@@ -1,4 +1,4 @@
-import { Bell, Search, LogOut, Check } from 'lucide-react'
+import { Bell, Search, LogOut, Check, User as UserIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -10,12 +10,22 @@ import { supabase } from '@/lib/supabase/client'
 import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { UserProfileDialog } from './UserProfileDialog'
 
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
   const [totalAlerts, setTotalAlerts] = useState(0)
   const [notificacoes, setNotificacoes] = useState<any[]>([])
   const [unreadNotifs, setUnreadNotifs] = useState(0)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   const { user, signOut } = useAuth()
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
@@ -261,31 +271,49 @@ export function Header() {
         </Popover>
 
         <div className="flex items-center gap-4 border-l pl-4 border-border">
-          <div className="flex items-center gap-2">
-            <div className="hidden md:flex flex-col text-right">
-              <span className="text-sm font-medium leading-none text-foreground">{userName}</span>
-              <span className="text-xs text-muted-foreground">
-                {empresa?.nome || 'Bender Haussform'}
-              </span>
-            </div>
-            <Avatar className="h-9 w-9 border border-border">
-              {fotoPerfil && (
-                <AvatarImage src={fotoPerfil} alt={userName} className="object-cover" />
-              )}
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {userInitials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => signOut()}
-            title="Sair"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="h-auto p-1 px-2 flex items-center gap-2 hover:bg-muted rounded-md border border-transparent hover:border-border transition-colors"
+              >
+                <div className="hidden md:flex flex-col text-right">
+                  <span className="text-sm font-medium leading-none text-foreground">
+                    {userName}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {empresa?.nome || 'Bender Haussform'}
+                  </span>
+                </div>
+                <Avatar className="h-9 w-9 border border-border">
+                  {fotoPerfil && (
+                    <AvatarImage src={fotoPerfil} alt={userName} className="object-cover" />
+                  )}
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {userInitials}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setIsProfileOpen(true)} className="cursor-pointer">
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Meu Perfil</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => signOut()}
+                className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <UserProfileDialog open={isProfileOpen} onOpenChange={setIsProfileOpen} />
         </div>
       </div>
     </header>
