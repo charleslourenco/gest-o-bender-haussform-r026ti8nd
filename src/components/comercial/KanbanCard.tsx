@@ -60,6 +60,9 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
     border: catBorder,
   } = categoryConfig[catName as keyof typeof categoryConfig] || categoryConfig['Comercial']
 
+  const consultorRaw = lead.consultor || (lead as any).users
+  const consultorNome = Array.isArray(consultorRaw) ? consultorRaw[0]?.nome : consultorRaw?.nome
+
   useEffect(() => {
     const updateTimer = () => {
       const start = new Date(lead.criado_em).getTime()
@@ -139,13 +142,13 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
         </div>
 
         <div className="flex flex-col items-end gap-1">
-          {lead.consultor?.nome && (
+          {consultorNome && (
             <div
-              className="flex items-center gap-1 text-[10px] text-steel-blue font-medium"
-              title={`Consultor: ${lead.consultor.nome}`}
+              className="flex items-center gap-1 text-[10px] text-steel-blue font-medium bg-steel-blue/5 px-1.5 py-0.5 rounded w-fit"
+              title={`Consultor: ${consultorNome}`}
             >
               <User className="w-2.5 h-2.5" />
-              <span className="truncate max-w-[85px]">{lead.consultor.nome}</span>
+              <span className="truncate max-w-[85px]">{consultorNome}</span>
             </div>
           )}
           <div
