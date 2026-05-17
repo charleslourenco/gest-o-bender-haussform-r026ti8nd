@@ -7,11 +7,12 @@ import type { DashboardData } from './types'
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316']
 
 export function CaptacaoTab({ data }: { data: DashboardData }) {
-  const totalLeads = data.leads.length
-  const convertidos = data.leads.filter((l) => l.status === 'Vendido').length
+  const comercialLeads = data.leads.filter((l) => l.categoria === 'Comercial')
+  const totalLeads = comercialLeads.length
+  const convertidos = comercialLeads.filter((l) => l.status === 'Vendido').length
   const txConversao = totalLeads ? ((convertidos / totalLeads) * 100).toFixed(1) : '0.0'
 
-  const originCount = data.leads.reduce((acc: any, lead) => {
+  const originCount = comercialLeads.reduce((acc: any, lead) => {
     const origin = lead.origem || 'Outros'
     acc[origin] = (acc[origin] || 0) + 1
     return acc
