@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentosAba } from './DocumentosAba'
 import { AssinaturasAba } from './AssinaturasAba'
+import { Textarea } from '@/components/ui/textarea'
 
 export function PastaPJ({ id }: { id: string | null }) {
   const [f, setF] = useState<any>({})
@@ -267,6 +268,18 @@ export function PastaPJ({ id }: { id: string | null }) {
                     placeholder="0.00"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4">Observações</h3>
+              <div className="grid grid-cols-1">
+                <Textarea
+                  value={f.observacoes || ''}
+                  onChange={(e) => setF({ ...f, observacoes: e.target.value })}
+                  placeholder="Adicione observações, anotações ou detalhes importantes sobre o parceiro..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           </TabsContent>

@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentosAba } from './DocumentosAba'
 import { AssinaturasAba } from './AssinaturasAba'
+import { Textarea } from '@/components/ui/textarea'
 
 export function PastaCLT({ id }: { id: string | null }) {
   const [f, setF] = useState<any>({ ferias_adiantadas_dias: 0 })
@@ -318,6 +319,18 @@ export function PastaCLT({ id }: { id: string | null }) {
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">Desde a data de admissão</p>
                 </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4">Observações</h3>
+              <div className="grid grid-cols-1">
+                <Textarea
+                  value={f.observacoes || ''}
+                  onChange={(e) => setF({ ...f, observacoes: e.target.value })}
+                  placeholder="Adicione observações, anotações ou detalhes importantes sobre o colaborador..."
+                  className="min-h-[120px]"
+                />
               </div>
             </div>
           </TabsContent>
