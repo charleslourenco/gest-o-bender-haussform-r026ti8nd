@@ -163,6 +163,22 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
           </div>
           <div>
             <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
+              Categoria *
+            </label>
+            <select
+              required
+              name="categoria"
+              defaultValue={(lead as any)?.categoria || 'Comercial'}
+              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
+            >
+              <option value="Comercial">Comercial</option>
+              <option value="Outros Assuntos">Outros Assuntos</option>
+              <option value="Parceiro">Parceiro</option>
+              <option value="Equipe">Equipe</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
               Origem *
             </label>
             <select

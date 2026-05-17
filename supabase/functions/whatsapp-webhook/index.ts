@@ -252,10 +252,11 @@ Regras de Ouro:
     "origem": "string (ou null)",
     "localizacao": "string (ou null)",
     "status_imovel": "string (ou null)",
-    "investimento": "string (ou null)"
+    "investimento": "string (ou null)",
+    "categoria": "Comercial | Outros Assuntos | Parceiro | Equipe (Tente adivinhar qual é com base no assunto. Se incerto, use 'Comercial')"
   }
 }
-IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem. Para informações antigas ou ainda não fornecidas, use null.`
+IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem (com exceção de 'categoria', que você pode inferir do contexto). Para informações antigas ou ainda não fornecidas, use null.`
 
     const messages: any[] = [{ role: 'system', content: systemPrompt }]
 
@@ -351,18 +352,25 @@ async function processResponse(
     nextStep = 1
   }
 
-  await supabase
-    .from('leads')
-    .update({
-      notas: finalNotes,
-      status: nextStatus,
-      origem:
-        dados.origem && dados.origem !== 'null'
-          ? `WhatsApp - ${String(dados.origem).substring(0, 50)}`
-          : lead.origem,
-      atualizado_em: new Date().toISOString(),
-    })
-    .eq('id', lead.id)
+  const validCategorias = ['Comercial', 'Outros Assuntos', 'Parceiro', 'Equipe']
+  const catSugerida =
+    dados.categoria && validCategorias.includes(dados.categoria) ? dados.categoria : lead.categoria
+
+  const updatePayload: any = {
+    notas: finalNotes,
+    status: nextStatus,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (catSugerida && catSugerida !== lead.categoria) {
+    updatePayload.categoria = catSugerida
+  }
+
+  if (dados.origem && dados.origem !== 'null') {
+    updatePayload.origem = `WhatsApp - ${String(dados.origem).substring(0, 50)}`
+  }
+
+  await supabase.from('leads').update(updatePayload).eq('id', lead.id)
 
   if (nextStep !== session.step) {
     await supabase

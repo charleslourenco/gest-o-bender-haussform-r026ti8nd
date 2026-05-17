@@ -1,5 +1,15 @@
 import { Lead } from '@/types'
-import { Edit2, Trash2, Calendar, User, Clock } from 'lucide-react'
+import {
+  Edit2,
+  Trash2,
+  Calendar,
+  User,
+  Clock,
+  Briefcase,
+  MessageSquare,
+  Handshake,
+  HardHat,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -11,8 +21,43 @@ interface Props {
   onDelete: () => void
 }
 
+const categoryConfig = {
+  Comercial: {
+    icon: Briefcase,
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-100',
+    border: 'border-emerald-200',
+  },
+  'Outros Assuntos': {
+    icon: MessageSquare,
+    color: 'text-slate-700',
+    bg: 'bg-slate-200',
+    border: 'border-slate-300',
+  },
+  Parceiro: {
+    icon: Handshake,
+    color: 'text-indigo-700',
+    bg: 'bg-indigo-100',
+    border: 'border-indigo-200',
+  },
+  Equipe: {
+    icon: HardHat,
+    color: 'text-amber-700',
+    bg: 'bg-amber-100',
+    border: 'border-amber-200',
+  },
+}
+
 export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, onDelete }: Props) {
   const isAguardando = lead.status === 'Aguardando Consultor'
+
+  const catName = (lead as any).categoria || 'Comercial'
+  const {
+    icon: CatIcon,
+    color: catColor,
+    bg: catBg,
+    border: catBorder,
+  } = categoryConfig[catName as keyof typeof categoryConfig] || categoryConfig['Comercial']
 
   return (
     <div
@@ -28,15 +73,28 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
       )}
     >
       <div className="flex justify-between items-start mb-2">
-        <h4 className="text-midnight-navy font-semibold text-[16px] leading-tight pr-2 flex items-center gap-2">
-          {isAguardando && (
-            <span className="flex h-2.5 w-2.5 relative" title="Aguardando Consultor">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
-            </span>
-          )}
-          {lead.nome}
-        </h4>
+        <div className="flex flex-col gap-1.5 pr-2">
+          <div
+            className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider w-fit border',
+              catBg,
+              catColor,
+              catBorder,
+            )}
+          >
+            <CatIcon className="w-3 h-3" />
+            {catName}
+          </div>
+          <h4 className="text-midnight-navy font-semibold text-[16px] leading-tight flex items-center gap-2 mt-1">
+            {isAguardando && (
+              <span className="flex h-2.5 w-2.5 relative" title="Aguardando Consultor">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              </span>
+            )}
+            {lead.nome}
+          </h4>
+        </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button onClick={onEdit} className="text-steel-blue hover:text-dark-denim p-1">
             <Edit2 className="w-4 h-4" />

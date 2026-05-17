@@ -1228,6 +1228,7 @@ export type Database = {
       leads: {
         Row: {
           atualizado_em: string
+          categoria: string
           consultor_id: string | null
           criado_em: string
           criado_por_nome: string | null
@@ -1244,6 +1245,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          categoria?: string
           consultor_id?: string | null
           criado_em?: string
           criado_por_nome?: string | null
@@ -1260,6 +1262,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          categoria?: string
           consultor_id?: string | null
           criado_em?: string
           criado_por_nome?: string | null
@@ -2524,6 +2527,7 @@ export const Constants = {
 //   email: text (not null)
 //   telefone: text (not null)
 //   origem: text (not null)
+//   categoria: text (not null, default: 'Comercial'::text)
 //   consultor_id: uuid (nullable)
 //   status: text (not null, default: 'Novo Lead'::text)
 //   notas: text (nullable)
