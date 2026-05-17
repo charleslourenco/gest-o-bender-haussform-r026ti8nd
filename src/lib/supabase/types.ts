@@ -1238,6 +1238,7 @@ export type Database = {
           kanban_ativo: boolean
           nome: string
           notas: string | null
+          notas_pessoais: string | null
           ordem: number
           origem: string
           status: string
@@ -1255,6 +1256,7 @@ export type Database = {
           kanban_ativo?: boolean
           nome: string
           notas?: string | null
+          notas_pessoais?: string | null
           ordem?: number
           origem: string
           status?: string
@@ -1272,6 +1274,7 @@ export type Database = {
           kanban_ativo?: boolean
           nome?: string
           notas?: string | null
+          notas_pessoais?: string | null
           ordem?: number
           origem?: string
           status?: string
@@ -2537,6 +2540,7 @@ export const Constants = {
 //   kanban_ativo: boolean (not null, default: true)
 //   data_venda: timestamp with time zone (nullable)
 //   categoria: text (not null, default: 'Comercial'::text)
+//   notas_pessoais: text (nullable)
 // Table: listas_materiais
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
