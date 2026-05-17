@@ -9,6 +9,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      alocacao_montagem: {
+        Row: {
+          card_id: string
+          criado_em: string
+          id: string
+          montador_id: string
+        }
+        Insert: {
+          card_id: string
+          criado_em?: string
+          id?: string
+          montador_id: string
+        }
+        Update: {
+          card_id?: string
+          criado_em?: string
+          id?: string
+          montador_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'alocacao_montagem_card_id_fkey'
+            columns: ['card_id']
+            isOneToOne: false
+            referencedRelation: 'produtos_servicos_projeto'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'alocacao_montagem_montador_id_fkey'
+            columns: ['montador_id']
+            isOneToOne: false
+            referencedRelation: 'montadores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       ambientes: {
         Row: {
           cliente_id: string | null
@@ -1384,6 +1420,33 @@ export type Database = {
           },
         ]
       }
+      montadores: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          id: string
+          nome_completo: string
+          status: string
+          telefone: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          nome_completo: string
+          status?: string
+          telefone?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: string
+          nome_completo?: string
+          status?: string
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       notas_fiscais: {
         Row: {
           arquivo_url: string | null
@@ -2233,6 +2296,11 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: alocacao_montagem
+//   id: uuid (not null, default: gen_random_uuid())
+//   montador_id: uuid (not null)
+//   card_id: uuid (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: ambientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -2561,6 +2629,13 @@ export const Constants = {
 //   modulo: text (not null)
 //   nivel_acesso: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: montadores
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome_completo: text (not null)
+//   telefone: text (nullable)
+//   status: text (not null, default: 'Disponível'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: notas_fiscais
 //   id: uuid (not null, default: gen_random_uuid())
 //   pedido_id: uuid (nullable)
@@ -2726,6 +2801,10 @@ export const Constants = {
 //   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
+// Table: alocacao_montagem
+//   FOREIGN KEY alocacao_montagem_card_id_fkey: FOREIGN KEY (card_id) REFERENCES produtos_servicos_projeto(id) ON DELETE CASCADE
+//   FOREIGN KEY alocacao_montagem_montador_id_fkey: FOREIGN KEY (montador_id) REFERENCES montadores(id) ON DELETE CASCADE
+//   PRIMARY KEY alocacao_montagem_pkey: PRIMARY KEY (id)
 // Table: ambientes
 //   FOREIGN KEY ambientes_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY ambientes_pkey: PRIMARY KEY (id)
@@ -2825,6 +2904,8 @@ export const Constants = {
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: montadores
+//   PRIMARY KEY montadores_pkey: PRIMARY KEY (id)
 // Table: notas_fiscais
 //   FOREIGN KEY notas_fiscais_pedido_id_fkey: FOREIGN KEY (pedido_id) REFERENCES pedidos_compra(id) ON DELETE SET NULL
 //   PRIMARY KEY notas_fiscais_pkey: PRIMARY KEY (id)
@@ -2878,6 +2959,10 @@ export const Constants = {
 //   PRIMARY KEY whatsapp_sessions_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: alocacao_montagem
+//   Policy "alocacao_montagem_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: ambientes
 //   Policy "ambientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
@@ -3075,6 +3160,10 @@ export const Constants = {
 //     USING: is_admin(auth.uid())
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: montadores
+//   Policy "montadores_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: notas_fiscais
 //   Policy "notas_fiscais_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true

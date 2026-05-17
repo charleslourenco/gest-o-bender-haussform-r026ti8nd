@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/select'
 import { CardData, KanbanColumnDef } from './types'
 import { supabase } from '@/lib/supabase/client'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import {
   AlertDialog,
@@ -21,6 +20,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ChevronsUpDown, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function KanbanDialog({
   selectedCard,
@@ -174,71 +186,115 @@ export function KanbanDialog({
               </div>
             </div>
 
-            <div className="bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20">
-              <span className="text-xs text-steel-blue uppercase font-semibold block mb-2">
-                Responsável (Analista)
-              </span>
-              <Select
-                value={selectedCard.analista_id || 'unassigned'}
-                onValueChange={(val) =>
-                  onAssignAnalyst(selectedCard.id, val === 'unassigned' ? null : val)
-                }
-              >
-                <SelectTrigger className="w-full bg-midnight-navy border-steel-blue text-off-white">
-                  <SelectValue placeholder="Selecione um responsável" />
-                </SelectTrigger>
-                <SelectContent className="bg-dark-denim border-steel-blue text-off-white">
-                  <SelectItem value="unassigned">Não atribuído</SelectItem>
-                  {Object.entries(usersMap).map(([id, user]) => (
-                    <SelectItem key={id} value={id}>
-                      {user.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isMontagem && (
+              <div className="bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20">
+                <span className="text-xs text-steel-blue uppercase font-semibold block mb-2">
+                  Responsável (Analista)
+                </span>
+                <Select
+                  value={selectedCard.analista_id || 'unassigned'}
+                  onValueChange={(val) =>
+                    onAssignAnalyst(selectedCard.id, val === 'unassigned' ? null : val)
+                  }
+                >
+                  <SelectTrigger className="w-full bg-midnight-navy border-steel-blue text-off-white">
+                    <SelectValue placeholder="Selecione um responsável" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-dark-denim border-steel-blue text-off-white">
+                    <SelectItem value="unassigned">Não atribuído</SelectItem>
+                    {Object.entries(usersMap).map(([id, user]) => (
+                      <SelectItem key={id} value={id}>
+                        {user.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {isMontagem && (
               <div className="bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20 space-y-3">
                 <span className="text-xs text-steel-blue uppercase font-semibold block">
-                  Montadores Alocados
+                  Equipe de Montagem
                 </span>
-                {montadores.length === 0 ? (
-                  <p className="text-xs text-off-white/60">Nenhum montador cadastrado.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {montadores.map((m) => {
-                      const isChecked = alocacoesCard.includes(m.id)
-                      const isBusyWithOtherClient =
-                        !isChecked &&
-                        m.alocacao_montagem?.some(
-                          (a: any) =>
-                            a.produtos_servicos_projeto?.cliente_id !== selectedCard.cliente_id,
-                        )
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between bg-midnight-navy border-steel-blue text-off-white hover:bg-steel-blue/20 hover:text-white"
+                    >
+                      {alocacoesCard.length > 0
+                        ? `${alocacoesCard.length} montador(es) alocado(s)`
+                        : 'Selecione os montadores'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-dark-denim border-steel-blue">
+                    <Command className="bg-transparent">
+                      <CommandInput placeholder="Buscar montador..." className="text-off-white" />
+                      <CommandList>
+                        <CommandEmpty>Nenhum montador encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {montadores.map((m) => {
+                            const isChecked = alocacoesCard.includes(m.id)
+                            const isBusyWithOtherClient =
+                              !isChecked &&
+                              m.alocacao_montagem?.some(
+                                (a: any) =>
+                                  a.produtos_servicos_projeto?.cliente_id !==
+                                  selectedCard.cliente_id,
+                              )
 
+                            return (
+                              <CommandItem
+                                key={m.id}
+                                value={m.nome_completo}
+                                onSelect={() => handleToggleMontador(m.id, !isChecked)}
+                                className="text-off-white data-[selected='true']:bg-steel-blue/40 data-[selected='true']:text-white cursor-pointer"
+                              >
+                                <div
+                                  className={cn(
+                                    'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border',
+                                    isChecked
+                                      ? 'bg-emerald-500 border-emerald-500'
+                                      : 'border-steel-blue opacity-50',
+                                  )}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'h-3 w-3 text-white',
+                                      isChecked ? 'opacity-100' : 'opacity-0',
+                                    )}
+                                  />
+                                </div>
+                                <span className="flex-1">{m.nome_completo}</span>
+                                {isBusyWithOtherClient && (
+                                  <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded ml-2 whitespace-nowrap">
+                                    Ocupado
+                                  </span>
+                                )}
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                {alocacoesCard.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {alocacoesCard.map((id) => {
+                      const m = montadores.find((x) => x.id === id)
+                      if (!m) return null
                       return (
-                        <div
-                          key={m.id}
-                          className="flex items-center space-x-2 bg-midnight-navy p-2 rounded-md border border-steel-blue/30"
+                        <Badge
+                          key={id}
+                          className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30 font-normal"
                         >
-                          <Checkbox
-                            id={`montador-${m.id}`}
-                            checked={isChecked}
-                            onCheckedChange={(val) => handleToggleMontador(m.id, !!val)}
-                            className="border-steel-blue data-[state=checked]:bg-emerald-500 data-[state=checked]:text-white"
-                          />
-                          <label
-                            htmlFor={`montador-${m.id}`}
-                            className="text-sm font-medium leading-none cursor-pointer flex-1 text-off-white flex justify-between items-center"
-                          >
-                            <span>{m.nome_completo}</span>
-                            {isBusyWithOtherClient && (
-                              <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded ml-2 whitespace-nowrap">
-                                Ocupado (Outro Cliente)
-                              </span>
-                            )}
-                          </label>
-                        </div>
+                          {m.nome_completo}
+                        </Badge>
                       )
                     })}
                   </div>

@@ -55,7 +55,7 @@ export function KanbanCard({
         </div>
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {card.analista_id && usersMap[card.analista_id] && (
+          {!isMontagem && card.analista_id && usersMap[card.analista_id] && (
             <div
               className="flex items-center gap-1.5"
               title={`Responsável: ${usersMap[card.analista_id].nome}`}
