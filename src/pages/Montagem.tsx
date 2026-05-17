@@ -1,5 +1,7 @@
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { Wrench } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MontadoresTab } from './MontadoresTab'
 
 const COLUMNS = [
   { id: 'aguardando_agenda', title: 'Aguardando agenda' },
@@ -24,9 +26,39 @@ export default function Montagem() {
           <p className="text-pale-cornflower mt-1">Gestão de expedição e montagem em campo</p>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden min-h-0 bg-off-white rounded-xl relative">
-        <KanbanBoard title="" columns={COLUMNS} />
-      </div>
+
+      <Tabs defaultValue="kanban" className="flex-1 flex flex-col min-h-0">
+        <div className="flex justify-between items-center mb-4">
+          <TabsList className="bg-steel-blue/20">
+            <TabsTrigger
+              value="kanban"
+              className="data-[state=active]:bg-steel-blue data-[state=active]:text-white"
+            >
+              Quadro Kanban
+            </TabsTrigger>
+            <TabsTrigger
+              value="montadores"
+              className="data-[state=active]:bg-steel-blue data-[state=active]:text-white"
+            >
+              Gestão de Montadores
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent
+          value="kanban"
+          className="flex-1 overflow-hidden min-h-0 bg-off-white rounded-xl relative m-0"
+        >
+          <KanbanBoard title="" columns={COLUMNS} />
+        </TabsContent>
+
+        <TabsContent
+          value="montadores"
+          className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-steel-blue/10 p-6 m-0"
+        >
+          <MontadoresTab />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

@@ -1,28 +1,10 @@
 import { useState } from 'react'
-import { Plus, Search, Filter } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { CreateCardDialog } from './CreateCardDialog'
 
-export function KanbanHeader({
-  title,
-  searchQuery,
-  setSearchQuery,
-  selectedAnalyst,
-  setSelectedAnalyst,
-  selectedConsultant,
-  setSelectedConsultant,
-  uniqueAnalysts,
-  uniqueConsultants,
-  usersMap,
-}: any) {
+export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   return (
@@ -38,47 +20,15 @@ export function KanbanHeader({
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 w-full">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-navy/40" />
           <Input
-            placeholder="Buscar por nome, código ou cliente..."
+            placeholder="Buscar de forma unificada..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 bg-off-white border-steel-blue/20"
           />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-midnight-navy/40" />
-          <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
-            <SelectTrigger className="w-[180px] bg-off-white border-steel-blue/20">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Responsáveis</SelectItem>
-              <SelectItem value="unassigned">Não Atribuído</SelectItem>
-              {uniqueAnalysts.map((id: string) => (
-                <SelectItem key={id} value={id}>
-                  {usersMap[id]?.nome || 'Desconhecido'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-            <SelectTrigger className="w-[180px] bg-off-white border-steel-blue/20">
-              <SelectValue placeholder="Consultor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Consultores</SelectItem>
-              {uniqueConsultants.map((id: string) => (
-                <SelectItem key={id} value={id}>
-                  {usersMap[id]?.nome || 'Desconhecido'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
