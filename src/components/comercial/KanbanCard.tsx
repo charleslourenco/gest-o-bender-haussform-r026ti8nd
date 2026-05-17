@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
 import { Lead } from '@/types'
-import { Trash2, Calendar, Clock, Briefcase, MessageSquare, Handshake, HardHat } from 'lucide-react'
+import {
+  Trash2,
+  Calendar,
+  Clock,
+  Briefcase,
+  MessageSquare,
+  Handshake,
+  HardHat,
+  User,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -129,16 +138,27 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
           </div>
         </div>
 
-        <div
-          className={cn(
-            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wide w-fit',
-            catColor,
-            catBg,
+        <div className="flex flex-col items-end gap-1">
+          {lead.consultor?.nome && (
+            <div
+              className="flex items-center gap-1 text-[10px] text-steel-blue font-medium"
+              title={`Consultor: ${lead.consultor.nome}`}
+            >
+              <User className="w-2.5 h-2.5" />
+              <span className="truncate max-w-[85px]">{lead.consultor.nome}</span>
+            </div>
           )}
-          title={`Categoria: ${catName}`}
-        >
-          <CatIcon className="w-2.5 h-2.5" />
-          {catName}
+          <div
+            className={cn(
+              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wide w-fit',
+              catColor,
+              catBg,
+            )}
+            title={`Categoria: ${catName}`}
+          >
+            <CatIcon className="w-2.5 h-2.5" />
+            {catName}
+          </div>
         </div>
       </div>
     </div>
