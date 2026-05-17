@@ -2527,7 +2527,6 @@ export const Constants = {
 //   email: text (not null)
 //   telefone: text (not null)
 //   origem: text (not null)
-//   categoria: text (not null, default: 'Comercial'::text)
 //   consultor_id: uuid (nullable)
 //   status: text (not null, default: 'Novo Lead'::text)
 //   notas: text (nullable)
@@ -2537,6 +2536,7 @@ export const Constants = {
 //   criado_por_nome: text (nullable)
 //   kanban_ativo: boolean (not null, default: true)
 //   data_venda: timestamp with time zone (nullable)
+//   categoria: text (not null, default: 'Comercial'::text)
 // Table: listas_materiais
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
