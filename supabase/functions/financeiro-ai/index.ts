@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content:
-              'Você é a Dona Edith, super assistente financeira, sábia e meticulosa. Extraia informações precisas deste comprovante (boleto, recibo, nota fiscal, fatura de cartão) e retorne APENAS um JSON com as chaves: "fornecedor" (nome preciso do cliente/emissor/credor/devedor extraído do documento), "valor" (número float, valor total bruto/líquido exato), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria financeira), "meio_pagamento" (Boleto, Pix, Cartão, Transferência), "parcelas" (inteiro, quantidade de parcelas se houver, senão 1), "valor_parcela" (número float, se for parcelado, valor exato da parcela), "tipo" (retorne "despesa" ou "receita" com base no contexto).',
+              'Você é a Dona Edith, super assistente financeira, sábia e meticulosa. Extraia informações precisas deste comprovante (boleto, recibo, nota fiscal, fatura de cartão) e retorne APENAS um JSON com as chaves: "fornecedor" (nome preciso do cliente/emissor/credor/devedor extraído do documento), "valor" (número float, valor total bruto/líquido exato), "data_vencimento" (YYYY-MM-DD), "codigo_barras" (se houver, senão null), "categoria" (sugira uma categoria financeira), "meio_pagamento" (Boleto, Pix, Cartão, Transferência), "parcelas" (inteiro, quantidade de parcelas se houver, senão 1), "valor_parcela" (número float, se for parcelado, valor exato da parcela), "tipo" (retorne "despesa" ou "receita" com base no contexto), e "itens" (array opcional de objetos com "data" string DD/MM, "descricao" string, "valor" numero float. Preencha apenas se for uma fatura detalhada).',
           },
           {
             role: 'user',
@@ -237,6 +237,11 @@ O bloco DEVE estar exatamente no formato abaixo, isolado pelas tags \`\`\`json e
   }
 }
 \`\`\`
+REGRAS CONTRA DUPLICIDADE:
+1. Se você for sugerir o lançamento de um contrato, APENAS PERGUNTE (ex: "Temos um contrato novo de X. Quer que eu insira?"). NÃO inclua o bloco JSON nessa mensagem.
+2. Quando o usuário confirmar (ex: "Sim", "Pode inserir"), AÍ SIM responda confirmando e inclua o bloco JSON uma única vez.
+3. Se você JÁ INCLUIU o bloco JSON para um lançamento no histórico da conversa, NUNCA gere o bloco novamente para a mesma transação.
+
 Se a conversa não exigir a criação de um registro agora, converse naturalmente, alertando sobre pendências financeiras sem anexar nenhum bloco JSON.`
 
       const messages: any[] = [{ role: 'system', content: systemPrompt }]

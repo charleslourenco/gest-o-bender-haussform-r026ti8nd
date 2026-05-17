@@ -4,9 +4,10 @@
     "admin-users": 7,
     "gerar-dossie": 16,
     "gerar_documento_cliente": 44,
+    "send-signature-email": 5,
     "finalize-signature-document": 12,
     "whatsapp-webhook": 25,
     "assistant-intelligence": 9,
-    "financeiro-ai": 8
+    "financeiro-ai": 9
   }
 }

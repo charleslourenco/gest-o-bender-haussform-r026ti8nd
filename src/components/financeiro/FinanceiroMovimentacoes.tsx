@@ -107,38 +107,69 @@ export function FinanceiroMovimentacoes({
           if (clientes) clienteId = clientes.id
         }
 
-        const inserts = []
-        for (let i = 0; i < numParcelas; i++) {
-          const currentDueDate = new Date(dueDate)
-          currentDueDate.setMonth(currentDueDate.getMonth() + i)
+        const inserts: any[] = []
+        const hasItens =
+          data.itens && Array.isArray(data.itens) && data.itens.length > 0 && !isReceita
 
-          if (isReceita) {
+        let launchItems = false
+        if (hasItens) {
+          launchItems = window.confirm(
+            `A Edith encontrou ${data.itens.length} itens detalhados nesta fatura. Deseja lançar item por item no lugar do valor total?`,
+          )
+        }
+
+        if (launchItems) {
+          data.itens.forEach((item: any, i: number) => {
+            let itemDueDate = new Date(dueDate)
+            if (item.data && typeof item.data === 'string' && item.data.includes('/')) {
+              const [d, m] = item.data.split('/')
+              itemDueDate.setMonth(parseInt(m, 10) - 1)
+              itemDueDate.setDate(parseInt(d, 10))
+            }
             inserts.push({
               user_id: user?.id,
-              cliente_id: clienteId,
-              descricao:
-                (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) ||
-                `Recebimento de ${data.fornecedor || 'Cliente'}`,
-              valor: baseValor || 0,
-              data_vencimento: currentDueDate.toISOString().split('T')[0],
-              categoria: data.categoria || 'Geral',
-              meio_pagamento: data.meio_pagamento || 'Transferência',
-              comprovante_url: i === 0 ? filePath : null,
-              numero_parcela: `${i + 1}/${numParcelas}`,
-            })
-          } else {
-            inserts.push({
-              user_id: user?.id,
-              fornecedor: data.fornecedor || 'Fornecedor',
-              valor: baseValor || 0,
-              data_vencimento: currentDueDate.toISOString().split('T')[0],
-              descricao:
-                (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) || '',
-              categoria: data.categoria || 'Geral',
-              codigo_barras: data.codigo_barras,
-              meio_pagamento: data.meio_pagamento || 'Boleto',
+              fornecedor: data.fornecedor || 'Cartão de Crédito',
+              valor: parseFloat(item.valor) || 0,
+              data_vencimento: itemDueDate.toISOString().split('T')[0],
+              descricao: item.descricao || `Item da fatura`,
+              categoria: data.categoria || 'Despesa Variável',
+              meio_pagamento: 'Cartão',
               comprovante_url: i === 0 ? filePath : null,
             })
+          })
+        } else {
+          for (let i = 0; i < numParcelas; i++) {
+            const currentDueDate = new Date(dueDate)
+            currentDueDate.setMonth(currentDueDate.getMonth() + i)
+
+            if (isReceita) {
+              inserts.push({
+                user_id: user?.id,
+                cliente_id: clienteId,
+                descricao:
+                  (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) ||
+                  `Recebimento de ${data.fornecedor || 'Cliente'}`,
+                valor: baseValor || 0,
+                data_vencimento: currentDueDate.toISOString().split('T')[0],
+                categoria: data.categoria || 'Geral',
+                meio_pagamento: data.meio_pagamento || 'Transferência',
+                comprovante_url: i === 0 ? filePath : null,
+                numero_parcela: `${i + 1}/${numParcelas}`,
+              })
+            } else {
+              inserts.push({
+                user_id: user?.id,
+                fornecedor: data.fornecedor || 'Fornecedor',
+                valor: baseValor || 0,
+                data_vencimento: currentDueDate.toISOString().split('T')[0],
+                descricao:
+                  (numParcelas > 1 ? `Parcela ${i + 1}/${numParcelas}` : data.descricao) || '',
+                categoria: data.categoria || 'Geral',
+                codigo_barras: data.codigo_barras,
+                meio_pagamento: data.meio_pagamento || 'Boleto',
+                comprovante_url: i === 0 ? filePath : null,
+              })
+            }
           }
         }
 

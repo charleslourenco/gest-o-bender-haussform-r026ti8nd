@@ -747,6 +747,7 @@ export type Database = {
           municipio: string | null
           nome_completo: string
           numero: string | null
+          observacoes: string | null
           pis: string | null
           rg: string | null
           rua: string | null
@@ -772,6 +773,7 @@ export type Database = {
           municipio?: string | null
           nome_completo: string
           numero?: string | null
+          observacoes?: string | null
           pis?: string | null
           rg?: string | null
           rua?: string | null
@@ -797,6 +799,7 @@ export type Database = {
           municipio?: string | null
           nome_completo?: string
           numero?: string | null
+          observacoes?: string | null
           pis?: string | null
           rg?: string | null
           rua?: string | null
@@ -1527,6 +1530,7 @@ export type Database = {
           id: string
           municipio: string | null
           numero: string | null
+          observacoes: string | null
           razao_social: string
           rua: string | null
           socio_cpf: string | null
@@ -1549,6 +1553,7 @@ export type Database = {
           id?: string
           municipio?: string | null
           numero?: string | null
+          observacoes?: string | null
           razao_social: string
           rua?: string | null
           socio_cpf?: string | null
@@ -1571,6 +1576,7 @@ export type Database = {
           id?: string
           municipio?: string | null
           numero?: string | null
+          observacoes?: string | null
           razao_social?: string
           rua?: string | null
           socio_cpf?: string | null
@@ -2413,6 +2419,7 @@ export const Constants = {
 //   ferias_adiantadas_dias: integer (nullable, default: 0)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+//   observacoes: text (nullable)
 // Table: estoque_caixas
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -2599,6 +2606,7 @@ export const Constants = {
 //   comissoes: numeric (nullable)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+//   observacoes: text (nullable)
 // Table: parcelas
 //   id: uuid (not null, default: gen_random_uuid())
 //   pagamento_id: uuid (nullable)

@@ -139,6 +139,19 @@ export function AIAssistant() {
         const processAction = async (actionData: any) => {
           const { data: userData } = await supabase.auth.getUser()
           if (actionData.acao === 'criar_pagamento') {
+            const { data: existentes } = await supabase
+              .from('contas_pagar')
+              .select('id')
+              .eq('fornecedor', actionData.dados.credor_devedor || 'Desconhecido')
+              .eq('valor', actionData.dados.valor || 0)
+              .eq('data_vencimento', actionData.dados.data_vencimento || today)
+              .gte('criado_em', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+            if (existentes && existentes.length > 0) {
+              console.log('Lançamento ignorado por duplicidade (pagamento)')
+              return
+            }
+
             await supabase.from('contas_pagar').insert({
               user_id: userData.user?.id,
               fornecedor: actionData.dados.credor_devedor || 'Desconhecido',
@@ -160,6 +173,18 @@ export function AIAssistant() {
                 .limit(1)
                 .maybeSingle()
               if (clientes) clienteId = clientes.id
+            }
+
+            const { data: existentes } = await supabase
+              .from('contas_receber')
+              .select('id')
+              .eq('valor', actionData.dados.valor || 0)
+              .eq('data_vencimento', actionData.dados.data_vencimento || today)
+              .gte('criado_em', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+            if (existentes && existentes.length > 0) {
+              console.log('Lançamento ignorado por duplicidade (recebimento)')
+              return
             }
 
             await supabase.from('contas_receber').insert({
