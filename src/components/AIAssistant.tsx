@@ -139,13 +139,16 @@ export function AIAssistant() {
         const processAction = async (actionData: any) => {
           const { data: userData } = await supabase.auth.getUser()
           if (actionData.acao === 'criar_pagamento') {
+            const fornecedor = actionData.dados.credor_devedor || 'Desconhecido'
+            const valor = actionData.dados.valor || 0
+            const dataVenc = actionData.dados.data_vencimento || today
+
             const { data: existentes } = await supabase
               .from('contas_pagar')
               .select('id')
-              .eq('fornecedor', actionData.dados.credor_devedor || 'Desconhecido')
-              .eq('valor', actionData.dados.valor || 0)
-              .eq('data_vencimento', actionData.dados.data_vencimento || today)
-              .gte('criado_em', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+              .eq('fornecedor', fornecedor)
+              .eq('valor', valor)
+              .eq('data_vencimento', dataVenc)
 
             if (existentes && existentes.length > 0) {
               console.log('Lançamento ignorado por duplicidade (pagamento)')
@@ -175,12 +178,20 @@ export function AIAssistant() {
               if (clientes) clienteId = clientes.id
             }
 
-            const { data: existentes } = await supabase
+            const valor = actionData.dados.valor || 0
+            const dataVenc = actionData.dados.data_vencimento || today
+
+            let query = supabase
               .from('contas_receber')
               .select('id')
-              .eq('valor', actionData.dados.valor || 0)
-              .eq('data_vencimento', actionData.dados.data_vencimento || today)
-              .gte('criado_em', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+              .eq('valor', valor)
+              .eq('data_vencimento', dataVenc)
+
+            if (clienteId) {
+              query = query.eq('cliente_id', clienteId)
+            }
+
+            const { data: existentes } = await query
 
             if (existentes && existentes.length > 0) {
               console.log('Lançamento ignorado por duplicidade (recebimento)')
@@ -207,19 +218,31 @@ export function AIAssistant() {
         let match
         while ((match = jsonRegex.exec(aiMessage)) !== null) {
           try {
-            const actionData = JSON.parse(match[1])
-            await processAction(actionData)
+            const parsed = JSON.parse(match[1])
+            if (parsed.acoes && Array.isArray(parsed.acoes)) {
+              for (const act of parsed.acoes) {
+                await processAction(act)
+              }
+            } else if (parsed.acao) {
+              await processAction(parsed)
+            }
           } catch (e) {
             console.error('Failed to parse JSON', e)
           }
         }
         aiMessageCleaned = aiMessageCleaned.replace(/```json\n[\s\S]*?\n```/g, '').trim()
 
-        const strayJsonMatch = aiMessageCleaned.match(/({[\s\S]*"acao"[\s\S]*})/)
+        const strayJsonMatch = aiMessageCleaned.match(/({[\s\S]*"acao(es)?"[\s\S]*})/)
         if (strayJsonMatch) {
           try {
-            const actionData = JSON.parse(strayJsonMatch[1])
-            await processAction(actionData)
+            const parsed = JSON.parse(strayJsonMatch[1])
+            if (parsed.acoes && Array.isArray(parsed.acoes)) {
+              for (const act of parsed.acoes) {
+                await processAction(act)
+              }
+            } else if (parsed.acao) {
+              await processAction(parsed)
+            }
             aiMessageCleaned = aiMessageCleaned.replace(strayJsonMatch[1], '').trim()
           } catch {
             /* intentionally ignored */
