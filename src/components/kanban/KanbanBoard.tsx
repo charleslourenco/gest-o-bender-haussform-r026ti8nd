@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { KanbanHeader } from './KanbanHeader'
+import { MontadorSelect } from './MontadorSelect'
 import {
   Select,
   SelectContent,
@@ -51,9 +52,11 @@ interface Item {
   qtd: number
   status_analise: string
   cliente: { nome: string } | null
+  cliente_id?: string | null
   criado_em: string
   analista_id: string | null
   formulario: { user_id: string } | null
+  alocacao_montagem?: { montador_id: string }[]
 }
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
@@ -66,6 +69,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [selectedConsultant, setSelectedConsultant] = useState('all')
   const [usersMap, setUsersMap] = useState<Record<string, any>>({})
   const [allUsers, setAllUsers] = useState<any[]>([])
+  const [allMontadores, setAllMontadores] = useState<any[]>([])
+
+  const isMontagemRoute =
+    typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
 
   const [showSobrasPrompt, setShowSobrasPrompt] = useState(false)
   const [showSobrasRegister, setShowSobrasRegister] = useState(false)
@@ -151,11 +158,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           status_analise, 
           criado_em,
           analista_id,
+          cliente_id,
           cliente:clientes(nome),
-          formulario:formulario_comercial(user_id)
+          formulario:formulario_comercial(user_id),
+          alocacao_montagem(montador_id)
         `)
 
       if (err) throw err
+
+      if (isMontagemRoute) {
+        const { data: montData } = await supabase
+          .from('montadores')
+          .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
+        if (montData) setAllMontadores(montData)
+      }
 
       // We only care about items that are in one of the columns provided to this board
       const columnIds = columns.map((c) => c.id)
@@ -247,8 +263,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const handleDeleteCard = async (id: string) => {
     if (!confirm('Deseja realmente excluir este card?')) return
     try {
-      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', id)
+      const { data, error } = await supabase
+        .from('produtos_servicos_projeto')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('Sem permissão para excluir este card ou card não encontrado.')
+      }
       toast.success('Card excluído com sucesso!')
       setItems((prev) => prev.filter((i) => i.id !== id))
     } catch (err: any) {
@@ -434,7 +457,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </div>
 
                       <div
-                        className="mt-4 pt-3 border-t border-steel-blue/10"
+                        className="mt-4 pt-3 border-t border-steel-blue/10 flex flex-col gap-1.5"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -461,6 +484,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             ))}
                           </SelectContent>
                         </Select>
+
+                        {isMontagemRoute && (
+                          <MontadorSelect
+                            item={item}
+                            montadores={allMontadores}
+                            onUpdate={fetchItems}
+                          />
+                        )}
                       </div>
                     </div>
                   ))}

@@ -107,6 +107,13 @@ export function CreateCardDialog({
       const codigoRastreio = `${prefix}${seq}`
 
       // 3. Inserir Card
+      let defaultStatus = 'iniciar'
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname
+        if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
+        else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
+      }
+
       const { error } = await supabase.from('produtos_servicos_projeto').insert({
         cliente_id: clienteId,
         nome_produto: produtoNome.trim(),
@@ -114,7 +121,7 @@ export function CreateCardDialog({
         descricao,
         valor_unitario: 0,
         valor_total: 0,
-        status_analise: 'iniciar',
+        status_analise: defaultStatus,
         codigo_rastreio: codigoRastreio,
       })
 
