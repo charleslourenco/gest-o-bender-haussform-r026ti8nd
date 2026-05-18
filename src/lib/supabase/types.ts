@@ -3224,6 +3224,8 @@ export const Constants = {
 // Table: produtos_servicos_projeto
 //   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={public}
 //     USING: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))
+//   Policy "produtos_servicos_projeto_delete_admin" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (is_admin(auth.uid()) OR has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR (formulario_comercial_id IS NULL))
 //   Policy "produtos_servicos_projeto_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (((formulario_comercial_id IS NOT NULL) AND (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = produtos_servicos_projeto.formulario_comercial_id) AND (f.user_id = auth.uid()))))) OR has_module_access(auth.uid(), 'Análise Técnica'::text) OR has_module_access(auth.uid(), 'Produção'::text) OR has_module_access(auth.uid(), 'Montagem'::text) OR is_admin(auth.uid()))
 //   Policy "produtos_servicos_projeto_select" (SELECT, PERMISSIVE) roles={public}
