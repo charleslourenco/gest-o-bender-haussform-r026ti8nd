@@ -1524,6 +1524,133 @@ export type Database = {
         }
         Relationships: []
       }
+      orcamentos_ambientes: {
+        Row: {
+          criado_em: string
+          descricao_comercial: string | null
+          id: string
+          nome: string
+          orcamento_id: string
+        }
+        Insert: {
+          criado_em?: string
+          descricao_comercial?: string | null
+          id?: string
+          nome: string
+          orcamento_id: string
+        }
+        Update: {
+          criado_em?: string
+          descricao_comercial?: string | null
+          id?: string
+          nome?: string
+          orcamento_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'orcamentos_ambientes_orcamento_id_fkey'
+            columns: ['orcamento_id']
+            isOneToOne: false
+            referencedRelation: 'orcamentos_engenharia'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      orcamentos_engenharia: {
+        Row: {
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          markup_global: number
+          nome: string
+          status: string
+          usuario_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          markup_global?: number
+          nome: string
+          status?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          markup_global?: number
+          nome?: string
+          status?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'orcamentos_engenharia_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      orcamentos_itens: {
+        Row: {
+          ambiente_id: string
+          criado_em: string
+          custo_unitario: number
+          id: string
+          item_estoque_id: string | null
+          markup: number
+          markup_manual: boolean
+          nome_item: string
+          quantidade: number
+          unidade_medida: string
+        }
+        Insert: {
+          ambiente_id: string
+          criado_em?: string
+          custo_unitario?: number
+          id?: string
+          item_estoque_id?: string | null
+          markup?: number
+          markup_manual?: boolean
+          nome_item: string
+          quantidade?: number
+          unidade_medida?: string
+        }
+        Update: {
+          ambiente_id?: string
+          criado_em?: string
+          custo_unitario?: number
+          id?: string
+          item_estoque_id?: string | null
+          markup?: number
+          markup_manual?: boolean
+          nome_item?: string
+          quantidade?: number
+          unidade_medida?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'orcamentos_itens_ambiente_id_fkey'
+            columns: ['ambiente_id']
+            isOneToOne: false
+            referencedRelation: 'orcamentos_ambientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'orcamentos_itens_item_estoque_id_fkey'
+            columns: ['item_estoque_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       pagamentos: {
         Row: {
           atualizado_em: string | null
@@ -2655,6 +2782,32 @@ export const Constants = {
 //   lida: boolean (not null, default: false)
 //   link: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: orcamentos_ambientes
+//   id: uuid (not null, default: gen_random_uuid())
+//   orcamento_id: uuid (not null)
+//   nome: text (not null)
+//   descricao_comercial: text (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+// Table: orcamentos_engenharia
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   cliente_id: uuid (nullable)
+//   markup_global: numeric (not null, default: 2.5)
+//   status: text (not null, default: 'Rascunho'::text)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
+//   usuario_id: uuid (nullable)
+// Table: orcamentos_itens
+//   id: uuid (not null, default: gen_random_uuid())
+//   ambiente_id: uuid (not null)
+//   item_estoque_id: uuid (nullable)
+//   nome_item: text (not null)
+//   quantidade: numeric (not null, default: 1)
+//   unidade_medida: text (not null, default: 'un'::text)
+//   custo_unitario: numeric (not null, default: 0)
+//   markup: numeric (not null, default: 2.5)
+//   markup_manual: boolean (not null, default: false)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: pagamentos
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -2912,6 +3065,17 @@ export const Constants = {
 // Table: notificacoes
 //   PRIMARY KEY notificacoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY notificacoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: orcamentos_ambientes
+//   FOREIGN KEY orcamentos_ambientes_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos_engenharia(id) ON DELETE CASCADE
+//   PRIMARY KEY orcamentos_ambientes_pkey: PRIMARY KEY (id)
+// Table: orcamentos_engenharia
+//   FOREIGN KEY orcamentos_engenharia_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
+//   PRIMARY KEY orcamentos_engenharia_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY orcamentos_engenharia_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: orcamentos_itens
+//   FOREIGN KEY orcamentos_itens_ambiente_id_fkey: FOREIGN KEY (ambiente_id) REFERENCES orcamentos_ambientes(id) ON DELETE CASCADE
+//   FOREIGN KEY orcamentos_itens_item_estoque_id_fkey: FOREIGN KEY (item_estoque_id) REFERENCES estoque_itens(id) ON DELETE SET NULL
+//   PRIMARY KEY orcamentos_itens_pkey: PRIMARY KEY (id)
 // Table: pagamentos
 //   FOREIGN KEY pagamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY pagamentos_formulario_id_fkey: FOREIGN KEY (formulario_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
@@ -3176,6 +3340,18 @@ export const Constants = {
 //   Policy "Enable update for own notifications" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (usuario_id = auth.uid())
 //     WITH CHECK: (usuario_id = auth.uid())
+// Table: orcamentos_ambientes
+//   Policy "orcamentos_ambientes_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: orcamentos_engenharia
+//   Policy "orcamentos_engenharia_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: orcamentos_itens
+//   Policy "orcamentos_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: pagamentos
 //   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
@@ -3556,6 +3732,8 @@ export const Constants = {
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
 // Table: estoque_caixas_itens
 //   trg_caixa_item_reservado: CREATE TRIGGER trg_caixa_item_reservado AFTER INSERT OR DELETE OR UPDATE ON public.estoque_caixas_itens FOR EACH ROW EXECUTE FUNCTION handle_caixa_item_reservado()
+// Table: orcamentos_engenharia
+//   set_orcamentos_engenharia_atualizado_em: CREATE TRIGGER set_orcamentos_engenharia_atualizado_em BEFORE UPDATE ON public.orcamentos_engenharia FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: placeholders
 //   set_placeholders_atualizado_em: CREATE TRIGGER set_placeholders_atualizado_em BEFORE UPDATE ON public.placeholders FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: produtos_servicos_projeto
