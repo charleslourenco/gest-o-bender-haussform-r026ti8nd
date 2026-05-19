@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Scissors, Trash2, AlertTriangle, Search, Check, Printer } from 'lucide-react'
+import { Scissors, Trash2, AlertTriangle, Search, Check, Printer, Edit } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,7 @@ export function GestaoSobras() {
     altura: 0,
     espessura: 0,
   })
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [descarteSugerido, setDescarteSugerido] = useState(false)
 
   const { toast } = useToast()
@@ -62,6 +63,25 @@ export function GestaoSobras() {
     }
   }, [novaSobra.largura, novaSobra.altura])
 
+  function openNewModal() {
+    setEditingId(null)
+    setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(sobra: any) {
+    setEditingId(sobra.id)
+    setNovaSobra({
+      nome: sobra.nome,
+      marca: sobra.marca || '',
+      cliente_nome: sobra.cliente_nome || '',
+      largura: sobra.largura,
+      altura: sobra.altura,
+      espessura: sobra.espessura || 0,
+    })
+    setIsModalOpen(true)
+  }
+
   async function handleSalvarSobra() {
     if (
       !novaSobra.nome ||
@@ -82,22 +102,44 @@ export function GestaoSobras() {
       return
     }
 
-    const { error } = await supabase.from('estoque_sobras' as any).insert({
-      nome: novaSobra.nome,
-      marca: novaSobra.marca,
-      cliente_nome: novaSobra.cliente_nome,
-      largura: novaSobra.largura,
-      altura: novaSobra.altura,
-      espessura: novaSobra.espessura,
-      area: area,
-      status: 'disponivel',
-    })
+    let error
+
+    if (editingId) {
+      const { error: updateError } = await supabase
+        .from('estoque_sobras' as any)
+        .update({
+          nome: novaSobra.nome,
+          marca: novaSobra.marca,
+          cliente_nome: novaSobra.cliente_nome,
+          largura: novaSobra.largura,
+          altura: novaSobra.altura,
+          espessura: novaSobra.espessura,
+          area: area,
+        })
+        .eq('id', editingId)
+      error = updateError
+    } else {
+      const { error: insertError } = await supabase.from('estoque_sobras' as any).insert({
+        nome: novaSobra.nome,
+        marca: novaSobra.marca,
+        cliente_nome: novaSobra.cliente_nome,
+        largura: novaSobra.largura,
+        altura: novaSobra.altura,
+        espessura: novaSobra.espessura,
+        area: area,
+        status: 'disponivel',
+      })
+      error = insertError
+    }
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
     } else {
-      toast({ title: 'Sobra registrada com sucesso!' })
+      toast({
+        title: editingId ? 'Retalho atualizado com sucesso!' : 'Sobra registrada com sucesso!',
+      })
       setIsModalOpen(false)
+      setEditingId(null)
       setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
       fetchSobras()
     }
@@ -128,7 +170,7 @@ export function GestaoSobras() {
     if (!printWindow) return
 
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      window.location.origin + '/baixa-retalho/' + sobra.id,
+      'https://gestao-fabrica-moveis-75a68.goskip.app/baixa-retalho/' + sobra.id,
     )}`
 
     const html = `
@@ -191,7 +233,7 @@ export function GestaoSobras() {
           <p className="text-gray-500">Registre e aproveite sobras com mais de 1m².</p>
         </div>
         <Button
-          onClick={() => setIsModalOpen(true)}
+          onClick={openNewModal}
           className="bg-amber-500 hover:bg-amber-600 text-white w-full sm:w-auto"
         >
           <Scissors className="w-4 h-4 mr-2" />
@@ -280,6 +322,15 @@ export function GestaoSobras() {
                           >
                             <Check className="w-4 h-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-amber-500 hover:bg-amber-50 h-8 w-8 mr-1"
+                            onClick={() => openEditModal(sobra)}
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                         </>
                       )}
                       <Button
@@ -310,7 +361,7 @@ export function GestaoSobras() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Registrar Novo Retalho</DialogTitle>
+            <DialogTitle>{editingId ? 'Editar Retalho' : 'Registrar Novo Retalho'}</DialogTitle>
             <DialogDescription>
               Insira as medidas em milímetros. Peças menores que 1m² não são aceitas.
             </DialogDescription>
@@ -396,23 +447,41 @@ export function GestaoSobras() {
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSalvarSobra}
-              className="bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={
-                descarteSugerido ||
-                !novaSobra.nome ||
-                novaSobra.largura <= 0 ||
-                novaSobra.altura <= 0 ||
-                novaSobra.espessura <= 0
-              }
-            >
-              Salvar Retalho
-            </Button>
+          <DialogFooter className="sm:justify-between w-full">
+            {editingId ? (
+              <Button
+                variant="outline"
+                onClick={() => handlePrint({ ...novaSobra, id: editingId })}
+                className="text-blue-600 border-blue-200 hover:bg-blue-50 mt-2 sm:mt-0"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir Etiqueta
+              </Button>
+            ) : (
+              <div />
+            )}
+            <div className="flex flex-col-reverse sm:flex-row sm:space-x-2 mt-4 sm:mt-0">
+              <Button
+                variant="outline"
+                className="mt-2 sm:mt-0"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleSalvarSobra}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                disabled={
+                  descarteSugerido ||
+                  !novaSobra.nome ||
+                  novaSobra.largura <= 0 ||
+                  novaSobra.altura <= 0 ||
+                  novaSobra.espessura <= 0
+                }
+              >
+                {editingId ? 'Salvar Alterações' : 'Salvar Retalho'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
