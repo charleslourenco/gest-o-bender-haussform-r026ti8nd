@@ -56,7 +56,7 @@ export function GestaoSobras() {
 
   useEffect(() => {
     if (novaSobra.largura > 0 && novaSobra.altura > 0) {
-      const area = (novaSobra.largura * novaSobra.altura) / 1000000 // Convert from mm2 to m2
+      const area = (novaSobra.largura * novaSobra.altura) / 1000000
       setDescarteSugerido(area < 1)
     } else {
       setDescarteSugerido(false)
@@ -82,14 +82,21 @@ export function GestaoSobras() {
     setIsModalOpen(true)
   }
 
-  async function handleSalvarSobra() {
-    if (
-      !novaSobra.nome ||
-      novaSobra.largura <= 0 ||
-      novaSobra.altura <= 0 ||
-      novaSobra.espessura <= 0
-    ) {
-      return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
+  const isFormInvalid =
+    !novaSobra.nome ||
+    !novaSobra.marca ||
+    !novaSobra.cliente_nome ||
+    novaSobra.largura <= 0 ||
+    novaSobra.altura <= 0 ||
+    novaSobra.espessura <= 0 ||
+    descarteSugerido
+
+  async function handleSalvarSobra(imprimir = false) {
+    if (isFormInvalid) {
+      return toast({
+        title: 'Preencha todos os campos obrigatórios corretamente',
+        variant: 'destructive',
+      })
     }
 
     const area = (novaSobra.largura * novaSobra.altura) / 1000000
@@ -103,6 +110,7 @@ export function GestaoSobras() {
     }
 
     let error
+    let savedId = editingId
 
     if (editingId) {
       const { error: updateError } = await supabase
@@ -119,17 +127,23 @@ export function GestaoSobras() {
         .eq('id', editingId)
       error = updateError
     } else {
-      const { error: insertError } = await supabase.from('estoque_sobras' as any).insert({
-        nome: novaSobra.nome,
-        marca: novaSobra.marca,
-        cliente_nome: novaSobra.cliente_nome,
-        largura: novaSobra.largura,
-        altura: novaSobra.altura,
-        espessura: novaSobra.espessura,
-        area: area,
-        status: 'disponivel',
-      })
+      const { data: insertedData, error: insertError } = await supabase
+        .from('estoque_sobras' as any)
+        .insert({
+          nome: novaSobra.nome,
+          marca: novaSobra.marca,
+          cliente_nome: novaSobra.cliente_nome,
+          largura: novaSobra.largura,
+          altura: novaSobra.altura,
+          espessura: novaSobra.espessura,
+          area: area,
+          status: 'disponivel',
+        })
+        .select()
+        .single()
+
       error = insertError
+      if (insertedData) savedId = insertedData.id
     }
 
     if (error) {
@@ -138,6 +152,11 @@ export function GestaoSobras() {
       toast({
         title: editingId ? 'Retalho atualizado com sucesso!' : 'Sobra registrada com sucesso!',
       })
+
+      if (imprimir && savedId) {
+        handlePrint({ ...novaSobra, id: savedId })
+      }
+
       setIsModalOpen(false)
       setEditingId(null)
       setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
@@ -178,35 +197,98 @@ export function GestaoSobras() {
         <head>
           <title>Etiqueta - ${sobra.nome}</title>
           <style>
-            body { font-family: sans-serif; padding: 20px; text-align: center; }
-            .label { border: 2px solid #000; padding: 20px; width: 320px; margin: 0 auto; box-sizing: border-box; }
-            h2 { margin: 0 0 10px 0; font-size: 18px; text-transform: uppercase; }
-            p { margin: 5px 0; font-size: 14px; }
-            .medidas { font-weight: bold; font-size: 16px; margin: 15px 0; padding: 10px; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; }
-            img { margin-top: 15px; width: 150px; height: 150px; }
+            @page { size: 100mm 60mm; margin: 0; }
+            body { 
+              margin: 0; 
+              padding: 4mm; 
+              width: 100mm; 
+              height: 60mm; 
+              box-sizing: border-box; 
+              font-family: Arial, sans-serif; 
+              display: flex; 
+              flex-direction: row; 
+              align-items: center; 
+              justify-content: space-between; 
+              overflow: hidden;
+              background: #fff;
+              color: #000;
+            }
+            .info { 
+              width: 65%; 
+              display: flex; 
+              flex-direction: column; 
+              justify-content: center;
+            }
+            h1 { 
+              font-size: 16px; 
+              margin: 0 0 6px 0; 
+              font-weight: bold; 
+              line-height: 1.2;
+              text-transform: uppercase;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              display: -webkit-box;
+              -webkit-line-clamp: 2;
+              -webkit-box-orient: vertical;
+            }
+            p { 
+              font-size: 12px; 
+              margin: 0 0 2px 0; 
+              line-height: 1.3; 
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .medidas { 
+              font-size: 14px; 
+              font-weight: bold; 
+              margin-top: 6px; 
+              padding-top: 6px; 
+              border-top: 2px solid #000; 
+            }
+            .qr-container { 
+              width: 32%; 
+              display: flex; 
+              flex-direction: column; 
+              align-items: center; 
+              justify-content: center; 
+            }
+            .qr-container img { 
+              width: 28mm; 
+              height: 28mm; 
+              object-fit: contain;
+            }
+            .qr-label { 
+              font-size: 9px; 
+              text-align: center; 
+              margin-top: 4px; 
+              font-weight: bold;
+              text-transform: uppercase;
+            }
             @media print {
-              body { padding: 0; margin: 0; }
-              .label { width: 100%; border: none; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          <div class="label">
-            <h2>${sobra.nome}</h2>
-            <p><strong>Marca:</strong> ${sobra.marca || '-'}</p>
-            <p><strong>Cliente:</strong> ${sobra.cliente_nome || '-'}</p>
+          <div class="info">
+            <h1>${sobra.nome}</h1>
+            <p><strong>Cliente:</strong> ${sobra.cliente_nome}</p>
+            <p><strong>Marca:</strong> ${sobra.marca}</p>
             <div class="medidas">
-              ${sobra.largura}mm L x ${sobra.altura}mm A x ${sobra.espessura}mm E
+              ${sobra.altura}A x ${sobra.largura}L x ${sobra.espessura}E mm
             </div>
+          </div>
+          <div class="qr-container">
             <img src="${qrUrl}" alt="QR Code" />
-            <p style="font-size: 11px; margin-top: 10px; color: #555;">Escaneie para dar baixa</p>
+            <div class="qr-label">Escaneie para<br/>baixa de estoque</div>
           </div>
           <script>
             window.onload = () => {
               setTimeout(() => {
                 window.print();
                 window.close();
-              }, 500);
+              }, 600);
             }
           </script>
         </body>
@@ -230,7 +312,7 @@ export function GestaoSobras() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-midnight-navy">Banco de Retalhos (MDF)</h2>
-          <p className="text-gray-500">Registre e aproveite sobras com mais de 1m².</p>
+          <p className="text-gray-500">Gerencie e imprima etiquetas térmicas de sobras.</p>
         </div>
         <Button
           onClick={openNewModal}
@@ -258,25 +340,24 @@ export function GestaoSobras() {
             <Table>
               <TableHeader className="bg-gray-50">
                 <TableRow>
-                  <TableHead>Material / Cor</TableHead>
-                  <TableHead>Marca</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead className="text-center">Larg x Alt (mm)</TableHead>
+                  <TableHead>Nome do MDF</TableHead>
+                  <TableHead>Marca</TableHead>
+                  <TableHead className="text-center">Alt x Lar (mm)</TableHead>
                   <TableHead className="text-center">Espess. (mm)</TableHead>
                   <TableHead className="text-center">Área (m²)</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Data de Uso</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredSobras.map((sobra) => (
                   <TableRow key={sobra.id}>
-                    <TableCell className="font-medium">{sobra.nome}</TableCell>
+                    <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
+                    <TableCell>{sobra.nome}</TableCell>
                     <TableCell>{sobra.marca || '-'}</TableCell>
-                    <TableCell>{sobra.cliente_nome || '-'}</TableCell>
                     <TableCell className="text-center">
-                      {sobra.largura} x {sobra.altura}
+                      {sobra.altura} x {sobra.largura}
                     </TableCell>
                     <TableCell className="text-center">{sobra.espessura}</TableCell>
                     <TableCell className="text-center font-bold text-steel-blue">
@@ -295,11 +376,6 @@ export function GestaoSobras() {
                           Usado
                         </Badge>
                       )}
-                    </TableCell>
-                    <TableCell className="text-center text-sm text-gray-500">
-                      {sobra.status === 'usado' && sobra.usado_em
-                        ? new Date(sobra.usado_em).toLocaleString('pt-BR')
-                        : '-'}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {sobra.status === 'disponivel' && (
@@ -347,7 +423,7 @@ export function GestaoSobras() {
                 ))}
                 {filteredSobras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       Nenhum retalho encontrado.
                     </TableCell>
                   </TableRow>
@@ -363,48 +439,39 @@ export function GestaoSobras() {
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Retalho' : 'Registrar Novo Retalho'}</DialogTitle>
             <DialogDescription>
-              Insira as medidas em milímetros. Peças menores que 1m² não são aceitas.
+              Todos os campos são obrigatórios. O sistema não aceita retalhos menores que 1m².
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nome do Material / Cor *</Label>
+              <Label>Nome do Cliente *</Label>
               <Input
-                placeholder="Ex: MDF Branco TX"
-                value={novaSobra.nome}
-                onChange={(e) => setNovaSobra({ ...novaSobra, nome: e.target.value })}
+                placeholder="Ex: João da Silva"
+                value={novaSobra.cliente_nome}
+                onChange={(e) => setNovaSobra({ ...novaSobra, cliente_nome: e.target.value })}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Marca</Label>
+                <Label>Nome do MDF *</Label>
+                <Input
+                  placeholder="Ex: Branco TX"
+                  value={novaSobra.nome}
+                  onChange={(e) => setNovaSobra({ ...novaSobra, nome: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Marca *</Label>
                 <Input
                   placeholder="Ex: Arauco"
                   value={novaSobra.marca}
                   onChange={(e) => setNovaSobra({ ...novaSobra, marca: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Cliente</Label>
-                <Input
-                  placeholder="Opcional"
-                  value={novaSobra.cliente_nome}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, cliente_nome: e.target.value })}
-                />
-              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Largura (mm) *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 1500"
-                  value={novaSobra.largura || ''}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, largura: Number(e.target.value) })}
-                />
-              </div>
               <div className="space-y-2">
                 <Label>Altura (mm) *</Label>
                 <Input
@@ -412,6 +479,15 @@ export function GestaoSobras() {
                   placeholder="Ex: 1200"
                   value={novaSobra.altura || ''}
                   onChange={(e) => setNovaSobra({ ...novaSobra, altura: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Largura (mm) *</Label>
+                <Input
+                  type="number"
+                  placeholder="Ex: 1500"
+                  value={novaSobra.largura || ''}
+                  onChange={(e) => setNovaSobra({ ...novaSobra, largura: Number(e.target.value) })}
                 />
               </div>
               <div className="space-y-2">
@@ -448,18 +524,15 @@ export function GestaoSobras() {
             )}
           </div>
           <DialogFooter className="sm:justify-between w-full">
-            {editingId ? (
-              <Button
-                variant="outline"
-                onClick={() => handlePrint({ ...novaSobra, id: editingId })}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50 mt-2 sm:mt-0"
-              >
-                <Printer className="w-4 h-4 mr-2" />
-                Imprimir Etiqueta
-              </Button>
-            ) : (
-              <div />
-            )}
+            <Button
+              variant="outline"
+              onClick={() => handleSalvarSobra(true)}
+              className="text-blue-600 border-blue-200 hover:bg-blue-50 mt-2 sm:mt-0"
+              disabled={isFormInvalid}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              {editingId ? 'Salvar e Imprimir' : 'Criar e Imprimir'}
+            </Button>
             <div className="flex flex-col-reverse sm:flex-row sm:space-x-2 mt-4 sm:mt-0">
               <Button
                 variant="outline"
@@ -469,15 +542,9 @@ export function GestaoSobras() {
                 Cancelar
               </Button>
               <Button
-                onClick={handleSalvarSobra}
+                onClick={() => handleSalvarSobra(false)}
                 className="bg-amber-500 hover:bg-amber-600 text-white"
-                disabled={
-                  descarteSugerido ||
-                  !novaSobra.nome ||
-                  novaSobra.largura <= 0 ||
-                  novaSobra.altura <= 0 ||
-                  novaSobra.espessura <= 0
-                }
+                disabled={isFormInvalid}
               >
                 {editingId ? 'Salvar Alterações' : 'Salvar Retalho'}
               </Button>
