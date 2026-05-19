@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Scissors, Trash2, AlertTriangle, Search, Check } from 'lucide-react'
+import { Scissors, Trash2, AlertTriangle, Search, Check, Printer } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,14 @@ export function GestaoSobras() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [search, setSearch] = useState('')
 
-  const [novaSobra, setNovaSobra] = useState({ nome: '', largura: 0, altura: 0 })
+  const [novaSobra, setNovaSobra] = useState({
+    nome: '',
+    marca: '',
+    cliente_nome: '',
+    largura: 0,
+    altura: 0,
+    espessura: 0,
+  })
   const [descarteSugerido, setDescarteSugerido] = useState(false)
 
   const { toast } = useToast()
@@ -48,7 +55,7 @@ export function GestaoSobras() {
 
   useEffect(() => {
     if (novaSobra.largura > 0 && novaSobra.altura > 0) {
-      const area = novaSobra.largura * novaSobra.altura
+      const area = (novaSobra.largura * novaSobra.altura) / 1000000 // Convert from mm2 to m2
       setDescarteSugerido(area < 1)
     } else {
       setDescarteSugerido(false)
@@ -56,11 +63,16 @@ export function GestaoSobras() {
   }, [novaSobra.largura, novaSobra.altura])
 
   async function handleSalvarSobra() {
-    if (!novaSobra.nome || novaSobra.largura <= 0 || novaSobra.altura <= 0) {
-      return toast({ title: 'Preencha todos os campos', variant: 'destructive' })
+    if (
+      !novaSobra.nome ||
+      novaSobra.largura <= 0 ||
+      novaSobra.altura <= 0 ||
+      novaSobra.espessura <= 0
+    ) {
+      return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
     }
 
-    const area = novaSobra.largura * novaSobra.altura
+    const area = (novaSobra.largura * novaSobra.altura) / 1000000
     if (area < 1) {
       toast({
         title: 'Peça muito pequena!',
@@ -72,8 +84,11 @@ export function GestaoSobras() {
 
     const { error } = await supabase.from('estoque_sobras' as any).insert({
       nome: novaSobra.nome,
+      marca: novaSobra.marca,
+      cliente_nome: novaSobra.cliente_nome,
       largura: novaSobra.largura,
       altura: novaSobra.altura,
+      espessura: novaSobra.espessura,
       area: area,
       status: 'disponivel',
     })
@@ -83,7 +98,7 @@ export function GestaoSobras() {
     } else {
       toast({ title: 'Sobra registrada com sucesso!' })
       setIsModalOpen(false)
-      setNovaSobra({ nome: '', largura: 0, altura: 0 })
+      setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
       fetchSobras()
     }
   }
@@ -106,6 +121,59 @@ export function GestaoSobras() {
       .eq('id', id)
     fetchSobras()
     toast({ title: 'Retalho marcado como usado' })
+  }
+
+  function handlePrint(sobra: any) {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+      window.location.origin + '/baixa-retalho/' + sobra.id,
+    )}`
+
+    const html = `
+      <html>
+        <head>
+          <title>Etiqueta - ${sobra.nome}</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; text-align: center; }
+            .label { border: 2px solid #000; padding: 20px; width: 320px; margin: 0 auto; box-sizing: border-box; }
+            h2 { margin: 0 0 10px 0; font-size: 18px; text-transform: uppercase; }
+            p { margin: 5px 0; font-size: 14px; }
+            .medidas { font-weight: bold; font-size: 16px; margin: 15px 0; padding: 10px; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; }
+            img { margin-top: 15px; width: 150px; height: 150px; }
+            @media print {
+              body { padding: 0; margin: 0; }
+              .label { width: 100%; border: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="label">
+            <h2>${sobra.nome}</h2>
+            <p><strong>Marca:</strong> ${sobra.marca || '-'}</p>
+            <p><strong>Cliente:</strong> ${sobra.cliente_nome || '-'}</p>
+            <div class="medidas">
+              ${sobra.largura}mm L x ${sobra.altura}mm A x ${sobra.espessura}mm E
+            </div>
+            <img src="${qrUrl}" alt="QR Code" />
+            <p style="font-size: 11px; margin-top: 10px; color: #555;">Escaneie para dar baixa</p>
+          </div>
+          <script>
+            window.onload = () => {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `
+
+    printWindow.document.open()
+    printWindow.document.write(html)
+    printWindow.document.close()
   }
 
   const filteredSobras = sobras.filter((s) => s.nome.toLowerCase().includes(search.toLowerCase()))
@@ -144,8 +212,9 @@ export function GestaoSobras() {
               <TableHeader className="bg-gray-50">
                 <TableRow>
                   <TableHead>Material / Cor</TableHead>
-                  <TableHead className="text-center">Largura (m)</TableHead>
-                  <TableHead className="text-center">Altura (m)</TableHead>
+                  <TableHead>Marca</TableHead>
+                  <TableHead className="text-center">Larg x Alt (mm)</TableHead>
+                  <TableHead className="text-center">Espess. (mm)</TableHead>
                   <TableHead className="text-center">Área (m²)</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -155,8 +224,11 @@ export function GestaoSobras() {
                 {filteredSobras.map((sobra) => (
                   <TableRow key={sobra.id}>
                     <TableCell className="font-medium">{sobra.nome}</TableCell>
-                    <TableCell className="text-center">{sobra.largura}</TableCell>
-                    <TableCell className="text-center">{sobra.altura}</TableCell>
+                    <TableCell>{sobra.marca || '-'}</TableCell>
+                    <TableCell className="text-center">
+                      {sobra.largura} x {sobra.altura}
+                    </TableCell>
+                    <TableCell className="text-center">{sobra.espessura}</TableCell>
                     <TableCell className="text-center font-bold text-steel-blue">
                       {sobra.area.toFixed(2)} m²
                     </TableCell>
@@ -174,22 +246,35 @@ export function GestaoSobras() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right whitespace-nowrap">
                       {sobra.status === 'disponivel' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-emerald-600 hover:bg-emerald-50 mr-2"
-                          onClick={() => handleUsar(sobra.id)}
-                        >
-                          Marcar Uso
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:bg-blue-50 mr-1"
+                            onClick={() => handlePrint(sobra)}
+                            title="Imprimir Etiqueta"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-emerald-600 hover:bg-emerald-50 mr-1"
+                            onClick={() => handleUsar(sobra.id)}
+                            title="Marcar Uso"
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                        </>
                       )}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-red-500 hover:bg-red-50 h-8 w-8"
                         onClick={() => handleDeletar(sobra.id)}
+                        title="Deletar"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -198,7 +283,7 @@ export function GestaoSobras() {
                 ))}
                 {filteredSobras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       Nenhum retalho encontrado.
                     </TableCell>
                   </TableRow>
@@ -210,41 +295,70 @@ export function GestaoSobras() {
       </Card>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Registrar Novo Retalho</DialogTitle>
             <DialogDescription>
-              Insira as medidas em metros. Peças menores que 1m² não são aceitas.
+              Insira as medidas em milímetros. Peças menores que 1m² não são aceitas.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nome do Material / Cor</Label>
+              <Label>Nome do Material / Cor *</Label>
               <Input
-                placeholder="Ex: MDF Branco TX 15mm"
+                placeholder="Ex: MDF Branco TX"
                 value={novaSobra.nome}
                 onChange={(e) => setNovaSobra({ ...novaSobra, nome: e.target.value })}
               />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Largura (metros)</Label>
+                <Label>Marca</Label>
+                <Input
+                  placeholder="Ex: Arauco"
+                  value={novaSobra.marca}
+                  onChange={(e) => setNovaSobra({ ...novaSobra, marca: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Input
+                  placeholder="Opcional"
+                  value={novaSobra.cliente_nome}
+                  onChange={(e) => setNovaSobra({ ...novaSobra, cliente_nome: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Largura (mm) *</Label>
                 <Input
                   type="number"
-                  step="0.01"
-                  placeholder="Ex: 1.5"
+                  placeholder="Ex: 1500"
                   value={novaSobra.largura || ''}
                   onChange={(e) => setNovaSobra({ ...novaSobra, largura: Number(e.target.value) })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Altura (metros)</Label>
+                <Label>Altura (mm) *</Label>
                 <Input
                   type="number"
-                  step="0.01"
-                  placeholder="Ex: 1.2"
+                  placeholder="Ex: 1200"
                   value={novaSobra.altura || ''}
                   onChange={(e) => setNovaSobra({ ...novaSobra, altura: Number(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Espessura (mm) *</Label>
+                <Input
+                  type="number"
+                  placeholder="Ex: 15"
+                  value={novaSobra.espessura || ''}
+                  onChange={(e) =>
+                    setNovaSobra({ ...novaSobra, espessura: Number(e.target.value) })
+                  }
                 />
               </div>
             </div>
@@ -253,7 +367,7 @@ export function GestaoSobras() {
               <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
                 <AlertTriangle className="w-5 h-5 shrink-0" />
                 <p className="text-sm font-medium">
-                  Área total: {(novaSobra.largura * novaSobra.altura).toFixed(2)}m².
+                  Área total: {((novaSobra.largura * novaSobra.altura) / 1000000).toFixed(2)}m².
                   <br />
                   Peça muito pequena. Sugerimos o descarte direto.
                 </p>
@@ -263,8 +377,8 @@ export function GestaoSobras() {
               <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md flex items-center gap-2">
                 <Check className="w-5 h-5 shrink-0" />
                 <p className="text-sm font-medium">
-                  Área total: {(novaSobra.largura * novaSobra.altura).toFixed(2)}m². Peça válida
-                  para o estoque!
+                  Área total: {((novaSobra.largura * novaSobra.altura) / 1000000).toFixed(2)}m².
+                  Peça válida para o estoque!
                 </p>
               </div>
             )}
@@ -276,7 +390,13 @@ export function GestaoSobras() {
             <Button
               onClick={handleSalvarSobra}
               className="bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={descarteSugerido}
+              disabled={
+                descarteSugerido ||
+                !novaSobra.nome ||
+                novaSobra.largura <= 0 ||
+                novaSobra.altura <= 0 ||
+                novaSobra.espessura <= 0
+              }
             >
               Salvar Retalho
             </Button>
