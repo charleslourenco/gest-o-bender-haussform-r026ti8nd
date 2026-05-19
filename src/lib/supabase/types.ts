@@ -1558,49 +1558,49 @@ export type Database = {
       }
       orcamentos_engenharia: {
         Row: {
+          arquiteto_bio: string | null
+          arquiteto_foto: string | null
+          arquiteto_nome: string | null
           atualizado_em: string
           cliente_id: string | null
+          cliente_nome_manual: string | null
           criado_em: string
           id: string
           markup_global: number
           nome: string
           status: string
-          usuario_id: string | null
-          arquiteto_nome: string | null
-          arquiteto_bio: string | null
-          arquiteto_foto: string | null
           textos_institucionais: Json | null
-          cliente_nome_manual: string | null
+          usuario_id: string | null
         }
         Insert: {
+          arquiteto_bio?: string | null
+          arquiteto_foto?: string | null
+          arquiteto_nome?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          cliente_nome_manual?: string | null
           criado_em?: string
           id?: string
           markup_global?: number
           nome: string
           status?: string
-          usuario_id?: string | null
-          arquiteto_nome?: string | null
-          arquiteto_bio?: string | null
-          arquiteto_foto?: string | null
           textos_institucionais?: Json | null
-          cliente_nome_manual?: string | null
+          usuario_id?: string | null
         }
         Update: {
+          arquiteto_bio?: string | null
+          arquiteto_foto?: string | null
+          arquiteto_nome?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          cliente_nome_manual?: string | null
           criado_em?: string
           id?: string
           markup_global?: number
           nome?: string
           status?: string
-          usuario_id?: string | null
-          arquiteto_nome?: string | null
-          arquiteto_bio?: string | null
-          arquiteto_foto?: string | null
           textos_institucionais?: Json | null
-          cliente_nome_manual?: string | null
+          usuario_id?: string | null
         }
         Relationships: [
           {
@@ -2812,6 +2812,11 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   usuario_id: uuid (nullable)
+//   arquiteto_nome: text (nullable, default: 'Nome do Arquiteto'::text)
+//   arquiteto_bio: text (nullable, default: 'Breve biografia do arquiteto parceiro responsável por este projeto.'::text)
+//   arquiteto_foto: text (nullable, default: 'https://img.usecurling.com/ppl/large?gender=female&seed=2'::text)
+//   textos_institucionais: jsonb (nullable, default: '{}'::jsonb)
+//   cliente_nome_manual: text (nullable)
 // Table: orcamentos_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   ambiente_id: uuid (not null)

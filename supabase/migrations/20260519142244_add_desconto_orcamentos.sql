@@ -1,0 +1,1 @@
+ALTER TABLE public.orcamentos_engenharia ADD COLUMN IF NOT EXISTS desconto NUMERIC NOT NULL DEFAULT 0;

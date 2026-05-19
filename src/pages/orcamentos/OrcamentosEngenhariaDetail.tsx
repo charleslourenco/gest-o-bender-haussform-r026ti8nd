@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UploadTab } from './tabs/UploadTab'
-import { OrcamentoTab } from './tabs/OrcamentoTab'
+import { OrcamentoInterno } from './tabs/OrcamentoInterno'
 import { ComprasTab } from './tabs/ComprasTab'
 import { supabase } from '@/lib/supabase/client'
 
@@ -71,7 +71,7 @@ export default function OrcamentosEngenhariaDetail() {
             value="orcamento"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none py-2"
           >
-            Painel de Orçamento
+            Orçamento
           </TabsTrigger>
           <TabsTrigger
             value="compras"
@@ -85,7 +85,7 @@ export default function OrcamentosEngenhariaDetail() {
             <UploadTab orcamentoId={id!} />
           </TabsContent>
           <TabsContent value="orcamento" className="h-full m-0">
-            <OrcamentoTab orcamento={orcamento} onUpdate={(o) => setOrcamento(o)} />
+            <OrcamentoInterno orcamento={orcamento} onUpdate={(o) => setOrcamento(o)} />
           </TabsContent>
           <TabsContent value="compras" className="h-full m-0">
             <ComprasTab orcamentoId={id!} />
