@@ -67,7 +67,7 @@ export function RegistrarRetalhoModal({
 
   const currentId = sobraParaEditar?.id || uuid
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-    'https://gestao-fabrica-moveis-75a68.goskip.app/baixa-retalho/' + currentId,
+    `${window.location.origin}/baixa-retalho/${currentId}`,
   )}`
 
   const isFormInvalid =

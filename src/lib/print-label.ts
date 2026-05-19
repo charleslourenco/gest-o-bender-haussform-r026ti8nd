@@ -11,7 +11,7 @@ export function printScrapLabel(sobra: {
   if (!printWindow) return
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-    'https://gestao-fabrica-moveis-75a68.goskip.app/baixa-retalho/' + sobra.id,
+    `${window.location.origin}/baixa-retalho/${sobra.id}`,
   )}`
 
   const html = `

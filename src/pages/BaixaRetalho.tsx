@@ -162,9 +162,17 @@ export default function BaixaRetalho() {
           </div>
 
           {isUsado ? (
-            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl text-center font-medium shadow-sm flex items-center justify-center gap-2">
-              <AlertCircle className="w-5 h-5" />
-              Este retalho já foi utilizado.
+            <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-xl text-center font-medium shadow-sm flex flex-col items-center justify-center gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>
+                  Este retalho já foi utilizado
+                  {retalho.usado_em
+                    ? ` em ${new Date(retalho.usado_em).toLocaleString('pt-BR')}`
+                    : ''}
+                  .
+                </span>
+              </div>
             </div>
           ) : (
             <Button
@@ -172,7 +180,7 @@ export default function BaixaRetalho() {
               disabled={baixaLoading}
               className="w-full h-14 text-lg font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-md rounded-xl transition-all active:scale-[0.98]"
             >
-              {baixaLoading ? 'Processando...' : 'Confirmar Baixa'}
+              {baixaLoading ? 'Processando...' : 'Confirmar Baixa de Retalho'}
             </Button>
           )}
         </CardContent>
