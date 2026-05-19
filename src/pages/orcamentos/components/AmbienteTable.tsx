@@ -5,7 +5,13 @@ import { Trash2, Plus } from 'lucide-react'
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-export function AmbienteTable({ amb, onUpdateItem, onDeleteItem, onAddItem }: any) {
+export function AmbienteTable({
+  amb,
+  onUpdateItem,
+  onDeleteItem,
+  onAddItem,
+  onUpdateAmbiente,
+}: any) {
   const subCusto = amb.itens.reduce(
     (acc: number, i: any) => acc + i.quantidade * i.custo_unitario,
     0,
@@ -17,9 +23,19 @@ export function AmbienteTable({ amb, onUpdateItem, onDeleteItem, onAddItem }: an
 
   return (
     <div className="bg-background border rounded-xl overflow-hidden shadow-sm">
-      <div className="p-4 bg-accent/30 border-b flex justify-between items-center">
-        <h3 className="font-bold text-lg font-serif">{amb.nome}</h3>
-        <Button size="sm" variant="outline" onClick={() => onAddItem(amb.id)}>
+      <div className="p-4 bg-accent/30 border-b flex justify-between items-center gap-4">
+        <input
+          className="font-bold text-lg font-serif bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary rounded px-2 w-full max-w-sm"
+          value={amb.nome}
+          onChange={(e) => onUpdateAmbiente(amb.id, 'nome', e.target.value)}
+          placeholder="Nome do ambiente..."
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onAddItem(amb.id)}
+          className="whitespace-nowrap"
+        >
           <Plus className="w-4 h-4 mr-2" /> Adicionar Item Manual
         </Button>
       </div>

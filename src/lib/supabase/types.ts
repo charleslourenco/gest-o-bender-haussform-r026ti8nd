@@ -1566,6 +1566,11 @@ export type Database = {
           nome: string
           status: string
           usuario_id: string | null
+          arquiteto_nome: string | null
+          arquiteto_bio: string | null
+          arquiteto_foto: string | null
+          textos_institucionais: Json | null
+          cliente_nome_manual: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -1576,6 +1581,11 @@ export type Database = {
           nome: string
           status?: string
           usuario_id?: string | null
+          arquiteto_nome?: string | null
+          arquiteto_bio?: string | null
+          arquiteto_foto?: string | null
+          textos_institucionais?: Json | null
+          cliente_nome_manual?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -1586,6 +1596,11 @@ export type Database = {
           nome?: string
           status?: string
           usuario_id?: string | null
+          arquiteto_nome?: string | null
+          arquiteto_bio?: string | null
+          arquiteto_foto?: string | null
+          textos_institucionais?: Json | null
+          cliente_nome_manual?: string | null
         }
         Relationships: [
           {

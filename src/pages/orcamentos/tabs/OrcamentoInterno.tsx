@@ -87,6 +87,14 @@ export function OrcamentoInterno({
     loadData()
   }
 
+  const updateAmbiente = async (id: string, field: string, value: string) => {
+    setAmbientes((prev) => prev.map((a) => (a.id === id ? { ...a, [field]: value } : a)))
+    await supabase
+      .from('orcamentos_ambientes')
+      .update({ [field]: value })
+      .eq('id', id)
+  }
+
   const addAmbiente = async () => {
     await supabase
       .from('orcamentos_ambientes')
@@ -130,6 +138,7 @@ export function OrcamentoInterno({
             onUpdateItem={updateItem}
             onDeleteItem={deleteItem}
             onAddItem={setAddModalAmbienteId}
+            onUpdateAmbiente={updateAmbiente}
           />
         ))}
       </div>
