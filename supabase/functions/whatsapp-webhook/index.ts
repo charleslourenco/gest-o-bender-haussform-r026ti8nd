@@ -253,7 +253,7 @@ Regras de Ouro:
     "localizacao": "string (ou null)",
     "status_imovel": "string (ou null)",
     "investimento": "string (ou null)",
-    "categoria": "Comercial | Outros Assuntos | Parceiro | Equipe (Tente adivinhar qual é com base no assunto. Se incerto, use 'Comercial')"
+    "categoria": "Comercial | Corretor(a) | Já é cliente | Fornecedor | Assistência | Currículos | Arquiteto Externo | Outros Assuntos (Tente adivinhar qual é com base no assunto. Se incerto, use 'Comercial')"
   }
 }
 IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem (com exceção de 'categoria', que você pode inferir do contexto). Para informações antigas ou ainda não fornecidas, use null.`
@@ -352,7 +352,18 @@ async function processResponse(
     nextStep = 1
   }
 
-  const validCategorias = ['Comercial', 'Outros Assuntos', 'Parceiro', 'Equipe']
+  const validCategorias = [
+    'Comercial',
+    'Outros Assuntos',
+    'Parceiro',
+    'Equipe',
+    'Corretor(a)',
+    'Já é cliente',
+    'Fornecedor',
+    'Assistência',
+    'Currículos',
+    'Arquiteto Externo',
+  ]
   const catSugerida =
     dados.categoria && validCategorias.includes(dados.categoria) ? dados.categoria : lead.categoria
 

@@ -40,6 +40,7 @@ export function KanbanBoard() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sourceFilter, setSourceFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [consultantFilter, setConsultantFilter] = useState('')
   const [activeCol, setActiveCol] = useState(COLUMNS[0])
   const [isLoading, setIsLoading] = useState(true)
@@ -164,10 +165,11 @@ export function KanbanBoard() {
           l.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
           l.email.toLowerCase().includes(debouncedSearch.toLowerCase())
         const matchO = sourceFilter ? l.origem === sourceFilter : true
+        const matchCat = categoryFilter ? (l as any).categoria === categoryFilter : true
         const matchC = consultantFilter ? l.consultor_id === consultantFilter : true
-        return matchS && matchO && matchC
+        return matchS && matchO && matchCat && matchC
       }),
-    [leads, debouncedSearch, sourceFilter, consultantFilter],
+    [leads, debouncedSearch, sourceFilter, categoryFilter, consultantFilter],
   )
 
   if (isLoading) {
@@ -209,8 +211,8 @@ export function KanbanBoard() {
         >
           Adicionar Lead
         </button>
-        <div className="flex-1 flex flex-col md:flex-row gap-4 w-full">
-          <div className="relative flex-1">
+        <div className="flex-1 flex flex-col md:flex-row flex-wrap gap-4 w-full">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-4 top-3.5 w-5 h-5 text-steel-blue pointer-events-none" />
             <input
               type="text"
@@ -223,7 +225,7 @@ export function KanbanBoard() {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
+            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer min-w-[180px]"
           >
             <option value="">Todas as Origens</option>
             <option value="Instagram">Instagram</option>
@@ -231,6 +233,23 @@ export function KanbanBoard() {
             <option value="WhatsApp">WhatsApp</option>
             <option value="Indicação">Indicação</option>
             <option value="Outro">Outro</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer min-w-[180px]"
+          >
+            <option value="">Todas as Categorias</option>
+            <option value="Comercial">Comercial</option>
+            <option value="Corretor(a)">Corretor(a)</option>
+            <option value="Já é cliente">Já é cliente</option>
+            <option value="Fornecedor">Fornecedor</option>
+            <option value="Assistência">Assistência</option>
+            <option value="Currículos">Currículos</option>
+            <option value="Arquiteto Externo">Arquiteto Externo</option>
+            <option value="Outros Assuntos">Outros Assuntos</option>
+            <option value="Parceiro">Parceiro</option>
+            <option value="Equipe">Equipe</option>
           </select>
           <select
             value={consultantFilter}
@@ -248,6 +267,7 @@ export function KanbanBoard() {
             onClick={() => {
               setSearch('')
               setSourceFilter('')
+              setCategoryFilter('')
               setConsultantFilter('')
             }}
             className="bg-steel-blue text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] whitespace-nowrap font-medium transition-opacity duration-200"

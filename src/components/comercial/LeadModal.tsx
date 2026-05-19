@@ -212,6 +212,12 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                   className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 cursor-pointer"
                 >
                   <option value="Comercial">Comercial</option>
+                  <option value="Corretor(a)">Corretor(a)</option>
+                  <option value="Já é cliente">Já é cliente</option>
+                  <option value="Fornecedor">Fornecedor</option>
+                  <option value="Assistência">Assistência</option>
+                  <option value="Currículos">Currículos</option>
+                  <option value="Arquiteto Externo">Arquiteto Externo</option>
                   <option value="Outros Assuntos">Outros Assuntos</option>
                   <option value="Parceiro">Parceiro</option>
                   <option value="Equipe">Equipe</option>

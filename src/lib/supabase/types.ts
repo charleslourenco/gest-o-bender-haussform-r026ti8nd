@@ -1070,6 +1070,7 @@ export type Database = {
           marca: string | null
           nome: string
           status: string
+          usado_em: string | null
         }
         Insert: {
           altura: number
@@ -1082,6 +1083,7 @@ export type Database = {
           marca?: string | null
           nome: string
           status?: string
+          usado_em?: string | null
         }
         Update: {
           altura?: number
@@ -1094,6 +1096,7 @@ export type Database = {
           marca?: string | null
           nome?: string
           status?: string
+          usado_em?: string | null
         }
         Relationships: []
       }
@@ -2703,6 +2706,7 @@ export const Constants = {
 //   marca: text (nullable)
 //   cliente_nome: text (nullable)
 //   espessura: numeric (nullable)
+//   usado_em: timestamp with time zone (nullable)
 // Table: formulario_comercial
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
