@@ -2,16 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Scissors, Trash2, AlertTriangle, Search, Check, Printer, Edit } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+import { Scissors, Trash2, Search, Check, Printer, Edit } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
@@ -23,22 +14,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { RegistrarRetalhoModal } from './RegistrarRetalhoModal'
+import { printScrapLabel } from '@/lib/print-label'
 
 export function GestaoSobras() {
   const [sobras, setSobras] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [search, setSearch] = useState('')
 
-  const [novaSobra, setNovaSobra] = useState({
-    nome: '',
-    marca: '',
-    cliente_nome: '',
-    largura: 0,
-    altura: 0,
-    espessura: 0,
-  })
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [descarteSugerido, setDescarteSugerido] = useState(false)
+  const [sobraEditando, setSobraEditando] = useState<any>(null)
 
   const { toast } = useToast()
 
@@ -54,114 +38,14 @@ export function GestaoSobras() {
     if (data) setSobras(data)
   }
 
-  useEffect(() => {
-    if (novaSobra.largura > 0 && novaSobra.altura > 0) {
-      const area = (novaSobra.largura * novaSobra.altura) / 1000000
-      setDescarteSugerido(area < 1)
-    } else {
-      setDescarteSugerido(false)
-    }
-  }, [novaSobra.largura, novaSobra.altura])
-
   function openNewModal() {
-    setEditingId(null)
-    setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
+    setSobraEditando(null)
     setIsModalOpen(true)
   }
 
   function openEditModal(sobra: any) {
-    setEditingId(sobra.id)
-    setNovaSobra({
-      nome: sobra.nome,
-      marca: sobra.marca || '',
-      cliente_nome: sobra.cliente_nome || '',
-      largura: sobra.largura,
-      altura: sobra.altura,
-      espessura: sobra.espessura || 0,
-    })
+    setSobraEditando(sobra)
     setIsModalOpen(true)
-  }
-
-  const isFormInvalid =
-    !novaSobra.nome ||
-    !novaSobra.marca ||
-    !novaSobra.cliente_nome ||
-    novaSobra.largura <= 0 ||
-    novaSobra.altura <= 0 ||
-    novaSobra.espessura <= 0 ||
-    descarteSugerido
-
-  async function handleSalvarSobra(imprimir = false) {
-    if (isFormInvalid) {
-      return toast({
-        title: 'Preencha todos os campos obrigatórios corretamente',
-        variant: 'destructive',
-      })
-    }
-
-    const area = (novaSobra.largura * novaSobra.altura) / 1000000
-    if (area < 1) {
-      toast({
-        title: 'Peça muito pequena!',
-        description: 'Peças menores que 1m² devem ser descartadas.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    let error
-    let savedId = editingId
-
-    if (editingId) {
-      const { error: updateError } = await supabase
-        .from('estoque_sobras' as any)
-        .update({
-          nome: novaSobra.nome,
-          marca: novaSobra.marca,
-          cliente_nome: novaSobra.cliente_nome,
-          largura: novaSobra.largura,
-          altura: novaSobra.altura,
-          espessura: novaSobra.espessura,
-          area: area,
-        })
-        .eq('id', editingId)
-      error = updateError
-    } else {
-      const { data: insertedData, error: insertError } = await supabase
-        .from('estoque_sobras' as any)
-        .insert({
-          nome: novaSobra.nome,
-          marca: novaSobra.marca,
-          cliente_nome: novaSobra.cliente_nome,
-          largura: novaSobra.largura,
-          altura: novaSobra.altura,
-          espessura: novaSobra.espessura,
-          area: area,
-          status: 'disponivel',
-        })
-        .select()
-        .single()
-
-      error = insertError
-      if (insertedData) savedId = insertedData.id
-    }
-
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
-      toast({
-        title: editingId ? 'Retalho atualizado com sucesso!' : 'Sobra registrada com sucesso!',
-      })
-
-      if (imprimir && savedId) {
-        handlePrint({ ...novaSobra, id: savedId })
-      }
-
-      setIsModalOpen(false)
-      setEditingId(null)
-      setNovaSobra({ nome: '', marca: '', cliente_nome: '', largura: 0, altura: 0, espessura: 0 })
-      fetchSobras()
-    }
   }
 
   async function handleDeletar(id: string) {
@@ -182,122 +66,6 @@ export function GestaoSobras() {
       .eq('id', id)
     fetchSobras()
     toast({ title: 'Retalho marcado como usado' })
-  }
-
-  function handlePrint(sobra: any) {
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) return
-
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      'https://gestao-fabrica-moveis-75a68.goskip.app/baixa-retalho/' + sobra.id,
-    )}`
-
-    const html = `
-      <html>
-        <head>
-          <title>Etiqueta - ${sobra.nome}</title>
-          <style>
-            @page { size: 100mm 60mm; margin: 0; }
-            body { 
-              margin: 0; 
-              padding: 4mm; 
-              width: 100mm; 
-              height: 60mm; 
-              box-sizing: border-box; 
-              font-family: Arial, sans-serif; 
-              display: flex; 
-              flex-direction: row; 
-              align-items: center; 
-              justify-content: space-between; 
-              overflow: hidden;
-              background: #fff;
-              color: #000;
-            }
-            .info { 
-              width: 65%; 
-              display: flex; 
-              flex-direction: column; 
-              justify-content: center;
-            }
-            h1 { 
-              font-size: 16px; 
-              margin: 0 0 6px 0; 
-              font-weight: bold; 
-              line-height: 1.2;
-              text-transform: uppercase;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              display: -webkit-box;
-              -webkit-line-clamp: 2;
-              -webkit-box-orient: vertical;
-            }
-            p { 
-              font-size: 12px; 
-              margin: 0 0 2px 0; 
-              line-height: 1.3; 
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            }
-            .medidas { 
-              font-size: 14px; 
-              font-weight: bold; 
-              margin-top: 6px; 
-              padding-top: 6px; 
-              border-top: 2px solid #000; 
-            }
-            .qr-container { 
-              width: 32%; 
-              display: flex; 
-              flex-direction: column; 
-              align-items: center; 
-              justify-content: center; 
-            }
-            .qr-container img { 
-              width: 28mm; 
-              height: 28mm; 
-              object-fit: contain;
-            }
-            .qr-label { 
-              font-size: 9px; 
-              text-align: center; 
-              margin-top: 4px; 
-              font-weight: bold;
-              text-transform: uppercase;
-            }
-            @media print {
-              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="info">
-            <h1>${sobra.nome}</h1>
-            <p><strong>Cliente:</strong> ${sobra.cliente_nome}</p>
-            <p><strong>Marca:</strong> ${sobra.marca}</p>
-            <div class="medidas">
-              ${sobra.altura}A x ${sobra.largura}L x ${sobra.espessura}E mm
-            </div>
-          </div>
-          <div class="qr-container">
-            <img src="${qrUrl}" alt="QR Code" />
-            <div class="qr-label">Escaneie para<br/>baixa de estoque</div>
-          </div>
-          <script>
-            window.onload = () => {
-              setTimeout(() => {
-                window.print();
-                window.close();
-              }, 600);
-            }
-          </script>
-        </body>
-      </html>
-    `
-
-    printWindow.document.open()
-    printWindow.document.write(html)
-    printWindow.document.close()
   }
 
   const filteredSobras = sobras.filter(
@@ -384,7 +152,7 @@ export function GestaoSobras() {
                             variant="ghost"
                             size="sm"
                             className="text-blue-600 hover:bg-blue-50 mr-1"
-                            onClick={() => handlePrint(sobra)}
+                            onClick={() => printScrapLabel(sobra)}
                             title="Imprimir Etiqueta"
                           >
                             <Printer className="w-4 h-4" />
@@ -434,124 +202,12 @@ export function GestaoSobras() {
         </CardContent>
       </Card>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{editingId ? 'Editar Retalho' : 'Registrar Novo Retalho'}</DialogTitle>
-            <DialogDescription>
-              Todos os campos são obrigatórios. O sistema não aceita retalhos menores que 1m².
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nome do Cliente *</Label>
-              <Input
-                placeholder="Ex: João da Silva"
-                value={novaSobra.cliente_nome}
-                onChange={(e) => setNovaSobra({ ...novaSobra, cliente_nome: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome do MDF *</Label>
-                <Input
-                  placeholder="Ex: Branco TX"
-                  value={novaSobra.nome}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, nome: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Marca *</Label>
-                <Input
-                  placeholder="Ex: Arauco"
-                  value={novaSobra.marca}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, marca: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Altura (mm) *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 1200"
-                  value={novaSobra.altura || ''}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, altura: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Largura (mm) *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 1500"
-                  value={novaSobra.largura || ''}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, largura: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Espessura (mm) *</Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 15"
-                  value={novaSobra.espessura || ''}
-                  onChange={(e) =>
-                    setNovaSobra({ ...novaSobra, espessura: Number(e.target.value) })
-                  }
-                />
-              </div>
-            </div>
-
-            {descarteSugerido && novaSobra.largura > 0 && novaSobra.altura > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
-                <AlertTriangle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-medium">
-                  Área total: {((novaSobra.largura * novaSobra.altura) / 1000000).toFixed(2)}m².
-                  <br />
-                  Peça muito pequena. Sugerimos o descarte direto.
-                </p>
-              </div>
-            )}
-            {!descarteSugerido && novaSobra.largura > 0 && novaSobra.altura > 0 && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md flex items-center gap-2">
-                <Check className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-medium">
-                  Área total: {((novaSobra.largura * novaSobra.altura) / 1000000).toFixed(2)}m².
-                  Peça válida para o estoque!
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter className="sm:justify-between w-full">
-            <Button
-              variant="outline"
-              onClick={() => handleSalvarSobra(true)}
-              className="text-blue-600 border-blue-200 hover:bg-blue-50 mt-2 sm:mt-0"
-              disabled={isFormInvalid}
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              {editingId ? 'Salvar e Imprimir' : 'Criar e Imprimir'}
-            </Button>
-            <div className="flex flex-col-reverse sm:flex-row sm:space-x-2 mt-4 sm:mt-0">
-              <Button
-                variant="outline"
-                className="mt-2 sm:mt-0"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={() => handleSalvarSobra(false)}
-                className="bg-amber-500 hover:bg-amber-600 text-white"
-                disabled={isFormInvalid}
-              >
-                {editingId ? 'Salvar Alterações' : 'Salvar Retalho'}
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RegistrarRetalhoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        sobraParaEditar={sobraEditando}
+        onSave={fetchSobras}
+      />
     </div>
   )
 }
