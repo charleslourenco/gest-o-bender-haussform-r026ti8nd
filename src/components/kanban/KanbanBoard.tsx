@@ -363,14 +363,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           <p className="text-midnight-navy/60 text-sm">
             Arraste os cards entre as colunas para atualizar o status.
           </p>
-          <Button
-            onClick={() => setShowSobrasRegister(true)}
-            className="bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
-            size="sm"
-          >
-            <Scissors className="w-4 h-4 mr-2" />
-            Registrar Retalho
-          </Button>
         </div>
       </div>
 
