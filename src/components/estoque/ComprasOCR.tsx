@@ -134,17 +134,43 @@ export function ComprasOCR() {
         // População Automática do Inventário
         let inventoryInserted = 0
         if (hasItens && newNota) {
+          const { data: allItems } = await supabase
+            .from('estoque_itens')
+            .select('id, nome, quantidade')
+          const existingList = allItems || []
+
+          const normalize = (s: string) =>
+            s
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+          const getCoreName = (s: string) => {
+            let n = normalize(s)
+            n = n.replace(/^[0-9]+\s*(chapas?|pecas?|unidades?|un|m2|m|x)?\s*(de\s*)?/, '')
+            return n.trim()
+          }
+
+          const matchItem = (ocrName: string) => {
+            const coreOcr = getCoreName(ocrName)
+            let found = existingList.find((i) => getCoreName(i.nome) === coreOcr)
+            if (found) return found
+
+            if (coreOcr.length > 10) {
+              found = existingList.find((i) => {
+                const coreExisting = getCoreName(i.nome)
+                return coreOcr.includes(coreExisting) || coreExisting.includes(coreOcr)
+              })
+            }
+            return found || null
+          }
+
           for (const item of extractedData.itens) {
             const nomeProduto = item.produto || 'Item Desconhecido'
             const qtd = Number(item.quantidade) || 1
             const precoUnitario = Number(item.preco_unitario) || 0
 
-            const { data: existingItem } = await supabase
-              .from('estoque_itens')
-              .select('id, quantidade')
-              .ilike('nome', `%${nomeProduto}%`)
-              .limit(1)
-              .maybeSingle()
+            const existingItem = matchItem(nomeProduto)
 
             let itemId = ''
             if (existingItem) {
@@ -153,11 +179,13 @@ export function ComprasOCR() {
                 .from('estoque_itens')
                 .update({
                   quantidade: Number(existingItem.quantidade) + qtd,
-                  valor_unitario: precoUnitario,
+                  valor_unitario: precoUnitario > 0 ? precoUnitario : undefined,
                   fornecedor: extractedData?.fornecedor || 'Desconhecido',
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existingItem.id)
+
+              existingItem.quantidade = Number(existingItem.quantidade) + qtd
             } else {
               const { data: insertedItem } = await supabase
                 .from('estoque_itens')
@@ -169,10 +197,13 @@ export function ComprasOCR() {
                   unidade: 'un',
                   estoque_minimo: 5,
                 })
-                .select('id')
+                .select('id, nome, quantidade')
                 .single()
 
-              if (insertedItem) itemId = insertedItem.id
+              if (insertedItem) {
+                itemId = insertedItem.id
+                existingList.push(insertedItem)
+              }
             }
 
             if (itemId) {

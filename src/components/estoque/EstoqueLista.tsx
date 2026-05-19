@@ -73,9 +73,73 @@ export function EstoqueLista() {
 
   const handleSaveItem = async () => {
     try {
-      const { error } = await supabase.from('estoque_itens' as any).insert(newItem)
-      if (error) throw error
-      toast({ title: 'Item Cadastrado', description: 'O item foi adicionado ao inventário.' })
+      const { data: allItems } = await supabase.from('estoque_itens').select('id, nome, quantidade')
+
+      const normalize = (s: string) =>
+        s
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim()
+      const getCoreName = (s: string) => {
+        let n = normalize(s)
+        n = n.replace(/^[0-9]+\s*(chapas?|pecas?|unidades?|un|m2|m|x)?\s*(de\s*)?/, '')
+        return n.trim()
+      }
+
+      const coreNew = getCoreName(newItem.nome)
+
+      let existingItem = (allItems || []).find((i) => getCoreName(i.nome) === coreNew)
+
+      if (!existingItem && coreNew.length > 10) {
+        existingItem = (allItems || []).find((i) => {
+          const coreExisting = getCoreName(i.nome)
+          return coreNew.includes(coreExisting) || coreExisting.includes(coreNew)
+        })
+      }
+
+      if (existingItem) {
+        const { error } = await supabase
+          .from('estoque_itens')
+          .update({
+            quantidade: Number(existingItem.quantidade) + Number(newItem.quantidade),
+            valor_unitario: newItem.valor_unitario > 0 ? newItem.valor_unitario : undefined,
+            fornecedor: newItem.fornecedor || undefined,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq('id', existingItem.id)
+
+        if (error) throw error
+
+        await supabase.from('estoque_movimentacoes').insert({
+          item_id: existingItem.id,
+          tipo: 'entrada',
+          quantidade: newItem.quantidade,
+        })
+
+        toast({
+          title: 'Estoque Atualizado',
+          description: 'O item já existia e sua quantidade foi somada.',
+        })
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('estoque_itens' as any)
+          .insert(newItem)
+          .select('id')
+          .single()
+        if (error) throw error
+
+        if (inserted) {
+          await supabase.from('estoque_movimentacoes').insert({
+            item_id: inserted.id,
+            tipo: 'entrada',
+            quantidade: newItem.quantidade,
+          })
+        }
+
+        toast({ title: 'Item Cadastrado', description: 'O item foi adicionado ao inventário.' })
+      }
+
       setIsModalOpen(false)
       setNewItem({
         nome: '',
