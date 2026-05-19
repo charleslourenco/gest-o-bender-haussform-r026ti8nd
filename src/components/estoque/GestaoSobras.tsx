@@ -38,11 +38,6 @@ export function GestaoSobras() {
     if (data) setSobras(data)
   }
 
-  function openNewModal() {
-    setSobraEditando(null)
-    setIsModalOpen(true)
-  }
-
   function openEditModal(sobra: any) {
     setSobraEditando(sobra)
     setIsModalOpen(true)
@@ -82,13 +77,6 @@ export function GestaoSobras() {
           <h2 className="text-2xl font-bold text-midnight-navy">Banco de Retalhos (MDF)</h2>
           <p className="text-gray-500">Gerencie e imprima etiquetas térmicas de sobras.</p>
         </div>
-        <Button
-          onClick={openNewModal}
-          className="bg-amber-500 hover:bg-amber-600 text-white w-full sm:w-auto"
-        >
-          <Scissors className="w-4 h-4 mr-2" />
-          Registrar Retalho
-        </Button>
       </div>
 
       <Card>
