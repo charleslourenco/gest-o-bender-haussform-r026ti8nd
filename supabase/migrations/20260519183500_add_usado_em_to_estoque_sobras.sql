@@ -1,0 +1,1 @@
+ALTER TABLE public.estoque_sobras ADD COLUMN IF NOT EXISTS usado_em TIMESTAMPTZ;

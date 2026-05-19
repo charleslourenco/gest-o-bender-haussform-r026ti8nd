@@ -37,14 +37,14 @@ export default function BaixaRetalho() {
     setBaixaLoading(true)
     const { error } = await supabase
       .from('estoque_sobras' as any)
-      .update({ status: 'usado' })
+      .update({ status: 'usado', usado_em: new Date().toISOString() })
       .eq('id', id)
 
     if (error) {
       setError('Erro ao dar baixa. Tente novamente.')
     } else {
       setSuccess(true)
-      setRetalho({ ...retalho, status: 'usado' })
+      setRetalho({ ...retalho, status: 'usado', usado_em: new Date().toISOString() })
     }
     setBaixaLoading(false)
   }

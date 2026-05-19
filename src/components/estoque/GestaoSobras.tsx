@@ -117,7 +117,7 @@ export function GestaoSobras() {
     if (!confirm('Marcar este retalho como utilizado?')) return
     await supabase
       .from('estoque_sobras' as any)
-      .update({ status: 'usado' })
+      .update({ status: 'usado', usado_em: new Date().toISOString() })
       .eq('id', id)
     fetchSobras()
     toast({ title: 'Retalho marcado como usado' })
@@ -223,6 +223,7 @@ export function GestaoSobras() {
                   <TableHead className="text-center">Espess. (mm)</TableHead>
                   <TableHead className="text-center">Área (m²)</TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Data de Uso</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -252,6 +253,11 @@ export function GestaoSobras() {
                           Usado
                         </Badge>
                       )}
+                    </TableCell>
+                    <TableCell className="text-center text-sm text-gray-500">
+                      {sobra.status === 'usado' && sobra.usado_em
+                        ? new Date(sobra.usado_em).toLocaleString('pt-BR')
+                        : '-'}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       {sobra.status === 'disponivel' && (
@@ -290,7 +296,7 @@ export function GestaoSobras() {
                 ))}
                 {filteredSobras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       Nenhum retalho encontrado.
                     </TableCell>
                   </TableRow>
