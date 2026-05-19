@@ -13,8 +13,8 @@ export function OrcamentoTab({
     <Tabs defaultValue="interno" className="h-full flex flex-col min-h-0">
       <div className="flex justify-center mb-6">
         <TabsList className="bg-muted">
-          <TabsTrigger value="interno">Subaba A: Orçamento Interno</TabsTrigger>
-          <TabsTrigger value="comercial">Subaba B: Proposta Comercial</TabsTrigger>
+          <TabsTrigger value="interno">Orçamento Interno</TabsTrigger>
+          <TabsTrigger value="comercial">Proposta Comercial</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="interno" className="flex-1 m-0 overflow-auto">
