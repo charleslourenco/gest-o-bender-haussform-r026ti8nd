@@ -27,7 +27,7 @@ export default function OrcamentosEngenhariaDetail() {
     <div className="p-6 space-y-6 flex flex-col h-[calc(100vh-2rem)]">
       <div>
         <h1 className="text-2xl font-bold">{orcamento.nome}</h1>
-        <p className="text-muted-foreground">Módulo de Orçamentos e Engenharia</p>
+        <p className="text-muted-foreground">Módulo de Orçamentos e Materiais por Projeto</p>
       </div>
 
       <Tabs defaultValue="orcamento" className="flex-1 flex flex-col min-h-0">

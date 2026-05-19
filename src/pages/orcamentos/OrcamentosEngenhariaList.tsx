@@ -29,7 +29,7 @@ export default function OrcamentosEngenhariaList() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Calculator className="w-6 h-6" /> Orçamentos & Engenharia
+          <Calculator className="w-6 h-6" /> Orçamentos e Materiais por Projeto
         </h1>
         <Button onClick={handleCreate}>
           <Plus className="w-4 h-4 mr-2" /> Novo Orçamento

@@ -33,7 +33,12 @@ import { AIAssistant } from './AIAssistant'
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
-  { title: 'Orçamentos & Eng.', icon: Calculator, url: '/orcamentos', module: 'Comercial' },
+  {
+    title: 'Orçamentos e Materiais por Projeto',
+    icon: Calculator,
+    url: '/orcamentos',
+    module: 'Comercial',
+  },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
     title: 'Análise Técnica',
