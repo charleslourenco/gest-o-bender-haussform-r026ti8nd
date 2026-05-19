@@ -1565,6 +1565,7 @@ export type Database = {
           cliente_id: string | null
           cliente_nome_manual: string | null
           criado_em: string
+          desconto: number
           id: string
           markup_global: number
           nome: string
@@ -1580,6 +1581,7 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome_manual?: string | null
           criado_em?: string
+          desconto?: number
           id?: string
           markup_global?: number
           nome: string
@@ -1595,6 +1597,7 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome_manual?: string | null
           criado_em?: string
+          desconto?: number
           id?: string
           markup_global?: number
           nome?: string
@@ -2817,6 +2820,7 @@ export const Constants = {
 //   arquiteto_foto: text (nullable, default: 'https://img.usecurling.com/ppl/large?gender=female&seed=2'::text)
 //   textos_institucionais: jsonb (nullable, default: '{}'::jsonb)
 //   cliente_nome_manual: text (nullable)
+//   desconto: numeric (not null, default: 0)
 // Table: orcamentos_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   ambiente_id: uuid (not null)

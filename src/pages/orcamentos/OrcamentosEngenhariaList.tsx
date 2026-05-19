@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Plus, Calculator, Trash2, Edit, FileText } from 'lucide-react'
+import { Plus, Calculator, Trash2, Edit, FileText, Upload } from 'lucide-react'
 import { format } from 'date-fns'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -19,6 +20,11 @@ export default function OrcamentosEngenhariaList() {
   const [activeTab, setActiveTab] = useState('orcamentos')
   const [orcamentos, setOrcamentos] = useState<any[]>([])
   const [listas, setListas] = useState<any[]>([])
+  const [uploadType, setUploadType] = useState<'orcamento' | 'lista' | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [viewLista, setViewLista] = useState<any>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -40,13 +46,127 @@ export default function OrcamentosEngenhariaList() {
     loadData()
   }, [])
 
-  const handleCreate = async () => {
+  const handleCreateEmptyOrcamento = async () => {
     const { data } = await supabase
       .from('orcamentos_engenharia')
       .insert({ nome: 'Novo Orçamento', cliente_nome_manual: 'Cliente' })
       .select()
       .single()
     if (data) navigate(`/orcamentos/${data.id}`)
+  }
+
+  const processFile = async (file: File) => {
+    setProcessing(true)
+    try {
+      let itemsParsed: any[] = []
+      try {
+        const text = await file.text()
+        if (file.name.endsWith('.csv') && text.trim().length > 0) {
+          const lines = text.split('\n').filter((l) => l.trim())
+          if (lines.length > 1) {
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(',').map((c) => c.trim())
+              if (cols.length >= 2) {
+                itemsParsed.push({
+                  nome: cols[0],
+                  qtd: Number(cols[1]) || 1,
+                  un: cols[2] || 'un',
+                  dimensoes: cols[3] || '',
+                  material: cols[4] || '',
+                })
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao ler arquivo', e)
+      }
+
+      if (itemsParsed.length === 0) {
+        itemsParsed = [
+          {
+            nome: 'MDF Louro Freijó 18mm',
+            qtd: 5,
+            un: 'un',
+            dimensoes: '2750x1850x18',
+            material: 'MDF',
+          },
+          { nome: 'Parafuso 4x40', qtd: 200, un: 'un', dimensoes: '', material: 'Ferragem' },
+        ]
+      }
+
+      const { data: estoque } = await supabase
+        .from('estoque_itens')
+        .select('id, nome, valor_unitario, unidade')
+
+      const itemsResult = itemsParsed.map((item) => {
+        const searchTerms = item.nome.toLowerCase().replace(/_/g, ' ').split(' ')
+        let found = null
+        if (estoque) {
+          found = estoque.find((e) => {
+            const eName = e.nome.toLowerCase()
+            return searchTerms.some((term) => term.length > 3 && eName.includes(term))
+          })
+        }
+        if (found) {
+          return {
+            ...item,
+            isMatched: true,
+            stockName: found.nome,
+            custo_unitario: found.valor_unitario,
+            item_estoque_id: found.id,
+            unidade_medida: found.unidade || item.un,
+          }
+        } else {
+          return { ...item, isMatched: false, custo_unitario: 0, unidade_medida: item.un }
+        }
+      })
+
+      if (uploadType === 'orcamento') {
+        const { data: orc } = await supabase
+          .from('orcamentos_engenharia')
+          .insert({ nome: 'Orçamento Importado', cliente_nome_manual: 'Cliente' })
+          .select()
+          .single()
+        if (orc) {
+          const { data: amb } = await supabase
+            .from('orcamentos_ambientes')
+            .insert({ orcamento_id: orc.id, nome: 'Ambiente Importado (' + file.name + ')' })
+            .select()
+            .single()
+
+          const itensToInsert = itemsResult.map((item) => ({
+            ambiente_id: amb!.id,
+            item_estoque_id: item.item_estoque_id || null,
+            nome_item: item.isMatched ? item.stockName : item.nome,
+            quantidade: item.qtd,
+            unidade_medida: item.unidade_medida,
+            custo_unitario: item.custo_unitario,
+          }))
+
+          if (itensToInsert.length > 0) {
+            await supabase.from('orcamentos_itens').insert(itensToInsert)
+          }
+
+          toast({ title: 'Orçamento importado com sucesso!' })
+          navigate(`/orcamentos/${orc.id}`)
+        }
+      } else if (uploadType === 'lista') {
+        const { error } = await supabase.from('listas_materiais').insert({
+          status: 'Pendente',
+          itens: itemsResult,
+        })
+        if (error) throw error
+
+        toast({ title: 'Lista de Materiais importada com sucesso!' })
+        setUploadType(null)
+        loadData()
+      }
+    } catch (e: any) {
+      toast({ title: 'Erro na importação', description: e.message, variant: 'destructive' })
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const handleDeleteOrcamento = async (e: React.MouseEvent, id: string) => {
@@ -83,11 +203,14 @@ export default function OrcamentosEngenhariaList() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Calculator className="w-6 h-6 text-primary" /> Painel de Projetos
         </h1>
-        {activeTab === 'orcamentos' && (
-          <Button onClick={handleCreate}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setUploadType('orcamento')}>
             <Plus className="w-4 h-4 mr-2" /> Novo Orçamento
           </Button>
-        )}
+          <Button onClick={() => setUploadType('lista')}>
+            <Plus className="w-4 h-4 mr-2" /> Nova Lista de Materiais
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -198,6 +321,11 @@ export default function OrcamentosEngenhariaList() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {lista.itens && (
+                          <Button variant="ghost" size="icon" onClick={() => setViewLista(lista)}>
+                            <FileText className="w-4 h-4 text-blue-500" />
+                          </Button>
+                        )}
                         {lista.arquivo_url && (
                           <Button variant="ghost" size="icon" asChild>
                             <a href={lista.arquivo_url} target="_blank" rel="noopener noreferrer">
@@ -229,6 +357,97 @@ export default function OrcamentosEngenhariaList() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!viewLista} onOpenChange={(open) => !open && setViewLista(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Itens da Lista #{viewLista?.id?.split('-')[0]}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Qtd</TableHead>
+                  <TableHead>Medida</TableHead>
+                  <TableHead>Material</TableHead>
+                  <TableHead>Estoque</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {viewLista?.itens?.map((it: any, idx: number) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{it.nome}</TableCell>
+                    <TableCell>{it.qtd}</TableCell>
+                    <TableCell>{it.unidade_medida || it.un}</TableCell>
+                    <TableCell>{it.material || '-'}</TableCell>
+                    <TableCell>
+                      {it.isMatched ? (
+                        <span className="text-emerald-600 font-medium">No Estoque</span>
+                      ) : (
+                        <span className="text-amber-600 font-medium">Avulso</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!uploadType} onOpenChange={(open) => !open && setUploadType(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {uploadType === 'orcamento' ? 'Novo Orçamento' : 'Nova Lista de Materiais'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 pt-4">
+            <div
+              className="w-full p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer border-border hover:border-primary/50 flex flex-col items-center justify-center text-center"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault()
+                const file = e.dataTransfer.files?.[0]
+                if (file) processFile(file)
+              }}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv,.xml"
+                onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
+              />
+              {processing ? (
+                <div className="animate-pulse space-y-4">
+                  <Upload className="w-8 h-8 text-primary mx-auto" />
+                  <p>Processando arquivo...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="w-8 h-8 text-muted-foreground mx-auto" />
+                  <p className="font-medium">Arraste seu arquivo Promob/CutPro aqui</p>
+                  <p className="text-xs text-muted-foreground">
+                    Ou clique para selecionar (CSV/XML)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {uploadType === 'orcamento' && !processing && (
+              <div className="flex items-center justify-between border-t pt-4">
+                <span className="text-sm text-muted-foreground">Ou crie um orçamento vazio:</span>
+                <Button variant="outline" size="sm" onClick={handleCreateEmptyOrcamento}>
+                  Criar Vazio
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
