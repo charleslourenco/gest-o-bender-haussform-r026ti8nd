@@ -176,7 +176,12 @@ export function GestaoSobras() {
     printWindow.document.close()
   }
 
-  const filteredSobras = sobras.filter((s) => s.nome.toLowerCase().includes(search.toLowerCase()))
+  const filteredSobras = sobras.filter(
+    (s) =>
+      s.nome.toLowerCase().includes(search.toLowerCase()) ||
+      (s.marca && s.marca.toLowerCase().includes(search.toLowerCase())) ||
+      (s.cliente_nome && s.cliente_nome.toLowerCase().includes(search.toLowerCase())),
+  )
 
   return (
     <div className="space-y-6">
@@ -213,6 +218,7 @@ export function GestaoSobras() {
                 <TableRow>
                   <TableHead>Material / Cor</TableHead>
                   <TableHead>Marca</TableHead>
+                  <TableHead>Cliente</TableHead>
                   <TableHead className="text-center">Larg x Alt (mm)</TableHead>
                   <TableHead className="text-center">Espess. (mm)</TableHead>
                   <TableHead className="text-center">Área (m²)</TableHead>
@@ -225,6 +231,7 @@ export function GestaoSobras() {
                   <TableRow key={sobra.id}>
                     <TableCell className="font-medium">{sobra.nome}</TableCell>
                     <TableCell>{sobra.marca || '-'}</TableCell>
+                    <TableCell>{sobra.cliente_nome || '-'}</TableCell>
                     <TableCell className="text-center">
                       {sobra.largura} x {sobra.altura}
                     </TableCell>
@@ -283,7 +290,7 @@ export function GestaoSobras() {
                 ))}
                 {filteredSobras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       Nenhum retalho encontrado.
                     </TableCell>
                   </TableRow>

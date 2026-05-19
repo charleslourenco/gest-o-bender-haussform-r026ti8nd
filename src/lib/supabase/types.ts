@@ -1062,27 +1062,36 @@ export type Database = {
         Row: {
           altura: number
           area: number
+          cliente_nome: string | null
           criado_em: string
+          espessura: number | null
           id: string
           largura: number
+          marca: string | null
           nome: string
           status: string
         }
         Insert: {
           altura: number
           area: number
+          cliente_nome?: string | null
           criado_em?: string
+          espessura?: number | null
           id?: string
           largura: number
+          marca?: string | null
           nome: string
           status?: string
         }
         Update: {
           altura?: number
           area?: number
+          cliente_nome?: string | null
           criado_em?: string
+          espessura?: number | null
           id?: string
           largura?: number
+          marca?: string | null
           nome?: string
           status?: string
         }
@@ -2691,6 +2700,9 @@ export const Constants = {
 //   area: numeric (not null)
 //   status: text (not null, default: 'disponivel'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
+//   marca: text (nullable)
+//   cliente_nome: text (nullable)
+//   espessura: numeric (nullable)
 // Table: formulario_comercial
 //   id: uuid (not null, default: gen_random_uuid())
 //   lead_id: uuid (not null)
@@ -3291,6 +3303,11 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: estoque_sobras
 //   Policy "estoque_sobras_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+//   Policy "estoque_sobras_public_select" (SELECT, PERMISSIVE) roles={public}
+//     USING: true
+//   Policy "estoque_sobras_public_update" (UPDATE, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true
 // Table: formulario_comercial
