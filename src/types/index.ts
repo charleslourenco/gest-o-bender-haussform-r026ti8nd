@@ -41,9 +41,14 @@ export interface InventoryItem {
   name: string
   category: string
   quantity: number
-  unit: 'un' | 'm²' | 'litro' | 'kg'
+  unit: 'un' | 'm²' | 'litro' | 'kg' | string
   minStock: number
   price: number
+  marca?: string
+  cor?: string
+  espessura_mm?: number
+  largura_mm?: number
+  comprimento_m?: number
 }
 
 export interface Transaction {

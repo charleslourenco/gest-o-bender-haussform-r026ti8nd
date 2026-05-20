@@ -939,6 +939,7 @@ export type Database = {
           estoque_minimo: number
           fornecedor: string | null
           id: string
+          metadados_normalizados: Json | null
           nome: string
           quantidade: number
           terceirizado: boolean | null
@@ -952,6 +953,7 @@ export type Database = {
           estoque_minimo?: number
           fornecedor?: string | null
           id?: string
+          metadados_normalizados?: Json | null
           nome: string
           quantidade?: number
           terceirizado?: boolean | null
@@ -965,6 +967,7 @@ export type Database = {
           estoque_minimo?: number
           fornecedor?: string | null
           id?: string
+          metadados_normalizados?: Json | null
           nome?: string
           quantidade?: number
           terceirizado?: boolean | null
@@ -1346,6 +1349,7 @@ export type Database = {
           criado_em: string | null
           id: string
           itens: Json | null
+          metadados_normalizados: Json | null
           status: string | null
         }
         Insert: {
@@ -1355,6 +1359,7 @@ export type Database = {
           criado_em?: string | null
           id?: string
           itens?: Json | null
+          metadados_normalizados?: Json | null
           status?: string | null
         }
         Update: {
@@ -1364,6 +1369,7 @@ export type Database = {
           criado_em?: string | null
           id?: string
           itens?: Json | null
+          metadados_normalizados?: Json | null
           status?: string | null
         }
         Relationships: [
@@ -2678,6 +2684,7 @@ export const Constants = {
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   fornecedor: text (nullable)
 //   terceirizado: boolean (nullable, default: false)
+//   metadados_normalizados: jsonb (nullable)
 // Table: estoque_itens_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_nome: text (not null)
@@ -2778,6 +2785,7 @@ export const Constants = {
 //   itens: jsonb (nullable, default: '[]'::jsonb)
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
+//   metadados_normalizados: jsonb (nullable)
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)

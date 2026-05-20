@@ -39,6 +39,11 @@ export function EstoqueLista() {
     valor_unitario: 0,
     fornecedor: '',
     terceirizado: false,
+    marca: '',
+    cor: '',
+    espessura_mm: '',
+    largura_mm: '',
+    comprimento_m: '',
   })
 
   async function fetchItems() {
@@ -110,6 +115,18 @@ export function EstoqueLista() {
         console.error('Failed to normalize manually added item:', e)
       }
 
+      const payloadMarca = newItem.marca || metadados_normalizados?.marca || undefined
+      const payloadCor = newItem.cor || metadados_normalizados?.cor || undefined
+      const payloadEspessura = newItem.espessura_mm
+        ? Number(newItem.espessura_mm)
+        : metadados_normalizados?.espessura_mm || undefined
+      const payloadLargura = newItem.largura_mm
+        ? Number(newItem.largura_mm)
+        : metadados_normalizados?.largura_mm || undefined
+      const payloadComprimento = newItem.comprimento_m
+        ? Number(newItem.comprimento_m)
+        : metadados_normalizados?.comprimento_m || undefined
+
       if (existingItem) {
         const { error } = await supabase
           .from('estoque_itens')
@@ -119,6 +136,11 @@ export function EstoqueLista() {
             fornecedor: newItem.fornecedor || undefined,
             atualizado_em: new Date().toISOString(),
             ...(metadados_normalizados ? { metadados_normalizados } : {}),
+            marca: payloadMarca,
+            cor: payloadCor,
+            espessura_mm: payloadEspessura,
+            largura_mm: payloadLargura,
+            comprimento_m: payloadComprimento,
           })
           .eq('id', existingItem.id)
 
@@ -137,7 +159,22 @@ export function EstoqueLista() {
       } else {
         const { data: inserted, error } = await supabase
           .from('estoque_itens' as any)
-          .insert({ ...newItem, metadados_normalizados })
+          .insert({
+            nome: newItem.nome,
+            categoria: newItem.categoria,
+            quantidade: newItem.quantidade,
+            unidade: newItem.unidade,
+            estoque_minimo: newItem.estoque_minimo,
+            valor_unitario: newItem.valor_unitario,
+            fornecedor: newItem.fornecedor,
+            terceirizado: newItem.terceirizado,
+            marca: payloadMarca,
+            cor: payloadCor,
+            espessura_mm: payloadEspessura,
+            largura_mm: payloadLargura,
+            comprimento_m: payloadComprimento,
+            metadados_normalizados,
+          })
           .select('id')
           .single()
         if (error) throw error
@@ -163,6 +200,11 @@ export function EstoqueLista() {
         valor_unitario: 0,
         fornecedor: '',
         terceirizado: false,
+        marca: '',
+        cor: '',
+        espessura_mm: '',
+        largura_mm: '',
+        comprimento_m: '',
       })
       fetchItems()
     } catch (e: any) {
@@ -173,7 +215,9 @@ export function EstoqueLista() {
   const filteredItems = items.filter(
     (i) =>
       i.nome.toLowerCase().includes(search.toLowerCase()) ||
-      i.categoria?.toLowerCase().includes(search.toLowerCase()),
+      i.categoria?.toLowerCase().includes(search.toLowerCase()) ||
+      i.marca?.toLowerCase().includes(search.toLowerCase()) ||
+      i.fornecedor?.toLowerCase().includes(search.toLowerCase()),
   )
 
   const [isNormalizing, setIsNormalizing] = useState(false)
@@ -203,9 +247,17 @@ export function EstoqueLista() {
 
         for (let j = 0; j < batch.length; j++) {
           if (results[j]) {
+            const res = results[j]
             await supabase
               .from('estoque_itens')
-              .update({ metadados_normalizados: results[j] })
+              .update({
+                metadados_normalizados: res,
+                marca: res.marca || undefined,
+                cor: res.cor || undefined,
+                espessura_mm: res.espessura_mm || undefined,
+                largura_mm: res.largura_mm || undefined,
+                comprimento_m: res.comprimento_m || undefined,
+              })
               .eq('id', batch[j].id)
           }
         }
@@ -250,7 +302,7 @@ export function EstoqueLista() {
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Buscar item ou categoria..."
+            placeholder="Buscar item, marca ou categoria..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -266,6 +318,8 @@ export function EstoqueLista() {
           <TableHeader className="bg-gray-50">
             <TableRow>
               <TableHead>Item</TableHead>
+              <TableHead>Marca</TableHead>
+              <TableHead>Detalhes</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Fornecedor</TableHead>
               <TableHead className="text-right">Quantidade</TableHead>
@@ -278,7 +332,39 @@ export function EstoqueLista() {
           <TableBody>
             {filteredItems.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.nome}</TableCell>
+                <TableCell className="font-medium max-w-[200px] truncate" title={item.nome}>
+                  {item.nome}
+                </TableCell>
+                <TableCell>{item.marca || '-'}</TableCell>
+                <TableCell>
+                  <div className="text-xs text-gray-500 space-y-0.5 whitespace-nowrap">
+                    {item.cor && (
+                      <div>
+                        <span className="font-medium">Cor:</span> {item.cor}
+                      </div>
+                    )}
+                    {item.espessura_mm && (
+                      <div>
+                        <span className="font-medium">Esp:</span> {item.espessura_mm}mm
+                      </div>
+                    )}
+                    {item.largura_mm && (
+                      <div>
+                        <span className="font-medium">Larg:</span> {item.largura_mm}mm
+                      </div>
+                    )}
+                    {item.comprimento_m && (
+                      <div>
+                        <span className="font-medium">Comp:</span> {item.comprimento_m}m
+                      </div>
+                    )}
+                    {!item.cor &&
+                      !item.espessura_mm &&
+                      !item.largura_mm &&
+                      !item.comprimento_m &&
+                      '-'}
+                  </div>
+                </TableCell>
                 <TableCell>
                   {item.categoria || '-'}
                   {item.terceirizado && (
@@ -332,7 +418,7 @@ export function EstoqueLista() {
             ))}
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                   Nenhum item encontrado no estoque.
                 </TableCell>
               </TableRow>
@@ -342,7 +428,7 @@ export function EstoqueLista() {
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Novo Item de Estoque</DialogTitle>
           </DialogHeader>
@@ -355,6 +441,7 @@ export function EstoqueLista() {
                 placeholder="Ex: Dobradiça com amortecedor"
               />
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Categoria</Label>
@@ -373,6 +460,58 @@ export function EstoqueLista() {
                 />
               </div>
             </div>
+
+            <div className="bg-gray-50 p-4 rounded-lg space-y-4 border border-gray-100">
+              <h4 className="font-medium text-sm text-gray-700">Atributos Técnicos (Opcional)</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Marca</Label>
+                  <Input
+                    value={newItem.marca}
+                    onChange={(e) => setNewItem({ ...newItem, marca: e.target.value })}
+                    placeholder="Ex: Arauco, Blum, Guararapes"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cor</Label>
+                  <Input
+                    value={newItem.cor}
+                    onChange={(e) => setNewItem({ ...newItem, cor: e.target.value })}
+                    placeholder="Ex: Branco TX, Preto Silk"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Espessura (mm)</Label>
+                  <Input
+                    type="number"
+                    value={newItem.espessura_mm}
+                    onChange={(e) => setNewItem({ ...newItem, espessura_mm: e.target.value })}
+                    placeholder="15, 18..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Largura (mm)</Label>
+                  <Input
+                    type="number"
+                    value={newItem.largura_mm}
+                    onChange={(e) => setNewItem({ ...newItem, largura_mm: e.target.value })}
+                    placeholder="Para fitas..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Comprimento (m)</Label>
+                  <Input
+                    type="number"
+                    value={newItem.comprimento_m}
+                    onChange={(e) => setNewItem({ ...newItem, comprimento_m: e.target.value })}
+                    placeholder="Para perfis..."
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Qtd Inicial</Label>
