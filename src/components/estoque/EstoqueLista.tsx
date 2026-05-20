@@ -98,6 +98,18 @@ export function EstoqueLista() {
         })
       }
 
+      let metadados_normalizados = null
+      try {
+        const { data: normData } = await supabase.functions.invoke('material-normalization', {
+          body: { action: 'normalize_batch', items: [newItem.nome] },
+        })
+        if (normData?.results?.[0]) {
+          metadados_normalizados = normData.results[0]
+        }
+      } catch (e) {
+        console.error('Failed to normalize manually added item:', e)
+      }
+
       if (existingItem) {
         const { error } = await supabase
           .from('estoque_itens')
@@ -106,6 +118,7 @@ export function EstoqueLista() {
             valor_unitario: newItem.valor_unitario > 0 ? newItem.valor_unitario : undefined,
             fornecedor: newItem.fornecedor || undefined,
             atualizado_em: new Date().toISOString(),
+            ...(metadados_normalizados ? { metadados_normalizados } : {}),
           })
           .eq('id', existingItem.id)
 
@@ -124,7 +137,7 @@ export function EstoqueLista() {
       } else {
         const { data: inserted, error } = await supabase
           .from('estoque_itens' as any)
-          .insert(newItem)
+          .insert({ ...newItem, metadados_normalizados })
           .select('id')
           .single()
         if (error) throw error
@@ -163,11 +176,76 @@ export function EstoqueLista() {
       i.categoria?.toLowerCase().includes(search.toLowerCase()),
   )
 
+  const [isNormalizing, setIsNormalizing] = useState(false)
+
+  const handleNormalizeBatch = async () => {
+    const unnormalized = items.filter((i) => !i.metadados_normalizados)
+    if (unnormalized.length === 0) return
+    setIsNormalizing(true)
+    try {
+      toast({
+        title: 'Normalizando...',
+        description: `Processando ${unnormalized.length} itens pelo motor de IA.`,
+      })
+
+      const batchSize = 50
+      for (let i = 0; i < unnormalized.length; i += batchSize) {
+        const batch = unnormalized.slice(i, i + batchSize)
+        const descricoes = batch.map((b) => b.nome)
+
+        const { data, error } = await supabase.functions.invoke('material-normalization', {
+          body: { action: 'normalize_batch', items: descricoes },
+        })
+
+        if (error) throw error
+
+        const results = data.results || []
+
+        for (let j = 0; j < batch.length; j++) {
+          if (results[j]) {
+            await supabase
+              .from('estoque_itens')
+              .update({ metadados_normalizados: results[j] })
+              .eq('id', batch[j].id)
+          }
+        }
+      }
+
+      toast({ title: 'Sucesso', description: 'Nomenclaturas normalizadas com sucesso.' })
+      fetchItems()
+    } catch (e: any) {
+      toast({ title: 'Erro na Normalização', description: e.message, variant: 'destructive' })
+    } finally {
+      setIsNormalizing(false)
+    }
+  }
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  const itemsSemMetadados = items.filter((i) => !i.metadados_normalizados).length
+
   return (
     <div className="space-y-4 bg-white p-6 rounded-xl border">
+      {itemsSemMetadados > 0 && isAdmin && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between mb-4">
+          <div>
+            <h4 className="font-semibold text-blue-800">Normalização Inteligente Pendente</h4>
+            <p className="text-sm text-blue-700">
+              Há {itemsSemMetadados} itens no estoque sem os metadados normalizados. Normalize para
+              ativar a conciliação automática completa.
+            </p>
+          </div>
+          <Button
+            onClick={handleNormalizeBatch}
+            disabled={isNormalizing}
+            className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+          >
+            {isNormalizing ? 'Processando...' : 'Normalizar Estoque'}
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />

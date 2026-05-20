@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { findBestMatch } from '@/lib/material-engine'
 
 export function ConciliacaoListas() {
   const [listas, setListas] = useState<any[]>([])
@@ -142,9 +143,31 @@ export function ConciliacaoListas() {
         }
       }
 
+      let finalItens = parsed?.itens || []
+      if (finalItens.length > 0) {
+        try {
+          const descricoes = finalItens.map((i: any) => i.nome)
+          const normResponse = await supabase.functions.invoke('material-normalization', {
+            body: { action: 'normalize_batch', items: descricoes },
+          })
+          if (normResponse.data && normResponse.data.results) {
+            finalItens = finalItens.map((i: any, idx: number) => ({
+              ...i,
+              metadados_normalizados: normResponse.data.results[idx],
+            }))
+          }
+        } catch (err) {
+          console.error('Falha ao normalizar itens extraídos da lista:', err)
+        }
+      }
+
       await supabase
         .from('listas_materiais' as any)
-        .update({ status: 'conciliado', itens: parsed?.itens || [] })
+        .update({
+          status: 'conciliado',
+          itens: finalItens,
+          metadados_normalizados: { processado_em: new Date().toISOString() },
+        })
         .eq('id', lista.id)
 
       toast({ title: 'Sucesso', description: 'Lista processada e conciliada com sucesso!' })
@@ -386,11 +409,24 @@ export function ConciliacaoListas() {
                         </TableHeader>
                         <TableBody>
                           {lista.itens.map((item: any, idx: number) => {
-                            const itemEstoque = estoque.find(
-                              (e) =>
-                                e.nome.toLowerCase().includes(item.nome.toLowerCase()) ||
-                                item.nome.toLowerCase().includes(e.nome.toLowerCase()),
-                            )
+                            let itemEstoque = null
+                            let matchResult = null
+
+                            if (item.metadados_normalizados) {
+                              const best = findBestMatch(item.metadados_normalizados, estoque)
+                              if (best.match) {
+                                itemEstoque = best.match
+                                matchResult = best.result
+                              }
+                            }
+
+                            if (!itemEstoque) {
+                              itemEstoque = estoque.find(
+                                (e) =>
+                                  e.nome.toLowerCase().includes(item.nome.toLowerCase()) ||
+                                  item.nome.toLowerCase().includes(e.nome.toLowerCase()),
+                              )
+                            }
 
                             const estoqueQtd = itemEstoque ? Number(itemEstoque.quantidade) : 0
                             const falta = Math.max(0, Number(item.quantidade) - estoqueQtd)
@@ -401,7 +437,31 @@ export function ConciliacaoListas() {
                             return (
                               <TableRow key={idx} className={falta > 0 ? 'bg-red-50/20' : ''}>
                                 <TableCell className="font-medium text-midnight-navy">
-                                  {item.nome}
+                                  <div className="flex flex-col gap-1">
+                                    <span>{item.nome}</span>
+                                    {matchResult && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Badge
+                                          variant="outline"
+                                          className={
+                                            matchResult.status === 'EQUIVALENTE'
+                                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]'
+                                              : matchResult.status === 'INCERTO'
+                                                ? 'bg-amber-50 text-amber-700 border-amber-200 text-[10px]'
+                                                : 'bg-red-50 text-red-700 border-red-200 text-[10px]'
+                                          }
+                                        >
+                                          {matchResult.status} ({matchResult.confianca})
+                                        </Badge>
+                                        <span
+                                          className="text-[10px] text-slate-500 max-w-[180px] truncate"
+                                          title={`${matchResult.justificativa} ${matchResult.recomendacao}`}
+                                        >
+                                          {matchResult.justificativa}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex flex-col items-start gap-1">
