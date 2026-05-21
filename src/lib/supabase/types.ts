@@ -935,10 +935,15 @@ export type Database = {
         Row: {
           atualizado_em: string
           categoria: string | null
+          comprimento_m: number | null
+          cor: string | null
           criado_em: string
+          espessura_mm: number | null
           estoque_minimo: number
           fornecedor: string | null
           id: string
+          largura_mm: number | null
+          marca: string | null
           metadados_normalizados: Json | null
           nome: string
           quantidade: number
@@ -949,10 +954,15 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           categoria?: string | null
+          comprimento_m?: number | null
+          cor?: string | null
           criado_em?: string
+          espessura_mm?: number | null
           estoque_minimo?: number
           fornecedor?: string | null
           id?: string
+          largura_mm?: number | null
+          marca?: string | null
           metadados_normalizados?: Json | null
           nome: string
           quantidade?: number
@@ -963,10 +973,15 @@ export type Database = {
         Update: {
           atualizado_em?: string
           categoria?: string | null
+          comprimento_m?: number | null
+          cor?: string | null
           criado_em?: string
+          espessura_mm?: number | null
           estoque_minimo?: number
           fornecedor?: string | null
           id?: string
+          largura_mm?: number | null
+          marca?: string | null
           metadados_normalizados?: Json | null
           nome?: string
           quantidade?: number
@@ -2685,6 +2700,11 @@ export const Constants = {
 //   fornecedor: text (nullable)
 //   terceirizado: boolean (nullable, default: false)
 //   metadados_normalizados: jsonb (nullable)
+//   marca: text (nullable)
+//   cor: text (nullable)
+//   espessura_mm: numeric (nullable)
+//   largura_mm: numeric (nullable)
+//   comprimento_m: numeric (nullable)
 // Table: estoque_itens_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_nome: text (not null)

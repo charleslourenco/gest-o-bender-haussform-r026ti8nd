@@ -51,7 +51,6 @@ export function FinanceiroMovimentacoes({
   onRefresh: () => void
 }) {
   const [isProcessing, setIsProcessing] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -261,13 +260,6 @@ export function FinanceiroMovimentacoes({
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-  const filtered = transactions.filter(
-    (t) =>
-      (t.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.entityName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.category || '').toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
   return (
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-4 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -305,15 +297,6 @@ export function FinanceiroMovimentacoes({
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold text-lg">Lançamentos Financeiros</h3>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Buscar por nome, desc..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
         </div>
         <div className="overflow-x-auto">
           <Table>
@@ -334,7 +317,7 @@ export function FinanceiroMovimentacoes({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((t) => (
+              {transactions.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="text-gray-500 text-xs">
                     {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
