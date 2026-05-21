@@ -3234,16 +3234,22 @@ export const Constants = {
 //   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 // Table: contas_pagar
-//   Policy "Acesso total contas_pagar" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//   Policy "contas_pagar_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//   Policy "contas_pagar_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (user_id = auth.uid())
+//   Policy "contas_pagar_select_own" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: ((user_id = auth.uid()) OR (user_id IS NULL))
+//   Policy "contas_pagar_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (user_id = auth.uid())
+//     WITH CHECK: (user_id = auth.uid())
 // Table: contas_receber
 //   Policy "contas_receber_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //   Policy "contas_receber_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (user_id = auth.uid())
 //   Policy "contas_receber_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: ((user_id = auth.uid()) OR (user_id IS NULL))
 //   Policy "contas_receber_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //     WITH CHECK: (user_id = auth.uid())

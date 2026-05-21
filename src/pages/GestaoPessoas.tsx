@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UsersRound } from 'lucide-react'
 import { ListaCLT } from './gestao-pessoas/ListaCLT'
 import { ListaPJ } from './gestao-pessoas/ListaPJ'
+import { ListaFornecedores } from './gestao-pessoas/ListaFornecedores'
 import { useParams } from 'react-router-dom'
 import { PastaCLT } from './gestao-pessoas/PastaCLT'
 import { PastaPJ } from './gestao-pessoas/PastaPJ'
@@ -33,6 +34,7 @@ export default function GestaoPessoas() {
         <TabsList className="w-fit mb-4">
           <TabsTrigger value="clt">Time CLT</TabsTrigger>
           <TabsTrigger value="pj">Parceiros PJ</TabsTrigger>
+          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
         </TabsList>
         <TabsContent
           value="clt"
@@ -45,6 +47,12 @@ export default function GestaoPessoas() {
           className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaPJ />
+        </TabsContent>
+        <TabsContent
+          value="fornecedores"
+          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+        >
+          <ListaFornecedores />
         </TabsContent>
       </Tabs>
     </div>
