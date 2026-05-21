@@ -28,6 +28,8 @@ const COLUMNS = [
   'Consultoria Inicial',
   'Projeto',
   'Apresentação',
+  'Negociação',
+  'Ação Gerente',
   'Stand By',
   'Vendido',
   'Perdido',
