@@ -1256,6 +1256,66 @@ export type Database = {
           },
         ]
       }
+      fornecedores: {
+        Row: {
+          atualizado_em: string
+          bairro: string | null
+          cep: string | null
+          cnpj: string
+          complemento: string | null
+          criado_em: string
+          data_abertura: string | null
+          email: string | null
+          estado: string | null
+          id: string
+          inscricao_estadual: string | null
+          logradouro: string | null
+          municipio: string | null
+          nome_fantasia: string | null
+          numero: string | null
+          razao_social: string
+          telefone: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cnpj: string
+          complemento?: string | null
+          criado_em?: string
+          data_abertura?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          razao_social: string
+          telefone?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          bairro?: string | null
+          cep?: string | null
+          cnpj?: string
+          complemento?: string | null
+          criado_em?: string
+          data_abertura?: string | null
+          email?: string | null
+          estado?: string | null
+          id?: string
+          inscricao_estadual?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          nome_fantasia?: string | null
+          numero?: string | null
+          razao_social?: string
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       kanban_historico: {
         Row: {
           card_id: string | null
@@ -2773,6 +2833,24 @@ export const Constants = {
 //   ambientes: jsonb (nullable, default: '[]'::jsonb)
 //   itens: jsonb (nullable, default: '[]'::jsonb)
 //   especificacoes: text (nullable)
+// Table: fornecedores
+//   id: uuid (not null, default: gen_random_uuid())
+//   razao_social: text (not null)
+//   cnpj: text (not null)
+//   nome_fantasia: text (nullable)
+//   cep: text (nullable)
+//   logradouro: text (nullable)
+//   numero: text (nullable)
+//   complemento: text (nullable)
+//   bairro: text (nullable)
+//   municipio: text (nullable)
+//   estado: text (nullable)
+//   email: text (nullable)
+//   telefone: text (nullable)
+//   inscricao_estadual: text (nullable)
+//   data_abertura: date (nullable)
+//   criado_em: timestamp with time zone (not null, default: now())
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: kanban_historico
 //   id: uuid (not null, default: gen_random_uuid())
 //   card_id: uuid (nullable)
@@ -3109,6 +3187,9 @@ export const Constants = {
 //   FOREIGN KEY formulario_comercial_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE formulario_comercial_lead_id_key: UNIQUE (lead_id)
 //   PRIMARY KEY formulario_comercial_pkey: PRIMARY KEY (id)
+// Table: fornecedores
+//   UNIQUE fornecedores_cnpj_key: UNIQUE (cnpj)
+//   PRIMARY KEY fornecedores_pkey: PRIMARY KEY (id)
 // Table: kanban_historico
 //   FOREIGN KEY kanban_historico_card_id_fkey: FOREIGN KEY (card_id) REFERENCES produtos_servicos_projeto(id) ON DELETE CASCADE
 //   PRIMARY KEY kanban_historico_pkey: PRIMARY KEY (id)
@@ -3378,6 +3459,10 @@ export const Constants = {
 //   Policy "Users can update own formulario_comercial" (UPDATE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: fornecedores
+//   Policy "fornecedores_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: kanban_historico
 //   Policy "kanban_history_access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3811,6 +3896,8 @@ export const Constants = {
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
 // Table: estoque_caixas_itens
 //   trg_caixa_item_reservado: CREATE TRIGGER trg_caixa_item_reservado AFTER INSERT OR DELETE OR UPDATE ON public.estoque_caixas_itens FOR EACH ROW EXECUTE FUNCTION handle_caixa_item_reservado()
+// Table: fornecedores
+//   set_fornecedores_atualizado_em: CREATE TRIGGER set_fornecedores_atualizado_em BEFORE UPDATE ON public.fornecedores FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: orcamentos_engenharia
 //   set_orcamentos_engenharia_atualizado_em: CREATE TRIGGER set_orcamentos_engenharia_atualizado_em BEFORE UPDATE ON public.orcamentos_engenharia FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: placeholders
@@ -3834,6 +3921,8 @@ export const Constants = {
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)
+// Table: fornecedores
+//   CREATE UNIQUE INDEX fornecedores_cnpj_key ON public.fornecedores USING btree (cnpj)
 // Table: placeholders
 //   CREATE UNIQUE INDEX placeholders_placeholder_user_id_key ON public.placeholders USING btree (placeholder, user_id)
 // Table: templates

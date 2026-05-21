@@ -33,13 +33,42 @@ export function DocumentosAba({ entityId, entityType }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Prevenir atalhos do Google Drive
+    const invalidExtensions = ['.gdoc', '.gsheet', '.glink', '.gslides', '.gdraw']
+    const isInvalidGoogleFile = invalidExtensions.some((ext) =>
+      file.name.toLowerCase().endsWith(ext),
+    )
+
+    if (isInvalidGoogleFile) {
+      toast({
+        title: 'Formato inválido',
+        description:
+          'Atalhos do Google Drive não são suportados. Por favor, baixe o arquivo como PDF primeiro.',
+        variant: 'destructive',
+      })
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
+
     setLoading(true)
-    const filename = `${entityId}/${Date.now()}_${file.name}`
-    const { error: upErr } = await supabase.storage.from('documentos_equipe').upload(filename, file)
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const filename = `${entityId}/${Date.now()}_${safeName}`
+
+    // Tratamento de MIME type para PDFs vindos do Google Drive que podem perder o tipo
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    const finalType = isPdf ? 'application/pdf' : file.type || 'application/octet-stream'
+
+    const { error: upErr } = await supabase.storage
+      .from('documentos_equipe')
+      .upload(filename, file, {
+        contentType: finalType,
+        upsert: true,
+      })
 
     if (upErr) {
       toast({ title: 'Erro ao enviar arquivo', description: upErr.message, variant: 'destructive' })
       setLoading(false)
+      if (fileRef.current) fileRef.current.value = ''
       return
     }
 
@@ -48,12 +77,13 @@ export function DocumentosAba({ entityId, entityType }: Props) {
       [field]: entityId,
       nome: file.name,
       arquivo_url: filename,
-      tipo: file.type,
+      tipo: finalType,
     })
 
     toast({ title: 'Arquivo enviado com sucesso!' })
     fetchDocs()
     setLoading(false)
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   const handleDownload = (path: string) => {
@@ -78,7 +108,13 @@ export function DocumentosAba({ entityId, entityType }: Props) {
         <Button onClick={() => fileRef.current?.click()} variant="default" disabled={loading}>
           <Upload className="w-4 h-4 mr-2" /> {loading ? 'Enviando...' : 'Enviar Arquivo'}
         </Button>
-        <input type="file" className="hidden" ref={fileRef} onChange={handleUpload} />
+        <input
+          type="file"
+          className="hidden"
+          ref={fileRef}
+          accept=".pdf,application/pdf,image/*,.doc,.docx"
+          onChange={handleUpload}
+        />
       </div>
 
       <div className="space-y-2">
