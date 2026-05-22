@@ -51,7 +51,13 @@ Deno.serve(async (req) => {
 
       if (currentLead) {
         // Assume a conversa automaticamente
-        await supabase.from('whatsapp_sessions').update({ step: 99 }).eq('phone', phone)
+        await supabase
+          .from('whatsapp_sessions')
+          .update({
+            step: 99,
+            last_human_interaction_at: new Date().toISOString(),
+          })
+          .eq('phone', phone)
 
         let newStatus = currentLead.status
         if (currentLead.status === 'Novo Lead') {
@@ -159,24 +165,34 @@ Deno.serve(async (req) => {
       return new Response('Reset OK', { status: 200 })
     }
 
-    // Se já finalizou (99), a conversa está com a Ana, aplica o Modo Sentinela
-    if (session.step === 99 || lead.status !== 'Novo Lead') {
+    const isHumanManaged =
+      session.step === 99 || lead.status !== 'Novo Lead' || lead.consultor_id !== null
+
+    // Se já finalizou (99) ou humano assumiu, aplica o Modo Sentinela (Silencioso/Espera)
+    if (isHumanManaged) {
       const now = new Date()
-      const diffMins = (now.getTime() - previousUpdatedAt.getTime()) / 60000
+      const lastCustomerMsgAt = session.updated_at
+        ? new Date(session.updated_at)
+        : new Date(session.created_at)
+      const diffMins = (now.getTime() - lastCustomerMsgAt.getTime()) / 60000
+
+      const lastHumanAt = session.last_human_interaction_at
+        ? new Date(session.last_human_interaction_at)
+        : new Date(0)
 
       let finalNotes = lead.notas || ''
-      // Só concatena o Cliente se o lead já existia
-      if (diffMins > 0) {
-        finalNotes = (finalNotes ? finalNotes + '\n' : '') + `[Cliente]: ${messageText}`
-      }
 
-      // Se passou 15 minutos ou mais desde a última interação (seja do cliente ou da Ana)
-      if (diffMins >= 15) {
-        const lastLine = lead.notas ? lead.notas.split('\n').pop() : ''
-        // Só intromete se a última mensagem não foi justamente o aviso de ocupado da Catarina
-        if (!lastLine?.includes('a Ana não está conseguindo atender agora')) {
-          const botMsg = `Oi ${senderName.split(' ')[0]}, a Ana não está conseguindo atender agora mas assim que ela estiver disponível ela te chama ok?`
-          finalNotes += `\n[Catarina]: ${botMsg}`
+      const lastAnaIndex = finalNotes.lastIndexOf('[Ana]:')
+      const lastStandbyIndex = finalNotes.lastIndexOf(
+        '[Catarina]: Por favor, aguarde o retorno da Ana',
+      )
+      const alreadySentInThisBlock = lastStandbyIndex > lastAnaIndex
+
+      // Se passou 60 minutos ou mais desde a última msg do cliente e humano não respondeu
+      if (diffMins >= 60 && lastHumanAt.getTime() <= lastCustomerMsgAt.getTime()) {
+        if (!alreadySentInThisBlock) {
+          const botMsg = `Por favor, aguarde o retorno da Ana. Ela responderá em breve.`
+          finalNotes += (finalNotes ? '\n' : '') + `[Catarina]: ${botMsg}`
 
           const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
           const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -194,8 +210,33 @@ Deno.serve(async (req) => {
               },
             ).catch(() => {})
           }
+
+          const { data: cli } = await supabase
+            .from('clientes')
+            .select('id')
+            .eq('lead_id', lead.id)
+            .maybeSingle()
+          if (cli) {
+            await supabase.from('timeline_eventos').insert({
+              cliente_id: cli.id,
+              usuario_nome: 'Catarina',
+              acao: 'Mensagem de espera enviada pela Catarina (Atraso Humano)',
+              icone: '⏳',
+            })
+          }
         }
       }
+
+      // Adiciona a nova msg do cliente
+      finalNotes += (finalNotes ? '\n' : '') + `[Cliente]: ${messageText}`
+
+      // Atualiza o last customer message timestamp
+      await supabase
+        .from('whatsapp_sessions')
+        .update({
+          updated_at: nowStr,
+        })
+        .eq('id', session.id)
 
       await supabase
         .from('leads')
@@ -207,6 +248,14 @@ Deno.serve(async (req) => {
 
       return new Response('Handed over', { status: 200 })
     }
+
+    // Atualiza o last customer message timestamp na sessão para manter controle
+    await supabase
+      .from('whatsapp_sessions')
+      .update({
+        updated_at: nowStr,
+      })
+      .eq('id', session.id)
 
     // Se não é transbordo e lead já existia, atualizamos a nota em memória para a IA
     if (lead.atualizado_em !== nowStr) {
