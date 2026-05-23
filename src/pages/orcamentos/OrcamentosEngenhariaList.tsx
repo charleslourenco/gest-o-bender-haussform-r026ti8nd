@@ -199,29 +199,45 @@ export default function OrcamentosEngenhariaList() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Calculator className="w-6 h-6 text-primary" /> Painel de Projetos
+      <div className="bg-slate-900 rounded-xl p-6 shadow-sm">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <Calculator className="w-7 h-7 text-blue-400" /> Orçamentos de Engenharia
         </h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setUploadType('orcamento')}>
-            <Plus className="w-4 h-4 mr-2" /> Novo Orçamento
-          </Button>
-          <Button onClick={() => setUploadType('lista')}>
-            <Plus className="w-4 h-4 mr-2" /> Nova Lista de Materiais
-          </Button>
-        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="orcamentos" className="w-40">
-            Orçamentos
-          </TabsTrigger>
-          <TabsTrigger value="listas" className="w-40">
-            Listas de Materiais
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+        <div className="bg-slate-50 p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <TabsList className="bg-white border shadow-sm w-full sm:w-auto">
+            <TabsTrigger
+              value="orcamentos"
+              className="flex-1 sm:w-40 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
+            >
+              Orçamentos
+            </TabsTrigger>
+            <TabsTrigger
+              value="listas"
+              className="flex-1 sm:w-40 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
+            >
+              Listas de Materiais
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto bg-white border-slate-200 hover:bg-slate-100"
+              onClick={() => setUploadType('orcamento')}
+            >
+              <Plus className="w-4 h-4 mr-2 text-slate-600" /> Novo Orçamento
+            </Button>
+            <Button
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setUploadType('lista')}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Nova Lista de Materiais
+            </Button>
+          </div>
+        </div>
 
         <TabsContent value="orcamentos">
           <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
