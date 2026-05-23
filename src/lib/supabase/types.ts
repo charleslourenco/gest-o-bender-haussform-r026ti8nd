@@ -2340,6 +2340,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          last_human_interaction_at: string | null
           lead_id: string | null
           phone: string
           step: number
@@ -2348,6 +2349,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          last_human_interaction_at?: string | null
           lead_id?: string | null
           phone: string
           step?: number
@@ -2356,6 +2358,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          last_human_interaction_at?: string | null
           lead_id?: string | null
           phone?: string
           step?: number
@@ -3098,6 +3101,7 @@ export const Constants = {
 //   step: integer (not null, default: 0)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   last_human_interaction_at: timestamp with time zone (nullable)
 
 // --- CONSTRAINTS ---
 // Table: alocacao_montagem

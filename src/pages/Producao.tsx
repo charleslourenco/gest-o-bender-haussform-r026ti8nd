@@ -19,7 +19,7 @@ export default function Producao() {
 
   return (
     <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <Hammer className="h-10 w-10 text-emerald-400 hidden sm:block" />
           <div>
@@ -27,6 +27,9 @@ export default function Producao() {
             <p className="text-pale-cornflower mt-1">Controle de fabricação e usinagem</p>
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4 shrink-0">
         <Button
           onClick={() => setIsModalOpen(true)}
           className="bg-amber-500 hover:bg-amber-600 text-white w-full sm:w-auto"

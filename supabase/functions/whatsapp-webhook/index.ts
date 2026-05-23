@@ -165,10 +165,10 @@ Deno.serve(async (req) => {
       return new Response('Reset OK', { status: 200 })
     }
 
+    // AI Interaction Guard (Catarina) - Blocking intervention if human is managing or lead is not 'Novo Lead'
     const isHumanManaged =
       session.step === 99 || lead.status !== 'Novo Lead' || lead.consultor_id !== null
 
-    // Se já finalizou (99) ou humano assumiu, aplica o Modo Sentinela (Silencioso/Espera)
     if (isHumanManaged) {
       const now = new Date()
       const lastCustomerMsgAt = session.updated_at
@@ -188,11 +188,15 @@ Deno.serve(async (req) => {
       )
       const alreadySentInThisBlock = lastStandbyIndex > lastAnaIndex
 
-      // Se passou 60 minutos ou mais desde a última msg do cliente e humano não respondeu
+      // Log the client's message first so the human has the full context
+      finalNotes += (finalNotes ? '\n' : '') + `[Cliente]: ${messageText}`
+
+      // 60-Minute SLA Rule: if the last human interaction was BEFORE the previous customer message,
+      // and it's been >= 60 mins since that previous message, we send the sentinel message.
       if (diffMins >= 60 && lastHumanAt.getTime() <= lastCustomerMsgAt.getTime()) {
         if (!alreadySentInThisBlock) {
           const botMsg = `Por favor, aguarde o retorno da Ana. Ela responderá em breve.`
-          finalNotes += (finalNotes ? '\n' : '') + `[Catarina]: ${botMsg}`
+          finalNotes += `\n[Catarina]: ${botMsg}`
 
           const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
           const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -227,10 +231,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Adiciona a nova msg do cliente
-      finalNotes += (finalNotes ? '\n' : '') + `[Cliente]: ${messageText}`
-
-      // Atualiza o last customer message timestamp
+      // Update timestamps and notes. AI remains silent otherwise.
       await supabase
         .from('whatsapp_sessions')
         .update({

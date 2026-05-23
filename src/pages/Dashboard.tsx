@@ -67,7 +67,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm">
         <div className="flex items-center gap-4">
           <Presentation className="h-10 w-10 text-emerald-400 hidden sm:block" />
           <div>
@@ -75,13 +75,15 @@ export default function Dashboard() {
             <p className="text-pale-cornflower mt-1">Inteligência Operacional Bender Haussform</p>
           </div>
         </div>
+      </div>
 
+      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               className={cn(
-                'w-[280px] justify-start text-left font-normal bg-off-white text-midnight-navy hover:bg-pale-cornflower/20',
+                'w-full sm:w-[280px] justify-start text-left font-normal bg-white text-midnight-navy hover:bg-pale-cornflower/20',
                 !date && 'text-muted-foreground',
               )}
             >

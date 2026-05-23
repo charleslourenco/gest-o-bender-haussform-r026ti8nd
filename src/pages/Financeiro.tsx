@@ -115,7 +115,7 @@ export default function Financeiro() {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0">
         <div className="flex items-center gap-4">
           <Wallet className="h-10 w-10 text-emerald-400 hidden sm:block" />
           <div>
@@ -123,10 +123,11 @@ export default function Financeiro() {
             <p className="text-pale-cornflower mt-1">Gerenciado com apoio da assistente Edith</p>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <NovaContaPagarSheet onRefresh={fetchData} />
-          <NovaContaReceberSheet onRefresh={fetchData} />
-        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 justify-end shrink-0">
+        <NovaContaPagarSheet onRefresh={fetchData} />
+        <NovaContaReceberSheet onRefresh={fetchData} />
       </div>
 
       <div className="bg-white p-4 rounded-xl shadow-sm border flex flex-col sm:flex-row gap-4 items-center">

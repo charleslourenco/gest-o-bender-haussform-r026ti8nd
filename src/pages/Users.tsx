@@ -193,7 +193,7 @@ export default function Users() {
     >
       <div className="flex flex-col gap-6 p-4 md:p-8 w-full max-w-[1400px] mx-auto animate-in fade-in duration-300">
         <Tabs defaultValue="lista" className="w-full space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-midnight-navy p-6 rounded-xl shadow-sm">
+          <div className="bg-midnight-navy p-6 rounded-xl shadow-sm">
             <div className="flex items-center gap-4">
               <UsersIcon className="h-10 w-10 text-emerald-400 hidden sm:block" />
               <div>
@@ -201,29 +201,30 @@ export default function Users() {
                 <p className="text-pale-cornflower mt-1 font-normal">Controle de acesso e equipe</p>
               </div>
             </div>
-            <div className="flex items-center gap-4 w-full sm:w-auto mt-4 sm:mt-0">
-              <TabsList className="bg-dark-denim border-none p-1 rounded-lg">
-                <TabsTrigger
-                  value="lista"
-                  className="data-[state=active]:bg-pale-cornflower data-[state=active]:text-midnight-navy text-off-white rounded-md"
-                >
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="matriz"
-                  className="data-[state=active]:bg-pale-cornflower data-[state=active]:text-midnight-navy text-off-white rounded-md"
-                >
-                  Permissões
-                </TabsTrigger>
-              </TabsList>
-              <Button
-                onClick={openAdd}
-                className="bg-steel-blue text-off-white hover:opacity-90 hover:bg-steel-blue px-6 py-3 h-auto min-h-[44px] rounded-lg transition-all whitespace-nowrap"
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <TabsList className="bg-white border border-steel-blue/20 p-1 rounded-lg shadow-sm">
+              <TabsTrigger
+                value="lista"
+                className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white rounded-md"
               >
-                <Plus className="mr-2 h-5 w-5" />
-                Adicionar Usuário
-              </Button>
-            </div>
+                Lista
+              </TabsTrigger>
+              <TabsTrigger
+                value="matriz"
+                className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white rounded-md"
+              >
+                Permissões
+              </TabsTrigger>
+            </TabsList>
+            <Button
+              onClick={openAdd}
+              className="bg-steel-blue text-off-white hover:opacity-90 hover:bg-steel-blue px-6 py-3 h-auto min-h-[44px] rounded-lg transition-all whitespace-nowrap"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Adicionar Usuário
+            </Button>
           </div>
 
           <TabsContent value="lista" className="space-y-6 m-0">
