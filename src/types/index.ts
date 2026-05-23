@@ -24,6 +24,8 @@ export interface Lead {
   criado_em: string
   criado_por_nome?: string | null
   consultor?: { nome: string } | null
+  kanban_ativo?: boolean
+  categoria?: string
 }
 
 export interface Client {

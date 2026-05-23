@@ -67,7 +67,7 @@ export default function Comercial() {
           <p className="text-pale-cornflower mt-1">Gestão de leads e oportunidades de venda</p>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden min-h-0 bg-off-white rounded-xl">
+      <div className="flex-1 overflow-hidden min-h-0 bg-off-white">
         <KanbanBoard />
       </div>
     </div>
