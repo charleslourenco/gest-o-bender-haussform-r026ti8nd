@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/comercial/KanbanBoard'
+import { ComercialList } from '@/components/comercial/ComercialList'
+import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { supabase } from '@/lib/supabase/client'
-import { TrendingUp } from 'lucide-react'
+import { TrendingUp, LayoutDashboard, List as ListIcon, BarChart3 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 
 export default function Comercial() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
@@ -59,17 +63,70 @@ export default function Comercial() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-6">
-      <div className="bg-midnight-navy p-6 shrink-0 rounded-xl shadow-sm flex items-center gap-4">
-        <TrendingUp className="h-10 w-10 text-emerald-400 hidden sm:block" />
+    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-4">
+      <div className="bg-midnight-navy p-4 shrink-0 rounded-xl shadow-sm flex items-center gap-3">
+        <TrendingUp className="h-8 w-8 text-emerald-400 hidden sm:block" />
         <div>
-          <h1 className="text-[32px] font-bold text-off-white">Kanban Comercial</h1>
-          <p className="text-pale-cornflower mt-1">Gestão de leads e oportunidades de venda</p>
+          <h1 className="text-2xl font-bold text-off-white">Gestão Comercial</h1>
+          <p className="text-pale-cornflower text-sm mt-0.5">Acompanhamento e evolução de leads</p>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden min-h-0 bg-off-white">
-        <KanbanBoard />
-      </div>
+
+      <Tabs defaultValue="kanban" className="flex-1 flex flex-col min-h-0">
+        <div className="shrink-0 mb-4">
+          <TabsList className="bg-white border border-gray-200 shadow-sm h-auto p-1">
+            <TabsTrigger
+              value="kanban"
+              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+            >
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              Kanban
+            </TabsTrigger>
+            <TabsTrigger
+              value="lista"
+              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+            >
+              <ListIcon className="w-4 h-4 mr-2" />
+              Lista
+            </TabsTrigger>
+            <TabsTrigger
+              value="indicadores"
+              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Indicadores
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent
+          value="kanban"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <ScrollArea className="flex-1 w-full kanban-scroll-wrapper bg-off-white">
+            <div className="flex w-max min-w-full h-full kanban-inner-wrapper pb-4">
+              <KanbanBoard />
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent
+          value="lista"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-gray-200">
+            <ComercialList />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="indicadores"
+          className="flex-1 overflow-y-auto min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <ComercialIndicators />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

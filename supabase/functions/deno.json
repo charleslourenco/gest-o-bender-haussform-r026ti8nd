@@ -9,6 +9,7 @@
     "whatsapp-webhook": 29,
     "assistant-intelligence": 10,
     "financeiro-ai": 10,
-    "material-normalization": 1
+    "material-normalization": 2,
+    "export-pdf-document": 1
   }
 }

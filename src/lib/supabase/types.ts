@@ -1425,6 +1425,7 @@ export type Database = {
           id: string
           itens: Json | null
           metadados_normalizados: Json | null
+          orcamento_id: string | null
           status: string | null
         }
         Insert: {
@@ -1435,6 +1436,7 @@ export type Database = {
           id?: string
           itens?: Json | null
           metadados_normalizados?: Json | null
+          orcamento_id?: string | null
           status?: string | null
         }
         Update: {
@@ -1445,6 +1447,7 @@ export type Database = {
           id?: string
           itens?: Json | null
           metadados_normalizados?: Json | null
+          orcamento_id?: string | null
           status?: string | null
         }
         Relationships: [
@@ -1453,6 +1456,13 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'listas_materiais_orcamento_id_fkey'
+            columns: ['orcamento_id']
+            isOneToOne: false
+            referencedRelation: 'orcamentos_engenharia'
             referencedColumns: ['id']
           },
         ]
@@ -1660,6 +1670,8 @@ export type Database = {
           criado_em: string
           desconto: number
           id: string
+          markup_divisor_normal: number
+          markup_divisor_vista: number
           markup_global: number
           nome: string
           status: string
@@ -1676,6 +1688,8 @@ export type Database = {
           criado_em?: string
           desconto?: number
           id?: string
+          markup_divisor_normal?: number
+          markup_divisor_vista?: number
           markup_global?: number
           nome: string
           status?: string
@@ -1692,6 +1706,8 @@ export type Database = {
           criado_em?: string
           desconto?: number
           id?: string
+          markup_divisor_normal?: number
+          markup_divisor_vista?: number
           markup_global?: number
           nome?: string
           status?: string
@@ -2887,6 +2903,7 @@ export const Constants = {
 //   criado_em: timestamp with time zone (nullable, default: now())
 //   atualizado_em: timestamp with time zone (nullable, default: now())
 //   metadados_normalizados: jsonb (nullable)
+//   orcamento_id: uuid (nullable)
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -2946,6 +2963,8 @@ export const Constants = {
 //   textos_institucionais: jsonb (nullable, default: '{}'::jsonb)
 //   cliente_nome_manual: text (nullable)
 //   desconto: numeric (not null, default: 0)
+//   markup_divisor_normal: numeric (not null, default: 0.35)
+//   markup_divisor_vista: numeric (not null, default: 0.40)
 // Table: orcamentos_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   ambiente_id: uuid (not null)
@@ -3203,6 +3222,7 @@ export const Constants = {
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
 // Table: listas_materiais
 //   FOREIGN KEY listas_materiais_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+//   FOREIGN KEY listas_materiais_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos_engenharia(id) ON DELETE CASCADE
 //   PRIMARY KEY listas_materiais_pkey: PRIMARY KEY (id)
 // Table: logs_ia
 //   PRIMARY KEY logs_ia_pkey: PRIMARY KEY (id)
@@ -3324,7 +3344,7 @@ export const Constants = {
 //   Policy "contas_pagar_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (user_id = auth.uid())
 //   Policy "contas_pagar_select_own" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((user_id = auth.uid()) OR (user_id IS NULL))
+//     USING: ((user_id = auth.uid()) OR (user_id IS NULL) OR is_admin(auth.uid()) OR ((auth.jwt() ->> 'email'::text) = 'charleslourenco01@icloud.com'::text))
 //   Policy "contas_pagar_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //     WITH CHECK: (user_id = auth.uid())
