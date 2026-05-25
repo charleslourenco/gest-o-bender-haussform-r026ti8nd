@@ -5,7 +5,6 @@ import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { supabase } from '@/lib/supabase/client'
 import { TrendingUp, LayoutDashboard, List as ListIcon, BarChart3 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 
 export default function Comercial() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
@@ -103,12 +102,7 @@ export default function Comercial() {
           value="kanban"
           className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
         >
-          <ScrollArea className="flex-1 w-full kanban-scroll-wrapper bg-off-white">
-            <div className="flex w-max min-w-full h-full kanban-inner-wrapper pb-4">
-              <KanbanBoard />
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <KanbanBoard />
         </TabsContent>
 
         <TabsContent
