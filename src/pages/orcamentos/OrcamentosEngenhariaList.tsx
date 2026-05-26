@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { Plus, Upload, Edit, Search, Settings } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 import {
   Table,
   TableBody,
@@ -9,138 +16,245 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calculator, ScanText } from 'lucide-react'
-import { format } from 'date-fns'
 
 export default function OrcamentosEngenhariaList() {
-  const navigate = useNavigate()
+  const [isAdmin, setIsAdmin] = useState(false)
   const [orcamentos, setOrcamentos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
+    checkAdmin()
     fetchOrcamentos()
   }, [])
 
-  const fetchOrcamentos = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orcamentos')
-        .select(`
-          id, 
-          cliente_id, 
-          ambiente, 
-          status, 
-          valor_total, 
-          data_criacao,
-          clientes (nome)
-        `)
-        .order('data_criacao', { ascending: false })
-
-      if (error) throw error
-      setOrcamentos(data || [])
-    } catch (error) {
-      console.error('Erro ao buscar orçamentos:', error)
-    } finally {
-      setLoading(false)
+  const checkAdmin = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
+      setIsAdmin(!!data)
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+  const fetchOrcamentos = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('orcamentos_engenharia')
+      .select('*')
+      .order('criado_em', { ascending: false })
+
+    if (data) setOrcamentos(data)
+    setLoading(false)
+  }
+
+  const filteredOrcamentos = orcamentos.filter((orc) =>
+    orc.nome.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Orçamentos de Engenharia</h1>
+        <p className="text-muted-foreground mt-1">
+          Gerencie orçamentos, precificação e configurações de markup.
+        </p>
+      </div>
+
+      <Tabs defaultValue="lista" className="w-full">
+        <TabsList className="mb-4 bg-muted/50 border">
+          <TabsTrigger value="lista">Lista de Orçamentos</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger
+              value="config"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configurar Markup
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="lista" className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card p-4 rounded-lg border shadow-sm">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar orçamentos..."
+                className="pl-9 bg-muted/50"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Link to="/orcamentos/upload" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full">
+                  <Upload className="w-4 h-4 mr-2" /> Upload Planilha
+                </Button>
+              </Link>
+              <Link to="/orcamentos/novo" className="w-full sm:w-auto">
+                <Button className="w-full">
+                  <Plus className="w-4 h-4 mr-2" /> Novo Orçamento
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          <Card className="shadow-sm">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead>Nome do Projeto</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Data de Criação</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-center py-8 text-muted-foreground animate-pulse"
+                    >
+                      Carregando orçamentos...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredOrcamentos.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Nenhum orçamento encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredOrcamentos.map((orc) => (
+                    <TableRow key={orc.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium">{orc.nome}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {orc.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(orc.criado_em).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link to={`/orcamentos/${orc.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-primary/10 hover:text-primary"
+                          >
+                            <Edit className="w-4 h-4 mr-2" /> Editar
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="config">
+            <ConfigMarkup />
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  )
+}
+
+function ConfigMarkup() {
+  const [loading, setLoading] = useState(false)
+  const [vista, setVista] = useState('0.40000')
+  const [prazo, setPrazo] = useState('0.35000')
+  const { toast } = useToast()
+
+  useEffect(() => {
+    supabase
+      .from('configuracoes_sistema')
+      .select('*')
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setVista(Number(data.markup_vista).toFixed(5))
+          setPrazo(Number(data.markup_prazo).toFixed(5))
+        }
+      })
+  }, [])
+
+  const handleSave = async () => {
+    const numVista = parseFloat(vista)
+    const numPrazo = parseFloat(prazo)
+
+    if (isNaN(numVista) || isNaN(numPrazo)) {
+      toast({
+        title: 'Valores inválidos',
+        description: 'Por favor, insira números válidos.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setLoading(true)
+    const { error } = await supabase
+      .from('configuracoes_sistema')
+      .update({ markup_vista: numVista, markup_prazo: numPrazo })
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+
+    setLoading(false)
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Configurações salvas com sucesso!' })
+    }
   }
 
   return (
-    <div className="p-6 h-full flex flex-col bg-off-white space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0">
-        <div className="flex items-center gap-3">
-          <Calculator className="h-8 w-8 text-emerald-400" />
-          <div>
-            <h1 className="text-2xl font-bold text-off-white">Orçamentos</h1>
-            <p className="text-pale-cornflower text-sm mt-0.5">
-              Gestão de orçamentos e importações
-            </p>
+    <Card className="max-w-2xl shadow-sm border-t-4 border-t-primary">
+      <CardHeader>
+        <CardTitle>Markup Global</CardTitle>
+        <CardDescription>
+          Defina os divisores de markup padrão (precisão de até 5 casas decimais). Estes valores
+          serão aplicados aos novos orçamentos conforme a modalidade escolhida.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Divisor - Pagamento À Vista</Label>
+            <Input
+              type="number"
+              step="0.00001"
+              value={vista}
+              onChange={(e) => setVista(e.target.value)}
+              className="font-mono text-lg"
+            />
+            <p className="text-xs text-muted-foreground">Recomendado: 0.40000</p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Divisor - Pagamento A Prazo</Label>
+            <Input
+              type="number"
+              step="0.00001"
+              value={prazo}
+              onChange={(e) => setPrazo(e.target.value)}
+              className="font-mono text-lg"
+            />
+            <p className="text-xs text-muted-foreground">Recomendado: 0.35000</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => navigate('/orcamentos/upload')}
-            variant="secondary"
-            className="bg-white text-midnight-navy hover:bg-gray-100"
-          >
-            <ScanText className="w-4 h-4 mr-2" />
-            Importar via OCR
-          </Button>
-          <Button
-            onClick={() => navigate('/orcamentos/novo')}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Orçamento
+        <div className="flex justify-end pt-4 border-t">
+          <Button onClick={handleSave} disabled={loading} size="lg">
+            {loading ? 'Salvando...' : 'Salvar Configurações'}
           </Button>
         </div>
-      </div>
-
-      <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-gray-50">
-              <TableRow>
-                <TableHead>ID / Cliente</TableHead>
-                <TableHead>Ambiente</TableHead>
-                <TableHead>Valor Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    Carregando orçamentos...
-                  </TableCell>
-                </TableRow>
-              ) : orcamentos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                    Nenhum orçamento encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                orcamentos.map((orc) => (
-                  <TableRow key={orc.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div className="font-medium text-midnight-navy">
-                        {orc.clientes?.nome || 'Cliente não definido'}
-                      </div>
-                      <div className="text-xs text-gray-500">ID: {orc.id.substring(0, 8)}</div>
-                    </TableCell>
-                    <TableCell>{orc.ambiente || '-'}</TableCell>
-                    <TableCell className="font-medium text-emerald-600">
-                      {formatCurrency(orc.valor_total)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-gray-100">
-                        {orc.status || 'Rascunho'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {orc.data_criacao ? format(new Date(orc.data_criacao), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/orcamentos/${orc.id}`}>Detalhes</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

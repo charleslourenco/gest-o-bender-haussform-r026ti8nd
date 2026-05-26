@@ -3727,7 +3727,13 @@ export const Constants = {
 //     USING: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
 //   Policy "itens_lista_material_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
+//   Policy "itens_listas_mat_auth_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: itens_orcamento
+//   Policy "itens_orc_auth_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "itens_orcamento_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (EXISTS ( SELECT 1    FROM orcamentos o   WHERE ((o.id = itens_orcamento.orcamento_id) AND (o.user_id = auth.uid()))))
 //   Policy "itens_orcamento_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -3745,6 +3751,9 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: listas_materiais
+//   Policy "listas_mat_auth_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "listas_materiais_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //   Policy "listas_materiais_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -3784,6 +3793,9 @@ export const Constants = {
 //     USING: (usuario_id = auth.uid())
 //     WITH CHECK: (usuario_id = auth.uid())
 // Table: orcamentos
+//   Policy "orc_auth_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "orcamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
 //   Policy "orcamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
