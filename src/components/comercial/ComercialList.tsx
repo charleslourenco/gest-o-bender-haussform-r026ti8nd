@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchLeads } from '@/services/comercial'
+import { fetchLeads, updateLead } from '@/services/comercial'
 import {
   Table,
   TableBody,
@@ -11,24 +11,52 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
+import { COLUMNS } from './constants'
 
 export function ComercialList() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+
+  const loadData = async () => {
+    try {
+      const data = await fetchLeads()
+      setLeads(data || [])
+    } catch (error) {
+      console.error('Erro ao buscar leads:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchLeads()
-        setLeads(data || [])
-      } catch (error) {
-        console.error('Erro ao buscar leads:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
     loadData()
   }, [])
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l)))
+    try {
+      await updateLead(id, { status: newStatus })
+      toast({
+        description: 'Status atualizado com sucesso!',
+        className: 'bg-dark-denim text-off-white border-none',
+      })
+    } catch (e: any) {
+      toast({
+        description: 'Erro ao atualizar status',
+        variant: 'destructive',
+      })
+      loadData()
+    }
+  }
 
   if (loading) {
     return (
@@ -73,11 +101,20 @@ export function ComercialList() {
             <TableCell className="text-gray-600">{lead.email}</TableCell>
             <TableCell className="text-gray-600">{lead.telefone}</TableCell>
             <TableCell>
-              <span
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(lead.status)}`}
-              >
-                {lead.status}
-              </span>
+              <Select value={lead.status} onValueChange={(val) => handleStatusChange(lead.id, val)}>
+                <SelectTrigger
+                  className={`h-8 text-xs font-semibold border-none ${getStatusColor(lead.status)}`}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLUMNS.map((c) => (
+                    <SelectItem key={c} value={c} className="text-xs font-medium">
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </TableCell>
             <TableCell>
               <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">

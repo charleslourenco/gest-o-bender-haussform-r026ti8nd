@@ -11,6 +11,13 @@ import {
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Props {
   lead: Lead
@@ -19,6 +26,8 @@ interface Props {
   onDragEnd: (e: React.DragEvent) => void
   onEdit: () => void
   onDelete: () => void
+  onStatusChange: (id: string, newStatus: string) => void
+  columns: string[]
 }
 
 const categoryConfig = {
@@ -48,7 +57,16 @@ const categoryConfig = {
   },
 }
 
-export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, onDelete }: Props) {
+export function KanbanCard({
+  lead,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onEdit,
+  onDelete,
+  onStatusChange,
+  columns,
+}: Props) {
   const [elapsed, setElapsed] = useState('')
   const isAguardando = lead.status === 'Aguardando Consultor'
 
@@ -114,11 +132,29 @@ export function KanbanCard({ lead, isDragging, onDragStart, onDragEnd, onEdit, o
           <span className="line-clamp-2">{lead.nome}</span>
         </h4>
         <button
-          onClick={onDelete}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
           className="text-steel-blue hover:text-red-500 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
+      </div>
+
+      <div className="mb-2.5" onClick={(e) => e.stopPropagation()}>
+        <Select value={lead.status} onValueChange={(val) => onStatusChange(lead.id, val)}>
+          <SelectTrigger className="h-7 text-xs bg-white text-midnight-navy border-steel-blue/30 w-full font-medium shadow-none focus:ring-1 focus:ring-dark-denim">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {columns.map((c) => (
+              <SelectItem key={c} value={c} className="text-xs">
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex items-end justify-between pt-2.5 border-t border-steel-blue/20">

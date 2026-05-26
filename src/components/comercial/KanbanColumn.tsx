@@ -18,6 +18,8 @@ interface Props {
   onDelete: (lead: Lead) => void
   isCollapsed: boolean
   onToggleCollapse: () => void
+  onStatusChange: (id: string, newStatus: string) => void
+  columns: string[]
 }
 
 export function KanbanColumn({
@@ -35,12 +37,14 @@ export function KanbanColumn({
   onDelete,
   isCollapsed,
   onToggleCollapse,
+  onStatusChange,
+  columns,
 }: Props) {
   if (isCollapsed) {
     return (
       <div
         className={cn(
-          'min-w-[60px] w-[60px] md:min-w-[60px] md:w-[60px] rounded-lg p-2 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer h-[600px] max-h-full border-2',
+          'min-w-[60px] w-[60px] md:min-w-[60px] md:w-[60px] rounded-lg p-2 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer h-full min-h-[500px] max-h-full border-2',
           isVisible ? 'flex' : 'hidden md:flex',
           isDragOver
             ? 'bg-dark-denim/10 border-dashed border-dark-denim'
@@ -76,7 +80,7 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        'min-w-full md:min-w-[260px] md:w-[260px] rounded-lg p-3 flex flex-col gap-3 min-h-[600px] max-h-full transition-all duration-200 border-2',
+        'min-w-full md:min-w-[260px] md:w-[260px] rounded-lg p-3 flex flex-col gap-3 h-full min-h-[500px] max-h-full transition-all duration-200 border-2',
         isVisible ? 'flex' : 'hidden md:flex',
         isDragOver
           ? 'bg-dark-denim/10 border-dashed border-dark-denim'
@@ -108,6 +112,8 @@ export function KanbanColumn({
             onDragEnd={onDragEnd}
             onEdit={() => onEdit(lead)}
             onDelete={() => onDelete(lead)}
+            onStatusChange={onStatusChange}
+            columns={columns}
           />
         ))}
       </div>

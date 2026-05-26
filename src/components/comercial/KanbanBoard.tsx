@@ -11,21 +11,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 
-const COLUMNS = [
-  'Novo Lead',
-  'Aguardando Consultor',
-  'Contactado',
-  'Em Nutrição',
-  'Designar Consultor',
-  'Consultoria Inicial',
-  'Projeto',
-  'Apresentação',
-  'Negociação',
-  'Ação Gerente',
-  'Stand By',
-  'Vendido',
-  'Perdido',
-]
+import { COLUMNS } from './constants'
 
 export function KanbanBoard() {
   const { user } = useAuth()
@@ -111,6 +97,29 @@ export function KanbanBoard() {
         variant: 'destructive',
         className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
+    }
+  }
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const lead = leads.find((l) => l.id === id)
+    if (!lead || lead.status === newStatus) return
+
+    const newOrder = leads.filter((l) => l.status === newStatus).length
+    setLeads((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, status: newStatus, ordem: newOrder } : l)),
+    )
+
+    try {
+      await updateLead(id, { status: newStatus, ordem: newOrder })
+      if (newStatus === 'Vendido') {
+        setLeadToSell({ ...lead, status: 'Vendido' })
+      }
+    } catch (e: any) {
+      toast({
+        description: 'Erro ao mover lead.',
+        variant: 'destructive',
+      })
+      loadData()
     }
   }
 
@@ -285,7 +294,7 @@ export function KanbanBoard() {
             </select>
           </div>
           <ScrollArea className="flex-1 w-full kanban-scroll-wrapper">
-            <div className="flex flex-col md:flex-row gap-4 pb-4 flex-1 items-start h-full w-max min-w-full">
+            <div className="flex flex-col md:flex-row gap-4 pb-4 flex-1 items-stretch h-full w-max min-w-full">
               {COLUMNS.map((col) => (
                 <KanbanColumn
                   key={col}
@@ -315,6 +324,8 @@ export function KanbanBoard() {
                     setFormOpen(true)
                   }}
                   onDelete={(l) => setLeadToDelete(l)}
+                  onStatusChange={handleStatusChange}
+                  columns={COLUMNS}
                 />
               ))}
             </div>

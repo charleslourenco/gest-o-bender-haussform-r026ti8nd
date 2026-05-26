@@ -1,0 +1,15 @@
+export const COLUMNS = [
+  'Novo Lead',
+  'Aguardando Consultor',
+  'Contactado',
+  'Em Nutrição',
+  'Designar Consultor',
+  'Consultoria Inicial',
+  'Projeto',
+  'Apresentação',
+  'Negociação',
+  'Ação Gerente',
+  'Stand By',
+  'Vendido',
+  'Perdido',
+]
