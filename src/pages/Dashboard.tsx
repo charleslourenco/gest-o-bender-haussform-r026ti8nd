@@ -11,8 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import type { DashboardData } from './dashboard/types'
+import type { DashboardData as BaseDashboardData } from './dashboard/types'
 import { CaptacaoTab } from './dashboard/CaptacaoTab'
+
+interface DashboardData extends BaseDashboardData {
+  contasPagarCount?: number | null
+}
 import { ComercialTab } from './dashboard/ComercialTab'
 import { AnaliseTab } from './dashboard/AnaliseTab'
 import { ProducaoTab } from './dashboard/ProducaoTab'
@@ -23,7 +27,12 @@ export default function Dashboard() {
     from: startOfMonth(new Date()),
     to: new Date(),
   })
-  const [data, setData] = useState<DashboardData>({ leads: [], forms: [], projetos: [] })
+  const [data, setData] = useState<DashboardData>({
+    leads: [],
+    forms: [],
+    projetos: [],
+    contasPagarCount: null,
+  })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -51,10 +60,59 @@ export default function Dashboard() {
 
         const [resLeads, resProj, resForms] = await Promise.all([queryLeads, queryProj, queryForms])
 
+        // Robust data fetching for Accounts Payable (Contas a Pagar)
+        let contasPagarCount: number | null = null
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+          if (supabaseUrl && supabaseUrl !== 'undefined' && supabaseKey) {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const token = sessionData.session?.access_token || supabaseKey
+
+            const url = new URL(`${supabaseUrl}/rest/v1/contas_pagar`)
+            url.searchParams.append('select', '*')
+            url.searchParams.append('status_pagamento', 'eq.aguardando')
+
+            const targetDate = to || new Date().toISOString()
+            url.searchParams.append('data_vencimento', `lte.${targetDate}`)
+
+            const response = await fetch(url.toString(), {
+              method: 'HEAD',
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${token}`,
+                Prefer: 'count=exact',
+              },
+            })
+
+            // Prevent attempting to parse a JSON body when the response is empty
+            if (response.ok) {
+              const range = response.headers.get('content-range')
+              if (range) {
+                contasPagarCount = parseInt(range.split('/')[1] || '0', 10)
+              } else {
+                contasPagarCount = 0
+              }
+            } else {
+              console.warn(
+                `[Dashboard] contas_pagar request failed with status: ${response.status} (HTTP N/A or Error)`,
+              )
+            }
+          }
+        } catch (fetchError) {
+          // Resilience: keep functional if connection is unstable
+          console.warn(
+            '[Dashboard] Network error fetching contas_pagar (Backend disconnected?):',
+            fetchError,
+          )
+        }
+
         setData({
           leads: resLeads.data || [],
           projetos: resProj.data || [],
           forms: resForms.data || [],
+          contasPagarCount,
         })
       } catch (error) {
         console.error('Erro ao carregar dados', error)
@@ -67,12 +125,28 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm">
+      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Presentation className="h-10 w-10 text-emerald-400 hidden sm:block" />
           <div>
             <h1 className="text-[32px] font-bold text-off-white">Dashboard Integrado</h1>
             <p className="text-pale-cornflower mt-1">Inteligência Operacional Bender Haussform</p>
+          </div>
+        </div>
+
+        <div className="w-full sm:w-auto bg-steel-blue/10 p-4 rounded-lg border border-steel-blue/20 flex flex-col">
+          <p className="text-pale-cornflower text-sm font-medium">Contas a Pagar</p>
+          <div className="flex items-baseline gap-2 mt-1 min-h-[32px]">
+            {loading ? (
+              <Skeleton className="h-8 w-16 bg-steel-blue/20" />
+            ) : data.contasPagarCount === null ? (
+              <span className="text-rose-400 text-sm font-medium">Erro de conexão</span>
+            ) : (
+              <>
+                <span className="text-2xl font-bold text-off-white">{data.contasPagarCount}</span>
+                <span className="text-pale-cornflower text-xs">aguardando</span>
+              </>
+            )}
           </div>
         </div>
       </div>
