@@ -48,7 +48,7 @@ const menuItems = [
   },
   { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
   {
-    title: 'Listas de Materiais',
+    title: 'Criar Lista de Materiais',
     icon: ClipboardList,
     url: '/listas-materiais',
     module: 'Produção',
@@ -59,12 +59,6 @@ const menuItems = [
     icon: Package,
     url: '/estoque-compras',
     module: 'Estoque & Compras',
-  },
-  {
-    title: 'Listas de Materiais',
-    icon: ClipboardList,
-    url: '/listas-materiais',
-    module: 'Produção',
   },
   { title: 'Financeiro', icon: Wallet, url: '/financeiro', module: 'Financeiro' },
   { title: 'Gestão de Pessoas', icon: Users, url: '/gestao-pessoas', module: 'Gestão de Pessoas' },
