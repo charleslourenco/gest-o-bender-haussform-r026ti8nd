@@ -17,6 +17,16 @@ export const searchEstoqueItens = async (query: string) => {
   return data
 }
 
+export const saveCliente = async (nome: string) => {
+  const { data, error } = await supabase
+    .from('clientes')
+    .insert([{ nome, status: 'Ativo' }])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export const saveOrcamento = async (orcamentoData: any, itensData: any[]) => {
   const { data: orcamento, error: orcError } = await supabase
     .from('orcamentos')

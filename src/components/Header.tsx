@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -193,8 +192,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <SolicitacaoCompraDialog />
-
         <Popover>
           <PopoverTrigger asChild>
             <Button
