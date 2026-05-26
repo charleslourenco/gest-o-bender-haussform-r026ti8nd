@@ -19,6 +19,7 @@ import GestaoPessoas from './pages/GestaoPessoas'
 import OrcamentosEngenhariaList from './pages/orcamentos/OrcamentosEngenhariaList'
 import OrcamentosEngenhariaDetail from './pages/orcamentos/OrcamentosEngenhariaDetail'
 import NovoOrcamento from './pages/orcamentos/NovoOrcamento'
+import UploadOrcamento from './pages/orcamentos/upload'
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
 import Login from './pages/Login'
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
               <Route path="/orcamentos" element={<OrcamentosEngenhariaList />} />
               <Route path="/orcamentos/novo" element={<NovoOrcamento />} />
+              <Route path="/orcamentos/upload" element={<UploadOrcamento />} />
               <Route path="/orcamentos/:id" element={<OrcamentosEngenhariaDetail />} />
               <Route path="/usuarios" element={<Users />} />
               <Route path="/clientes" element={<AreaClientes />} />
