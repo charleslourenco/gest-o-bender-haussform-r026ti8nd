@@ -1506,6 +1506,7 @@ export type Database = {
       listas_materiais: {
         Row: {
           ambiente: string | null
+          arquivo_url: string | null
           cliente_id: string | null
           data_atualizacao: string | null
           data_criacao: string | null
@@ -1517,6 +1518,7 @@ export type Database = {
         }
         Insert: {
           ambiente?: string | null
+          arquivo_url?: string | null
           cliente_id?: string | null
           data_atualizacao?: string | null
           data_criacao?: string | null
@@ -1528,6 +1530,7 @@ export type Database = {
         }
         Update: {
           ambiente?: string | null
+          arquivo_url?: string | null
           cliente_id?: string | null
           data_atualizacao?: string | null
           data_criacao?: string | null
@@ -1717,6 +1720,7 @@ export type Database = {
       orcamentos: {
         Row: {
           ambiente: string | null
+          arquivo_url: string | null
           cliente_id: string | null
           data_atualizacao: string | null
           data_criacao: string | null
@@ -1730,6 +1734,7 @@ export type Database = {
         }
         Insert: {
           ambiente?: string | null
+          arquivo_url?: string | null
           cliente_id?: string | null
           data_atualizacao?: string | null
           data_criacao?: string | null
@@ -1743,6 +1748,7 @@ export type Database = {
         }
         Update: {
           ambiente?: string | null
+          arquivo_url?: string | null
           cliente_id?: string | null
           data_atualizacao?: string | null
           data_criacao?: string | null
@@ -3091,6 +3097,7 @@ export const Constants = {
 //   status: text (nullable, default: 'Rascunho'::text)
 //   data_criacao: timestamp with time zone (nullable, default: now())
 //   data_atualizacao: timestamp with time zone (nullable, default: now())
+//   arquivo_url: text (nullable)
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -3141,6 +3148,7 @@ export const Constants = {
 //   indice_preco_prazo: numeric (nullable, default: 1.0)
 //   data_criacao: timestamp with time zone (nullable, default: now())
 //   data_atualizacao: timestamp with time zone (nullable, default: now())
+//   arquivo_url: text (nullable)
 // Table: orcamentos_ambientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   orcamento_id: uuid (not null)

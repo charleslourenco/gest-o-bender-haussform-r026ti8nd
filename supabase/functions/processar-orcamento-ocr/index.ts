@@ -52,15 +52,15 @@ Deno.serve(async (req) => {
       throw new Error('Tipo de arquivo não suportado.')
     }
 
-    const systemPrompt = `Você é um assistente especializado em extrair dados de orçamentos de marcenaria.
+    const systemPrompt = `Você é um assistente especializado em extrair dados de orçamentos e listas de materiais de marcenaria.
 Seu objetivo é retornar APENAS um objeto JSON com as seguintes chaves:
 - "cliente": string (nome do cliente, null se não encontrado)
-- "ambiente": string (Cozinha, Sala, Quarto, Banheiro, Varanda, Outro)
-- "descricao": string (Descrição geral do orçamento, null se não encontrado)
+- "ambiente": string (Cozinha, Sala, Quarto, Banheiro, Varanda, Outro, ou null se não encontrar)
+- "descricao": string (Descrição geral do documento, null se não encontrado)
 - "itens": array de objetos contendo:
   - "nome_item": string
-  - "quantidade": number
-  - "custo_unitario": number (valor monetário, float, usar 0 se não especificado)
+  - "quantidade": number (assuma 1 se não especificado)
+  - "custo_unitario": number (valor monetário, float, usar 0 se não especificado ou se for lista de materiais)
 - "confianca": number (0 a 100, indicando sua confiança na extração dos dados legíveis)
 Retorne APENAS um JSON válido, sem markdown. Se não conseguir extrair com boa confiança, retorne os dados que conseguiu e confianca baixa (< 70).`
 
