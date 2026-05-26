@@ -10,6 +10,7 @@
     "assistant-intelligence": 10,
     "financeiro-ai": 10,
     "material-normalization": 2,
-    "export-pdf-document": 1
+    "export-pdf-document": 1,
+    "processar-orcamento-ocr": 1
   }
 }
