@@ -1,12 +1,23 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase/client'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import {
+  Search,
+  Plus,
+  Edit,
+  Copy,
+  Trash2,
+  FolderOpen,
+  AlertCircle,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight,
+  CalendarIcon,
+} from 'lucide-react'
+import { format, subDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
 import { Button } from '@/components/ui/button'
-import { Plus, Calculator, Trash2, Edit, FileText, Upload } from 'lucide-react'
-import { format } from 'date-fns'
-import { useToast } from '@/hooks/use-toast'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -15,455 +26,585 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Card, CardContent } from '@/components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { useToast } from '@/hooks/use-toast'
+
+import { supabase } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 
 export default function OrcamentosEngenhariaList() {
-  const [activeTab, setActiveTab] = useState('orcamentos')
-  const [orcamentos, setOrcamentos] = useState<any[]>([])
-  const [listas, setListas] = useState<any[]>([])
-  const [uploadType, setUploadType] = useState<'orcamento' | 'lista' | null>(null)
-  const [processing, setProcessing] = useState(false)
-  const [viewLista, setViewLista] = useState<any>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const navigate = useNavigate()
   const { toast } = useToast()
 
-  const loadData = () => {
-    supabase
-      .from('orcamentos_engenharia')
-      .select('*, clientes(nome)')
-      .order('criado_em', { ascending: false })
-      .then(({ data }) => setOrcamentos(data || []))
+  // State
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-    supabase
-      .from('listas_materiais')
-      .select('*, clientes(nome)')
-      .order('criado_em', { ascending: false })
-      .then(({ data }) => setListas(data || []))
-  }
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [clientFilter, setClientFilter] = useState('all')
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>()
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
-  const handleCreateEmptyOrcamento = async () => {
-    const { data } = await supabase
-      .from('orcamentos_engenharia')
-      .insert({ nome: 'Novo Orçamento', cliente_nome_manual: 'Cliente' })
-      .select()
-      .single()
-    if (data) navigate(`/orcamentos/${data.id}`)
-  }
-
-  const processFile = async (file: File) => {
-    setProcessing(true)
+  const fetchData = async () => {
     try {
-      let itemsParsed: any[] = []
-      try {
-        const text = await file.text()
-        if (file.name.endsWith('.csv') && text.trim().length > 0) {
-          const lines = text.split('\n').filter((l) => l.trim())
-          if (lines.length > 1) {
-            for (let i = 1; i < lines.length; i++) {
-              const cols = lines[i].split(',').map((c) => c.trim())
-              if (cols.length >= 2) {
-                itemsParsed.push({
-                  nome: cols[0],
-                  qtd: Number(cols[1]) || 1,
-                  un: cols[2] || 'un',
-                  dimensoes: cols[3] || '',
-                  material: cols[4] || '',
-                })
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error('Erro ao ler arquivo', e)
-      }
+      setLoading(true)
+      setError(false)
+      const { data: orcamentos, error: err } = await supabase
+        .from('orcamentos_engenharia')
+        .select(`
+          id,
+          nome,
+          status,
+          criado_em,
+          desconto,
+          clientes ( id, nome ),
+          orcamentos_ambientes (
+            nome,
+            orcamentos_itens (
+              quantidade,
+              custo_unitario,
+              markup
+            )
+          )
+        `)
+        .order('criado_em', { ascending: false })
 
-      if (itemsParsed.length === 0) {
-        itemsParsed = [
-          {
-            nome: 'MDF Louro Freijó 18mm',
-            qtd: 5,
-            un: 'un',
-            dimensoes: '2750x1850x18',
-            material: 'MDF',
-          },
-          { nome: 'Parafuso 4x40', qtd: 200, un: 'un', dimensoes: '', material: 'Ferragem' },
-        ]
-      }
+      if (err) throw err
 
-      const { data: estoque } = await supabase
-        .from('estoque_itens')
-        .select('id, nome, valor_unitario, unidade')
-
-      const itemsResult = itemsParsed.map((item) => {
-        const searchTerms = item.nome.toLowerCase().replace(/_/g, ' ').split(' ')
-        let found = null
-        if (estoque) {
-          found = estoque.find((e) => {
-            const eName = e.nome.toLowerCase()
-            return searchTerms.some((term) => term.length > 3 && eName.includes(term))
+      const formattedData = orcamentos.map((orc: any) => {
+        let total = 0
+        const ambientes = orc.orcamentos_ambientes || []
+        ambientes.forEach((amb: any) => {
+          const itens = amb.orcamentos_itens || []
+          itens.forEach((item: any) => {
+            total += (item.quantidade || 0) * (item.custo_unitario || 0) * (item.markup || 1)
           })
-        }
-        if (found) {
-          return {
-            ...item,
-            isMatched: true,
-            stockName: found.nome,
-            custo_unitario: found.valor_unitario,
-            item_estoque_id: found.id,
-            unidade_medida: found.unidade || item.un,
-          }
-        } else {
-          return { ...item, isMatched: false, custo_unitario: 0, unidade_medida: item.un }
+        })
+        total -= orc.desconto || 0
+
+        return {
+          ...orc,
+          clienteNome: orc.clientes?.nome || 'Sem Cliente',
+          clienteId: orc.clientes?.id,
+          ambientesNomes: ambientes.map((a: any) => a.nome).join(', ') || 'Nenhum',
+          valorTotal: Math.max(0, total),
         }
       })
 
-      if (uploadType === 'orcamento') {
-        const { data: orc } = await supabase
-          .from('orcamentos_engenharia')
-          .insert({ nome: 'Orçamento Importado', cliente_nome_manual: 'Cliente' })
-          .select()
-          .single()
-        if (orc) {
-          const { data: amb } = await supabase
-            .from('orcamentos_ambientes')
-            .insert({ orcamento_id: orc.id, nome: 'Ambiente Importado (' + file.name + ')' })
-            .select()
-            .single()
-
-          const itensToInsert = itemsResult.map((item) => ({
-            ambiente_id: amb!.id,
-            item_estoque_id: item.item_estoque_id || null,
-            nome_item: item.isMatched ? item.stockName : item.nome,
-            quantidade: item.qtd,
-            unidade_medida: item.unidade_medida,
-            custo_unitario: item.custo_unitario,
-          }))
-
-          if (itensToInsert.length > 0) {
-            await supabase.from('orcamentos_itens').insert(itensToInsert)
-          }
-
-          toast({ title: 'Orçamento importado com sucesso!' })
-          navigate(`/orcamentos/${orc.id}`)
-        }
-      } else if (uploadType === 'lista') {
-        const { error } = await supabase.from('listas_materiais').insert({
-          status: 'Pendente',
-          itens: itemsResult,
-        })
-        if (error) throw error
-
-        toast({ title: 'Lista de Materiais importada com sucesso!' })
-        setUploadType(null)
-        loadData()
-      }
-    } catch (e: any) {
-      toast({ title: 'Erro na importação', description: e.message, variant: 'destructive' })
+      setData(formattedData)
+    } catch (err) {
+      console.error(err)
+      setError(true)
     } finally {
-      setProcessing(false)
+      setLoading(false)
     }
   }
 
-  const handleDeleteOrcamento = async (e: React.MouseEvent, id: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!window.confirm('Tem certeza que deseja excluir este orçamento?')) return
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-    const { error } = await supabase.from('orcamentos_engenharia').delete().eq('id', id)
-    if (error) {
-      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' })
-    } else {
-      toast({ title: 'Orçamento excluído' })
-      loadData()
+  // Memos for filters
+  const uniqueClients = useMemo(() => {
+    const clientsMap = new Map()
+    data.forEach((item) => {
+      if (item.clienteId && item.clienteNome) {
+        clientsMap.set(item.clienteId, item.clienteNome)
+      }
+    })
+    return Array.from(clientsMap.entries()).map(([id, nome]) => ({ id, nome }))
+  }, [data])
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      // Search
+      const matchesSearch =
+        item.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.clienteNome.toLowerCase().includes(searchTerm.toLowerCase())
+
+      if (!matchesSearch) return false
+
+      // Status
+      if (statusFilter !== 'all' && item.status.toLowerCase() !== statusFilter.toLowerCase())
+        return false
+
+      // Client
+      if (clientFilter !== 'all' && item.clienteId !== clientFilter) return false
+
+      // Date
+      const itemDate = new Date(item.criado_em)
+      if (dateFilter === '7days') {
+        if (isBefore(itemDate, startOfDay(subDays(new Date(), 7)))) return false
+      } else if (dateFilter === '30days') {
+        if (isBefore(itemDate, startOfDay(subDays(new Date(), 30)))) return false
+      } else if (dateFilter === 'custom' && dateRange?.from) {
+        if (isBefore(itemDate, startOfDay(dateRange.from))) return false
+        if (dateRange.to && isAfter(itemDate, endOfDay(dateRange.to))) return false
+      }
+
+      return true
+    })
+  }, [data, searchTerm, statusFilter, clientFilter, dateFilter, dateRange])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  )
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, clientFilter, dateFilter, dateRange])
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from('orcamentos_engenharia').delete().eq('id', id)
+      if (error) throw error
+      toast({ title: 'Orçamento deletado', description: 'O orçamento foi removido com sucesso.' })
+      fetchData()
+    } catch (error: any) {
+      toast({ title: 'Erro ao deletar', description: error.message, variant: 'destructive' })
     }
   }
 
-  const handleDeleteLista = async (e: React.MouseEvent, id: string) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!window.confirm('Tem certeza que deseja excluir esta lista?')) return
+  const handleDuplicate = async (id: string) => {
+    toast({ title: 'Duplicar', description: 'Função de duplicação em desenvolvimento.' })
+  }
 
-    const { error } = await supabase.from('listas_materiais').delete().eq('id', id)
-    if (error) {
-      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' })
-    } else {
-      toast({ title: 'Lista excluída' })
-      loadData()
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'rascunho':
+        return (
+          <Badge variant="secondary" className="bg-gray-100 text-gray-800 hover:bg-gray-200">
+            Rascunho
+          </Badge>
+        )
+      case 'enviado':
+        return (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200">
+            Enviado
+          </Badge>
+        )
+      case 'aprovado':
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+            Aprovado
+          </Badge>
+        )
+      case 'rejeitado':
+        return (
+          <Badge variant="secondary" className="bg-red-100 text-red-800 hover:bg-red-200">
+            Rejeitado
+          </Badge>
+        )
+      default:
+        return <Badge variant="outline">{status}</Badge>
     }
+  }
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  }
+
+  const formatDate = (dateStr: string) => {
+    return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR })
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="bg-slate-900 rounded-xl p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-          <Calculator className="w-7 h-7 text-blue-400" /> Orçamentos de Engenharia
-        </h1>
+    <div className="flex flex-col gap-6 p-6 animate-fade-in w-full h-full bg-background">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Orçamentos</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie e acompanhe todos os orçamentos de engenharia.
+          </p>
+        </div>
+        <Button onClick={() => navigate('/orcamentos/novo')} className="w-full md:w-auto">
+          <Plus className="w-4 h-4 mr-2" />
+          Novo Orçamento
+        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <div className="bg-slate-50 p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-          <TabsList className="bg-white border shadow-sm w-full sm:w-auto">
-            <TabsTrigger
-              value="orcamentos"
-              className="flex-1 sm:w-40 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
-            >
-              Orçamentos
-            </TabsTrigger>
-            <TabsTrigger
-              value="listas"
-              className="flex-1 sm:w-40 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700"
-            >
-              Listas de Materiais
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto bg-white border-slate-200 hover:bg-slate-100"
-              onClick={() => setUploadType('orcamento')}
-            >
-              <Plus className="w-4 h-4 mr-2 text-slate-600" /> Novo Orçamento
-            </Button>
-            <Button
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => setUploadType('lista')}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Nova Lista de Materiais
-            </Button>
-          </div>
+      <div className="flex flex-col md:flex-row gap-4 items-end bg-card p-4 rounded-xl border border-border/50 shadow-sm">
+        <div className="flex-1 w-full relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por ID, Nome ou Cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 w-full bg-background"
+          />
         </div>
 
-        <TabsContent value="orcamentos">
-          <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Nome do Projeto</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data de Criação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orcamentos.map((orc) => (
-                  <TableRow
-                    key={orc.id}
-                    className="cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => navigate(`/orcamentos/${orc.id}`)}
+        <div className="flex flex-wrap md:flex-nowrap gap-3 w-full md:w-auto">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full md:w-[160px] bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="rascunho">Rascunho</SelectItem>
+              <SelectItem value="enviado">Enviado</SelectItem>
+              <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="rejeitado">Rejeitado</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-full md:w-[180px] bg-background">
+              <SelectValue placeholder="Cliente" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Clientes</SelectItem>
+              {uniqueClients.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="flex gap-2 w-full md:w-auto">
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-full md:w-[160px] bg-background">
+                <SelectValue placeholder="Data" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Qualquer data</SelectItem>
+                <SelectItem value="7days">Últimos 7 dias</SelectItem>
+                <SelectItem value="30days">Últimos 30 dias</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {dateFilter === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'bg-background justify-start text-left font-normal',
+                      !dateRange && 'text-muted-foreground',
+                    )}
                   >
-                    <TableCell className="font-medium text-lg text-foreground">
-                      {orc.nome}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {orc.cliente_nome_manual || orc.clientes?.nome || 'Sem cliente'}
-                    </TableCell>
-                    <TableCell>
-                      <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium border border-primary/20">
-                        {orc.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(orc.criado_em), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/orcamentos/${orc.id}`)
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={(e) => handleDeleteOrcamento(e, orc.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {orcamentos.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="p-12 text-center text-muted-foreground">
-                      Nenhum orçamento encontrado. Crie o primeiro!
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="listas">
-          <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>ID da Lista</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data de Criação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {listas.map((lista) => (
-                  <TableRow key={lista.id} className="hover:bg-accent/50 transition-colors">
-                    <TableCell className="font-medium">Lista #{lista.id.split('-')[0]}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {lista.clientes?.nome || 'Cliente não vinculado'}
-                    </TableCell>
-                    <TableCell>
-                      <span className="bg-amber-500/10 text-amber-600 px-3 py-1 rounded-full text-xs font-medium border border-amber-500/20">
-                        {lista.status || 'Pendente'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {lista.criado_em ? format(new Date(lista.criado_em), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {lista.itens && (
-                          <Button variant="ghost" size="icon" onClick={() => setViewLista(lista)}>
-                            <FileText className="w-4 h-4 text-blue-500" />
-                          </Button>
-                        )}
-                        {lista.arquivo_url && (
-                          <Button variant="ghost" size="icon" asChild>
-                            <a href={lista.arquivo_url} target="_blank" rel="noopener noreferrer">
-                              <FileText className="w-4 h-4 text-blue-500" />
-                            </a>
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={(e) => handleDeleteLista(e, lista.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {listas.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="p-12 text-center text-muted-foreground">
-                      Nenhuma lista de materiais encontrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <Dialog open={!!viewLista} onOpenChange={(open) => !open && setViewLista(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Itens da Lista #{viewLista?.id?.split('-')[0]}</DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Qtd</TableHead>
-                  <TableHead>Medida</TableHead>
-                  <TableHead>Material</TableHead>
-                  <TableHead>Estoque</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {viewLista?.itens?.map((it: any, idx: number) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium">{it.nome}</TableCell>
-                    <TableCell>{it.qtd}</TableCell>
-                    <TableCell>{it.unidade_medida || it.un}</TableCell>
-                    <TableCell>{it.material || '-'}</TableCell>
-                    <TableCell>
-                      {it.isMatched ? (
-                        <span className="text-emerald-600 font-medium">No Estoque</span>
+                    <CalendarIcon className="w-4 h-4 mr-2" />
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
+                        </>
                       ) : (
-                        <span className="text-amber-600 font-medium">Avulso</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        format(dateRange.from, 'dd/MM/yy')
+                      )
+                    ) : (
+                      <span>Selecione</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange as any}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
 
-      <Dialog open={!!uploadType} onOpenChange={(open) => !open && setUploadType(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {uploadType === 'orcamento' ? 'Novo Orçamento' : 'Nova Lista de Materiais'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 pt-4">
-            <div
-              className="w-full p-8 border-2 border-dashed rounded-xl transition-all cursor-pointer border-border hover:border-primary/50 flex flex-col items-center justify-center text-center"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                const file = e.dataTransfer.files?.[0]
-                if (file) processFile(file)
-              }}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".csv,.xml"
-                onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
-              />
-              {processing ? (
-                <div className="animate-pulse space-y-4">
-                  <Upload className="w-8 h-8 text-primary mx-auto" />
-                  <p>Processando arquivo...</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Upload className="w-8 h-8 text-muted-foreground mx-auto" />
-                  <p className="font-medium">Arraste seu arquivo Promob/CutPro aqui</p>
-                  <p className="text-xs text-muted-foreground">
-                    Ou clique para selecionar (CSV/XML)
-                  </p>
-                </div>
-              )}
+      <div className="flex-1 min-h-[400px]">
+        {loading ? (
+          <div className="space-y-4">
+            <div className="hidden md:block border rounded-xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Ambiente</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Skeleton className="h-4 w-20" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-32" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-4 w-24" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                      </TableCell>
+                      <TableCell>
+                        <Skeleton className="h-8 w-8 rounded-md" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="md:hidden space-y-4">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/3" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[400px] border border-dashed rounded-xl bg-card">
+            <AlertCircle className="w-12 h-12 text-destructive mb-4" />
+            <h3 className="text-lg font-medium text-foreground">Erro ao carregar orçamentos.</h3>
+            <p className="text-muted-foreground mb-4">
+              Ocorreu um problema ao buscar os dados do servidor. Tente novamente.
+            </p>
+            <Button onClick={fetchData}>Tentar novamente</Button>
+          </div>
+        ) : filteredData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full min-h-[400px] border border-dashed rounded-xl bg-card">
+            <FolderOpen className="w-12 h-12 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium text-foreground">Nenhum orçamento criado ainda</h3>
+            <p className="text-muted-foreground mb-4 text-center max-w-sm">
+              Crie seu primeiro orçamento ou ajuste os filtros para encontrar registros existentes.
+            </p>
+            <Button onClick={() => navigate('/orcamentos/novo')}>Criar Primeiro Orçamento</Button>
+          </div>
+        ) : (
+          <div className="space-y-4 animate-fade-in-up">
+            <div className="hidden md:block rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead className="w-[100px]">ID do Orçamento</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Ambiente</TableHead>
+                    <TableHead>Data de Criação</TableHead>
+                    <TableHead>Valor Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedData.map((orc) => (
+                    <TableRow key={orc.id} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        <Link
+                          to={`/orcamentos/${orc.id}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {orc.id.substring(0, 8).toUpperCase()}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">
+                        {orc.clienteNome}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground truncate max-w-[200px]">
+                        {orc.ambientesNomes}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(orc.criado_em)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(orc.valorTotal)}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(orc.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate(`/orcamentos/${orc.id}`)}>
+                              <Edit className="w-4 h-4 mr-2 text-muted-foreground" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicate(orc.id)}>
+                              <Copy className="w-4 h-4 mr-2 text-muted-foreground" />
+                              Duplicar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(orc.id)}
+                              className="text-destructive focus:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Deletar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
 
-            {uploadType === 'orcamento' && !processing && (
-              <div className="flex items-center justify-between border-t pt-4">
-                <span className="text-sm text-muted-foreground">Ou crie um orçamento vazio:</span>
-                <Button variant="outline" size="sm" onClick={handleCreateEmptyOrcamento}>
-                  Criar Vazio
-                </Button>
+            <div className="md:hidden space-y-4">
+              {paginatedData.map((orc) => (
+                <Card key={orc.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">
+                          ID:{' '}
+                          <Link
+                            to={`/orcamentos/${orc.id}`}
+                            className="font-mono hover:text-primary"
+                          >
+                            {orc.id.substring(0, 8).toUpperCase()}
+                          </Link>
+                        </p>
+                        <h4 className="font-bold text-foreground text-lg leading-tight">
+                          {orc.clienteNome}
+                        </h4>
+                      </div>
+                      {getStatusBadge(orc.status)}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-y-2 text-sm mt-4">
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Ambiente</span>
+                        <span className="font-medium text-foreground truncate block">
+                          {orc.ambientesNomes}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Data</span>
+                        <span className="font-medium text-foreground">
+                          {formatDate(orc.criado_em)}
+                        </span>
+                      </div>
+                      <div className="col-span-2 mt-2 pt-2 border-t">
+                        <span className="text-muted-foreground block text-xs">Valor Total</span>
+                        <span className="font-bold text-lg text-foreground">
+                          {formatCurrency(orc.valorTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex gap-2 pt-4 border-t border-border/50">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/orcamentos/${orc.id}`)}
+                      >
+                        <Edit className="w-4 h-4 mr-2" /> Editar
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" className="w-10 px-0">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleDuplicate(orc.id)}>
+                            <Copy className="w-4 h-4 mr-2" /> Duplicar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(orc.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" /> Deletar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground hidden sm:block">
+                  Mostrando{' '}
+                  <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> a{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * itemsPerPage, filteredData.length)}
+                  </span>{' '}
+                  de <span className="font-medium">{filteredData.length}</span> resultados
+                </p>
+                <div className="flex gap-2 w-full sm:w-auto justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Próxima <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
     </div>
   )
 }
