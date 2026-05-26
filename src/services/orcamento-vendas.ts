@@ -35,7 +35,8 @@ export const saveOrcamento = async (orcamentoData: any, itensData: any[]) => {
 
   const itens = itensData.map((item) => ({
     orcamento_id: orcamento.id,
-    estoque_item_id: item.estoque_item_id,
+    estoque_item_id: item.estoque_item_id || null,
+    nome_item: item.nome_item || null,
     quantidade: item.quantidade,
     preco_custo: item.preco_custo,
     preco_venda: item.preco_venda,

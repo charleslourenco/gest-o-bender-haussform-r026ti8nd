@@ -1360,6 +1360,7 @@ export type Database = {
           data_criacao: string | null
           estoque_item_id: string | null
           id: string
+          nome_item: string | null
           orcamento_id: string | null
           preco_custo: number | null
           preco_venda: number | null
@@ -1369,6 +1370,7 @@ export type Database = {
           data_criacao?: string | null
           estoque_item_id?: string | null
           id?: string
+          nome_item?: string | null
           orcamento_id?: string | null
           preco_custo?: number | null
           preco_venda?: number | null
@@ -1378,6 +1380,7 @@ export type Database = {
           data_criacao?: string | null
           estoque_item_id?: string | null
           id?: string
+          nome_item?: string | null
           orcamento_id?: string | null
           preco_custo?: number | null
           preco_venda?: number | null
@@ -3053,6 +3056,7 @@ export const Constants = {
 //   preco_custo: numeric (nullable, default: 0)
 //   preco_venda: numeric (nullable, default: 0)
 //   data_criacao: timestamp with time zone (nullable, default: now())
+//   nome_item: text (nullable)
 // Table: kanban_historico
 //   id: uuid (not null, default: gen_random_uuid())
 //   card_id: uuid (nullable)
