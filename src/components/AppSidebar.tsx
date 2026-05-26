@@ -34,7 +34,7 @@ const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
   {
-    title: 'Orçamentos e Materiais por Projeto',
+    title: 'Criar Orçamento',
     icon: Calculator,
     url: '/orcamentos',
     module: 'Comercial',
