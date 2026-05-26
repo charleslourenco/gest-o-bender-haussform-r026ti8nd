@@ -176,13 +176,11 @@ export default function NovaListaMateriais() {
           .throwOnError()
         listId = res.data?.id
         if (payload.orcamento_id) {
-          await supabase
-            .from('versoes_orcamentos')
-            .insert({
-              orcamento_id: payload.orcamento_id,
-              dados_json: data.itens,
-              criado_por: user?.id,
-            })
+          await supabase.from('versoes_orcamentos').insert({
+            orcamento_id: payload.orcamento_id,
+            dados_json: data.itens,
+            criado_por: user?.id,
+          })
         }
       }
       if (data.itens.length > 0) {
