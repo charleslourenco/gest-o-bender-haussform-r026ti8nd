@@ -3754,28 +3754,24 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: itens_lista_material
 //   Policy "itens_lista_material_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "itens_lista_material_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "itens_lista_material_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "itens_lista_material_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM listas_materiais l   WHERE ((l.id = itens_lista_material.lista_material_id) AND (l.user_id = auth.uid()))))
-//   Policy "itens_listas_mat_auth_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 // Table: itens_orcamento
-//   Policy "itens_orc_auth_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
 //   Policy "itens_orcamento_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM orcamentos o   WHERE ((o.id = itens_orcamento.orcamento_id) AND (o.user_id = auth.uid()))))
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "itens_orcamento_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM orcamentos o   WHERE ((o.id = itens_orcamento.orcamento_id) AND (o.user_id = auth.uid()))))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "itens_orcamento_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM orcamentos o   WHERE ((o.id = itens_orcamento.orcamento_id) AND (o.user_id = auth.uid()))))
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "itens_orcamento_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM orcamentos o   WHERE ((o.id = itens_orcamento.orcamento_id) AND (o.user_id = auth.uid()))))
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: kanban_historico
 //   Policy "kanban_history_access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3785,18 +3781,15 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: listas_materiais
-//   Policy "listas_mat_auth_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
 //   Policy "listas_materiais_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "listas_materiais_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (user_id = auth.uid())
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "listas_materiais_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 //   Policy "listas_materiais_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
-//     WITH CHECK: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 // Table: logs_ia
 //   Policy "Acesso total logs_ia" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3827,30 +3820,45 @@ export const Constants = {
 //     USING: (usuario_id = auth.uid())
 //     WITH CHECK: (usuario_id = auth.uid())
 // Table: orcamentos
-//   Policy "orc_auth_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
 //   Policy "orcamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "orcamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (user_id = auth.uid())
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "orcamentos_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "orcamentos_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
-//     WITH CHECK: (user_id = auth.uid())
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: orcamentos_ambientes
-//   Policy "orcamentos_ambientes_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//   Policy "orcamentos_ambientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_ambientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_ambientes_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_ambientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: orcamentos_engenharia
-//   Policy "orcamentos_engenharia_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//   Policy "orcamentos_engenharia_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_engenharia_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_engenharia_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_engenharia_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: orcamentos_itens
-//   Policy "orcamentos_itens_all" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
+//   Policy "orcamentos_itens_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_itens_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_itens_select" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_itens_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: pagamentos
 //   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
