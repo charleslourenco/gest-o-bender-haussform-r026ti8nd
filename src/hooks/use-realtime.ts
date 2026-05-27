@@ -3,15 +3,19 @@ import { supabase } from '@/lib/supabase/client'
 
 /**
  * Hook for real-time subscriptions to a Supabase table.
- * ALWAYS use this hook instead of subscribing inline.
+ * Adapted to replace previous implementations while keeping the same interface
+ * so downstream components don't break.
  */
-export function useRealtime<TRecord = any>(
+export function useRealtime(
   collectionName: string,
-  callback: (data: { action: string; record: TRecord }) => void,
+  callback: (data: any) => void,
   enabled: boolean = true,
 ) {
   const callbackRef = useRef(callback)
-  callbackRef.current = callback
+
+  useEffect(() => {
+    callbackRef.current = callback
+  }, [callback])
 
   useEffect(() => {
     if (!enabled) return
@@ -22,13 +26,8 @@ export function useRealtime<TRecord = any>(
         'postgres_changes',
         { event: '*', schema: 'public', table: collectionName },
         (payload) => {
-          const action =
-            payload.eventType === 'INSERT'
-              ? 'create'
-              : payload.eventType === 'UPDATE'
-                ? 'update'
-                : 'delete'
-          callbackRef.current({ action, record: (payload.new || payload.old) as TRecord })
+          const action = payload.eventType === 'INSERT' ? 'create' : payload.eventType.toLowerCase()
+          callbackRef.current({ action, record: payload.new || payload.old })
         },
       )
       .subscribe()

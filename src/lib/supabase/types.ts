@@ -3605,14 +3605,14 @@ export const Constants = {
 //     USING: true
 // Table: contas_pagar
 //   Policy "contas_pagar_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: true
 //   Policy "contas_pagar_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (user_id = auth.uid())
+//     WITH CHECK: true
 //   Policy "contas_pagar_select_own" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((user_id = auth.uid()) OR (user_id IS NULL) OR is_admin(auth.uid()) OR ((auth.jwt() ->> 'email'::text) = 'charleslourenco01@icloud.com'::text))
+//     USING: true
 //   Policy "contas_pagar_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
-//     WITH CHECK: (user_id = auth.uid())
+//     USING: true
+//     WITH CHECK: true
 // Table: contas_receber
 //   Policy "contas_receber_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
