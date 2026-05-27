@@ -63,42 +63,18 @@ export default function Dashboard() {
         // Robust data fetching for Accounts Payable (Contas a Pagar)
         let contasPagarCount: number | null = null
         try {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-          const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+          const targetDate = to || new Date().toISOString()
 
-          if (supabaseUrl && supabaseUrl !== 'undefined' && supabaseKey) {
-            const { data: sessionData } = await supabase.auth.getSession()
-            const token = sessionData.session?.access_token || supabaseKey
+          const { count, error } = await supabase
+            .from('contas_pagar')
+            .select('*', { count: 'exact', head: true })
+            .eq('status_pagamento', 'aguardando')
+            .lte('data_vencimento', targetDate)
 
-            const url = new URL(`${supabaseUrl}/rest/v1/contas_pagar`)
-            url.searchParams.append('select', '*')
-            url.searchParams.append('status_pagamento', 'eq.aguardando')
-
-            const targetDate = to || new Date().toISOString()
-            url.searchParams.append('data_vencimento', `lte.${targetDate}`)
-
-            const response = await fetch(url.toString(), {
-              method: 'HEAD',
-              headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${token}`,
-                Prefer: 'count=exact',
-              },
-            })
-
-            // Prevent attempting to parse a JSON body when the response is empty
-            if (response.ok) {
-              const range = response.headers.get('content-range')
-              if (range) {
-                contasPagarCount = parseInt(range.split('/')[1] || '0', 10)
-              } else {
-                contasPagarCount = 0
-              }
-            } else {
-              console.warn(
-                `[Dashboard] contas_pagar request failed with status: ${response.status} (HTTP N/A or Error)`,
-              )
-            }
+          if (error) {
+            console.warn(`[Dashboard] contas_pagar request failed:`, error)
+          } else {
+            contasPagarCount = count ?? 0
           }
         } catch (fetchError) {
           // Resilience: keep functional if connection is unstable
