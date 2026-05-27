@@ -1,18 +1,8 @@
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -21,19 +11,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { useToast } from '@/hooks/use-toast'
-import { AppUser } from '@/types/user'
 import { supabase } from '@/lib/supabase/client'
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
-
-const formSchema = z.object({
-  nome: z.string().min(3, 'Mínimo de 3 caracteres'),
-  email: z.string().email('E-mail inválido'),
-  telefone: z.string().min(14, 'Telefone inválido'),
-  funcao: z.string().min(1, 'Selecione uma função'),
-  status: z.boolean(),
-  senha: z.string().optional(),
-})
+import { AppUser } from '@/types/user'
+import { useToast } from '@/hooks/use-toast'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface UserFormModalProps {
   isOpen: boolean
@@ -42,345 +23,313 @@ interface UserFormModalProps {
   onSuccess: (user: AppUser, isNew: boolean) => void
 }
 
-const formatPhone = (val: string) => {
-  const v = val.replace(/\D/g, '')
-  if (v.length <= 10) {
-    return v.replace(/(\d{2})(\d{0,4})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '')
-  }
-  return v.replace(/(\d{2})(\d{0,5})(\d{0,4})/, '($1) $2-$3').replace(/-$/, '')
-}
+const MODULES = [
+  'Dashboard',
+  'Comercial',
+  'Criar Orçamento',
+  'Clientes',
+  'Análise Técnica',
+  'Produção',
+  'Criar Lista de Materiais',
+  'Montagem',
+  'Estoque & Compras',
+  'Financeiro',
+  'Gestão de Pessoas',
+  'Usuários',
+  'Administrativo',
+]
 
 export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModalProps) {
+  const [nome, setNome] = useState('')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [funcao, setFuncao] = useState('Consultor')
+  const [status, setStatus] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [permissions, setPermissions] = useState<Record<string, string>>({})
   const { toast } = useToast()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      nome: '',
-      email: '',
-      telefone: '',
-      funcao: '',
-      status: true,
-    },
-  })
 
   useEffect(() => {
-    setSelectedFile(null)
-    if (user) {
-      form.reset({
-        nome: user.nome || '',
-        email: user.email || '',
-        telefone: user.telefone || '',
-        funcao: user.funcao || '',
-        status: user.status ?? true,
-        senha: '',
-      })
-    } else {
-      form.reset({
-        nome: '',
-        email: '',
-        telefone: '',
-        funcao: '',
-        status: true,
-        senha: '',
-      })
-    }
-  }, [user, form, isOpen])
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!user && (!values.senha || values.senha.length < 6)) {
-      form.setError('senha', {
-        type: 'manual',
-        message: 'Senha é obrigatória para novos usuários (mín. 6 caracteres)',
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      let fotoUrl = user?.foto_perfil
-
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop()
-        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, selectedFile, { upsert: true })
-
-        if (uploadError) throw uploadError
-        fotoUrl = fileName
+    if (isOpen) {
+      if (user) {
+        setNome(user.nome)
+        setEmail(user.email)
+        setSenha('')
+        setTelefone(user.telefone || '')
+        setFuncao(user.funcao || 'Consultor')
+        setStatus(user.status)
+        fetchPermissions(user.id)
+      } else {
+        setNome('')
+        setEmail('')
+        setSenha('')
+        setTelefone('')
+        setFuncao('Consultor')
+        setStatus(true)
+        const initialPerms: Record<string, string> = {}
+        MODULES.forEach((m) => {
+          initialPerms[m] = 'Sem Acesso'
+        })
+        setPermissions(initialPerms)
       }
+    }
+  }, [isOpen, user])
+
+  const fetchPermissions = async (userId: string) => {
+    const { data } = await supabase.from('matriz_permissoes').select('*').eq('usuario_id', userId)
+    const perms: Record<string, string> = {}
+    MODULES.forEach((m) => {
+      perms[m] = 'Sem Acesso'
+    })
+    if (data) {
+      data.forEach((p) => {
+        if (MODULES.includes(p.modulo)) {
+          perms[p.modulo] = p.nivel_acesso
+        }
+      })
+    }
+    setPermissions(perms)
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true)
+    try {
+      const userData = { nome, email, senha, telefone, funcao, status }
+      const permissionsData = Object.entries(permissions)
+        .filter(([_, level]) => level !== 'Sem Acesso')
+        .map(([mod, level]) => ({ modulo: mod, nivel_acesso: level }))
 
       const { data, error } = await supabase.functions.invoke('admin-users', {
         body: {
           action: user ? 'update' : 'create',
           userId: user?.id,
-          userData: { ...values, foto_perfil: fotoUrl },
+          userData,
+          permissionsData: user ? null : permissionsData,
         },
       })
       if (error) throw error
 
-      toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-off-white" />
-            <span>{user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!'}</span>
-          </div>
-        ),
-        className: 'bg-dark-denim text-off-white border-none',
-      })
+      let createdUserId = user?.id
+      if (!user && data?.user) {
+        createdUserId = data.user.id
+        if (permissionsData.length > 0) {
+          const { error: permErr } = await supabase.functions.invoke('admin-users', {
+            body: { action: 'update_permissions', userId: createdUserId, permissionsData },
+          })
+          if (permErr) throw permErr
+        }
+      } else if (user) {
+        const { error: permErr } = await supabase.functions.invoke('admin-users', {
+          body: { action: 'update_permissions', userId: createdUserId, permissionsData },
+        })
+        if (permErr) throw permErr
+      }
 
-      const savedUser = user
-        ? { ...user, ...values, foto_perfil: fotoUrl }
-        : { id: data.user.id, ...values, foto_perfil: fotoUrl }
-      onSuccess(savedUser as AppUser, !user)
-      onClose()
-    } catch (err: any) {
-      const isAlreadyRegistered =
-        err.message?.includes('already registered') || err.message?.includes('já existe')
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-off-white" />
-            <span>Erro ao salvar usuário</span>
-          </div>
-        ),
-        description: isAlreadyRegistered ? 'Este e-mail já está cadastrado.' : err.message,
-        className: 'bg-steel-blue text-off-white border-none',
+        title: user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!',
+        className: 'bg-dark-denim text-off-white',
       })
+      onSuccess(
+        {
+          id: createdUserId!,
+          email,
+          nome,
+          telefone,
+          funcao,
+          status,
+          criado_em: '',
+          atualizado_em: '',
+          foto_perfil: null,
+        },
+        !user,
+      )
+    } catch (error: any) {
+      toast({ title: 'Erro ao salvar usuário', description: error.message, variant: 'destructive' })
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        className="sm:max-w-[500px] bg-off-white border-none shadow-xl"
-        overlayClassName="bg-midnight-navy/50"
-      >
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-off-white border-none shadow-xl">
         <DialogHeader>
-          <DialogTitle className="text-midnight-navy text-[24px] font-bold">
-            {user ? 'Editar Usuário' : 'Adicionar Usuário'}
+          <DialogTitle className="text-2xl font-bold text-midnight-navy">
+            {user ? 'Editar Usuário' : 'Novo Usuário'}
           </DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="nome"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-midnight-navy font-semibold text-base">
-                    Nome Completo
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="João da Silva"
-                      className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-steel-blue font-bold" />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-midnight-navy font-semibold text-base">
-                      E-mail
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="joao@exemplo.com"
-                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg disabled:opacity-70 disabled:cursor-not-allowed"
-                        {...field}
-                        disabled={!!user}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-steel-blue font-bold" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="senha"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-midnight-navy font-semibold text-base">
-                      {user ? 'Nova Senha (Opcional)' : 'Senha de Acesso'}
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="******"
-                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-steel-blue font-bold" />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FormField
-                control={form.control}
-                name="telefone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-midnight-navy font-semibold text-base">
-                      Telefone
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="(00) 00000-0000"
-                        className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-midnight-navy/60 rounded-lg"
-                        {...field}
-                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
-                        maxLength={15}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-steel-blue font-bold" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="funcao"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-midnight-navy font-semibold text-base">
-                      Função
-                    </FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus:border-dark-denim focus:border-[3px] focus:ring-0 rounded-lg">
-                          <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-off-white border-2 border-steel-blue">
-                        <SelectItem
-                          value="Consultor"
-                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
-                        >
-                          Consultor
-                        </SelectItem>
-                        <SelectItem
-                          value="Analista"
-                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
-                        >
-                          Analista
-                        </SelectItem>
-                        <SelectItem
-                          value="Gerente"
-                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
-                        >
-                          Gerente
-                        </SelectItem>
-                        <SelectItem
-                          value="Admin"
-                          className="focus:bg-pale-cornflower focus:text-midnight-navy text-base"
-                        >
-                          Admin
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage className="text-steel-blue font-bold" />
-                  </FormItem>
-                )}
-              />
-            </div>
 
-            <FormItem>
-              <FormLabel className="text-midnight-navy font-semibold text-base">
-                Foto de Perfil (Opcional)
-              </FormLabel>
-              <FormControl>
+        <Tabs defaultValue="dados" className="mt-4">
+          <TabsList className="bg-pale-cornflower/30 border border-steel-blue/20 mb-6 w-full justify-start p-1 h-auto">
+            <TabsTrigger
+              value="dados"
+              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
+            >
+              Dados Pessoais
+            </TabsTrigger>
+            <TabsTrigger
+              value="permissoes"
+              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
+            >
+              Permissões
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dados" className="space-y-6 m-0 focus:outline-none">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-midnight-navy font-semibold">Nome Completo</Label>
                 <Input
-                  type="file"
-                  accept="image/jpeg, image/png"
-                  className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 file:text-midnight-navy file:font-semibold rounded-lg pt-2 cursor-pointer"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      if (file.size > 5 * 1024 * 1024) {
-                        toast({
-                          title: (
-                            <div className="flex items-center gap-2">
-                              <XCircle className="h-5 w-5 text-off-white" />
-                              <span>Erro</span>
-                            </div>
-                          ),
-                          description: 'Arquivo muito grande. Máximo 5MB.',
-                          className: 'bg-steel-blue text-off-white border-none',
-                        })
-                        e.target.value = ''
-                        setSelectedFile(null)
-                      } else {
-                        setSelectedFile(file)
-                      }
-                    } else {
-                      setSelectedFile(null)
-                    }
-                  }}
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                  placeholder="Ex: João da Silva"
                 />
-              </FormControl>
-            </FormItem>
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border-2 border-steel-blue bg-pale-cornflower p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base text-midnight-navy font-semibold">
-                      Status do Usuário (Ativo)
-                    </FormLabel>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      className="data-[state=checked]:bg-dark-denim data-[state=unchecked]:bg-steel-blue shadow-sm border-2 border-transparent"
-                    />
-                  </FormControl>
-                </FormItem>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-midnight-navy font-semibold">Email</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={!!user}
+                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim disabled:opacity-60"
+                  placeholder="joao@bender.com"
+                />
+              </div>
+              {!user && (
+                <div className="space-y-2">
+                  <Label className="text-midnight-navy font-semibold">Senha Inicial</Label>
+                  <Input
+                    type="password"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                </div>
               )}
-            />
-
-            <div className="flex justify-end gap-3 pt-6 border-t border-steel-blue/20 mt-6">
-              <Button
-                type="button"
-                variant="outline"
-                className="bg-steel-blue text-off-white hover:bg-steel-blue hover:opacity-90 hover:text-off-white px-6 py-3 h-auto min-h-[44px] border-none rounded-lg"
-                onClick={onClose}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-dark-denim text-off-white hover:bg-dark-denim hover:opacity-90 px-6 py-3 h-auto min-h-[44px] rounded-lg"
-                disabled={isSubmitting || !form.formState.isValid}
-              >
-                {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Salvar
-              </Button>
+              {user && (
+                <div className="space-y-2">
+                  <Label className="text-midnight-navy font-semibold">Nova Senha (Opcional)</Label>
+                  <Input
+                    type="password"
+                    value={senha}
+                    onChange={(e) => setSenha(e.target.value)}
+                    className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                    placeholder="Deixe em branco para não alterar"
+                  />
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label className="text-midnight-navy font-semibold">Telefone</Label>
+                <Input
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                  placeholder="(47) 90000-0000"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-midnight-navy font-semibold">Função/Cargo</Label>
+                <Select value={funcao} onValueChange={setFuncao}>
+                  <SelectTrigger className="bg-white border-steel-blue/40 focus:ring-0 focus:border-dark-denim focus:border-2 transition-all h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-off-white border-steel-blue">
+                    <SelectItem value="Consultor" className="focus:bg-pale-cornflower">
+                      Consultor Comercial
+                    </SelectItem>
+                    <SelectItem value="Analista" className="focus:bg-pale-cornflower">
+                      Analista Técnico
+                    </SelectItem>
+                    <SelectItem value="Gerente" className="focus:bg-pale-cornflower">
+                      Gerente
+                    </SelectItem>
+                    <SelectItem value="Admin" className="focus:bg-pale-cornflower">
+                      Administrador
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </form>
-        </Form>
+            <div className="flex items-center space-x-3 mt-6 p-4 border border-steel-blue/20 rounded-lg bg-white">
+              <Switch
+                checked={status}
+                onCheckedChange={setStatus}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+              <div>
+                <Label className="text-midnight-navy font-semibold text-base cursor-pointer">
+                  Usuário Ativo
+                </Label>
+                <p className="text-sm text-midnight-navy/60">
+                  Permite que o usuário faça login no sistema.
+                </p>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="permissoes" className="space-y-6 m-0 focus:outline-none">
+            <div className="bg-pale-cornflower/20 p-4 rounded-lg mb-4 border border-steel-blue/10">
+              <p className="text-sm text-midnight-navy/80">
+                Defina o nível de acesso para cada módulo. <strong>Admin</strong> possui acesso
+                total de edição e exclusão. <strong>Editor</strong> pode modificar registros.{' '}
+                <strong>Leitor</strong> apenas visualiza.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              {MODULES.map((mod) => (
+                <div
+                  key={mod}
+                  className="flex flex-col space-y-1.5 pb-3 border-b border-steel-blue/10"
+                >
+                  <Label className="text-midnight-navy font-medium">{mod}</Label>
+                  <Select
+                    value={permissions[mod] || 'Sem Acesso'}
+                    onValueChange={(val) => setPermissions((p) => ({ ...p, [mod]: val }))}
+                  >
+                    <SelectTrigger className="bg-white border-steel-blue/30 h-10 focus:ring-0 focus:border-dark-denim focus:border-2 transition-all">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-off-white border-steel-blue">
+                      <SelectItem value="Sem Acesso" className="focus:bg-pale-cornflower">
+                        Sem Acesso
+                      </SelectItem>
+                      <SelectItem value="Leitor" className="focus:bg-pale-cornflower">
+                        Leitor
+                      </SelectItem>
+                      <SelectItem value="Editor" className="focus:bg-pale-cornflower">
+                        Editor
+                      </SelectItem>
+                      <SelectItem value="Admin" className="focus:bg-pale-cornflower">
+                        Admin
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <div className="flex justify-end mt-8 gap-3 pt-6 border-t border-steel-blue/20">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="border-steel-blue text-steel-blue hover:bg-pale-cornflower"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-dark-denim text-off-white hover:bg-midnight-navy hover:opacity-90 min-w-[120px]"
+          >
+            {loading ? 'Salvando...' : 'Salvar Usuário'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )

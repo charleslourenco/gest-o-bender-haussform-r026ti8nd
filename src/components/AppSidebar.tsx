@@ -37,7 +37,7 @@ const menuItems = [
     title: 'Criar Orçamento',
     icon: Calculator,
     url: '/orcamentos',
-    module: 'Comercial',
+    module: 'Criar Orçamento',
   },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
@@ -51,7 +51,7 @@ const menuItems = [
     title: 'Criar Lista de Materiais',
     icon: ClipboardList,
     url: '/listas-materiais',
-    module: 'Produção',
+    module: 'Criar Lista de Materiais',
   },
   { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
   {

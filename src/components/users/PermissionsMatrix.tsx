@@ -1,4 +1,12 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -7,25 +15,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { supabase } from '@/lib/supabase/client'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2 } from 'lucide-react'
 import { AppUser } from '@/types/user'
 import { cn } from '@/lib/utils'
 
 const MODULES = [
   'Dashboard',
   'Comercial',
+  'Criar Orçamento',
   'Clientes',
   'Análise Técnica',
   'Produção',
+  'Criar Lista de Materiais',
   'Montagem',
   'Estoque & Compras',
   'Financeiro',
@@ -33,11 +35,10 @@ const MODULES = [
   'Usuários',
   'Administrativo',
 ]
-const LEVELS = ['Sem Acesso', 'Leitor', 'Editor', 'Admin']
 
 export function PermissionsMatrix() {
   const [users, setUsers] = useState<AppUser[]>([])
-  const [matrix, setMatrix] = useState<Record<string, Record<string, string>>>({})
+  const [permissions, setPermissions] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
@@ -48,27 +49,33 @@ export function PermissionsMatrix() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const { data: usersData } = await supabase.from('users').select('*').order('nome')
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('*')
+        .eq('status', true)
+        .order('nome')
       const { data: permsData } = await supabase.from('matriz_permissoes').select('*')
 
-      const newMatrix: Record<string, Record<string, string>> = {}
+      const permsMap: Record<string, Record<string, string>> = {}
       if (usersData) {
         usersData.forEach((u) => {
-          newMatrix[u.id] = {}
-          MODULES.forEach((m) => (newMatrix[u.id][m] = 'Sem Acesso'))
+          permsMap[u.id] = {}
+          MODULES.forEach((m) => {
+            permsMap[u.id][m] = 'Sem Acesso'
+          })
         })
       }
 
       if (permsData) {
         permsData.forEach((p) => {
-          if (newMatrix[p.usuario_id]) {
-            newMatrix[p.usuario_id][p.modulo] = p.nivel_acesso
+          if (permsMap[p.usuario_id]) {
+            permsMap[p.usuario_id][p.modulo] = p.nivel_acesso
           }
         })
       }
 
-      setUsers((usersData as AppUser[]) || [])
-      setMatrix(newMatrix)
+      setUsers(usersData || [])
+      setPermissions(permsMap)
     } catch (error) {
       console.error(error)
     } finally {
@@ -76,111 +83,119 @@ export function PermissionsMatrix() {
     }
   }
 
-  const updatePermission = async (userId: string, modulo: string, nivel: string) => {
-    setMatrix((prev) => ({
+  const handlePermissionChange = async (userId: string, modulo: string, nivel: string) => {
+    const previousLevel = permissions[userId]?.[modulo]
+
+    setPermissions((prev) => ({
       ...prev,
       [userId]: { ...prev[userId], [modulo]: nivel },
     }))
 
     try {
-      const payload = MODULES.map((m) => ({
-        modulo: m,
-        nivel_acesso: m === modulo ? nivel : matrix[userId][m],
-      }))
+      const permissionsData = Object.entries({ ...permissions[userId], [modulo]: nivel })
+        .filter(([_, level]) => level !== 'Sem Acesso')
+        .map(([mod, level]) => ({ modulo: mod, nivel_acesso: level }))
 
       const { error } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'update_permissions', userId, permissionsData: payload },
+        body: { action: 'update_permissions', userId, permissionsData },
       })
 
       if (error) throw error
 
       toast({
-        description: 'Permissão atualizada com sucesso.',
-        className: 'bg-dark-denim text-off-white border-none',
+        title: 'Permissão atualizada com sucesso',
+        className: 'bg-dark-denim text-off-white',
       })
-    } catch (err: any) {
-      toast({
-        description: err.message,
-        variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none',
-      })
-      fetchData()
+    } catch (error: any) {
+      setPermissions((prev) => ({
+        ...prev,
+        [userId]: { ...prev[userId], [modulo]: previousLevel || 'Sem Acesso' },
+      }))
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
     }
   }
 
   if (loading) {
     return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="w-8 h-8 animate-spin text-dark-denim" />
+      <div className="border border-steel-blue/20 rounded-xl bg-off-white overflow-hidden shadow-sm p-4">
+        <Skeleton className="w-full h-12 mb-4" />
+        <Skeleton className="w-full h-12 mb-4" />
+        <Skeleton className="w-full h-12 mb-4" />
+        <Skeleton className="w-full h-12 mb-4" />
       </div>
     )
   }
 
   return (
-    <div className="border-2 border-steel-blue/20 rounded-xl bg-off-white overflow-x-auto shadow-sm">
-      <Table className="min-w-[1400px]">
+    <div className="border border-steel-blue/20 rounded-xl bg-off-white overflow-hidden shadow-sm overflow-x-auto">
+      <Table>
         <TableHeader className="bg-dark-denim">
           <TableRow className="hover:bg-transparent border-b-steel-blue/20">
-            <TableHead className="font-bold text-off-white p-4 sticky left-0 bg-dark-denim z-10 w-[200px]">
-              Usuário
+            <TableHead className="text-off-white font-semibold sticky left-0 bg-dark-denim z-10 p-4 shadow-[1px_0_0_0_rgba(255,255,255,0.1)]">
+              Módulo / Usuário
             </TableHead>
-            {MODULES.map((mod) => (
+            {users.map((user) => (
               <TableHead
-                key={mod}
-                className="font-bold text-off-white p-4 text-center min-w-[140px]"
+                key={user.id}
+                className="text-off-white font-semibold text-center whitespace-nowrap p-4"
               >
-                {mod}
+                {user.nome}
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user, idx) => {
-            const isSuperAdmin = user.email === 'admin@bender.com'
-            return (
-              <TableRow
-                key={user.id}
-                className={cn(
-                  'border-b-steel-blue/20 transition-colors',
-                  idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/30',
-                )}
-              >
-                <TableCell
-                  className="font-semibold text-midnight-navy p-4 sticky left-0 z-10 bg-inherit shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate max-w-[200px]"
-                  title={user.nome}
-                >
-                  {user.nome}
-                  {isSuperAdmin && (
-                    <span className="block text-xs text-steel-blue font-normal">Super Admin</span>
-                  )}
+          {MODULES.map((modulo, idx) => (
+            <TableRow
+              key={modulo}
+              className={cn(
+                'border-b-steel-blue/20 hover:bg-pale-cornflower/30 transition-colors',
+                idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/10',
+              )}
+            >
+              <TableCell className="font-medium sticky left-0 z-10 border-r border-steel-blue/20 p-4 whitespace-nowrap text-midnight-navy shadow-[1px_0_0_0_rgba(119,144,185,0.2)] bg-inherit">
+                {modulo}
+              </TableCell>
+              {users.map((user) => (
+                <TableCell key={`${modulo}-${user.id}`} className="p-3 min-w-[150px] text-center">
+                  <Select
+                    value={permissions[user.id]?.[modulo] || 'Sem Acesso'}
+                    onValueChange={(val) => handlePermissionChange(user.id, modulo, val)}
+                  >
+                    <SelectTrigger className="h-10 bg-pale-cornflower/30 border border-steel-blue/30 text-midnight-navy focus:ring-0 focus:border-dark-denim focus:border-2 transition-all">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="border-steel-blue bg-off-white">
+                      <SelectItem
+                        value="Sem Acesso"
+                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                      >
+                        Sem Acesso
+                      </SelectItem>
+                      <SelectItem
+                        value="Leitor"
+                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                      >
+                        Leitor
+                      </SelectItem>
+                      <SelectItem
+                        value="Editor"
+                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                      >
+                        Editor
+                      </SelectItem>
+                      <SelectItem
+                        value="Admin"
+                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                      >
+                        Admin
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </TableCell>
-                {MODULES.map((mod) => (
-                  <TableCell key={mod} className="p-3 text-center">
-                    <Select
-                      value={isSuperAdmin ? 'Admin' : matrix[user.id]?.[mod] || 'Sem Acesso'}
-                      onValueChange={(val) => updatePermission(user.id, mod, val)}
-                      disabled={isSuperAdmin}
-                    >
-                      <SelectTrigger className="bg-pale-cornflower border border-steel-blue text-midnight-navy text-sm focus:ring-0 focus:border-dark-denim h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-off-white border-2 border-steel-blue">
-                        {LEVELS.map((level) => (
-                          <SelectItem
-                            key={level}
-                            value={level}
-                            className="text-midnight-navy focus:bg-pale-cornflower"
-                          >
-                            {level}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                ))}
-              </TableRow>
-            )
-          })}
+              ))}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>
