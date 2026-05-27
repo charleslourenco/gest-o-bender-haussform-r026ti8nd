@@ -3615,14 +3615,14 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: contas_receber
 //   Policy "contas_receber_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
+//     USING: true
 //   Policy "contas_receber_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (user_id = auth.uid())
+//     WITH CHECK: true
 //   Policy "contas_receber_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: ((user_id = auth.uid()) OR (user_id IS NULL))
+//     USING: true
 //   Policy "contas_receber_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (user_id = auth.uid())
-//     WITH CHECK: (user_id = auth.uid())
+//     USING: true
+//     WITH CHECK: true
 // Table: document_templates
 //   Policy "document_templates_select" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
