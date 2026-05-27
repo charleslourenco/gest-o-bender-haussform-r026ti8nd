@@ -67,7 +67,7 @@ export default function Dashboard() {
 
           const { count, error } = await supabase
             .from('contas_pagar')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact' })
             .eq('status_pagamento', 'aguardando')
             .lte('data_vencimento', targetDate)
 
