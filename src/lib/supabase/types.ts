@@ -319,6 +319,27 @@ export type Database = {
           },
         ]
       }
+      configuracoes_sistema: {
+        Row: {
+          atualizado_em: string
+          id: string
+          markup_prazo: number
+          markup_vista: number
+        }
+        Insert: {
+          atualizado_em?: string
+          id?: string
+          markup_prazo?: number
+          markup_vista?: number
+        }
+        Update: {
+          atualizado_em?: string
+          id?: string
+          markup_prazo?: number
+          markup_vista?: number
+        }
+        Relationships: []
+      }
       contas_pagar: {
         Row: {
           antecipado: boolean | null
@@ -2804,6 +2825,11 @@ export const Constants = {
 //   profissao: text (nullable)
 //   renda: numeric (nullable)
 //   referencia_bancaria: text (nullable)
+// Table: configuracoes_sistema
+//   id: uuid (not null, default: gen_random_uuid())
+//   markup_vista: numeric (not null, default: 0.40)
+//   markup_prazo: numeric (not null, default: 0.35)
+//   atualizado_em: timestamp with time zone (not null, default: now())
 // Table: contas_pagar
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -3358,6 +3384,8 @@ export const Constants = {
 //   FOREIGN KEY clientes_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE SET NULL
 //   PRIMARY KEY clientes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY clientes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE SET NULL
+// Table: configuracoes_sistema
+//   PRIMARY KEY configuracoes_sistema_pkey: PRIMARY KEY (id)
 // Table: contas_pagar
 //   PRIMARY KEY contas_pagar_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contas_pagar_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -3569,6 +3597,12 @@ export const Constants = {
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //   Policy "clientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: configuracoes_sistema
+//   Policy "admin_update_config" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//     WITH CHECK: is_admin(auth.uid())
+//   Policy "auth_read_config" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: contas_pagar
 //   Policy "contas_pagar_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (user_id = auth.uid())
