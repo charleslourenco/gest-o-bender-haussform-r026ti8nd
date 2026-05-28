@@ -49,6 +49,6 @@ BEGIN
 
   -- Insert seed item
   INSERT INTO public.orcamentos_itens (id, ambiente_id, nome_item, quantidade, unidade_medida, custo_unitario, markup)
-  VALUES ('i0000000-0000-0000-0000-000000000001'::uuid, 'a0000000-0000-0000-0000-000000000001'::uuid, 'MDF Branco TX', 2, 'un', 150.00, 2.5)
+  VALUES ('f0000000-0000-0000-0000-000000000001'::uuid, 'a0000000-0000-0000-0000-000000000001'::uuid, 'MDF Branco TX', 2, 'un', 150.00, 2.5)
   ON CONFLICT (id) DO NOTHING;
 END $$;
