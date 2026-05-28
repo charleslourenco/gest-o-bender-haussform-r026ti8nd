@@ -56,6 +56,7 @@ const App = () => (
               <Route path="/listas-materiais/nova" element={<NovaListaMateriais />} />
               <Route path="/listas-materiais/:id" element={<NovaListaMateriais />} />
               <Route path="/orcamentos" element={<OrcamentosEngenhariaList />} />
+              <Route path="/orcamentos/novo" element={<OrcamentosEngenhariaDetail />} />
               <Route path="/orcamentos/:id" element={<OrcamentosEngenhariaDetail />} />
               <Route path="/orcamentos/:id/pdf" element={<OrcamentoPdf />} />
               <Route path="/usuarios" element={<Users />} />

@@ -3842,6 +3842,8 @@ export const Constants = {
 // Table: orcamentos_engenharia
 //   Policy "orcamentos_engenharia_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//   Policy "orcamentos_engenharia_delete_auth" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "orcamentos_engenharia_insert" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 //   Policy "orcamentos_engenharia_select" (SELECT, PERMISSIVE) roles={authenticated}
