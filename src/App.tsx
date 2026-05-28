@@ -20,7 +20,6 @@ import EstoqueCompras from './pages/EstoqueCompras'
 import GestaoPessoas from './pages/GestaoPessoas'
 import OrcamentosEngenhariaList from './pages/orcamentos/OrcamentosEngenhariaList'
 import OrcamentosEngenhariaDetail from './pages/orcamentos/OrcamentosEngenhariaDetail'
-import OrcamentoPdf from './pages/orcamentos/OrcamentoPdf'
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
 import Login from './pages/Login'
@@ -58,7 +57,6 @@ const App = () => (
               <Route path="/orcamentos" element={<OrcamentosEngenhariaList />} />
               <Route path="/orcamentos/novo" element={<OrcamentosEngenhariaDetail />} />
               <Route path="/orcamentos/:id" element={<OrcamentosEngenhariaDetail />} />
-              <Route path="/orcamentos/:id/pdf" element={<OrcamentoPdf />} />
               <Route path="/usuarios" element={<Users />} />
               <Route path="/clientes" element={<AreaClientes />} />
               <Route path="/clientes/:id" element={<AreaClientes />} />

@@ -1,269 +1,243 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { PDFDocument, StandardFonts } from 'npm:pdf-lib@1.17.1'
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
 import { corsHeaders } from '../_shared/cors.ts'
-
-async function handleGenerateOrcamento(req: Request, body: any) {
-  const { orcamento_id, format } = body
-
-  const authHeader = req.headers.get('Authorization')
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    { global: { headers: { Authorization: authHeader! } } },
-  )
-
-  const { data: orc, error: orcErr } = await supabase
-    .from('orcamentos')
-    .select(`*, cliente:clientes(nome, endereco_obra, rua, numero, bairro, cidade, estado, cep)`)
-    .eq('id', orcamento_id)
-    .single()
-
-  if (orcErr || !orc) throw new Error('Orçamento não encontrado')
-
-  const { data: itens, error: itensErr } = await supabase
-    .from('itens_orcamento')
-    .select(`quantidade, preco_venda, estoque_item:estoque_itens(nome, unidade)`)
-    .eq('orcamento_id', orcamento_id)
-
-  const itemsList = itens || []
-
-  const pdfDoc = await PDFDocument.create()
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-  let page = pdfDoc.addPage([595.28, 841.89])
-  let y = 800
-  const margin = 40
-  const pageWidth = 595.28
-
-  let logoBytes: Uint8Array | null = null
-  try {
-    const { data: logoData } = await supabase.storage.from('bender_templates').download('logo.png')
-    if (logoData) {
-      logoBytes = new Uint8Array(await logoData.arrayBuffer())
-    }
-  } catch (e) {}
-
-  if (logoBytes) {
-    try {
-      const image = await pdfDoc.embedPng(logoBytes)
-      const scale = 100 / image.width
-      page.drawImage(image, { x: margin, y: y - 30, width: 100, height: image.height * scale })
-    } catch (e) {}
-  }
-
-  y -= 50
-
-  page.drawText('ORÇAMENTO', { x: margin, y, size: 18, font: fontBold })
-  y -= 15
-  page.drawText(`ID: ${orcamento_id.substring(0, 8).toUpperCase()}`, {
-    x: margin,
-    y,
-    size: 10,
-    font,
-  })
-  page.drawText(`Data: ${new Date().toLocaleDateString('pt-BR')}`, {
-    x: margin + 150,
-    y,
-    size: 10,
-    font,
-  })
-  y -= 30
-
-  const cliente = Array.isArray(orc.cliente) ? orc.cliente[0] : orc.cliente
-  const clienteNome = cliente?.nome || 'Cliente não informado'
-  const enderecoBruto = cliente
-    ? `${cliente.rua || cliente.endereco_obra || ''}, ${cliente.numero || ''} - ${cliente.bairro || ''}, ${cliente.cidade || ''}/${cliente.estado || ''}`
-    : ''
-  const endereco = enderecoBruto.replace(/^[,\s]+|[,\s]+$/g, '').replace(/,\s*,/g, ',')
-
-  page.drawText(`Cliente: ${clienteNome}`, { x: margin, y, size: 12, font: fontBold })
-  y -= 15
-  if (endereco && endereco !== '-') {
-    page.drawText(`Endereço: ${endereco}`, { x: margin, y, size: 10, font })
-    y -= 15
-  }
-  page.drawText(`Ambiente: ${orc.ambiente || 'Não especificado'}`, { x: margin, y, size: 10, font })
-  y -= 30
-
-  let subtotal = 0
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val)
-  }
-
-  if (format === 'detailed') {
-    const cols = [
-      { title: 'Item', x: margin, w: 200 },
-      { title: 'Qtd', x: margin + 230, w: 50 },
-      { title: 'Un', x: margin + 280, w: 40 },
-      { title: 'P. Unit (R$)', x: margin + 330, w: 80 },
-      { title: 'Total (R$)', x: margin + 430, w: 80 },
-    ]
-
-    cols.forEach((c) => page.drawText(c.title, { x: c.x, y, size: 10, font: fontBold }))
-    y -= 10
-    page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1 })
-    y -= 15
-
-    for (const item of itemsList) {
-      if (y < 100) {
-        page = pdfDoc.addPage([595.28, 841.89])
-        y = 800
-      }
-      const estoqueItem = Array.isArray(item.estoque_item)
-        ? item.estoque_item[0]
-        : item.estoque_item
-      const nome = estoqueItem?.nome || 'Item sem nome'
-      const qtd = Number(item.quantidade || 0)
-      const un = estoqueItem?.unidade || 'un'
-      const pUnit = Number(item.preco_venda || 0)
-      const pTotal = qtd * pUnit
-      subtotal += pTotal
-
-      page.drawText(nome.substring(0, 45), { x: cols[0].x, y, size: 9, font })
-      page.drawText(qtd.toString(), { x: cols[1].x, y, size: 9, font })
-      page.drawText(un, { x: cols[2].x, y, size: 9, font })
-      page.drawText(formatCurrency(pUnit), { x: cols[3].x, y, size: 9, font })
-      page.drawText(formatCurrency(pTotal), { x: cols[4].x, y, size: 9, font })
-      y -= 15
-    }
-
-    y -= 10
-    page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1 })
-    y -= 20
-
-    page.drawText(`Subtotal: R$ ${formatCurrency(subtotal)}`, {
-      x: margin + 330,
-      y,
-      size: 11,
-      font,
-    })
-    y -= 20
-    const finalTotal = subtotal
-    page.drawText(`TOTAL: R$ ${formatCurrency(finalTotal)}`, {
-      x: margin + 330,
-      y,
-      size: 14,
-      font: fontBold,
-    })
-    y -= 40
-
-    if (orc.descricao) {
-      page.drawText('Observações:', { x: margin, y, size: 11, font: fontBold })
-      y -= 15
-      page.drawText(orc.descricao.substring(0, 200), { x: margin, y, size: 10, font })
-      y -= 30
-    }
-  } else {
-    if (orc.descricao) {
-      page.drawText('Descrição:', { x: margin, y, size: 12, font: fontBold })
-      y -= 15
-      page.drawText(orc.descricao.substring(0, 300), { x: margin, y, size: 11, font })
-      y -= 40
-    }
-
-    for (const item of itemsList) {
-      subtotal += Number(item.quantidade || 0) * Number(item.preco_venda || 0)
-    }
-
-    const finalTotal = subtotal
-    page.drawText(`VALOR TOTAL: R$ ${formatCurrency(finalTotal)}`, {
-      x: margin,
-      y,
-      size: 16,
-      font: fontBold,
-    })
-    y -= 50
-  }
-
-  if (y < 100) {
-    page = pdfDoc.addPage([595.28, 841.89])
-    y = 800
-  }
-
-  y -= 50
-  page.drawLine({ start: { x: margin, y }, end: { x: margin + 200, y }, thickness: 1 })
-  y -= 15
-  page.drawText('Assinatura do Consultor', { x: margin, y, size: 10, font })
-  page.drawText(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, {
-    x: margin,
-    y: 30,
-    size: 8,
-    font,
-  })
-
-  const pdfBytes = await pdfDoc.save()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)))
-
-  return new Response(JSON.stringify({ pdfBase64: base64 }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const body = await req.json()
+    const { orcamento_id, format } = body // format: 'analytic' or 'synthetic'
 
-    if (body.action === 'generate_orcamento') {
-      return await handleGenerateOrcamento(req, body)
-    }
+    if (!orcamento_id) throw new Error('orcamento_id is required')
 
-    const { title, subtitle, columns, rows, totals } = body
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseKey =
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    const { data: orc, error: orcErr } = await supabase
+      .from('orcamentos_engenharia')
+      .select(`
+        *, 
+        cliente:clientes(nome, endereco_obra, rua, numero, bairro, cidade, estado, cep),
+        ambientes:orcamentos_ambientes(
+          *,
+          itens:orcamentos_itens(
+            *,
+            estoque_item:estoque_itens(nome, unidade)
+          )
+        )
+      `)
+      .eq('id', orcamento_id)
+      .single()
+
+    if (orcErr || !orc) throw new Error('Orçamento não encontrado')
 
     const pdfDoc = await PDFDocument.create()
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-
     let page = pdfDoc.addPage([595.28, 841.89])
     let y = 800
+    const margin = 40
+    const pageWidth = 595.28
 
-    page.drawText(title || 'Documento', { x: 40, y, size: 18, font: fontBold })
-    y -= 20
-    if (subtitle) {
-      page.drawText(subtitle, { x: 40, y, size: 11, font })
-      y -= 30
-    }
-
-    const drawRow = (p: any, rowData: string[], yPos: number, isBold = false) => {
-      let x = 40
-      const w = columns.length === 3 ? [60, 100, 350] : [40, 120, 200, 80, 80]
-      rowData.forEach((text, i) => {
-        const t = String(text || '').substring(0, 50)
-        p.drawText(t, { x, y: yPos, size: 9, font: isBold ? fontBold : font })
-        x += w[i] || 60
-      })
-    }
-
-    drawRow(page, columns, y, true)
-    y -= 10
-    page.drawLine({ start: { x: 40, y }, end: { x: 550, y }, thickness: 1 })
-    y -= 15
-
-    for (const row of rows) {
-      if (y < 50) {
+    const checkPageBreak = (needed: number) => {
+      if (y - needed < margin) {
         page = pdfDoc.addPage([595.28, 841.89])
         y = 800
       }
-      drawRow(page, row, y)
-      y -= 15
     }
 
-    y -= 10
-    page.drawLine({ start: { x: 40, y }, end: { x: 550, y }, thickness: 1 })
-    y -= 20
+    let logoBytes: Uint8Array | null = null
+    try {
+      const { data: logoData } = await supabase.storage
+        .from('bender_templates')
+        .download('logo.png')
+      if (logoData) logoBytes = new Uint8Array(await logoData.arrayBuffer())
+    } catch (e) {}
 
-    if (totals) {
-      for (const t of totals) {
-        page.drawText(`${t.label}: ${t.value}`, { x: 300, y, size: 11, font: fontBold })
-        y -= 15
+    if (logoBytes) {
+      try {
+        const image = await pdfDoc.embedPng(logoBytes)
+        const scale = 80 / image.width
+        page.drawImage(image, { x: margin, y: y - 20, width: 80, height: image.height * scale })
+      } catch (e) {}
+    }
+
+    y -= 40
+    page.drawText(format === 'analytic' ? 'ORÇAMENTO ANALÍTICO' : 'ORÇAMENTO SINTÉTICO', {
+      x: margin,
+      y,
+      size: 16,
+      font: fontBold,
+    })
+    y -= 15
+    page.drawText(`Projeto: ${orc.nome}`, { x: margin, y, size: 12, font: fontBold })
+    y -= 15
+
+    const clienteNome =
+      orc.cliente_nome_manual ||
+      (Array.isArray(orc.cliente) ? orc.cliente[0]?.nome : orc.cliente?.nome) ||
+      'Não informado'
+    page.drawText(`Cliente: ${clienteNome}`, { x: margin, y, size: 10, font })
+    page.drawText(`Data: ${new Date(orc.criado_em).toLocaleDateString('pt-BR')}`, {
+      x: margin + 300,
+      y,
+      size: 10,
+      font,
+    })
+    y -= 30
+
+    const formatCurrency = (val: number) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+    let grandTotalVista = 0
+    let grandTotalPrazo = 0
+    let grandTotalCusto = 0
+
+    const divVista = orc.markup_divisor_vista || 0.4
+    const divNormal = orc.markup_divisor_normal || 0.35
+
+    if (orc.ambientes && orc.ambientes.length > 0) {
+      for (const amb of orc.ambientes) {
+        checkPageBreak(80)
+        y -= 10
+        page.drawText(`Ambiente: ${amb.nome}`, {
+          x: margin,
+          y,
+          size: 12,
+          font: fontBold,
+          color: rgb(0.1, 0.3, 0.5),
+        })
+        y -= 20
+
+        let ambCusto = 0
+        const itemsList = amb.itens || []
+
+        if (format === 'analytic') {
+          const cols = [
+            { t: 'Item', x: margin, w: 200 },
+            { t: 'Qtd', x: margin + 210, w: 30 },
+            { t: 'Un', x: margin + 250, w: 30 },
+            { t: 'Custo Un.', x: margin + 290, w: 70 },
+            { t: 'Total Custo', x: margin + 370, w: 70 },
+            { t: 'Venda (Vista)', x: margin + 450, w: 80 },
+          ]
+          cols.forEach((c) => page.drawText(c.t, { x: c.x, y, size: 9, font: fontBold }))
+          y -= 10
+          page.drawLine({
+            start: { x: margin, y },
+            end: { x: pageWidth - margin, y },
+            thickness: 0.5,
+          })
+          y -= 15
+
+          for (const it of itemsList) {
+            checkPageBreak(20)
+            const cUnit = Number(it.custo_unitario || 0)
+            const qtd = Number(it.quantidade || 0)
+            const cTotal = cUnit * qtd
+            const vendaItmVista = cTotal / divVista
+            ambCusto += cTotal
+
+            page.drawText(it.nome_item.substring(0, 40), { x: cols[0].x, y, size: 8, font })
+            page.drawText(qtd.toString(), { x: cols[1].x, y, size: 8, font })
+            page.drawText(it.unidade_medida || 'un', { x: cols[2].x, y, size: 8, font })
+            page.drawText(formatCurrency(cUnit), { x: cols[3].x, y, size: 8, font })
+            page.drawText(formatCurrency(cTotal), { x: cols[4].x, y, size: 8, font })
+            page.drawText(formatCurrency(vendaItmVista), { x: cols[5].x, y, size: 8, font })
+            y -= 12
+          }
+
+          y -= 5
+          page.drawLine({
+            start: { x: margin, y },
+            end: { x: pageWidth - margin, y },
+            thickness: 0.5,
+          })
+          y -= 15
+        } else {
+          const itemNames = itemsList.map((i: any) => i.nome_item).join(', ')
+          if (itemNames) {
+            const words = itemNames.split(' ')
+            let line = ''
+            for (const w of words) {
+              if (font.widthOfTextAtSize(line + w, 9) > 500) {
+                page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
+                y -= 12
+                checkPageBreak(20)
+                line = w + ' '
+              } else {
+                line += w + ' '
+              }
+            }
+            if (line) {
+              page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
+              y -= 15
+            }
+          }
+          for (const it of itemsList) {
+            ambCusto += Number(it.custo_unitario || 0) * Number(it.quantidade || 0)
+          }
+        }
+
+        const ambVista = ambCusto / divVista
+        const ambPrazo = ambCusto / divNormal
+        grandTotalCusto += ambCusto
+        grandTotalVista += ambVista
+        grandTotalPrazo += ambPrazo
+
+        checkPageBreak(30)
+        if (format === 'analytic') {
+          page.drawText(`Subtotal Ambiente: ${formatCurrency(ambVista)} (à vista)`, {
+            x: margin + 300,
+            y,
+            size: 10,
+            font: fontBold,
+          })
+        } else {
+          page.drawText(`Total Ambiente: ${formatCurrency(ambVista)} (à vista)`, {
+            x: margin,
+            y,
+            size: 10,
+            font: fontBold,
+          })
+        }
+        y -= 25
       }
     }
+
+    checkPageBreak(80)
+    y -= 20
+    page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1 })
+    y -= 20
+
+    page.drawText(`RESUMO FINAL`, { x: margin, y, size: 12, font: fontBold })
+    y -= 20
+    if (format === 'analytic') {
+      page.drawText(`Custo Total (Materiais): ${formatCurrency(grandTotalCusto)}`, {
+        x: margin,
+        y,
+        size: 10,
+        font,
+      })
+      y -= 15
+    }
+    page.drawText(`Valor Total à Vista: ${formatCurrency(grandTotalVista)}`, {
+      x: margin,
+      y,
+      size: 12,
+      font: fontBold,
+    })
+    y -= 15
+    page.drawText(`Valor Total a Prazo: ${formatCurrency(grandTotalPrazo)}`, {
+      x: margin,
+      y,
+      size: 11,
+      font,
+    })
 
     const pdfBytes = await pdfDoc.save()
     const base64 = btoa(String.fromCharCode(...new Uint8Array(pdfBytes)))

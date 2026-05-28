@@ -3831,36 +3831,34 @@ export const Constants = {
 //     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: orcamentos_ambientes
 //   Policy "orcamentos_ambientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
 //   Policy "orcamentos_ambientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: true
 //   Policy "orcamentos_ambientes_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
 //   Policy "orcamentos_ambientes_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
+//     WITH CHECK: true
 // Table: orcamentos_engenharia
 //   Policy "orcamentos_engenharia_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "orcamentos_engenharia_delete_auth" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "orcamentos_engenharia_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: true
 //   Policy "orcamentos_engenharia_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
 //   Policy "orcamentos_engenharia_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
+//     WITH CHECK: true
 // Table: orcamentos_itens
 //   Policy "orcamentos_itens_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
 //   Policy "orcamentos_itens_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     WITH CHECK: true
 //   Policy "orcamentos_itens_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
 //   Policy "orcamentos_itens_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
+//     USING: true
+//     WITH CHECK: true
 // Table: pagamentos
 //   Policy "Enable insert for own payments" (INSERT, PERMISSIVE) roles={public}
 //     WITH CHECK: (EXISTS ( SELECT 1    FROM formulario_comercial f   WHERE ((f.id = pagamentos.formulario_id) AND (f.user_id = auth.uid()))))
