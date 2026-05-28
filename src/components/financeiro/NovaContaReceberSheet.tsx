@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { CircleArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+  SheetClose,
+} from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -13,25 +22,20 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { ArrowUpCircle } from 'lucide-react'
 
-export function NovaContaReceberSheet({ onRefresh }: { onRefresh: () => void }) {
+export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [clientes, setClientes] = useState<any[]>([])
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const [formData, setFormData] = useState({
-    cliente_id: '',
-    valor: '',
-    data_vencimento: '',
-    status_pagamento: 'aguardando',
-    descricao: '',
-    categoria: '',
-    meio_pagamento: '',
-    numero_parcela: '1/1',
-  })
+  const [descricao, setDescricao] = useState('')
+  const [valor, setValor] = useState('')
+  const [dataVencimento, setDataVencimento] = useState('')
+  const [categoria, setCategoria] = useState('Venda de Projetos')
+  const [meioPagamento, setMeioPagamento] = useState('Pix')
+  const [clientes, setClientes] = useState<any[]>([])
+  const [clienteId, setClienteId] = useState('none')
 
   useEffect(() => {
     if (open) {
@@ -51,34 +55,36 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh: () => void }) 
 
     try {
       const { error } = await supabase.from('contas_receber').insert({
+        descricao,
+        valor: Number(valor),
+        data_vencimento: dataVencimento,
+        categoria,
+        numero_parcela: '1/1',
+        status_pagamento: 'aguardando',
         user_id: user?.id,
-        cliente_id: formData.cliente_id,
-        valor: parseFloat(formData.valor),
-        data_vencimento: formData.data_vencimento,
-        status_pagamento: formData.status_pagamento,
-        descricao: formData.descricao,
-        categoria: formData.categoria,
-        meio_pagamento: formData.meio_pagamento,
-        numero_parcela: formData.numero_parcela,
+        meio_pagamento: meioPagamento,
+        cliente_id: clienteId === 'none' ? null : clienteId,
       })
 
       if (error) throw error
 
-      toast({ title: 'Sucesso', description: 'Conta a receber cadastrada com sucesso!' })
+      toast({ title: 'Sucesso', description: 'Conta a receber cadastrada com sucesso.' })
       setOpen(false)
-      onRefresh()
-      setFormData({
-        cliente_id: '',
-        valor: '',
-        data_vencimento: '',
-        status_pagamento: 'aguardando',
-        descricao: '',
-        categoria: '',
-        meio_pagamento: '',
-        numero_parcela: '1/1',
+      if (onRefresh) onRefresh()
+
+      // Reset fields
+      setDescricao('')
+      setValor('')
+      setDataVencimento('')
+      setCategoria('Venda de Projetos')
+      setMeioPagamento('Pix')
+      setClienteId('none')
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível cadastrar a conta a receber.',
+        variant: 'destructive',
       })
-    } catch (error: any) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -87,30 +93,34 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh: () => void }) 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 w-full sm:w-auto"
-        >
-          <ArrowUpCircle className="h-4 w-4 mr-2" />
+        <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors duration-200">
+          <CircleArrowUp className="mr-2 h-4 w-4 text-white" />
           Nova Conta a Receber
         </Button>
       </SheetTrigger>
-      <SheetContent className="overflow-y-auto w-full sm:max-w-md">
+      <SheetContent className="overflow-y-auto sm:max-w-md w-full">
         <SheetHeader>
-          <SheetTitle>Cadastrar Conta a Receber</SheetTitle>
+          <SheetTitle>Nova Conta a Receber</SheetTitle>
         </SheetHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div className="space-y-2">
-            <Label>Cliente *</Label>
-            <Select
+            <Label>Descrição</Label>
+            <Input
               required
-              value={formData.cliente_id}
-              onValueChange={(v) => setFormData({ ...formData, cliente_id: v })}
-            >
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex: Projeto Cozinha"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Cliente (Opcional)</Label>
+            <Select value={clienteId} onValueChange={setClienteId}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
                 {clientes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
@@ -119,76 +129,75 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh: () => void }) 
               </SelectContent>
             </Select>
           </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Valor (R$) *</Label>
+              <Label>Valor (R$)</Label>
               <Input
+                required
                 type="number"
                 step="0.01"
-                required
-                value={formData.valor}
-                onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                min="0"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="0.00"
               />
             </div>
             <div className="space-y-2">
-              <Label>Data de Venc. *</Label>
+              <Label>Vencimento</Label>
               <Input
-                type="date"
                 required
-                value={formData.data_vencimento}
-                onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
+                type="date"
+                value={dataVencimento}
+                onChange={(e) => setDataVencimento(e.target.value)}
               />
             </div>
           </div>
+
           <div className="space-y-2">
-            <Label>Status *</Label>
-            <Select
-              value={formData.status_pagamento}
-              onValueChange={(v) => setFormData({ ...formData, status_pagamento: v })}
-            >
+            <Label>Categoria</Label>
+            <Select value={categoria} onValueChange={setCategoria}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="aguardando">Aguardando</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="Venda de Projetos">Venda de Projetos</SelectItem>
+                <SelectItem value="Serviços">Serviços</SelectItem>
+                <SelectItem value="Outras Receitas">Outras Receitas</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
           <div className="space-y-2">
-            <Label>Descrição</Label>
-            <Input
-              value={formData.descricao}
-              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-            />
+            <Label>Meio de Pagamento</Label>
+            <Select value={meioPagamento} onValueChange={setMeioPagamento}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pix">Pix</SelectItem>
+                <SelectItem value="Boleto">Boleto</SelectItem>
+                <SelectItem value="Transferência">Transferência</SelectItem>
+                <SelectItem value="Cartão">Cartão</SelectItem>
+                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Input
-                value={formData.categoria}
-                onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Meio de Pgto</Label>
-              <Input
-                value={formData.meio_pagamento}
-                onChange={(e) => setFormData({ ...formData, meio_pagamento: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Parcela</Label>
-            <Input
-              value={formData.numero_parcela}
-              placeholder="Ex: 1/1"
-              onChange={(e) => setFormData({ ...formData, numero_parcela: e.target.value })}
-            />
-          </div>
-          <Button type="submit" className="w-full mt-4" disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar Conta'}
-          </Button>
+
+          <SheetFooter className="pt-6">
+            <SheetClose asChild>
+              <Button type="button" variant="outline">
+                Cancelar
+              </Button>
+            </SheetClose>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {loading ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </SheetFooter>
         </form>
       </SheetContent>
     </Sheet>
