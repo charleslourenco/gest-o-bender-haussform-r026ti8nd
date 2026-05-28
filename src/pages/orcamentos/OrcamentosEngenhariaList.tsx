@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Plus, FileText, FileBarChart, Trash2, Edit, Loader2 } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -11,117 +10,77 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
+import { FileText, Plus, Edit, Trash2 } from 'lucide-react'
 
 export default function OrcamentosEngenhariaList() {
   const [orcamentos, setOrcamentos] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [exportingId, setExportingId] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  const loadOrcamentos = async () => {
-    setIsLoading(true)
-    const { data, error } = await supabase
+  const load = async () => {
+    const { data } = await supabase
       .from('orcamentos_engenharia')
-      .select(
-        '*, clientes(nome), orcamentos_ambientes(orcamentos_itens(quantidade, custo_unitario))',
-      )
+      .select('*, cliente:clientes(nome)')
       .order('criado_em', { ascending: false })
-
-    if (error) {
-      toast.error('Erro ao carregar orçamentos: ' + error.message)
-    } else {
-      setOrcamentos(data || [])
-    }
-    setIsLoading(false)
+    if (data) setOrcamentos(data)
   }
 
   useEffect(() => {
-    loadOrcamentos()
+    load()
   }, [])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este orçamento?')) return
-    const { error } = await supabase.from('orcamentos_engenharia').delete().eq('id', id)
-    if (error) {
-      toast.error('Erro ao excluir: ' + error.message)
-    } else {
-      toast.success('Orçamento excluído!')
-      loadOrcamentos()
-    }
+    await supabase.from('orcamentos_engenharia').delete().eq('id', id)
+    load()
   }
 
-  const handleExportPdf = async (id: string, format: 'analytic' | 'synthetic') => {
-    try {
-      setExportingId(id)
-      const { data, error } = await supabase.functions.invoke('export-pdf-document', {
-        body: { orcamento_id: id, format },
-      })
-      if (error) throw error
-      if (data?.error) throw new Error(data.error)
-
-      const linkSource = `data:application/pdf;base64,${data.pdfBase64}`
-      const downloadLink = document.createElement('a')
-      downloadLink.href = linkSource
-      downloadLink.download = `Orcamento_${format}_${id.substring(0, 8)}.pdf`
-      downloadLink.click()
-      toast.success('PDF gerado com sucesso!')
-    } catch (e: any) {
-      toast.error('Erro ao gerar PDF: ' + e.message)
-    } finally {
-      setExportingId(null)
-    }
-  }
-
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-
-  const getValorVista = (orc: any) => {
-    let custo = 0
-    orc.orcamentos_ambientes?.forEach((amb: any) => {
-      amb.orcamentos_itens?.forEach((it: any) => {
-        custo += (Number(it.custo_unitario) || 0) * (Number(it.quantidade) || 0)
-      })
+  const exportPdf = async (id: string, format: string) => {
+    toast({ title: 'Gerando PDF...', description: 'Aguarde um instante.' })
+    const { data, error } = await supabase.functions.invoke('export-pdf-document', {
+      body: { orcamento_id: id, format },
     })
-    return custo / (orc.markup_divisor_vista || 0.4)
+
+    if (error || !data?.pdfBase64) {
+      return toast({ title: 'Erro', description: 'Falha ao gerar o PDF.', variant: 'destructive' })
+    }
+
+    const link = document.createElement('a')
+    link.href = `data:application/pdf;base64,${data.pdfBase64}`
+    link.download = `Orcamento_${format}_${id.substring(0, 8)}.pdf`
+    link.click()
   }
 
   return (
-    <div className="flex-1 p-6 space-y-6 bg-gray-50/50 h-full overflow-auto">
-      <div className="flex justify-between items-center bg-[#0B1A28] text-white p-6 rounded-xl shadow-lg">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Orçamentos de Engenharia</h1>
-          <p className="text-gray-300">Gerencie projetos e precificação</p>
+          <h1 className="text-2xl font-bold text-midnight-navy">Orçamentos de Engenharia</h1>
+          <p className="text-sm text-gray-500">Gerencie orçamentos, cotações e gere PDFs.</p>
         </div>
-        <Button asChild className="bg-emerald-600 hover:bg-emerald-700 text-white">
+        <Button asChild>
           <Link to="/orcamentos/novo">
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Orçamento
+            <Plus className="w-4 h-4 mr-2" /> Novo Orçamento
           </Link>
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl border shadow-sm">
+      <div className="bg-white rounded-lg shadow border border-border overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nome do Projeto</TableHead>
               <TableHead>Cliente</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Modo</TableHead>
               <TableHead>Data</TableHead>
-              <TableHead>Valor Total (À Vista)</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {orcamentos.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Carregando...
-                </TableCell>
-              </TableRow>
-            ) : orcamentos.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                   Nenhum orçamento encontrado.
                 </TableCell>
               </TableRow>
@@ -129,53 +88,35 @@ export default function OrcamentosEngenhariaList() {
               orcamentos.map((orc) => (
                 <TableRow key={orc.id}>
                   <TableCell className="font-medium">{orc.nome}</TableCell>
-                  <TableCell>{orc.cliente_nome_manual || orc.clientes?.nome || 'N/I'}</TableCell>
-                  <TableCell>{new Date(orc.criado_em).toLocaleDateString('pt-BR')}</TableCell>
-                  <TableCell className="font-medium text-emerald-700">
-                    {formatCurrency(getValorVista(orc))}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportPdf(orc.id, 'analytic')}
-                        disabled={exportingId === orc.id}
-                        title="Exportar Analítico"
-                      >
-                        {exportingId === orc.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                        ) : (
-                          <FileText className="w-4 h-4 text-blue-600" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleExportPdf(orc.id, 'synthetic')}
-                        disabled={exportingId === orc.id}
-                        title="Exportar Sintético"
-                      >
-                        {exportingId === orc.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                        ) : (
-                          <FileBarChart className="w-4 h-4 text-emerald-600" />
-                        )}
-                      </Button>
-                      <Button variant="outline" size="sm" asChild title="Editar">
-                        <Link to={`/orcamentos/${orc.id}`}>
-                          <Edit className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(orc.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </Button>
-                    </div>
+                  <TableCell>{orc.cliente?.nome || 'Não Vinculado'}</TableCell>
+                  <TableCell>{orc.status}</TableCell>
+                  <TableCell className="capitalize">{orc.modo_preco || 'Vista'}</TableCell>
+                  <TableCell>{new Date(orc.criado_em).toLocaleDateString()}</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportPdf(orc.id, 'analytic')}
+                      title="Exportar Analítico"
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => exportPdf(orc.id, 'synthetic')}
+                      title="Exportar Sintético"
+                    >
+                      <FileText className="w-4 h-4 text-blue-600" />
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/orcamentos/${orc.id}`}>
+                        <Edit className="w-4 h-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(orc.id)}>
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))

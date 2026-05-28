@@ -5,11 +5,9 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
-
   try {
     const body = await req.json()
-    const { orcamento_id, format } = body // format: 'analytic' or 'synthetic'
-
+    const { orcamento_id, format } = body
     if (!orcamento_id) throw new Error('orcamento_id is required')
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -19,17 +17,9 @@ Deno.serve(async (req) => {
 
     const { data: orc, error: orcErr } = await supabase
       .from('orcamentos_engenharia')
-      .select(`
-        *, 
-        cliente:clientes(nome, endereco_obra, rua, numero, bairro, cidade, estado, cep),
-        ambientes:orcamentos_ambientes(
-          *,
-          itens:orcamentos_itens(
-            *,
-            estoque_item:estoque_itens(nome, unidade)
-          )
-        )
-      `)
+      .select(
+        `*, cliente:clientes(nome, endereco_obra, rua, numero, bairro, cidade, estado, cep), ambientes:orcamentos_ambientes(*, itens:orcamentos_itens(*, estoque_item:estoque_itens(nome, unidade)))`,
+      )
       .eq('id', orcamento_id)
       .single()
 
@@ -50,30 +40,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    let logoBytes: Uint8Array | null = null
-    try {
-      const { data: logoData } = await supabase.storage
-        .from('bender_templates')
-        .download('logo.png')
-      if (logoData) logoBytes = new Uint8Array(await logoData.arrayBuffer())
-    } catch (e) {}
-
-    if (logoBytes) {
-      try {
-        const image = await pdfDoc.embedPng(logoBytes)
-        const scale = 80 / image.width
-        page.drawImage(image, { x: margin, y: y - 20, width: 80, height: image.height * scale })
-      } catch (e) {}
-    }
-
-    y -= 40
     page.drawText(format === 'analytic' ? 'ORÇAMENTO ANALÍTICO' : 'ORÇAMENTO SINTÉTICO', {
       x: margin,
       y,
       size: 16,
       font: fontBold,
     })
-    y -= 15
+    y -= 20
     page.drawText(`Projeto: ${orc.nome}`, { x: margin, y, size: 12, font: fontBold })
     y -= 15
 
@@ -81,24 +54,18 @@ Deno.serve(async (req) => {
       orc.cliente_nome_manual ||
       (Array.isArray(orc.cliente) ? orc.cliente[0]?.nome : orc.cliente?.nome) ||
       'Não informado'
-    page.drawText(`Cliente: ${clienteNome}`, { x: margin, y, size: 10, font })
-    page.drawText(`Data: ${new Date(orc.criado_em).toLocaleDateString('pt-BR')}`, {
-      x: margin + 300,
-      y,
-      size: 10,
-      font,
-    })
+    page.drawText(
+      `Cliente: ${clienteNome} - Data: ${new Date(orc.criado_em).toLocaleDateString('pt-BR')}`,
+      { x: margin, y, size: 10, font },
+    )
     y -= 30
 
     const formatCurrency = (val: number) =>
       new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
-    let grandTotalVista = 0
-    let grandTotalPrazo = 0
     let grandTotalCusto = 0
-
-    const divVista = orc.markup_divisor_vista || 0.4
-    const divNormal = orc.markup_divisor_normal || 0.35
+    let grandTotalVenda = 0
+    const divNormalFallback = orc.markup_divisor_normal || 0.35
 
     if (orc.ambientes && orc.ambientes.length > 0) {
       for (const amb of orc.ambientes) {
@@ -114,16 +81,17 @@ Deno.serve(async (req) => {
         y -= 20
 
         let ambCusto = 0
+        let ambVenda = 0
         const itemsList = amb.itens || []
 
         if (format === 'analytic') {
           const cols = [
             { t: 'Item', x: margin, w: 200 },
-            { t: 'Qtd', x: margin + 210, w: 30 },
-            { t: 'Un', x: margin + 250, w: 30 },
-            { t: 'Custo Un.', x: margin + 290, w: 70 },
-            { t: 'Total Custo', x: margin + 370, w: 70 },
-            { t: 'Venda (Vista)', x: margin + 450, w: 80 },
+            { t: 'Qtd', x: margin + 210 },
+            { t: 'Un', x: margin + 250 },
+            { t: 'Custo Un.', x: margin + 290 },
+            { t: 'Total Custo', x: margin + 370 },
+            { t: 'Preço Venda', x: margin + 450 },
           ]
           cols.forEach((c) => page.drawText(c.t, { x: c.x, y, size: 9, font: fontBold }))
           y -= 10
@@ -139,18 +107,19 @@ Deno.serve(async (req) => {
             const cUnit = Number(it.custo_unitario || 0)
             const qtd = Number(it.quantidade || 0)
             const cTotal = cUnit * qtd
-            const vendaItmVista = cTotal / divVista
+            const itMarkup = Number(it.markup) || divNormalFallback
+            const vendaItm = cTotal / itMarkup
             ambCusto += cTotal
+            ambVenda += vendaItm
 
             page.drawText(it.nome_item.substring(0, 40), { x: cols[0].x, y, size: 8, font })
             page.drawText(qtd.toString(), { x: cols[1].x, y, size: 8, font })
             page.drawText(it.unidade_medida || 'un', { x: cols[2].x, y, size: 8, font })
             page.drawText(formatCurrency(cUnit), { x: cols[3].x, y, size: 8, font })
             page.drawText(formatCurrency(cTotal), { x: cols[4].x, y, size: 8, font })
-            page.drawText(formatCurrency(vendaItmVista), { x: cols[5].x, y, size: 8, font })
+            page.drawText(formatCurrency(vendaItm), { x: cols[5].x, y, size: 8, font })
             y -= 12
           }
-
           y -= 5
           page.drawLine({
             start: { x: margin, y },
@@ -159,52 +128,24 @@ Deno.serve(async (req) => {
           })
           y -= 15
         } else {
-          const itemNames = itemsList.map((i: any) => i.nome_item).join(', ')
-          if (itemNames) {
-            const words = itemNames.split(' ')
-            let line = ''
-            for (const w of words) {
-              if (font.widthOfTextAtSize(line + w, 9) > 500) {
-                page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
-                y -= 12
-                checkPageBreak(20)
-                line = w + ' '
-              } else {
-                line += w + ' '
-              }
-            }
-            if (line) {
-              page.drawText(line, { x: margin, y, size: 9, font, color: rgb(0.3, 0.3, 0.3) })
-              y -= 15
-            }
-          }
           for (const it of itemsList) {
-            ambCusto += Number(it.custo_unitario || 0) * Number(it.quantidade || 0)
+            const cTotal = Number(it.custo_unitario || 0) * Number(it.quantidade || 0)
+            const itMarkup = Number(it.markup) || divNormalFallback
+            ambCusto += cTotal
+            ambVenda += cTotal / itMarkup
           }
         }
 
-        const ambVista = ambCusto / divVista
-        const ambPrazo = ambCusto / divNormal
         grandTotalCusto += ambCusto
-        grandTotalVista += ambVista
-        grandTotalPrazo += ambPrazo
+        grandTotalVenda += ambVenda
 
         checkPageBreak(30)
-        if (format === 'analytic') {
-          page.drawText(`Subtotal Ambiente: ${formatCurrency(ambVista)} (à vista)`, {
-            x: margin + 300,
-            y,
-            size: 10,
-            font: fontBold,
-          })
-        } else {
-          page.drawText(`Total Ambiente: ${formatCurrency(ambVista)} (à vista)`, {
-            x: margin,
-            y,
-            size: 10,
-            font: fontBold,
-          })
-        }
+        page.drawText(
+          format === 'analytic'
+            ? `Subtotal Ambiente: ${formatCurrency(ambVenda)}`
+            : `Total Ambiente: ${formatCurrency(ambVenda)}`,
+          { x: format === 'analytic' ? margin + 300 : margin, y, size: 10, font: fontBold },
+        )
         y -= 25
       }
     }
@@ -213,7 +154,6 @@ Deno.serve(async (req) => {
     y -= 20
     page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1 })
     y -= 20
-
     page.drawText(`RESUMO FINAL`, { x: margin, y, size: 12, font: fontBold })
     y -= 20
     if (format === 'analytic') {
@@ -225,18 +165,11 @@ Deno.serve(async (req) => {
       })
       y -= 15
     }
-    page.drawText(`Valor Total à Vista: ${formatCurrency(grandTotalVista)}`, {
+    page.drawText(`Valor Total de Venda: ${formatCurrency(grandTotalVenda)}`, {
       x: margin,
       y,
       size: 12,
       font: fontBold,
-    })
-    y -= 15
-    page.drawText(`Valor Total a Prazo: ${formatCurrency(grandTotalPrazo)}`, {
-      x: margin,
-      y,
-      size: 11,
-      font,
     })
 
     const pdfBytes = await pdfDoc.save()

@@ -6,8 +6,6 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Comercial from './pages/Comercial'
 import AreaClientes from './pages/AreaClientes'
-import ListasMateriaisList from './pages/listas-materiais/index'
-import NovaListaMateriais from './pages/listas-materiais/nova'
 import Financeiro from './pages/Financeiro'
 import DocumentacaoLead from './pages/DocumentacaoLead'
 import Users from './pages/Users'
@@ -51,9 +49,6 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/comercial" element={<Comercial />} />
               <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
-              <Route path="/listas-materiais" element={<ListasMateriaisList />} />
-              <Route path="/listas-materiais/nova" element={<NovaListaMateriais />} />
-              <Route path="/listas-materiais/:id" element={<NovaListaMateriais />} />
               <Route path="/orcamentos" element={<OrcamentosEngenhariaList />} />
               <Route path="/orcamentos/novo" element={<OrcamentosEngenhariaDetail />} />
               <Route path="/orcamentos/:id" element={<OrcamentosEngenhariaDetail />} />
@@ -68,6 +63,7 @@ const App = () => (
               <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
               <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/admin/markup" element={<MarkupSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

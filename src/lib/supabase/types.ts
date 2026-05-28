@@ -1337,93 +1337,6 @@ export type Database = {
         }
         Relationships: []
       }
-      itens_lista_material: {
-        Row: {
-          data_criacao: string | null
-          estoque_item_id: string | null
-          id: string
-          lista_material_id: string | null
-          quantidade: number | null
-        }
-        Insert: {
-          data_criacao?: string | null
-          estoque_item_id?: string | null
-          id?: string
-          lista_material_id?: string | null
-          quantidade?: number | null
-        }
-        Update: {
-          data_criacao?: string | null
-          estoque_item_id?: string | null
-          id?: string
-          lista_material_id?: string | null
-          quantidade?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'itens_lista_material_estoque_item_id_fkey'
-            columns: ['estoque_item_id']
-            isOneToOne: false
-            referencedRelation: 'estoque_itens'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'itens_lista_material_lista_material_id_fkey'
-            columns: ['lista_material_id']
-            isOneToOne: false
-            referencedRelation: 'listas_materiais'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      itens_orcamento: {
-        Row: {
-          data_criacao: string | null
-          estoque_item_id: string | null
-          id: string
-          nome_item: string | null
-          orcamento_id: string | null
-          preco_custo: number | null
-          preco_venda: number | null
-          quantidade: number | null
-        }
-        Insert: {
-          data_criacao?: string | null
-          estoque_item_id?: string | null
-          id?: string
-          nome_item?: string | null
-          orcamento_id?: string | null
-          preco_custo?: number | null
-          preco_venda?: number | null
-          quantidade?: number | null
-        }
-        Update: {
-          data_criacao?: string | null
-          estoque_item_id?: string | null
-          id?: string
-          nome_item?: string | null
-          orcamento_id?: string | null
-          preco_custo?: number | null
-          preco_venda?: number | null
-          quantidade?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'itens_orcamento_estoque_item_id_fkey'
-            columns: ['estoque_item_id']
-            isOneToOne: false
-            referencedRelation: 'estoque_itens'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'itens_orcamento_orcamento_id_fkey'
-            columns: ['orcamento_id']
-            isOneToOne: false
-            referencedRelation: 'orcamentos'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       kanban_historico: {
         Row: {
           card_id: string | null
@@ -1520,60 +1433,6 @@ export type Database = {
             columns: ['consultor_id']
             isOneToOne: false
             referencedRelation: 'users'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      listas_materiais: {
-        Row: {
-          ambiente: string | null
-          arquivo_url: string | null
-          cliente_id: string | null
-          data_atualizacao: string | null
-          data_criacao: string | null
-          descricao: string | null
-          id: string
-          orcamento_id: string | null
-          status: string | null
-          user_id: string | null
-        }
-        Insert: {
-          ambiente?: string | null
-          arquivo_url?: string | null
-          cliente_id?: string | null
-          data_atualizacao?: string | null
-          data_criacao?: string | null
-          descricao?: string | null
-          id?: string
-          orcamento_id?: string | null
-          status?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          ambiente?: string | null
-          arquivo_url?: string | null
-          cliente_id?: string | null
-          data_atualizacao?: string | null
-          data_criacao?: string | null
-          descricao?: string | null
-          id?: string
-          orcamento_id?: string | null
-          status?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'listas_materiais_cliente_id_fkey'
-            columns: ['cliente_id']
-            isOneToOne: false
-            referencedRelation: 'clientes'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'listas_materiais_orcamento_id_fkey'
-            columns: ['orcamento_id']
-            isOneToOne: false
-            referencedRelation: 'orcamentos'
             referencedColumns: ['id']
           },
         ]
@@ -1737,59 +1596,6 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: []
-      }
-      orcamentos: {
-        Row: {
-          ambiente: string | null
-          arquivo_url: string | null
-          cliente_id: string | null
-          data_atualizacao: string | null
-          data_criacao: string | null
-          descricao: string | null
-          id: string
-          indice_preco_prazo: number | null
-          indice_preco_vista: number | null
-          status: string | null
-          user_id: string | null
-          valor_total: number | null
-        }
-        Insert: {
-          ambiente?: string | null
-          arquivo_url?: string | null
-          cliente_id?: string | null
-          data_atualizacao?: string | null
-          data_criacao?: string | null
-          descricao?: string | null
-          id?: string
-          indice_preco_prazo?: number | null
-          indice_preco_vista?: number | null
-          status?: string | null
-          user_id?: string | null
-          valor_total?: number | null
-        }
-        Update: {
-          ambiente?: string | null
-          arquivo_url?: string | null
-          cliente_id?: string | null
-          data_atualizacao?: string | null
-          data_criacao?: string | null
-          descricao?: string | null
-          id?: string
-          indice_preco_prazo?: number | null
-          indice_preco_vista?: number | null
-          status?: string | null
-          user_id?: string | null
-          valor_total?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'orcamentos_cliente_id_fkey'
-            columns: ['cliente_id']
-            isOneToOne: false
-            referencedRelation: 'clientes'
-            referencedColumns: ['id']
-          },
-        ]
       }
       orcamentos_ambientes: {
         Row: {
@@ -2516,41 +2322,6 @@ export type Database = {
         }
         Relationships: []
       }
-      versoes_orcamentos: {
-        Row: {
-          criado_por: string | null
-          dados_json: Json | null
-          data_criacao: string | null
-          id: string
-          numero_versao: number | null
-          orcamento_id: string | null
-        }
-        Insert: {
-          criado_por?: string | null
-          dados_json?: Json | null
-          data_criacao?: string | null
-          id?: string
-          numero_versao?: number | null
-          orcamento_id?: string | null
-        }
-        Update: {
-          criado_por?: string | null
-          dados_json?: Json | null
-          data_criacao?: string | null
-          id?: string
-          numero_versao?: number | null
-          orcamento_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'versoes_orcamentos_orcamento_id_fkey'
-            columns: ['orcamento_id']
-            isOneToOne: false
-            referencedRelation: 'orcamentos'
-            referencedColumns: ['id']
-          },
-        ]
-      }
       whatsapp_sessions: {
         Row: {
           created_at: string
@@ -3074,21 +2845,6 @@ export const Constants = {
 //   data_abertura: date (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
-// Table: itens_lista_material
-//   id: uuid (not null, default: gen_random_uuid())
-//   lista_material_id: uuid (nullable)
-//   estoque_item_id: uuid (nullable)
-//   quantidade: numeric (nullable, default: 1)
-//   data_criacao: timestamp with time zone (nullable, default: now())
-// Table: itens_orcamento
-//   id: uuid (not null, default: gen_random_uuid())
-//   orcamento_id: uuid (nullable)
-//   estoque_item_id: uuid (nullable)
-//   quantidade: numeric (nullable, default: 1)
-//   preco_custo: numeric (nullable, default: 0)
-//   preco_venda: numeric (nullable, default: 0)
-//   data_criacao: timestamp with time zone (nullable, default: now())
-//   nome_item: text (nullable)
 // Table: kanban_historico
 //   id: uuid (not null, default: gen_random_uuid())
 //   card_id: uuid (nullable)
@@ -3113,17 +2869,6 @@ export const Constants = {
 //   data_venda: timestamp with time zone (nullable)
 //   categoria: text (not null, default: 'Comercial'::text)
 //   notas_pessoais: text (nullable)
-// Table: listas_materiais
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (nullable)
-//   orcamento_id: uuid (nullable)
-//   cliente_id: uuid (nullable)
-//   ambiente: text (nullable)
-//   descricao: text (nullable)
-//   status: text (nullable, default: 'Rascunho'::text)
-//   data_criacao: timestamp with time zone (nullable, default: now())
-//   data_atualizacao: timestamp with time zone (nullable, default: now())
-//   arquivo_url: text (nullable)
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)
@@ -3162,19 +2907,6 @@ export const Constants = {
 //   lida: boolean (not null, default: false)
 //   link: text (nullable)
 //   criado_em: timestamp with time zone (not null, default: now())
-// Table: orcamentos
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (nullable)
-//   cliente_id: uuid (nullable)
-//   ambiente: text (nullable)
-//   descricao: text (nullable)
-//   status: text (nullable, default: 'Rascunho'::text)
-//   valor_total: numeric (nullable, default: 0)
-//   indice_preco_vista: numeric (nullable, default: 1.0)
-//   indice_preco_prazo: numeric (nullable, default: 1.0)
-//   data_criacao: timestamp with time zone (nullable, default: now())
-//   data_atualizacao: timestamp with time zone (nullable, default: now())
-//   arquivo_url: text (nullable)
 // Table: orcamentos_ambientes
 //   id: uuid (not null, default: gen_random_uuid())
 //   orcamento_id: uuid (not null)
@@ -3346,13 +3078,6 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   status: boolean (not null, default: true)
-// Table: versoes_orcamentos
-//   id: uuid (not null, default: gen_random_uuid())
-//   orcamento_id: uuid (nullable)
-//   numero_versao: integer (nullable, default: 1)
-//   dados_json: jsonb (nullable)
-//   criado_por: uuid (nullable)
-//   data_criacao: timestamp with time zone (nullable, default: now())
 // Table: whatsapp_sessions
 //   id: uuid (not null, default: gen_random_uuid())
 //   phone: text (not null)
@@ -3455,14 +3180,6 @@ export const Constants = {
 // Table: fornecedores
 //   UNIQUE fornecedores_cnpj_key: UNIQUE (cnpj)
 //   PRIMARY KEY fornecedores_pkey: PRIMARY KEY (id)
-// Table: itens_lista_material
-//   FOREIGN KEY itens_lista_material_estoque_item_id_fkey: FOREIGN KEY (estoque_item_id) REFERENCES estoque_itens(id) ON DELETE SET NULL
-//   FOREIGN KEY itens_lista_material_lista_material_id_fkey: FOREIGN KEY (lista_material_id) REFERENCES listas_materiais(id) ON DELETE CASCADE
-//   PRIMARY KEY itens_lista_material_pkey: PRIMARY KEY (id)
-// Table: itens_orcamento
-//   FOREIGN KEY itens_orcamento_estoque_item_id_fkey: FOREIGN KEY (estoque_item_id) REFERENCES estoque_itens(id) ON DELETE SET NULL
-//   FOREIGN KEY itens_orcamento_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos(id) ON DELETE CASCADE
-//   PRIMARY KEY itens_orcamento_pkey: PRIMARY KEY (id)
 // Table: kanban_historico
 //   FOREIGN KEY kanban_historico_card_id_fkey: FOREIGN KEY (card_id) REFERENCES produtos_servicos_projeto(id) ON DELETE CASCADE
 //   PRIMARY KEY kanban_historico_pkey: PRIMARY KEY (id)
@@ -3470,11 +3187,6 @@ export const Constants = {
 // Table: leads
 //   FOREIGN KEY leads_consultor_id_fkey: FOREIGN KEY (consultor_id) REFERENCES users(id) ON DELETE SET NULL
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
-// Table: listas_materiais
-//   FOREIGN KEY listas_materiais_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
-//   FOREIGN KEY listas_materiais_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos(id) ON DELETE SET NULL
-//   PRIMARY KEY listas_materiais_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY listas_materiais_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: logs_ia
 //   PRIMARY KEY logs_ia_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY logs_ia_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -3489,10 +3201,6 @@ export const Constants = {
 // Table: notificacoes
 //   PRIMARY KEY notificacoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY notificacoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: orcamentos
-//   FOREIGN KEY orcamentos_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
-//   PRIMARY KEY orcamentos_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY orcamentos_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: orcamentos_ambientes
 //   FOREIGN KEY orcamentos_ambientes_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos_engenharia(id) ON DELETE CASCADE
 //   PRIMARY KEY orcamentos_ambientes_pkey: PRIMARY KEY (id)
@@ -3545,10 +3253,6 @@ export const Constants = {
 //   UNIQUE users_email_key: UNIQUE (email)
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
-// Table: versoes_orcamentos
-//   FOREIGN KEY versoes_orcamentos_criado_por_fkey: FOREIGN KEY (criado_por) REFERENCES auth.users(id) ON DELETE SET NULL
-//   FOREIGN KEY versoes_orcamentos_orcamento_id_fkey: FOREIGN KEY (orcamento_id) REFERENCES orcamentos(id) ON DELETE CASCADE
-//   PRIMARY KEY versoes_orcamentos_pkey: PRIMARY KEY (id)
 // Table: whatsapp_sessions
 //   FOREIGN KEY whatsapp_sessions_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE whatsapp_sessions_phone_key: UNIQUE (phone)
@@ -3752,26 +3456,6 @@ export const Constants = {
 //   Policy "fornecedores_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-// Table: itens_lista_material
-//   Policy "itens_lista_material_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "itens_lista_material_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "itens_lista_material_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "itens_lista_material_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-// Table: itens_orcamento
-//   Policy "itens_orcamento_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "itens_orcamento_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "itens_orcamento_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "itens_orcamento_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: kanban_historico
 //   Policy "kanban_history_access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3780,16 +3464,6 @@ export const Constants = {
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-// Table: listas_materiais
-//   Policy "listas_materiais_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "listas_materiais_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "listas_materiais_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//   Policy "listas_materiais_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Lista de Materiais'::text) OR is_admin(auth.uid()))
 // Table: logs_ia
 //   Policy "Acesso total logs_ia" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3819,17 +3493,10 @@ export const Constants = {
 //   Policy "Enable update for own notifications" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (usuario_id = auth.uid())
 //     WITH CHECK: (usuario_id = auth.uid())
-// Table: orcamentos
-//   Policy "orcamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "orcamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "orcamentos_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//   Policy "orcamentos_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
-//     WITH CHECK: (has_module_access(auth.uid(), 'Criar Orçamento'::text) OR is_admin(auth.uid()))
 // Table: orcamentos_ambientes
+//   Policy "orcamentos_ambientes_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "orcamentos_ambientes_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "orcamentos_ambientes_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -3840,6 +3507,9 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: orcamentos_engenharia
+//   Policy "orcamentos_engenharia_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "orcamentos_engenharia_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "orcamentos_engenharia_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -3850,6 +3520,9 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: orcamentos_itens
+//   Policy "orcamentos_itens_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "orcamentos_itens_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "orcamentos_itens_insert" (INSERT, PERMISSIVE) roles={authenticated}
@@ -3958,16 +3631,6 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = id)
 //   Policy "Usuário vê apenas seus dados ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
-// Table: versoes_orcamentos
-//   Policy "versoes_orcamentos_delete" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (criado_por = auth.uid())
-//   Policy "versoes_orcamentos_insert" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (criado_por = auth.uid())
-//   Policy "versoes_orcamentos_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (criado_por = auth.uid())
-//   Policy "versoes_orcamentos_update" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (criado_por = auth.uid())
-//     WITH CHECK: (criado_por = auth.uid())
 // Table: whatsapp_sessions
 //   Policy "whatsapp_sessions_all" (ALL, PERMISSIVE) roles={public}
 //     USING: true

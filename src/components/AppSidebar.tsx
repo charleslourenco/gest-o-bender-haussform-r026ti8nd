@@ -47,12 +47,6 @@ const menuItems = [
     module: 'Análise Técnica',
   },
   { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
-  {
-    title: 'Criar Lista de Materiais',
-    icon: ClipboardList,
-    url: '/listas-materiais',
-    module: 'Criar Lista de Materiais',
-  },
   { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
   {
     title: 'Estoque & Compras',
@@ -189,6 +183,32 @@ export function AppSidebar() {
                     <div className="flex items-center gap-2 w-full">
                       <Settings className="w-4 h-4 shrink-0" />
                       <span className="font-medium truncate">Administrativo</span>
+                      <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
+                    </div>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild={hasAccess('Administrativo')}
+                  tooltip="Config. Markup"
+                  isActive={location.pathname === '/admin/markup'}
+                  className={cn(
+                    !hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : '',
+                    location.pathname === '/admin/markup'
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                  )}
+                >
+                  {hasAccess('Administrativo') ? (
+                    <Link to="/admin/markup" className="flex items-center gap-2">
+                      <Calculator className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">Config. Markup</span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2 w-full">
+                      <Calculator className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">Config. Markup</span>
                       <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
                     </div>
                   )}

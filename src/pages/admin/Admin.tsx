@@ -1,96 +1,104 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Skeleton } from '@/components/ui/skeleton'
-import { BrandingTab } from './BrandingTab'
-import { TemplatesTab } from './TemplatesTab'
-import { ShieldAlert, Settings } from 'lucide-react'
 
 export default function AdminPage() {
-  const { user } = useAuth()
-  const [permission, setPermission] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [config, setConfig] = useState<any>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
-    async function fetchPerm() {
-      if (!user) return
+    const fetchConfig = async () => {
       const { data } = await supabase
-        .from('matriz_permissoes')
-        .select('nivel_acesso')
-        .eq('usuario_id', user.id)
-        .eq('modulo', 'Administrativo')
-        .single()
-
-      if (data) {
-        setPermission(data.nivel_acesso)
-      } else {
-        const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id })
-        if (isAdmin) setPermission('Admin')
-        else setPermission('Sem Acesso')
-      }
-      setLoading(false)
+        .from('configuracoes_sistema')
+        .select('*')
+        .limit(1)
+        .maybeSingle()
+      if (data) setConfig(data)
     }
-    fetchPerm()
-  }, [user])
+    fetchConfig()
+  }, [])
 
-  if (loading) {
-    return (
-      <div className="p-6 space-y-6 bg-background min-h-screen">
-        <Skeleton className="h-[80px] w-full bg-muted rounded-none" />
-        <Skeleton className="h-[60px] w-full max-w-md bg-muted rounded-lg" />
-        <Skeleton className="h-64 w-full bg-muted rounded-lg" />
-      </div>
-    )
-  }
+  const handleSave = async () => {
+    if (!config) return
+    const { error } = await supabase
+      .from('configuracoes_sistema')
+      .update({
+        markup_vista: config.markup_vista,
+        markup_prazo: config.markup_prazo,
+      })
+      .eq('id', config.id)
 
-  if (permission !== 'Editor' && permission !== 'Admin') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="flex flex-col items-center justify-center text-center space-y-4">
-          <ShieldAlert className="h-16 w-16 text-muted-foreground" />
-          <h2 className="text-2xl font-semibold text-foreground">
-            Você não tem permissão para acessar este módulo.
-          </h2>
-        </div>
-      </div>
-    )
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível salvar', variant: 'destructive' })
+    } else {
+      toast({ title: 'Sucesso', description: 'Configurações salvas' })
+    }
   }
 
   return (
-    <div className="flex-1 bg-muted/20 min-h-full pb-12 flex flex-col space-y-6 p-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <Settings className="h-10 w-10 text-emerald-400 hidden sm:block" />
-        <div>
-          <h1 className="text-[32px] font-bold text-off-white">Administrativo</h1>
-          <p className="text-pale-cornflower mt-1">Gestão de templates e branding da empresa</p>
-        </div>
-      </div>
-      <div className="flex-1">
-        <Tabs defaultValue="branding" className="w-full">
-          <TabsList className="bg-muted w-full flex flex-col sm:flex-row h-auto p-1 rounded-lg gap-2 sm:gap-1 mb-6">
-            <TabsTrigger
-              value="branding"
-              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
-            >
-              Branding
-            </TabsTrigger>
-            <TabsTrigger
-              value="templates"
-              className="w-full sm:w-auto data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm px-6 py-2.5 rounded-md transition-all text-sm font-medium"
-            >
-              Templates
-            </TabsTrigger>
-          </TabsList>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6 text-midnight-navy">Administração do Sistema</h1>
+      <Tabs defaultValue="markup" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="markup">Markup Global</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="branding" className="outline-none focus-visible:ring-0">
-            <BrandingTab />
-          </TabsContent>
-          <TabsContent value="templates" className="outline-none focus-visible:ring-0">
-            <TemplatesTab />
-          </TabsContent>
-        </Tabs>
-      </div>
+        <TabsContent value="markup">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configurações de Markup</CardTitle>
+              <CardDescription>
+                Defina os multiplicadores padrão para os cálculos dos orçamentos (À Vista e A
+                Prazo).
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {config ? (
+                <>
+                  <div className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="vista">Markup À Vista (Multiplicador)</Label>
+                      <Input
+                        id="vista"
+                        type="number"
+                        step="0.01"
+                        value={config.markup_vista}
+                        onChange={(e) =>
+                          setConfig({ ...config, markup_vista: parseFloat(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="prazo">Markup A Prazo (Multiplicador)</Label>
+                      <Input
+                        id="prazo"
+                        type="number"
+                        step="0.01"
+                        value={config.markup_prazo}
+                        onChange={(e) =>
+                          setConfig({ ...config, markup_prazo: parseFloat(e.target.value) })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={handleSave} className="bg-steel-blue hover:bg-midnight-navy">
+                    Salvar Configurações
+                  </Button>
+                </>
+              ) : (
+                <div className="h-24 flex items-center justify-center text-muted-foreground">
+                  Carregando configurações...
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
