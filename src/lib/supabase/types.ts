@@ -3315,6 +3315,9 @@ export const Constants = {
 //     WITH CHECK: is_admin(auth.uid())
 //   Policy "auth_read_config" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
+//   Policy "configuracoes_sistema_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: contas_pagar
 //   Policy "contas_pagar_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true

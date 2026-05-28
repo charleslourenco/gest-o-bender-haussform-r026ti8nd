@@ -31,6 +31,14 @@ Deno.serve(async (req) => {
 
     if (orcErr || !orc) throw new Error('Orçamento não encontrado')
 
+    const { data: config } = await supabase
+      .from('configuracoes_sistema')
+      .select('*')
+      .limit(1)
+      .single()
+    const globalMarkupVista = config?.markup_vista || 0.4
+    const globalMarkupPrazo = config?.markup_prazo || 0.35
+
     const pdfDoc = await PDFDocument.create()
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
@@ -71,7 +79,7 @@ Deno.serve(async (req) => {
 
     let grandTotalCusto = 0
     let grandTotalVenda = 0
-    const divNormalFallback = orc.markup_divisor_normal || 0.35
+    const divNormalFallback = orc.modo_pagamento === 'prazo' ? globalMarkupPrazo : globalMarkupVista
 
     if (orc.ambientes && orc.ambientes.length > 0) {
       for (const amb of orc.ambientes) {
@@ -113,7 +121,7 @@ Deno.serve(async (req) => {
             const cUnit = Number(it.custo_unitario || 0)
             const qtd = Number(it.quantidade || 0)
             const cTotal = cUnit * qtd
-            const itMarkup = Number(it.markup) || divNormalFallback
+            const itMarkup = it.markup_manual && it.markup ? Number(it.markup) : divNormalFallback
             const vendaItm = cTotal / itMarkup
             ambCusto += cTotal
             ambVenda += vendaItm
@@ -136,7 +144,7 @@ Deno.serve(async (req) => {
         } else {
           for (const it of itemsList) {
             const cTotal = Number(it.custo_unitario || 0) * Number(it.quantidade || 0)
-            const itMarkup = Number(it.markup) || divNormalFallback
+            const itMarkup = it.markup_manual && it.markup ? Number(it.markup) : divNormalFallback
             ambCusto += cTotal
             ambVenda += cTotal / itMarkup
           }
