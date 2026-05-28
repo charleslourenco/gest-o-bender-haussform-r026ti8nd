@@ -10,7 +10,6 @@ import Financeiro from './pages/Financeiro'
 import DocumentacaoLead from './pages/DocumentacaoLead'
 import Users from './pages/Users'
 import AdminPage from './pages/admin/Admin'
-import MarkupSettings from './pages/admin/MarkupSettings'
 import AnaliseTecnica from './pages/AnaliseTecnica'
 import Producao from './pages/Producao'
 import Montagem from './pages/Montagem'
@@ -64,7 +63,6 @@ const App = () => (
               <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
               <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />
               <Route path="/admin" element={<AdminPage />} />
-              <Route path="/admin/markup" element={<MarkupSettings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
