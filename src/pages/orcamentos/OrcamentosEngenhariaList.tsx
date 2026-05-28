@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { Plus, Trash2, Edit, Search } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Search, FileText, Trash2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { toast } from 'sonner'
 import {
   Table,
   TableBody,
@@ -13,165 +12,171 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function OrcamentosEngenhariaList() {
   const navigate = useNavigate()
   const [orcamentos, setOrcamentos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  const loadOrcamentos = async () => {
-    try {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('orcamentos_engenharia')
-        .select(`
-          *,
-          cliente:clientes(nome)
-        `)
-        .order('criado_em', { ascending: false })
+  const fetchOrcamentos = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('orcamentos_engenharia')
+      .select('*, cliente:clientes(nome)')
+      .order('criado_em', { ascending: false })
 
-      if (error) throw error
-      setOrcamentos(data || [])
-    } catch (error: any) {
-      toast.error('Erro ao carregar orçamentos: ' + error.message)
-    } finally {
-      setLoading(false)
-    }
+    if (error) toast.error('Erro ao buscar orçamentos')
+    else setOrcamentos(data || [])
+
+    setLoading(false)
   }
 
   useEffect(() => {
-    loadOrcamentos()
+    fetchOrcamentos()
   }, [])
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este orçamento permanentemente?')) return
-
-    try {
-      const { error } = await supabase.from('orcamentos_engenharia').delete().eq('id', id)
-
-      if (error) throw error
+  const handleDelete = async () => {
+    if (!deleteId) return
+    const { error } = await supabase.from('orcamentos_engenharia').delete().eq('id', deleteId)
+    if (error) {
+      toast.error('Erro ao excluir orçamento')
+    } else {
       toast.success('Orçamento excluído com sucesso')
-      loadOrcamentos()
-    } catch (error: any) {
-      toast.error('Erro ao excluir orçamento: ' + error.message)
+      fetchOrcamentos()
     }
+    setDeleteId(null)
   }
 
-  const filteredOrcamentos = orcamentos.filter((orc) => {
-    const nome = orc.nome?.toLowerCase() || ''
-    const cliObj = Array.isArray(orc.cliente) ? orc.cliente[0] : orc.cliente
-    const cliNome = (cliObj?.nome || orc.cliente_nome_manual || '').toLowerCase()
-    const term = searchTerm.toLowerCase()
-    return nome.includes(term) || cliNome.includes(term)
+  const filteredOrcamentos = orcamentos.filter((o) => {
+    const nome = o.nome?.toLowerCase() || ''
+    const clienteNome = (o.cliente?.nome || o.cliente_nome_manual || '').toLowerCase()
+    const q = searchQuery.toLowerCase()
+    return nome.includes(q) || clienteNome.includes(q)
   })
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Orçamentos de Engenharia</h1>
-          <p className="text-slate-500">Gerencie seus projetos e custos reais</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+          Orçamentos de Engenharia
+        </h1>
+        <p className="text-gray-500 mt-2">Gerencie seus projetos e custos reais</p>
+        <div className="mt-4">
+          <Button onClick={() => navigate('/orcamentos/novo')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Orçamento
+          </Button>
         </div>
-        <Button
-          onClick={() => navigate('/orcamentos/novo')}
-          className="bg-emerald-600 hover:bg-emerald-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Orçamento
-        </Button>
       </div>
 
-      <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm max-w-md">
-        <Search className="w-5 h-5 text-slate-400 ml-2" />
-        <Input
-          placeholder="Buscar por nome ou cliente..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border-0 focus-visible:ring-0 shadow-none"
-        />
-      </div>
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Buscar orçamento ou cliente..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome / Descrição</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                  Carregando orçamentos reais...
-                </TableCell>
+                <TableHead>Nome do Projeto</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ) : filteredOrcamentos.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                  Nenhum orçamento encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredOrcamentos.map((orc) => {
-                const cliObj = Array.isArray(orc.cliente) ? orc.cliente[0] : orc.cliente
-                return (
-                  <TableRow key={orc.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-emerald-600" />
-                        {orc.nome}
-                      </div>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    Carregando...
+                  </TableCell>
+                </TableRow>
+              ) : filteredOrcamentos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    Nenhum orçamento encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredOrcamentos.map((orcamento) => (
+                  <TableRow key={orcamento.id}>
+                    <TableCell className="font-medium text-gray-900">{orcamento.nome}</TableCell>
+                    <TableCell className="text-gray-600">
+                      {orcamento.cliente?.nome || orcamento.cliente_nome_manual || 'Não informado'}
                     </TableCell>
                     <TableCell>
-                      {cliObj?.nome || orc.cliente_nome_manual || 'Não informado'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          orc.status === 'Aprovado'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : orc.status === 'Rascunho'
-                              ? 'bg-slate-50 text-slate-700 border-slate-200'
-                              : 'bg-blue-50 text-blue-700 border-blue-200'
-                        }
-                      >
-                        {orc.status}
+                      <Badge variant={orcamento.status === 'Aprovado' ? 'default' : 'secondary'}>
+                        {orcamento.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{new Date(orc.criado_em).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-gray-600">
+                      {new Date(orcamento.criado_em).toLocaleDateString('pt-BR')}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/orcamentos/${orc.id}`)}
+                          size="icon"
+                          onClick={() => navigate(`/orcamentos/${orcamento.id}`)}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="h-4 w-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(orc.id)}
+                          size="icon"
+                          onClick={() => setDeleteId(orcamento.id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir orçamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O orçamento e todos os seus itens serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
