@@ -1643,6 +1643,8 @@ export type Database = {
           markup_divisor_normal: number
           markup_divisor_vista: number
           markup_global: number
+          modo_pagamento: string
+          modo_preco: string | null
           nome: string
           status: string
           textos_institucionais: Json | null
@@ -1661,6 +1663,8 @@ export type Database = {
           markup_divisor_normal?: number
           markup_divisor_vista?: number
           markup_global?: number
+          modo_pagamento?: string
+          modo_preco?: string | null
           nome: string
           status?: string
           textos_institucionais?: Json | null
@@ -1679,6 +1683,8 @@ export type Database = {
           markup_divisor_normal?: number
           markup_divisor_vista?: number
           markup_global?: number
+          modo_pagamento?: string
+          modo_preco?: string | null
           nome?: string
           status?: string
           textos_institucionais?: Json | null
@@ -2930,6 +2936,8 @@ export const Constants = {
 //   desconto: numeric (not null, default: 0)
 //   markup_divisor_normal: numeric (not null, default: 0.35)
 //   markup_divisor_vista: numeric (not null, default: 0.40)
+//   modo_pagamento: text (not null, default: 'vista'::text)
+//   modo_preco: text (nullable, default: 'vista'::text)
 // Table: orcamentos_itens
 //   id: uuid (not null, default: gen_random_uuid())
 //   ambiente_id: uuid (not null)
