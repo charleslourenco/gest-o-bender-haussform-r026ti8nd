@@ -65,12 +65,13 @@ export default function Dashboard() {
         try {
           const targetDate = to || new Date().toISOString()
 
+          // Using head: true ensures the Supabase client performs a proper HEAD request,
+          // bypassing any body parsing attempts and avoiding 'Unexpected end of JSON input'
           const { count, error } = await supabase
             .from('contas_pagar')
-            .select('id', { count: 'exact' })
+            .select('*', { count: 'exact', head: true })
             .eq('status_pagamento', 'aguardando')
             .lte('data_vencimento', targetDate)
-            .limit(1)
 
           if (error) {
             console.warn(`[Dashboard] contas_pagar request failed:`, error)
