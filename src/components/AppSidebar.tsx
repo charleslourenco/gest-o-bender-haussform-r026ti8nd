@@ -13,7 +13,6 @@ import {
   Factory,
   Hammer,
   Package,
-  Calculator,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -33,12 +32,6 @@ import { AIAssistant } from './AIAssistant'
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Comercial', icon: Target, url: '/comercial', module: 'Comercial' },
-  {
-    title: 'Criar Orçamento',
-    icon: Calculator,
-    url: '/orcamentos',
-    module: 'Criar Orçamento',
-  },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
     title: 'Análise Técnica',
