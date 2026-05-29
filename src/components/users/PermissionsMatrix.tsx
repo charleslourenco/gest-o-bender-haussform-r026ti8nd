@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { useToast } from '@/hooks/use-toast'
 import {
   Select,
   SelectContent,
@@ -7,197 +8,327 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useToast } from '@/hooks/use-toast'
-import { AppUser } from '@/types/user'
+import { ShieldAlert, Shield, Eye, Edit2, Key } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AppUser } from '@/types/user'
 
 const MODULES = [
   'Dashboard',
   'Comercial',
-  'Criar Orçamento',
-  'Clientes',
+  'Área de Clientes',
+  'Financeiro',
   'Análise Técnica',
   'Produção',
-  'Criar Lista de Materiais',
   'Montagem',
   'Estoque & Compras',
-  'Financeiro',
   'Gestão de Pessoas',
   'Usuários',
-  'Administrativo',
 ]
 
 export function PermissionsMatrix() {
-  const [users, setUsers] = useState<AppUser[]>([])
-  const [permissions, setPermissions] = useState<Record<string, Record<string, string>>>({})
-  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [permissions, setPermissions] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+
+  const topScrollRef = useRef<HTMLDivElement>(null)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const [contentWidth, setContentWidth] = useState(0)
 
   useEffect(() => {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    const tableContainer = tableScrollRef.current
+    const table = tableContainer?.querySelector('table')
+
+    if (!tableContainer || !table) return
+
+    const updateWidth = () => {
+      setContentWidth(table.scrollWidth)
+    }
+
+    const observer = new ResizeObserver(updateWidth)
+    observer.observe(tableContainer)
+    observer.observe(table)
+
+    updateWidth()
+
+    return () => observer.disconnect()
+  }, [users, loading])
+
   const fetchData = async () => {
     setLoading(true)
     try {
-      const { data: usersData } = await supabase
+      const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('*')
         .eq('status', true)
         .order('nome')
-      const { data: permsData } = await supabase.from('matriz_permissoes').select('*')
+      if (usersError) throw usersError
 
-      const permsMap: Record<string, Record<string, string>> = {}
-      if (usersData) {
-        usersData.forEach((u) => {
-          permsMap[u.id] = {}
-          MODULES.forEach((m) => {
-            permsMap[u.id][m] = 'Sem Acesso'
-          })
-        })
-      }
+      const { data: permsData, error: permsError } = await supabase
+        .from('matriz_permissoes')
+        .select('*')
+      if (permsError) throw permsError
 
-      if (permsData) {
-        permsData.forEach((p) => {
-          if (permsMap[p.usuario_id]) {
-            permsMap[p.usuario_id][p.modulo] = p.nivel_acesso
-          }
-        })
-      }
+      setUsers(usersData as AppUser[])
 
-      setUsers(usersData || [])
+      const permsMap: Record<string, string> = {}
+      permsData.forEach((p) => {
+        permsMap[`${p.usuario_id}-${p.modulo}`] = p.nivel_acesso
+      })
       setPermissions(permsMap)
-    } catch (error) {
-      console.error(error)
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao carregar matriz',
+        description: error.message,
+        className: 'bg-steel-blue text-off-white border-none',
+      })
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePermissionChange = async (userId: string, modulo: string, nivel: string) => {
-    const previousLevel = permissions[userId]?.[modulo]
+  const updatePermission = async (userId: string, mod: string, level: string) => {
+    const key = `${userId}-${mod}`
+    const prevLevel = permissions[key] || 'Nenhum'
 
-    setPermissions((prev) => ({
-      ...prev,
-      [userId]: { ...prev[userId], [modulo]: nivel },
-    }))
+    if (prevLevel === level) return
+
+    setPermissions((prev) => ({ ...prev, [key]: level }))
 
     try {
-      const permissionsData = Object.entries({ ...permissions[userId], [modulo]: nivel })
-        .filter(([_, level]) => level !== 'Sem Acesso')
-        .map(([mod, level]) => ({ modulo: mod, nivel_acesso: level }))
+      const user = users.find((u) => u.id === userId)
+      if (user?.email === 'admin@bender.com') {
+        throw new Error('Permissões do Super Admin não podem ser alteradas.')
+      }
 
-      const { error } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'update_permissions', userId, permissionsData },
-      })
+      if (level === 'Nenhum') {
+        const { error } = await supabase
+          .from('matriz_permissoes')
+          .delete()
+          .eq('usuario_id', userId)
+          .eq('modulo', mod)
+        if (error) throw error
+      } else {
+        const { data: existing, error: findError } = await supabase
+          .from('matriz_permissoes')
+          .select('id')
+          .eq('usuario_id', userId)
+          .eq('modulo', mod)
+          .maybeSingle()
 
-      if (error) throw error
+        if (findError) throw findError
+
+        if (existing) {
+          const { error: updateError } = await supabase
+            .from('matriz_permissoes')
+            .update({ nivel_acesso: level })
+            .eq('id', existing.id)
+          if (updateError) throw updateError
+        } else {
+          const { error: insertError } = await supabase.from('matriz_permissoes').insert({
+            usuario_id: userId,
+            modulo: mod,
+            nivel_acesso: level,
+          })
+          if (insertError) throw insertError
+        }
+      }
 
       toast({
-        title: 'Permissão atualizada com sucesso',
-        className: 'bg-dark-denim text-off-white',
+        title: 'Permissão atualizada',
+        description: `${user?.nome} -> ${mod}: ${level}`,
+        className: 'bg-dark-denim text-off-white border-none',
       })
     } catch (error: any) {
-      setPermissions((prev) => ({
-        ...prev,
-        [userId]: { ...prev[userId], [modulo]: previousLevel || 'Sem Acesso' },
-      }))
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+      setPermissions((prev) => ({ ...prev, [key]: prevLevel }))
+      toast({
+        title: 'Erro ao atualizar',
+        description: error.message,
+        className: 'bg-steel-blue text-off-white border-none',
+      })
+    }
+  }
+
+  const handleTopScroll = () => {
+    if (tableScrollRef.current && topScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft
+    }
+  }
+
+  const handleTableScroll = () => {
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft
+    }
+  }
+
+  const getLevelIcon = (level: string) => {
+    switch (level) {
+      case 'Admin':
+        return <Key className="h-4 w-4 text-emerald-400" />
+      case 'Editor':
+        return <Edit2 className="h-4 w-4 text-sky-400" />
+      case 'Leitor':
+        return <Eye className="h-4 w-4 text-slate-400" />
+      default:
+        return <Shield className="h-4 w-4 text-slate-600" />
     }
   }
 
   if (loading) {
     return (
-      <div className="border border-steel-blue/20 rounded-xl bg-off-white overflow-hidden shadow-sm p-4">
-        <Skeleton className="w-full h-12 mb-4" />
-        <Skeleton className="w-full h-12 mb-4" />
-        <Skeleton className="w-full h-12 mb-4" />
-        <Skeleton className="w-full h-12 mb-4" />
+      <div className="space-y-4">
+        <Skeleton className="h-[40px] w-full bg-steel-blue/20" />
+        <Skeleton className="h-[400px] w-full bg-steel-blue/20" />
       </div>
     )
   }
 
   return (
-    <div className="border border-steel-blue/20 rounded-xl bg-off-white overflow-hidden shadow-sm overflow-x-auto">
-      <Table>
-        <TableHeader className="bg-dark-denim">
-          <TableRow className="hover:bg-transparent border-b-steel-blue/20">
-            <TableHead className="text-off-white font-semibold sticky left-0 bg-dark-denim z-10 p-4 shadow-[1px_0_0_0_rgba(255,255,255,0.1)]">
-              Módulo / Usuário
-            </TableHead>
-            {users.map((user) => (
-              <TableHead
-                key={user.id}
-                className="text-off-white font-semibold text-center whitespace-nowrap p-4"
-              >
-                {user.nome}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {MODULES.map((modulo, idx) => (
-            <TableRow
-              key={modulo}
-              className={cn(
-                'border-b-steel-blue/20 hover:bg-pale-cornflower/30 transition-colors',
-                idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/10',
-              )}
-            >
-              <TableCell className="font-medium sticky left-0 z-10 border-r border-steel-blue/20 p-4 whitespace-nowrap text-midnight-navy shadow-[1px_0_0_0_rgba(119,144,185,0.2)] bg-inherit">
-                {modulo}
-              </TableCell>
-              {users.map((user) => (
-                <TableCell key={`${modulo}-${user.id}`} className="p-3 min-w-[150px] text-center">
-                  <Select
-                    value={permissions[user.id]?.[modulo] || 'Sem Acesso'}
-                    onValueChange={(val) => handlePermissionChange(user.id, modulo, val)}
+    <div className="flex flex-col space-y-2 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2 mb-2 p-4 bg-off-white border border-steel-blue/20 rounded-xl shadow-sm">
+        <ShieldAlert className="h-6 w-6 text-steel-blue" />
+        <div>
+          <h3 className="font-bold text-midnight-navy text-lg">Matriz de Permissões</h3>
+          <p className="text-sm text-midnight-navy/70">
+            Configure os níveis de acesso de cada usuário por módulo. Alterações são salvas
+            automaticamente.
+          </p>
+        </div>
+      </div>
+
+      <div className="relative">
+        <div
+          ref={topScrollRef}
+          onScroll={handleTopScroll}
+          className="overflow-x-auto overflow-y-hidden rounded-t-xl bg-off-white/50 custom-scrollbar-top"
+          style={{ height: '12px' }}
+        >
+          <div style={{ width: contentWidth, height: '1px' }} />
+        </div>
+
+        <div
+          ref={tableScrollRef}
+          onScroll={handleTableScroll}
+          className="overflow-auto border-x border-b border-t border-steel-blue/20 rounded-b-xl bg-off-white max-h-[65vh] shadow-sm relative"
+        >
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="sticky top-0 z-30 shadow-sm bg-dark-denim">
+              <tr>
+                <th className="p-4 font-bold text-off-white bg-dark-denim sticky left-0 z-40 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.4)] whitespace-nowrap min-w-[200px] border-b border-steel-blue/40 border-r border-r-steel-blue/30">
+                  Módulos
+                </th>
+                {users.map((user) => (
+                  <th
+                    key={user.id}
+                    className="p-4 font-semibold text-off-white bg-dark-denim min-w-[180px] whitespace-nowrap border-b border-steel-blue/40"
                   >
-                    <SelectTrigger className="h-10 bg-pale-cornflower/30 border border-steel-blue/30 text-midnight-navy focus:ring-0 focus:border-dark-denim focus:border-2 transition-all">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="border-steel-blue bg-off-white">
-                      <SelectItem
-                        value="Sem Acesso"
-                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                    <div className="flex flex-col">
+                      <span className="truncate" title={user.nome}>
+                        {user.nome}
+                      </span>
+                      <span
+                        className="text-xs text-pale-cornflower font-normal truncate"
+                        title={user.email}
                       >
-                        Sem Acesso
-                      </SelectItem>
-                      <SelectItem
-                        value="Leitor"
-                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
-                      >
-                        Leitor
-                      </SelectItem>
-                      <SelectItem
-                        value="Editor"
-                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
-                      >
-                        Editor
-                      </SelectItem>
-                      <SelectItem
-                        value="Admin"
-                        className="focus:bg-pale-cornflower focus:text-midnight-navy"
-                      >
-                        Admin
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
+                        {user.email}
+                      </span>
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {MODULES.map((mod, idx) => (
+                <tr
+                  key={mod}
+                  className={cn(
+                    'transition-colors hover:bg-pale-cornflower/40 group',
+                    idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/20',
+                  )}
+                >
+                  <td className="p-4 font-semibold text-off-white bg-steel-blue sticky left-0 z-20 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.4)] whitespace-nowrap border-b border-steel-blue/20 border-r border-r-steel-blue/50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-off-white/50 group-hover:bg-off-white transition-colors" />
+                      {mod}
+                    </div>
+                  </td>
+                  {users.map((user) => {
+                    const level = permissions[`${user.id}-${mod}`] || 'Nenhum'
+                    const isAdmin = user.email === 'admin@bender.com'
+                    return (
+                      <td key={user.id} className="p-4 border-b border-steel-blue/10">
+                        <Select
+                          value={level}
+                          onValueChange={(val) => updatePermission(user.id, mod, val)}
+                          disabled={isAdmin}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              'w-full bg-off-white border-2 border-steel-blue/30 text-midnight-navy focus:ring-0 focus:border-dark-denim transition-all rounded-lg h-10',
+                              level === 'Admin' && 'border-emerald-500/50 bg-emerald-50/50',
+                              level === 'Editor' && 'border-sky-500/50 bg-sky-50/50',
+                              level === 'Leitor' && 'border-slate-400/50 bg-slate-50/50',
+                              isAdmin && 'opacity-50 cursor-not-allowed',
+                            )}
+                          >
+                            <div className="flex items-center gap-2">
+                              {getLevelIcon(level)}
+                              <SelectValue placeholder="Nenhum" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="bg-off-white border-2 border-steel-blue">
+                            <SelectItem
+                              value="Nenhum"
+                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-slate-600" />
+                                Nenhum
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="Leitor"
+                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Eye className="h-4 w-4 text-slate-400" />
+                                Leitor
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="Editor"
+                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Edit2 className="h-4 w-4 text-sky-400" />
+                                Editor
+                              </div>
+                            </SelectItem>
+                            <SelectItem
+                              value="Admin"
+                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Key className="h-4 w-4 text-emerald-400" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    )
+                  })}
+                </tr>
               ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }
