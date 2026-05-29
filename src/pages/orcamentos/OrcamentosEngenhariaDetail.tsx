@@ -1,505 +1,467 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react'
+import { OcrUploadZone } from '@/components/OcrUploadZone'
+import { Loader2, Plus, ArrowLeft, Trash2, Save } from 'lucide-react'
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function OrcamentosEngenhariaDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { toast } = useToast()
-
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [clients, setClients] = useState<any[]>([])
-
-  const [openClient, setOpenClient] = useState(false)
-  const [clientSearch, setClientSearch] = useState('')
-
+  const [orcamento, setOrcamento] = useState<any>(null)
   const [ambientes, setAmbientes] = useState<any[]>([])
 
-  const [orcamento, setOrcamento] = useState({
-    nome: '',
-    cliente_id: null as string | null,
-    cliente_nome_manual: null as string | null,
-    modo_pagamento: 'vista',
-    status: 'Rascunho',
-    desconto: 0,
-  })
+  const [isAddAmbModalOpen, setIsAddAmbModalOpen] = useState(false)
+  const [newAmbNome, setNewAmbNome] = useState('')
 
   useEffect(() => {
-    fetchData()
-  }, [id])
+    async function load() {
+      if (!id || id === 'novo') {
+        const { data: userSession } = await supabase.auth.getSession()
+        const userId = userSession.session?.user?.id
 
-  const fetchData = async () => {
-    setLoading(true)
-    try {
-      const { data: clientesData } = await supabase
-        .from('clientes')
-        .select('id, nome')
-        .order('nome')
-      if (clientesData) setClients(clientesData)
-
-      if (id && id !== 'novo') {
         const { data, error } = await supabase
           .from('orcamentos_engenharia')
-          .select('*')
-          .eq('id', id)
-          .single()
-
-        if (error) throw error
-        if (data) {
-          setOrcamento({
-            nome: data.nome || '',
-            cliente_id: data.cliente_id,
-            cliente_nome_manual: data.cliente_nome_manual,
-            modo_pagamento: data.modo_pagamento || 'vista',
-            status: data.status || 'Rascunho',
-            desconto: data.desconto || 0,
+          .insert({
+            nome: 'Novo Orçamento',
+            status: 'Rascunho',
+            cliente_nome_manual: '',
+            modo_pagamento: 'vista',
+            usuario_id: userId,
           })
-          if (data.cliente_nome_manual) {
-            setClientSearch(data.cliente_nome_manual)
-          } else if (data.cliente_id) {
-            const c = clientesData?.find((x) => x.id === data.cliente_id)
-            if (c) setClientSearch(c.nome)
-          }
-        }
-
-        const { data: ambData } = await supabase
-          .from('orcamentos_ambientes')
-          .select('*, itens:orcamentos_itens(*)')
-          .eq('orcamento_id', id)
-          .order('criado_em', { ascending: true })
-
-        if (ambData) setAmbientes(ambData)
-      }
-    } catch (e: any) {
-      toast({ title: 'Erro ao carregar', description: e.message, variant: 'destructive' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSave = async () => {
-    if (!orcamento.nome) {
-      toast({ title: 'Aviso', description: 'Preencha o nome do projeto', variant: 'destructive' })
-      return
-    }
-
-    setSaving(true)
-    try {
-      const payload = {
-        nome: orcamento.nome,
-        cliente_id: orcamento.cliente_id,
-        cliente_nome_manual: orcamento.cliente_nome_manual,
-        modo_pagamento: orcamento.modo_pagamento,
-        modo_preco: orcamento.modo_pagamento, // mantendo sincronizado
-        status: orcamento.status,
-        desconto: orcamento.desconto,
-      }
-
-      if (id && id !== 'novo') {
-        const { error } = await supabase.from('orcamentos_engenharia').update(payload).eq('id', id)
-        if (error) throw error
-        toast({ title: 'Sucesso', description: 'Orçamento atualizado!' })
-      } else {
-        const { data, error } = await supabase
-          .from('orcamentos_engenharia')
-          .insert([payload])
           .select()
           .single()
-        if (error) throw error
-        toast({ title: 'Sucesso', description: 'Orçamento criado!' })
-        navigate(`/orcamentos/${data.id}`)
-      }
-    } catch (e: any) {
-      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' })
-    } finally {
-      setSaving(false)
-    }
-  }
 
-  const addAmbiente = async () => {
-    const nome = window.prompt('Nome do Ambiente:')
-    if (!nome || !id || id === 'novo') return
+        if (error) {
+          toast.error('Erro ao criar rascunho: ' + error.message)
+          setLoading(false)
+          return
+        }
+
+        navigate(`/orcamentos/${data.id}`, { replace: true })
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('orcamentos_engenharia')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        toast.error('Orçamento não encontrado')
+        navigate('/orcamentos')
+        return
+      }
+
+      setOrcamento(data)
+      await loadAmbientes(id)
+      setLoading(false)
+    }
+    load()
+  }, [id, navigate])
+
+  async function loadAmbientes(orcId: string) {
     const { data, error } = await supabase
       .from('orcamentos_ambientes')
-      .insert({ orcamento_id: id, nome })
-      .select()
-      .single()
-    if (!error && data) {
-      setAmbientes([...ambientes, { ...data, itens: [] }])
+      .select('*, orcamentos_itens(*)')
+      .eq('orcamento_id', orcId)
+      .order('criado_em', { ascending: true })
+
+    if (data && !error) {
+      setAmbientes(data)
     }
   }
 
-  const deleteAmbiente = async (ambId: string) => {
-    if (!window.confirm('Tem certeza?')) return
-    await supabase.from('orcamentos_ambientes').delete().eq('id', ambId)
-    setAmbientes(ambientes.filter((a) => a.id !== ambId))
+  async function handleSave() {
+    setSaving(true)
+    const { error } = await supabase
+      .from('orcamentos_engenharia')
+      .update({
+        nome: orcamento.nome,
+        cliente_nome_manual: orcamento.cliente_nome_manual,
+        modo_pagamento: orcamento.modo_pagamento,
+        markup_divisor_vista: orcamento.markup_divisor_vista,
+        markup_divisor_normal: orcamento.markup_divisor_normal,
+      })
+      .eq('id', orcamento.id)
+
+    setSaving(false)
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message)
+    } else {
+      toast.success('Orçamento salvo com sucesso')
+    }
   }
 
-  const addItem = async (ambienteId: string) => {
-    const nome = window.prompt('Nome do Item:')
-    if (!nome) return
-    const { data, error } = await supabase
-      .from('orcamentos_itens')
+  async function handleOcrSuccess(data: any, fileUrl: string) {
+    if (!orcamento) return
+
+    const ambName = data.ambiente || 'Ambiente Importado'
+    const { data: newAmb, error: ambError } = await supabase
+      .from('orcamentos_ambientes')
       .insert({
-        ambiente_id: ambienteId,
-        nome_item: nome,
-        quantidade: 1,
-        custo_unitario: 0,
-        unidade_medida: 'un',
-        markup_manual: false,
+        orcamento_id: orcamento.id,
+        nome: ambName,
+        descricao_comercial: data.descricao || '',
       })
       .select()
       .single()
 
-    if (!error && data) {
-      setAmbientes(
-        ambientes.map((a) =>
-          a.id === ambienteId ? { ...a, itens: [...(a.itens || []), data] } : a,
-        ),
-      )
+    if (ambError) {
+      toast.error('Erro ao criar ambiente do OCR: ' + ambError.message)
+      return
+    }
+
+    if (data.itens && data.itens.length > 0) {
+      const itensToInsert = data.itens.map((it: any) => ({
+        ambiente_id: newAmb.id,
+        nome_item: it.nome_item || 'Item sem nome',
+        quantidade: it.quantidade || 1,
+        custo_unitario: it.custo_unitario || 0,
+        unidade_medida: 'un',
+        markup:
+          orcamento.modo_pagamento === 'vista'
+            ? orcamento.markup_divisor_vista
+            : orcamento.markup_divisor_normal,
+        markup_manual: false,
+      }))
+
+      const { error: itemsError } = await supabase.from('orcamentos_itens').insert(itensToInsert)
+      if (itemsError) {
+        toast.error('Erro ao inserir itens do OCR')
+      } else {
+        toast.success(`Foram importados ${itensToInsert.length} itens para o ambiente ${ambName}`)
+      }
+    }
+
+    if (data.cliente && !orcamento.cliente_nome_manual) {
+      setOrcamento((prev: any) => ({ ...prev, cliente_nome_manual: data.cliente }))
+      await supabase
+        .from('orcamentos_engenharia')
+        .update({ cliente_nome_manual: data.cliente })
+        .eq('id', orcamento.id)
+    }
+
+    await loadAmbientes(orcamento.id)
+  }
+
+  async function handleAddAmbiente() {
+    if (!newAmbNome.trim()) return
+    const { error } = await supabase.from('orcamentos_ambientes').insert({
+      orcamento_id: orcamento.id,
+      nome: newAmbNome,
+    })
+
+    if (error) {
+      toast.error('Erro ao criar ambiente')
+    } else {
+      toast.success('Ambiente criado!')
+      setNewAmbNome('')
+      setIsAddAmbModalOpen(false)
+      await loadAmbientes(orcamento.id)
     }
   }
 
-  const updateItem = async (ambienteId: string, itemId: string, field: string, value: any) => {
-    await supabase
-      .from('orcamentos_itens')
-      .update({ [field]: value })
-      .eq('id', itemId)
-    setAmbientes(
-      ambientes.map((a) => {
-        if (a.id === ambienteId) {
-          return {
-            ...a,
-            itens: a.itens.map((i: any) => (i.id === itemId ? { ...i, [field]: value } : i)),
-          }
-        }
-        return a
-      }),
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
     )
   }
-
-  const deleteItem = async (ambienteId: string, itemId: string) => {
-    await supabase.from('orcamentos_itens').delete().eq('id', itemId)
-    setAmbientes(
-      ambientes.map((a) => {
-        if (a.id === ambienteId) {
-          return { ...a, itens: a.itens.filter((i: any) => i.id !== itemId) }
-        }
-        return a
-      }),
-    )
-  }
-
-  const getClientDisplay = () => {
-    if (orcamento.cliente_id) {
-      const c = clients.find((x) => x.id === orcamento.cliente_id)
-      return c ? c.nome : 'Cliente Desconhecido'
-    }
-    if (orcamento.cliente_nome_manual) {
-      return orcamento.cliente_nome_manual
-    }
-    return 'Selecione ou digite um cliente...'
-  }
-
-  if (loading) return <div className="p-6 text-center text-gray-500">Carregando...</div>
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col h-full bg-gray-50/50 overflow-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
           <Button variant="outline" size="icon" onClick={() => navigate('/orcamentos')}>
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {id === 'novo' ? 'Novo Orçamento' : 'Editar Orçamento'}
-            </h1>
-            <p className="text-gray-500 mt-1">Detalhes do projeto e precificação</p>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Detalhes do Orçamento</h1>
         </div>
-        <Button onClick={handleSave} disabled={saving} size="lg">
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? 'Salvando...' : 'Salvar Orçamento'}
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Salvar
         </Button>
       </div>
 
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Informações Principais</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Nome do Projeto / Orçamento</Label>
-              <Input
-                value={orcamento.nome}
-                onChange={(e) => setOrcamento({ ...orcamento, nome: e.target.value })}
-                placeholder="Ex: Cozinha Planejada Silva"
-                className="h-11 bg-gray-50"
-              />
-            </div>
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="bg-white border shadow-sm">
+          <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="ambientes">Ambientes e Itens</TabsTrigger>
+          <TabsTrigger value="importacao">Importação (OCR)</TabsTrigger>
+          <TabsTrigger value="markup">Configuração de Markup</TabsTrigger>
+        </TabsList>
 
-            <div className="space-y-2 flex flex-col">
-              <Label className="text-sm font-semibold">Cliente</Label>
-              <Popover open={openClient} onOpenChange={setOpenClient}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={openClient}
-                    className="w-full justify-between font-normal h-11 bg-gray-50 hover:bg-gray-100"
+        <TabsContent value="geral" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Principais</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome do Orçamento</Label>
+                  <Input
+                    value={orcamento?.nome || ''}
+                    onChange={(e) => setOrcamento({ ...orcamento, nome: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nome do Cliente/Projeto</Label>
+                  <Input
+                    value={orcamento?.cliente_nome_manual || ''}
+                    onChange={(e) =>
+                      setOrcamento({ ...orcamento, cliente_nome_manual: e.target.value })
+                    }
+                    placeholder="Digite o nome do cliente ou projeto..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Modo de Pagamento</Label>
+                  <Select
+                    value={orcamento?.modo_pagamento || 'vista'}
+                    onValueChange={(val) => setOrcamento({ ...orcamento, modo_pagamento: val })}
                   >
-                    <span className="truncate">{getClientDisplay()}</span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <Command>
-                    <CommandInput
-                      placeholder="Buscar ou adicionar cliente..."
-                      value={clientSearch}
-                      onValueChange={setClientSearch}
-                    />
-                    <CommandList>
-                      <CommandEmpty>
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start font-normal rounded-none h-12 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => {
-                            setOrcamento({
-                              ...orcamento,
-                              cliente_id: null,
-                              cliente_nome_manual: clientSearch,
-                            })
-                            setOpenClient(false)
-                          }}
-                        >
-                          <Plus className="w-4 h-4 mr-2" /> Adicionar "{clientSearch}"
-                        </Button>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((c) => (
-                          <CommandItem
-                            key={c.id}
-                            onSelect={() => {
-                              setOrcamento({
-                                ...orcamento,
-                                cliente_id: c.id,
-                                cliente_nome_manual: null,
-                              })
-                              setClientSearch('')
-                              setOpenClient(false)
-                            }}
-                          >
-                            {c.nome}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-3 md:col-span-2 bg-gray-50/50 p-5 rounded-xl border border-gray-100">
-              <Label className="text-sm font-semibold">
-                Modo de Preço (Baseado na Configuração Global)
-              </Label>
-              <ToggleGroup
-                type="single"
-                value={orcamento.modo_pagamento}
-                onValueChange={(v) => {
-                  if (v) setOrcamento({ ...orcamento, modo_pagamento: v })
-                }}
-                className="justify-start bg-gray-200/50 p-1.5 rounded-lg w-fit"
-              >
-                <ToggleGroupItem
-                  value="vista"
-                  className="data-[state=on]:bg-white data-[state=on]:shadow-sm px-8 py-2 font-medium"
-                >
-                  À Vista
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="prazo"
-                  className="data-[state=on]:bg-white data-[state=on]:shadow-sm px-8 py-2 font-medium"
-                >
-                  A Prazo
-                </ToggleGroupItem>
-              </ToggleGroup>
-              <p className="text-xs text-gray-500">
-                A tabela de markup utilizada será definida de acordo com o modo selecionado acima.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Desconto Final (R$)</Label>
-              <Input
-                type="number"
-                value={orcamento.desconto}
-                onChange={(e) =>
-                  setOrcamento({ ...orcamento, desconto: parseFloat(e.target.value) || 0 })
-                }
-                className="h-11 bg-gray-50"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Status do Orçamento</Label>
-              <select
-                className="flex h-11 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={orcamento.status}
-                onChange={(e) => setOrcamento({ ...orcamento, status: e.target.value })}
-              >
-                <option value="Rascunho">Rascunho</option>
-                <option value="Enviado">Enviado</option>
-                <option value="Aprovado">Aprovado</option>
-                <option value="Rejeitado">Rejeitado</option>
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {id !== 'novo' && (
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Ambientes e Itens</CardTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Gerencie os ambientes e adicione materiais para compor o custo.
-              </p>
-            </div>
-            <Button onClick={addAmbiente} variant="outline" className="bg-white">
-              <Plus className="w-4 h-4 mr-2" /> Novo Ambiente
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {ambientes.length === 0 ? (
-              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-12 text-center text-gray-500">
-                Nenhum ambiente adicionado ainda.
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vista">À Vista</SelectItem>
+                      <SelectItem value="prazo">A Prazo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            ) : (
-              ambientes.map((amb) => (
-                <div
-                  key={amb.id}
-                  className="border border-gray-200 rounded-xl overflow-hidden shadow-sm"
-                >
-                  <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-                    <h3 className="font-bold text-gray-800">{amb.nome}</h3>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="hover:bg-gray-200/50"
-                        onClick={() => addItem(amb.id)}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Item
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => deleteAmbiente(amb.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="p-4 space-y-3 bg-white">
-                    {amb.itens?.length === 0 ? (
-                      <p className="text-sm text-gray-500 text-center py-2">
-                        Nenhum item neste ambiente.
-                      </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ambientes" className="mt-4 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Ambientes</h2>
+            <Button onClick={() => setIsAddAmbModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Ambiente
+            </Button>
+          </div>
+
+          {ambientes.length === 0 ? (
+            <div className="bg-white p-8 text-center rounded-xl border border-dashed text-gray-500">
+              Nenhum ambiente adicionado. Clique no botão acima para adicionar ou use a Importação
+              via OCR.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {ambientes.map((amb) => (
+                <Card key={amb.id}>
+                  <CardHeader className="py-4 border-b bg-gray-50 flex flex-row items-center justify-between">
+                    <CardTitle className="text-md">{amb.nome}</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500"
+                      onClick={async () => {
+                        await supabase.from('orcamentos_ambientes').delete().eq('id', amb.id)
+                        loadAmbientes(orcamento.id)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {amb.orcamentos_itens?.length > 0 ? (
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 text-gray-500">
+                          <tr>
+                            <th className="px-4 py-2 text-left">Item</th>
+                            <th className="px-4 py-2 text-right">Qtd</th>
+                            <th className="px-4 py-2 text-right">Custo Un.</th>
+                            <th className="px-4 py-2 text-right">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {amb.orcamentos_itens.map((it: any) => (
+                            <tr key={it.id}>
+                              <td className="px-4 py-3">{it.nome_item}</td>
+                              <td className="px-4 py-3 text-right">{it.quantidade}</td>
+                              <td className="px-4 py-3 text-right">
+                                {new Intl.NumberFormat('pt-BR', {
+                                  style: 'currency',
+                                  currency: 'BRL',
+                                }).format(it.custo_unitario)}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500"
+                                  onClick={async () => {
+                                    await supabase.from('orcamentos_itens').delete().eq('id', it.id)
+                                    loadAmbientes(orcamento.id)
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     ) : (
-                      <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 mb-2 px-2 uppercase tracking-wider">
-                        <div className="col-span-5">Item</div>
-                        <div className="col-span-2">Qtd</div>
-                        <div className="col-span-2">Un.</div>
-                        <div className="col-span-2">Custo Un.</div>
-                        <div className="col-span-1"></div>
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        Sem itens neste ambiente.
                       </div>
                     )}
-                    {amb.itens?.map((it: any) => (
-                      <div
-                        key={it.id}
-                        className="grid grid-cols-12 gap-2 items-center bg-gray-50/50 p-2 rounded-lg border shadow-sm"
+                    <div className="p-4 border-t bg-gray-50 flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const nome = window.prompt('Nome do Item:')
+                          if (nome) {
+                            supabase
+                              .from('orcamentos_itens')
+                              .insert({
+                                ambiente_id: amb.id,
+                                nome_item: nome,
+                                quantidade: 1,
+                                custo_unitario: 0,
+                                unidade_medida: 'un',
+                                markup:
+                                  orcamento.modo_pagamento === 'vista'
+                                    ? orcamento.markup_divisor_vista
+                                    : orcamento.markup_divisor_normal,
+                                markup_manual: false,
+                              })
+                              .then(() => loadAmbientes(orcamento.id))
+                          }
+                        }}
                       >
-                        <div className="col-span-5">
-                          <Input
-                            className="h-9 bg-white"
-                            value={it.nome_item}
-                            onChange={(e) => updateItem(amb.id, it.id, 'nome_item', e.target.value)}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <Input
-                            className="h-9 bg-white"
-                            type="number"
-                            value={it.quantidade}
-                            onChange={(e) =>
-                              updateItem(amb.id, it.id, 'quantidade', parseFloat(e.target.value))
-                            }
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <Input
-                            className="h-9 bg-white"
-                            value={it.unidade_medida}
-                            onChange={(e) =>
-                              updateItem(amb.id, it.id, 'unidade_medida', e.target.value)
-                            }
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <Input
-                            className="h-9 bg-white"
-                            type="number"
-                            value={it.custo_unitario}
-                            onChange={(e) =>
-                              updateItem(
-                                amb.id,
-                                it.id,
-                                'custo_unitario',
-                                parseFloat(e.target.value),
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="col-span-1 flex justify-end">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-9 w-9 text-red-500 hover:bg-red-50"
-                            onClick={() => deleteItem(amb.id, it.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Item Manual
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="importacao" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Importar Orçamento / Lista (OCR)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OcrUploadZone
+                onSuccess={handleOcrSuccess}
+                label="Arraste seu PDF ou imagem do projeto"
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="markup" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuração de Markup</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Markup À Vista (Divisor)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={orcamento?.markup_divisor_vista || 0}
+                    onChange={(e) =>
+                      setOrcamento({
+                        ...orcamento,
+                        markup_divisor_vista: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-gray-500">Ex: 0.40</p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
+                <div className="space-y-2">
+                  <Label>Markup A Prazo (Divisor)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={orcamento?.markup_divisor_normal || 0}
+                    onChange={(e) =>
+                      setOrcamento({
+                        ...orcamento,
+                        markup_divisor_normal: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                  <p className="text-xs text-gray-500">Ex: 0.35</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isAddAmbModalOpen} onOpenChange={setIsAddAmbModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Novo Ambiente</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome do Ambiente</Label>
+              <Input
+                value={newAmbNome}
+                onChange={(e) => setNewAmbNome(e.target.value)}
+                placeholder="Ex: Cozinha, Quarto Casal..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleAddAmbiente()
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddAmbModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddAmbiente}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
