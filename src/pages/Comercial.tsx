@@ -1,13 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { KanbanBoard } from '@/components/comercial/KanbanBoard'
 import { ComercialList } from '@/components/comercial/ComercialList'
 import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { supabase } from '@/lib/supabase/client'
 import { TrendingUp, LayoutDashboard, List as ListIcon, BarChart3 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { cn } from '@/lib/utils'
 
 export default function Comercial() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+
+  // Refs for dual scrollbar sync
+  const topScrollRef = useRef<HTMLDivElement>(null)
+  const kanbanWrapperRef = useRef<HTMLDivElement>(null)
+  const [scrollInfo, setScrollInfo] = useState({ scrollWidth: 0, clientWidth: 0 })
 
   useEffect(() => {
     const check = async () => {
@@ -29,6 +35,115 @@ export default function Comercial() {
     }
     check()
   }, [])
+
+  useEffect(() => {
+    if (!hasPermission || !kanbanWrapperRef.current || !topScrollRef.current) return
+
+    let targetScrollEl: HTMLElement | null = null
+    let isSyncingTop = false
+    let isSyncingBottom = false
+    let resizeObs: ResizeObserver | null = null
+    let findTimeout: ReturnType<typeof setTimeout>
+
+    const updateScrollInfo = (el: HTMLElement) => {
+      setScrollInfo((prev) => {
+        if (prev.scrollWidth !== el.scrollWidth || prev.clientWidth !== el.clientWidth) {
+          return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
+        }
+        return prev
+      })
+    }
+
+    const findScrollable = () => {
+      if (!kanbanWrapperRef.current) return
+
+      const elements = Array.from(kanbanWrapperRef.current.querySelectorAll('*')) as HTMLElement[]
+      let bestEl: HTMLElement | null = null
+      let maxScroll = 0
+
+      for (const el of elements) {
+        const style = window.getComputedStyle(el)
+        if (
+          el.scrollWidth > el.clientWidth &&
+          (style.overflowX === 'auto' ||
+            style.overflowX === 'scroll' ||
+            style.overflowX === 'overlay')
+        ) {
+          if (el.scrollWidth > maxScroll) {
+            maxScroll = el.scrollWidth
+            bestEl = el
+          }
+        }
+      }
+
+      if (bestEl && bestEl !== targetScrollEl) {
+        targetScrollEl = bestEl
+        updateScrollInfo(bestEl)
+
+        if (resizeObs) resizeObs.disconnect()
+        resizeObs = new ResizeObserver(() => {
+          if (targetScrollEl) updateScrollInfo(targetScrollEl)
+        })
+        resizeObs.observe(bestEl)
+        Array.from(bestEl.children).forEach((child) => resizeObs?.observe(child))
+      } else if (targetScrollEl) {
+        updateScrollInfo(targetScrollEl)
+      }
+    }
+
+    const onBottomScroll = (e: Event) => {
+      const target = e.target as HTMLElement
+      if (target.scrollWidth > target.clientWidth) {
+        if (target !== targetScrollEl) {
+          targetScrollEl = target
+          updateScrollInfo(target)
+        }
+
+        if (!isSyncingTop && topScrollRef.current) {
+          isSyncingBottom = true
+          topScrollRef.current.scrollLeft = target.scrollLeft
+          requestAnimationFrame(() => {
+            isSyncingBottom = false
+          })
+        }
+      }
+    }
+
+    const onTopScroll = () => {
+      if (!isSyncingBottom && targetScrollEl && topScrollRef.current) {
+        isSyncingTop = true
+        targetScrollEl.scrollLeft = topScrollRef.current.scrollLeft
+        requestAnimationFrame(() => {
+          isSyncingTop = false
+        })
+      }
+    }
+
+    kanbanWrapperRef.current.addEventListener('scroll', onBottomScroll, true)
+    topScrollRef.current.addEventListener('scroll', onTopScroll, { passive: true })
+
+    const observer = new MutationObserver(() => {
+      clearTimeout(findTimeout)
+      findTimeout = setTimeout(findScrollable, 200)
+    })
+    observer.observe(kanbanWrapperRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    })
+
+    setTimeout(findScrollable, 100)
+    setTimeout(findScrollable, 500)
+    setTimeout(findScrollable, 1500)
+
+    return () => {
+      clearTimeout(findTimeout)
+      kanbanWrapperRef.current?.removeEventListener('scroll', onBottomScroll, true)
+      topScrollRef.current?.removeEventListener('scroll', onTopScroll)
+      observer.disconnect()
+      if (resizeObs) resizeObs.disconnect()
+    }
+  }, [hasPermission])
 
   if (hasPermission === null) {
     return (
@@ -100,9 +215,22 @@ export default function Comercial() {
 
         <TabsContent
           value="kanban"
-          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
         >
-          <KanbanBoard />
+          <div
+            ref={topScrollRef}
+            className={cn(
+              'overflow-x-auto overflow-y-hidden shrink-0',
+              '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-colors',
+              scrollInfo.scrollWidth > scrollInfo.clientWidth + 2 ? 'block mb-2' : 'hidden',
+            )}
+          >
+            <div style={{ width: scrollInfo.scrollWidth, height: '1px' }} />
+          </div>
+
+          <div ref={kanbanWrapperRef} className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <KanbanBoard />
+          </div>
         </TabsContent>
 
         <TabsContent
