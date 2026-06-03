@@ -4,7 +4,7 @@
     "admin-users": 8,
     "gerar-dossie": 16,
     "gerar_documento_cliente": 45,
-    "send-signature-email": 5,
+    "send-signature-email": 6,
     "finalize-signature-document": 12,
     "whatsapp-webhook": 29,
     "assistant-intelligence": 11,

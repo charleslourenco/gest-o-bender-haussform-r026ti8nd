@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Bender Haussform <projetos@benderhaussform.com>',
+        from: 'projetos@benderhaussform.com',
         to: [to],
         subject: `Assinatura Pendente: ${documento_nome}`,
         text: `Olá, ${nome}. Você foi convidado para assinar o documento ${documento_nome}. Seu código de verificação é: ${codigo}. Copie este código de 4 dígitos e cole no campo indicado na tela de assinatura. Acesse o link para assinar: ${link}`,
