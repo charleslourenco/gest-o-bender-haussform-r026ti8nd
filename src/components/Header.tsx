@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { UserProfileDialog } from './UserProfileDialog'
+import { SolicitarCompraDialog } from './SolicitarCompraDialog'
 
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
@@ -192,6 +193,8 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
+        <SolicitarCompraDialog />
+
         <Popover>
           <PopoverTrigger asChild>
             <Button
