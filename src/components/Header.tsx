@@ -27,8 +27,10 @@ export function Header() {
   const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
-  const { user, signOut } = useAuth()
+  const { user, signOut, permissions } = useAuth()
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
+
+  const hasFinanceAccess = !!permissions['Financeiro'] || !!permissions['Administrativo']
 
   useEffect(() => {
     const fetchEmpresa = async () => {
@@ -89,6 +91,10 @@ export function Header() {
   }, [user?.id])
 
   useEffect(() => {
+    if (!hasFinanceAccess) {
+      setTotalAlerts(0)
+      return
+    }
     const fetchAlerts = async () => {
       const today = new Date().toISOString().split('T')[0]
       const { count } = await supabase
@@ -101,7 +107,18 @@ export function Header() {
     }
 
     fetchAlerts()
-  }, [])
+
+    const channel = supabase
+      .channel('contas_pagar_alerts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'contas_pagar' }, () =>
+        fetchAlerts(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [hasFinanceAccess])
 
   useEffect(() => {
     if (!user?.id) return
@@ -225,12 +242,24 @@ export function Header() {
               )}
             </div>
             <ScrollArea className="h-80">
-              {notificacoes.length === 0 ? (
+              {notificacoes.length === 0 && totalAlerts === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
                   Nenhuma notificação no momento.
                 </div>
               ) : (
                 <div className="flex flex-col">
+                  {totalAlerts > 0 && (
+                    <div className="flex items-start gap-3 p-4 border-b bg-destructive/10">
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none text-destructive">
+                          Alerta Financeiro
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Você possui {totalAlerts} conta(s) a pagar vencendo hoje ou atrasada(s).
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {notificacoes.map((n) => (
                     <div
                       key={n.id}

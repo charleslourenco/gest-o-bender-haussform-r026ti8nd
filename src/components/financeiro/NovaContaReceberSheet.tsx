@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import {
   Select,
   SelectContent,
@@ -133,14 +134,11 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$)</Label>
-              <Input
+              <CurrencyInput
                 required
-                type="number"
-                step="0.01"
-                min="0"
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                placeholder="0.00"
+                onValueChange={(val) => setValor(val ? val.toString() : '')}
+                placeholder="R$ 0,00"
               />
             </div>
             <div className="space-y-2">

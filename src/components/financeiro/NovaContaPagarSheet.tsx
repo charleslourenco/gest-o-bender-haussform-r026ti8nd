@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { CurrencyInput } from '@/components/ui/currency-input'
 
 export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
   const [open, setOpen] = useState(false)
@@ -103,14 +104,12 @@ export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="valor">Valor (R$)</Label>
-            <Input
+            <CurrencyInput
               id="valor"
-              type="number"
-              step="0.01"
               required
               value={valor}
-              onChange={(e) => setValor(e.target.value)}
-              placeholder="0.00"
+              onValueChange={(val) => setValor(val ? val.toString() : '')}
+              placeholder="R$ 0,00"
             />
           </div>
           <div className="space-y-2">

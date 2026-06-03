@@ -1,82 +1,128 @@
-import { useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { useState, useEffect } from 'react'
+import { ShoppingBag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { ShoppingBag } from 'lucide-react'
-import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export function SolicitarCompraDialog() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
+  const [pendingCount, setPendingCount] = useState(0)
   const { toast } = useToast()
+  const { user } = useAuth()
 
-  const [formData, setFormData] = useState({
-    nome_item: '',
-    quantidade: 1,
-    unidade: 'un',
-    urgencia: 'Média',
-    motivo: '',
-  })
+  const [nomeItem, setNomeItem] = useState('')
+  const [quantidade, setQuantidade] = useState('1')
+  const [unidade, setUnidade] = useState('un')
+  const [urgencia, setUrgencia] = useState('Média')
+  const [motivo, setMotivo] = useState('')
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      const { count } = await supabase
+        .from('solicitacoes_compra')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Pendente')
+
+      setPendingCount(count || 0)
+    }
+
+    fetchPending()
+
+    const channel = supabase
+      .channel('solicitacoes_compra_badge')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_compra' },
+        () => {
+          fetchPending()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
     setLoading(true)
-    const { error } = await supabase.from('solicitacoes_compra').insert({
-      ...formData,
-      usuario_id: user.id,
-      status: 'Pendente',
-    })
-    setLoading(false)
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
-    } else {
-      toast({ title: 'Sucesso', description: 'Solicitação de compra enviada com sucesso.' })
-      setOpen(false)
-      setFormData({
-        nome_item: '',
-        quantidade: 1,
-        unidade: 'un',
-        urgencia: 'Média',
-        motivo: '',
+    try {
+      const { error } = await supabase.from('solicitacoes_compra').insert({
+        usuario_id: user.id,
+        nome_item: nomeItem,
+        quantidade: Number(quantidade),
+        unidade,
+        urgencia,
+        motivo,
+        status: 'Pendente',
       })
+      if (error) throw error
+      toast({ title: 'Sucesso', description: 'Solicitação de compra enviada.' })
+      setOpen(false)
+      setNomeItem('')
+      setQuantidade('1')
+      setMotivo('')
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="relative text-muted-foreground hover:text-foreground hover:bg-muted"
-          title="Solicitar Compra"
+          title="Solicitações de Compra"
         >
           <ShoppingBag className="h-5 w-5" />
+          {pendingCount > 0 && (
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 rounded-full bg-blue-600 text-white text-[10px] border-none">
+              {pendingCount}
+            </Badge>
+          )}
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Solicitar Compra de Material</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      </SheetTrigger>
+      <SheetContent className="overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Solicitar Compra</SheetTitle>
+          <SheetDescription>
+            Preencha os dados do material que precisa ser comprado para notificar o setor de
+            compras.
+          </SheetDescription>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
           <div className="space-y-2">
-            <Label>Item</Label>
+            <Label>Nome do Item</Label>
             <Input
               required
-              value={formData.nome_item}
-              onChange={(e) => setFormData({ ...formData, nome_item: e.target.value })}
+              value={nomeItem}
+              onChange={(e) => setNomeItem(e.target.value)}
               placeholder="Ex: Dobradiça com amortecedor"
             />
           </div>
@@ -85,48 +131,60 @@ export function SolicitarCompraDialog() {
               <Label>Quantidade</Label>
               <Input
                 type="number"
+                required
                 min="0.01"
                 step="0.01"
-                required
-                value={formData.quantidade}
-                onChange={(e) => setFormData({ ...formData, quantidade: Number(e.target.value) })}
+                value={quantidade}
+                onChange={(e) => setQuantidade(e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label>Unidade</Label>
-              <Input
-                required
-                value={formData.unidade}
-                onChange={(e) => setFormData({ ...formData, unidade: e.target.value })}
-                placeholder="Ex: un, m, cx"
-              />
+              <Select value={unidade} onValueChange={setUnidade}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="un">Unidade (un)</SelectItem>
+                  <SelectItem value="m">Metros (m)</SelectItem>
+                  <SelectItem value="m²">Metros Quadrados (m²)</SelectItem>
+                  <SelectItem value="kg">Quilos (kg)</SelectItem>
+                  <SelectItem value="litro">Litros (l)</SelectItem>
+                  <SelectItem value="caixa">Caixa (cx)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="space-y-2">
             <Label>Urgência</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={formData.urgencia}
-              onChange={(e) => setFormData({ ...formData, urgencia: e.target.value })}
-            >
-              <option value="Baixa">Baixa</option>
-              <option value="Média">Média</option>
-              <option value="Alta">Alta</option>
-            </select>
+            <Select value={urgencia} onValueChange={setUrgencia}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Baixa">Baixa</SelectItem>
+                <SelectItem value="Média">Média</SelectItem>
+                <SelectItem value="Alta">Alta</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
-            <Label>Motivo / Observação</Label>
-            <Textarea
-              value={formData.motivo}
-              onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-              placeholder="Para qual projeto ou qual a necessidade?"
+            <Label>Motivo / Observações</Label>
+            <Input
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value)}
+              placeholder="Ex: Para o projeto do cliente Silva"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={loading}
+          >
             {loading ? 'Enviando...' : 'Enviar Solicitação'}
           </Button>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

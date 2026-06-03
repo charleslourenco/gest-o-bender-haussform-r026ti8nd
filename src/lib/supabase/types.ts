@@ -3293,6 +3293,8 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: notificacoes
+//   Policy "Enable delete for own notifications" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (usuario_id = auth.uid())
 //   Policy "Enable insert for system or admins" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: true
 //   Policy "Enable read access for own notifications" (SELECT, PERMISSIVE) roles={authenticated}
