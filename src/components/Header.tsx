@@ -25,14 +25,11 @@ import { SolicitarCompraDialog } from './SolicitarCompraDialog'
 
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
-  const [totalAlerts, setTotalAlerts] = useState(0)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const { notificacoes, unreadCount: unreadNotifs, markAsRead, markAllAsRead } = useNotifications()
 
-  const { user, signOut, permissions } = useAuth()
+  const { user, signOut } = useAuth()
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
-
-  const hasFinanceAccess = !!permissions['Financeiro'] || !!permissions['Administrativo']
 
   useEffect(() => {
     const fetchEmpresa = async () => {
@@ -92,43 +89,13 @@ export function Header() {
     }
   }, [user?.id])
 
-  useEffect(() => {
-    if (!hasFinanceAccess) {
-      setTotalAlerts(0)
-      return
-    }
-    const fetchAlerts = async () => {
-      const today = new Date().toISOString().split('T')[0]
-      const { count } = await supabase
-        .from('contas_pagar')
-        .select('*', { count: 'exact', head: true })
-        .eq('status_pagamento', 'aguardando')
-        .lte('data_vencimento', today)
-
-      setTotalAlerts(count || 0)
-    }
-
-    fetchAlerts()
-
-    const channel = supabase
-      .channel('contas_pagar_alerts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'contas_pagar' }, () =>
-        fetchAlerts(),
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [hasFinanceAccess])
-
   const userInitials = user?.user_metadata?.nome
     ? user.user_metadata.nome.substring(0, 2).toUpperCase()
     : user?.email?.substring(0, 2).toUpperCase() || 'US'
 
   const userName = user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Usuário'
 
-  const totalBadgeCount = totalAlerts + unreadNotifs
+  const totalBadgeCount = unreadNotifs
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-card px-4 shadow-sm">
@@ -184,24 +151,12 @@ export function Header() {
               )}
             </div>
             <ScrollArea className="h-80">
-              {notificacoes.length === 0 && totalAlerts === 0 ? (
+              {notificacoes.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  Nenhuma notificacao no momento
+                  Nenhuma notificação no momento
                 </div>
               ) : (
                 <div className="flex flex-col">
-                  {totalAlerts > 0 && (
-                    <div className="flex items-start gap-3 p-4 border-b bg-destructive/10">
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium leading-none text-destructive">
-                          Alerta Financeiro
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Você possui {totalAlerts} conta(s) a pagar vencendo hoje ou atrasada(s).
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   {notificacoes.map((n) => (
                     <div
                       key={n.id}
