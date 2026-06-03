@@ -65,13 +65,15 @@ export default function Dashboard() {
         try {
           const targetDate = to || new Date().toISOString()
 
-          // Using head: true ensures the Supabase client performs a proper HEAD request,
-          // bypassing any body parsing attempts and avoiding 'Unexpected end of JSON input'
+          // Avoiding head: true as it can cause 'Unexpected end of JSON input' errors
+          // in some fetch implementations when trying to parse an empty body.
+          // Using limit(1) fetches a minimal payload while still getting the exact count.
           const { count, error } = await supabase
             .from('contas_pagar')
-            .select('*', { count: 'exact', head: true })
+            .select('id', { count: 'exact' })
             .eq('status_pagamento', 'aguardando')
             .lte('data_vencimento', targetDate)
+            .limit(1)
 
           if (error) {
             console.warn(`[Dashboard] contas_pagar request failed:`, error)
