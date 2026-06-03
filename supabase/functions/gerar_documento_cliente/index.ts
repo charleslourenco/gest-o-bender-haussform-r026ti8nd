@@ -1,6 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
+import { marked } from 'npm:marked@12.0.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -205,8 +206,34 @@ Deno.serve(async (req: Request) => {
         conteudoFinal = conteudoFinal.split(key).join(replacement)
       }
 
+      // Markdown Support: parse to HTML
+      const htmlContent = await marked.parse(conteudoFinal)
+
+      // HTML Boilerplate & CSS Injection
+      const htmlWrapper = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      text-align: justify;
+      line-height: 1.5;
+      margin: 2cm;
+      padding: 0;
+    }
+    h1, h2, h3, h4, h5, h6, .clause-title {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`
+
       const cidadeForFooter = safeForm.municipio || cli.cidade || 'Balneário Piçarras'
-      const pdfBytes = await generatePdfFromText(conteudoFinal, cidadeForFooter, logoBytes)
+      const pdfBytes = await generatePdfFromText(htmlWrapper, cidadeForFooter, logoBytes)
 
       const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
       const fileName = `${safeNome}_${Date.now()}.pdf`
@@ -255,8 +282,34 @@ Deno.serve(async (req: Request) => {
         .update({ conteudo_preenchido: conteudo_editado })
         .eq('id', documento_id)
 
+      // Markdown Support: parse to HTML
+      const htmlContent = await marked.parse(conteudo_editado)
+
+      // HTML Boilerplate & CSS Injection
+      const htmlWrapper = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      text-align: justify;
+      line-height: 1.5;
+      margin: 2cm;
+      padding: 0;
+    }
+    h1, h2, h3, h4, h5, h6, .clause-title {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+${htmlContent}
+</body>
+</html>`
+
       const cidadeForFooter = doc.clientes?.cidade || 'Balneário Piçarras'
-      const pdfBytes = await generatePdfFromText(conteudo_editado, cidadeForFooter, logoBytes)
+      const pdfBytes = await generatePdfFromText(htmlWrapper, cidadeForFooter, logoBytes)
 
       const { error: uploadError } = await supabase.storage
         .from('bender_clientes')
@@ -286,6 +339,27 @@ Deno.serve(async (req: Request) => {
 
 async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint8Array | null) {
   let safeText = text
+
+  if (safeText.includes('<!DOCTYPE html>') || safeText.includes('<html>')) {
+    const bodyMatch = safeText.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+    if (bodyMatch) {
+      safeText = bodyMatch[1]
+    }
+    safeText = safeText.replace(/<br\s*\/?>/gi, '\n')
+    safeText = safeText.replace(/<\/p>|<\/div>|<\/h[1-6]>/gi, '\n\n')
+    safeText = safeText.replace(/<li[^>]*>/gi, '• ')
+    safeText = safeText.replace(/<\/li>/gi, '\n')
+    safeText = safeText.replace(/<[^>]+>/g, '')
+    safeText = safeText
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+    safeText = safeText.trim()
+  }
+
   const unicodeMap: Record<string, string> = {
     '“': '"',
     '”': '"',

@@ -65,19 +65,41 @@ export default function Dashboard() {
         try {
           const targetDate = to || new Date().toISOString()
 
-          // Using a standard GET request (by avoiding head: true and count: 'exact')
-          // to ensure a valid JSON body is returned and prevent parsing errors.
-          const { data, error } = await supabase
-            .from('contas_pagar')
-            .select('id')
-            .eq('status_pagamento', 'aguardando')
-            .lte('data_vencimento', targetDate)
+          // Using a standard GET request with raw fetch to ensure we can validate
+          // the response before JSON.parse, preventing "Unexpected end of JSON input"
+          const { data: sessionData } = await supabase.auth.getSession()
+          const token = sessionData.session?.access_token || ''
+          const url = new URL(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contas_pagar`)
+          url.searchParams.append('status_pagamento', 'eq.aguardando')
+          url.searchParams.append('data_vencimento', `lte.${targetDate}`)
+          url.searchParams.append('select', '*')
+          url.searchParams.append('limit', '1')
 
-          // Robust parsing check
-          if (error) {
-            console.warn(`[Dashboard] contas_pagar request failed:`, error)
-          } else if (data && Array.isArray(data)) {
-            contasPagarCount = data.length
+          const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${token}`,
+              Prefer: 'count=exact',
+            },
+          })
+
+          const textBody = await response.text()
+
+          // Parsing Safety: Add validation to ensure that JSON.parse is only called if the response body is not empty
+          if (textBody && textBody.trim().length > 0) {
+            try {
+              const data = JSON.parse(textBody)
+              const contentRange = response.headers.get('content-range')
+              if (contentRange) {
+                contasPagarCount = parseInt(contentRange.split('/')[1], 10)
+              } else {
+                contasPagarCount = Array.isArray(data) ? data.length : 0
+              }
+            } catch (parseError) {
+              console.warn('[Dashboard] Invalid JSON response:', parseError)
+              contasPagarCount = 0
+            }
           } else {
             contasPagarCount = 0
           }
