@@ -1,4 +1,4 @@
-import { Bell, Search, LogOut, Check, User as UserIcon } from 'lucide-react'
+import { Bell, Search, LogOut, User as UserIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -8,6 +8,9 @@ import { useAuth } from '@/hooks/use-auth'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useNotifications } from '@/hooks/use-notifications'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DropdownMenu,
@@ -23,9 +26,8 @@ import { SolicitarCompraDialog } from './SolicitarCompraDialog'
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
   const [totalAlerts, setTotalAlerts] = useState(0)
-  const [notificacoes, setNotificacoes] = useState<any[]>([])
-  const [unreadNotifs, setUnreadNotifs] = useState(0)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const { notificacoes, unreadCount: unreadNotifs, markAsRead, markAllAsRead } = useNotifications()
 
   const { user, signOut, permissions } = useAuth()
   const [fotoPerfil, setFotoPerfil] = useState<string | null>(null)
@@ -120,66 +122,6 @@ export function Header() {
     }
   }, [hasFinanceAccess])
 
-  useEffect(() => {
-    if (!user?.id) return
-    const fetchNotificacoes = async () => {
-      const { data } = await supabase
-        .from('notificacoes' as any)
-        .select('*')
-        .eq('usuario_id', user.id)
-        .order('criado_em', { ascending: false })
-        .limit(20)
-
-      if (data) {
-        setNotificacoes(data)
-        setUnreadNotifs(data.filter((n: any) => !n.lida).length)
-      }
-    }
-
-    fetchNotificacoes()
-
-    const notifChannel = supabase
-      .channel('notificacoes_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notificacoes',
-          filter: `usuario_id=eq.${user.id}`,
-        },
-        (payload) => {
-          setNotificacoes((prev) => [payload.new, ...prev].slice(0, 20))
-          setUnreadNotifs((prev) => prev + 1)
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(notifChannel)
-    }
-  }, [user?.id])
-
-  const markAsRead = async (id: string) => {
-    await supabase
-      .from('notificacoes' as any)
-      .update({ lida: true })
-      .eq('id', id)
-    setNotificacoes((prev) => prev.map((n) => (n.id === id ? { ...n, lida: true } : n)))
-    setUnreadNotifs((prev) => Math.max(0, prev - 1))
-  }
-
-  const markAllAsRead = async () => {
-    if (!user) return
-    await supabase
-      .from('notificacoes' as any)
-      .update({ lida: true })
-      .eq('usuario_id', user.id)
-      .eq('lida', false)
-    setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })))
-    setUnreadNotifs(0)
-  }
-
   const userInitials = user?.user_metadata?.nome
     ? user.user_metadata.nome.substring(0, 2).toUpperCase()
     : user?.email?.substring(0, 2).toUpperCase() || 'US'
@@ -244,7 +186,7 @@ export function Header() {
             <ScrollArea className="h-80">
               {notificacoes.length === 0 && totalAlerts === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  Nenhuma notificação no momento.
+                  Nenhuma notificacao no momento
                 </div>
               ) : (
                 <div className="flex flex-col">
@@ -263,7 +205,10 @@ export function Header() {
                   {notificacoes.map((n) => (
                     <div
                       key={n.id}
-                      className={`flex items-start gap-3 p-4 border-b last:border-0 hover:bg-muted/50 transition-colors ${!n.lida ? 'bg-primary/5' : ''}`}
+                      onClick={() => {
+                        if (!n.lida) markAsRead(n.id)
+                      }}
+                      className={`flex items-start gap-3 p-4 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${!n.lida ? 'bg-primary/5' : ''}`}
                     >
                       <div className="flex-1 space-y-1">
                         <p
@@ -277,20 +222,12 @@ export function Header() {
                           {n.mensagem}
                         </p>
                         <p className="text-[10px] text-muted-foreground/60 mt-1">
-                          {new Date(n.criado_em).toLocaleString('pt-BR')}
+                          {formatDistanceToNow(new Date(n.criado_em), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
                         </p>
                       </div>
-                      {!n.lida && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 rounded-full shrink-0 text-primary hover:text-primary hover:bg-primary/10"
-                          onClick={() => markAsRead(n.id)}
-                          title="Marcar como lida"
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                      )}
                     </div>
                   ))}
                 </div>
