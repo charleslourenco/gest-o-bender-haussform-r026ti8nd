@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { KanbanHeader } from './KanbanHeader'
 import { MontadorSelect } from './MontadorSelect'
+import { CreateCardDialog } from './CreateCardDialog'
 import {
   Select,
   SelectContent,
@@ -66,6 +67,7 @@ interface Item {
   analista_id: string | null
   formulario: { user_id: string } | null
   alocacao_montagem?: { montador_id: string }[]
+  terceirizado_validado?: boolean
 }
 
 const ALL_STATUS_OPTIONS = [
@@ -166,9 +168,67 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [descarteSugerido, setDescarteSugerido] = useState(false)
   const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores'>('kanban')
 
+  const [validatingCardId, setValidatingCardId] = useState<string | null>(null)
+  const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
+  const [showCreateAvulsoForValidation, setShowCreateAvulsoForValidation] = useState(false)
+
+  const handleOpenValidation = (id: string) => {
+    setValidatingCardId(id)
+    setShowTerceirizadoDialog(true)
+  }
+
+  const handleNoTerceirizado = async () => {
+    if (!validatingCardId) return
+    try {
+      const { error } = await supabase
+        .from('produtos_servicos_projeto')
+        .update({ terceirizado_validado: true })
+        .eq('id', validatingCardId)
+      if (error) throw error
+      setItems((prev) =>
+        prev.map((i) => (i.id === validatingCardId ? { ...i, terceirizado_validado: true } : i)),
+      )
+      toast.success('Validação concluída com sucesso!')
+    } catch (err: any) {
+      toast.error('Erro ao validar: ' + err.message)
+    } finally {
+      setShowTerceirizadoDialog(false)
+      setValidatingCardId(null)
+    }
+  }
+
+  const handleYesTerceirizado = () => {
+    setShowTerceirizadoDialog(false)
+    setShowCreateAvulsoForValidation(true)
+  }
+
+  const handleValidationCardCreated = async () => {
+    if (validatingCardId) {
+      try {
+        await supabase
+          .from('produtos_servicos_projeto')
+          .update({ terceirizado_validado: true })
+          .eq('id', validatingCardId)
+        setItems((prev) =>
+          prev.map((i) => (i.id === validatingCardId ? { ...i, terceirizado_validado: true } : i)),
+        )
+      } catch (err) {
+        console.error('Erro no auto-validation:', err)
+      } finally {
+        setValidatingCardId(null)
+        setShowCreateAvulsoForValidation(false)
+      }
+    }
+  }
+
   const handleStatusChange = async (itemId: string, newStatusId: string) => {
     const item = items.find((i) => i.id === itemId)
     if (!item || item.status_analise === newStatusId) return
+
+    if (isAnaliseTecnica && item.terceirizado_validado === false) {
+      toast.error('Verifique os itens terceirizados primeiro.')
+      return
+    }
 
     setItems((prev) =>
       prev.map((i) => (i.id === itemId ? { ...i, status_analise: newStatusId } : i)),
@@ -272,6 +332,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           criado_em,
           analista_id,
           cliente_id,
+          terceirizado_validado,
           cliente:clientes(nome),
           formulario:formulario_comercial(user_id),
           alocacao_montagem(montador_id)
@@ -348,8 +409,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     return true
   })
 
-  const handleDragStart = (e: React.DragEvent, itemId: string) => {
-    e.dataTransfer.setData('itemId', itemId)
+  const handleDragStart = (e: React.DragEvent, item: Item) => {
+    if (isAnaliseTecnica && item.terceirizado_validado === false) {
+      e.preventDefault()
+      toast.error('Verifique os itens terceirizados primeiro.')
+      return
+    }
+    e.dataTransfer.setData('itemId', item.id)
     // Pequeno delay para a classe visual ser aplicada apenas no elemento arrastado, não no ghost
     setTimeout(() => {
       if (e.target instanceof HTMLElement) {
@@ -499,7 +565,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               <div
                 key={item.id}
                 draggable
-                onDragStart={(e) => handleDragStart(e, item.id)}
+                onDragStart={(e) => handleDragStart(e, item)}
                 onDragEnd={handleDragEnd}
                 className={cn(
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
@@ -566,18 +632,31 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </h4>
                     </>
                   ) : isAnaliseTecnica ? (
-                    <div className="flex flex-row items-baseline gap-2 mt-0.5">
-                      {item.codigo_rastreio && (
-                        <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
-                          {item.codigo_rastreio}
-                        </span>
+                    <div className="flex flex-col gap-1.5 mt-0.5">
+                      <div className="flex flex-row items-baseline gap-2">
+                        {item.codigo_rastreio && (
+                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
+                            {item.codigo_rastreio}
+                          </span>
+                        )}
+                        <h4
+                          className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
+                          title={item.nome_produto}
+                        >
+                          {item.nome_produto}
+                        </h4>
+                      </div>
+                      {item.terceirizado_validado === false && (
+                        <div
+                          className="inline-flex items-center self-start text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 cursor-pointer transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenValidation(item.id)
+                          }}
+                        >
+                          ⚠️ Terceirizado?
+                        </div>
                       )}
-                      <h4
-                        className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
-                        title={item.nome_produto}
-                      >
-                        {item.nome_produto}
-                      </h4>
                     </div>
                   ) : (
                     <>
@@ -935,11 +1014,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         <TableCell>
                           <div className="flex flex-col gap-1 items-start">
                             <span className="font-semibold leading-tight">{item.nome_produto}</span>
-                            {item.codigo_rastreio && (
-                              <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
-                                {item.codigo_rastreio}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {item.codigo_rastreio && (
+                                <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
+                                  {item.codigo_rastreio}
+                                </span>
+                              )}
+                              {isAnaliseTecnica && item.terceirizado_validado === false && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleOpenValidation(item.id)
+                                  }}
+                                  className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 border border-amber-300 hover:bg-amber-200 transition-colors"
+                                >
+                                  ⚠️ Terceirizado?
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">
@@ -1049,6 +1142,35 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showTerceirizadoDialog} onOpenChange={setShowTerceirizadoDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Este ambiente possui itens terceirizados?</DialogTitle>
+            <DialogDescription>
+              Para avançar com este card, informe se há itens como vidros, pedras ou estofados que
+              precisam ser solicitados para terceiros.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:justify-between mt-4">
+            <Button variant="outline" onClick={handleNoTerceirizado} className="w-full sm:w-auto">
+              Não possui
+            </Button>
+            <Button
+              onClick={handleYesTerceirizado}
+              className="bg-amber-500 hover:bg-amber-600 text-white w-full sm:w-auto"
+            >
+              Sim, possui
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <CreateCardDialog
+        open={showCreateAvulsoForValidation}
+        onOpenChange={setShowCreateAvulsoForValidation}
+        onCreated={handleValidationCardCreated}
+      />
 
       <Dialog open={showSobrasRegister} onOpenChange={setShowSobrasRegister}>
         <DialogContent>

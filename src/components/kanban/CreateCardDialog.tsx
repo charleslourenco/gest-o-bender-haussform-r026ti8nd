@@ -16,9 +16,11 @@ import { toast } from 'sonner'
 export function CreateCardDialog({
   open,
   onOpenChange,
+  onCreated,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
+  onCreated?: () => void
 }) {
   const [loading, setLoading] = useState(false)
   const [clienteNome, setClienteNome] = useState('')
@@ -130,6 +132,7 @@ export function CreateCardDialog({
       toast.success(`Card criado com código ${codigoRastreio}`)
       onOpenChange(false)
       window.dispatchEvent(new Event('kanban_updated'))
+      onCreated?.()
 
       // Reset form
       setClienteNome('')
