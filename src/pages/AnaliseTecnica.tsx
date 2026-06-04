@@ -1,5 +1,4 @@
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
-import { FileSearch } from 'lucide-react'
 
 const COLUMNS = [
   { id: 'iniciar', title: 'Iniciar' },
@@ -16,7 +15,7 @@ export default function AnaliseTecnica() {
   return (
     <div className="h-full flex flex-col bg-off-white animate-in fade-in duration-300 mt-0 pt-0">
       <div className="flex-1 overflow-hidden min-h-0 relative">
-        <KanbanBoard title="" columns={COLUMNS} />
+        <KanbanBoard title="Análise Técnica" columns={COLUMNS} />
       </div>
     </div>
   )
