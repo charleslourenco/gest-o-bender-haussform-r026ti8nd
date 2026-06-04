@@ -358,17 +358,17 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
     >
       {isAnaliseTecnica ? (
-        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full xl:w-auto">
-            <div className="flex items-center gap-3">
-              <FileSearch className="h-6 w-6 text-emerald-400" />
-              <h1 className="text-white font-bold text-xl">Análise Técnica</h1>
+        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-2 shrink-0 gap-4 -mt-6 -mx-6">
+          <div className="flex flex-row flex-nowrap items-center gap-4">
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <FileSearch className="h-5 w-5 text-emerald-400" />
+              <h1 className="text-white font-bold text-lg">Análise Técnica</h1>
             </div>
-            <div className="flex bg-white/10 p-1 rounded-lg">
+            <div className="flex bg-white/10 p-0.5 rounded-lg whitespace-nowrap">
               <button
                 onClick={() => setActiveView('kanban')}
                 className={cn(
-                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'kanban'
                     ? 'bg-white text-[#0A1931] shadow'
                     : 'text-white hover:bg-white/20',
@@ -379,7 +379,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               <button
                 onClick={() => setActiveView('lista')}
                 className={cn(
-                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'lista'
                     ? 'bg-white text-[#0A1931] shadow'
                     : 'text-white hover:bg-white/20',
@@ -390,7 +390,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               <button
                 onClick={() => setActiveView('indicadores')}
                 className={cn(
-                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'indicadores'
                     ? 'bg-white text-[#0A1931] shadow'
                     : 'text-white hover:bg-white/20',
@@ -400,22 +400,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               </button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
+          <div className="flex flex-row flex-nowrap items-center gap-2 justify-end min-w-0">
             <Input
-              placeholder="Buscar cards..."
+              placeholder="Buscar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-[200px]"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-8 w-[150px] min-w-0 text-xs"
             />
             <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white h-9 w-[180px]">
+              <SelectTrigger className="bg-white/10 border-white/20 text-white h-8 w-[140px] text-xs whitespace-nowrap">
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
-                <SelectItem value="all" className="focus:bg-white/10 focus:text-white">
-                  Todos Responsáveis
+                <SelectItem value="all" className="focus:bg-white/10 focus:text-white text-xs">
+                  Todos
                 </SelectItem>
-                <SelectItem value="unassigned" className="focus:bg-white/10 focus:text-white">
+                <SelectItem
+                  value="unassigned"
+                  className="focus:bg-white/10 focus:text-white text-xs"
+                >
                   Não atribuído
                 </SelectItem>
                 {uniqueAnalysts.map(
@@ -424,7 +427,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       <SelectItem
                         key={id}
                         value={id}
-                        className="focus:bg-white/10 focus:text-white"
+                        className="focus:bg-white/10 focus:text-white text-xs"
                       >
                         {usersMap[id].nome}
                       </SelectItem>
@@ -433,12 +436,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               </SelectContent>
             </Select>
             <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white h-9 w-[180px]">
+              <SelectTrigger className="bg-white/10 border-white/20 text-white h-8 w-[140px] text-xs whitespace-nowrap">
                 <SelectValue placeholder="Consultor" />
               </SelectTrigger>
               <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
-                <SelectItem value="all" className="focus:bg-white/10 focus:text-white">
-                  Todos Consultores
+                <SelectItem value="all" className="focus:bg-white/10 focus:text-white text-xs">
+                  Todos
                 </SelectItem>
                 {uniqueConsultants.map(
                   (id) =>
@@ -446,7 +449,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       <SelectItem
                         key={id}
                         value={id}
-                        className="focus:bg-white/10 focus:text-white"
+                        className="focus:bg-white/10 focus:text-white text-xs"
                       >
                         {usersMap[id].nome}
                       </SelectItem>
@@ -547,27 +550,33 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         </div>
 
                         <div className={cn('pr-12', isAnaliseTecnica ? 'mb-0.5' : 'mb-1')}>
-                          <h4
-                            className={cn(
-                              'font-semibold leading-snug',
-                              isAnaliseTecnica ? 'text-[#F6FAFD] text-sm' : 'text-midnight-navy',
-                            )}
-                          >
-                            {item.nome_produto}
-                          </h4>
-                          {item.codigo_rastreio && (
-                            <div className={cn('mt-1.5', isAnaliseTecnica && 'mt-1')}>
-                              <span
-                                className={cn(
-                                  'inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border',
-                                  isAnaliseTecnica
-                                    ? 'text-white bg-white/10 border-white/20'
-                                    : 'text-steel-blue bg-pale-cornflower border-steel-blue/20',
-                                )}
+                          {isAnaliseTecnica ? (
+                            <div className="flex flex-row items-baseline gap-2 mt-0.5">
+                              {item.codigo_rastreio && (
+                                <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
+                                  {item.codigo_rastreio}
+                                </span>
+                              )}
+                              <h4
+                                className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
+                                title={item.nome_produto}
                               >
-                                {item.codigo_rastreio}
-                              </span>
+                                {item.nome_produto}
+                              </h4>
                             </div>
+                          ) : (
+                            <>
+                              <h4 className="font-semibold leading-snug text-midnight-navy">
+                                {item.nome_produto}
+                              </h4>
+                              {item.codigo_rastreio && (
+                                <div className="mt-1.5">
+                                  <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-steel-blue bg-pale-cornflower border-steel-blue/20">
+                                    {item.codigo_rastreio}
+                                  </span>
+                                </div>
+                              )}
+                            </>
                           )}
                         </div>
 
