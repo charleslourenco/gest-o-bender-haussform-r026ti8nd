@@ -184,8 +184,8 @@ export default function Comercial() {
       onValueChange={setActiveTab}
       className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 pt-0 space-y-4"
     >
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-b-xl shrink-0 shadow-sm gap-4 xl:gap-0">
-        <div className="flex items-center gap-6">
+      <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 scrollbar-hide">
+        <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-emerald-400 hidden sm:block" />
             Comercial
@@ -219,7 +219,7 @@ export default function Comercial() {
         </div>
         <div
           ref={setToolbarNode}
-          className="flex items-center gap-3 flex-wrap xl:justify-end w-full xl:w-auto"
+          className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap [&_input]:!w-28 lg:[&_input]:!w-40 [&_button[role='combobox']]:!w-28 lg:[&_button[role='combobox']]:!w-40"
         />
       </div>
 
