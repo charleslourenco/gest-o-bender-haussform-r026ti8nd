@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { CardData } from './types'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Wrench } from 'lucide-react'
+import { Wrench, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function KanbanCard({
@@ -21,6 +21,41 @@ export function KanbanCard({
     typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
   const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
   const [montadores, setMontadores] = useState<string[]>([])
+  const [timeInColumn, setTimeInColumn] = useState<string>('')
+
+  useEffect(() => {
+    if (isProducao) {
+      const fetchTime = async () => {
+        const { data } = await supabase
+          .from('kanban_historico')
+          .select('criado_em')
+          .eq('card_id', card.id)
+          .eq('status_novo', card.status_analise)
+          .order('criado_em', { ascending: false })
+          .limit(1)
+
+        const startTime = data && data.length > 0 ? data[0].criado_em : card.criado_em
+
+        if (startTime) {
+          const diffInMs = new Date().getTime() - new Date(startTime).getTime()
+          const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+          const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+
+          if (diffInDays > 0) {
+            setTimeInColumn(`${diffInDays}d`)
+          } else if (diffInHours > 0) {
+            setTimeInColumn(`${diffInHours}h`)
+          } else {
+            setTimeInColumn('< 1h')
+          }
+        }
+      }
+      fetchTime()
+
+      const interval = setInterval(fetchTime, 60000)
+      return () => clearInterval(interval)
+    }
+  }, [card.id, card.status_analise, card.criado_em, isProducao])
 
   useEffect(() => {
     if (isMontagem) {
@@ -107,7 +142,7 @@ export function KanbanCard({
         </div>
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {!isMontagem && card.analista_id && usersMap[card.analista_id] && (
+          {!isMontagem && !isProducao && card.analista_id && usersMap[card.analista_id] && (
             <div
               className="flex items-center gap-1.5"
               title={`Responsável: ${usersMap[card.analista_id].nome}`}
@@ -123,6 +158,16 @@ export function KanbanCard({
                   {usersMap[card.analista_id].nome.charAt(0).toUpperCase()}
                 </div>
               )}
+            </div>
+          )}
+
+          {isProducao && timeInColumn && (
+            <div
+              className="flex items-center gap-1 text-[10px] text-white/70 bg-white/10 px-1.5 py-0.5 rounded"
+              title={`Tempo nesta etapa`}
+            >
+              <Clock className="w-3 h-3" />
+              <span>{timeInColumn}</span>
             </div>
           )}
 
