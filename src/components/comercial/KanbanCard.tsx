@@ -33,27 +33,27 @@ interface Props {
 const categoryConfig = {
   Comercial: {
     icon: Briefcase,
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-100',
-    border: 'border-emerald-200',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-400/10',
+    border: 'border-emerald-400/20',
   },
   'Outros Assuntos': {
     icon: MessageSquare,
-    color: 'text-slate-700',
-    bg: 'bg-slate-200',
-    border: 'border-slate-300',
+    color: 'text-slate-300',
+    bg: 'bg-slate-300/10',
+    border: 'border-slate-300/20',
   },
   Parceiro: {
     icon: Handshake,
-    color: 'text-indigo-700',
-    bg: 'bg-indigo-100',
-    border: 'border-indigo-200',
+    color: 'text-indigo-300',
+    bg: 'bg-indigo-300/10',
+    border: 'border-indigo-300/20',
   },
   Equipe: {
     icon: HardHat,
-    color: 'text-amber-700',
-    bg: 'bg-amber-100',
-    border: 'border-amber-200',
+    color: 'text-amber-400',
+    bg: 'bg-amber-400/10',
+    border: 'border-amber-400/20',
   },
 }
 
@@ -114,15 +114,13 @@ export function KanbanCard({
         onEdit()
       }}
       className={cn(
-        'bg-off-white border-2 rounded-lg p-3 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.1)] transition-all duration-200 cursor-pointer group hover:shadow-[0_4px_12px_rgba(10,25,49,0.15)] hover:scale-[1.02]',
-        isAguardando
-          ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] bg-orange-50/50'
-          : 'border-steel-blue hover:border-dark-denim',
-        isDragging && 'opacity-50 border-dark-denim border-[3px]',
+        'bg-[#1A3D63] border border-[#2A5282] rounded-lg p-3 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.3)] transition-all duration-200 cursor-pointer group hover:shadow-[0_4px_12px_rgba(10,25,49,0.4)] hover:scale-[1.02] hover:border-[#3B6BA5]',
+        isAguardando ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : '',
+        isDragging && 'opacity-50 border-[#4B8BDB] border-[2px]',
       )}
     >
       <div className="flex justify-between items-start mb-2.5">
-        <h4 className="text-midnight-navy font-semibold text-[15px] leading-tight flex items-center gap-2 pr-2">
+        <h4 className="text-[#F6FAFD] font-semibold text-[15px] leading-tight flex items-center gap-2 pr-2">
           {isAguardando && (
             <span className="flex h-2.5 w-2.5 relative shrink-0" title="Aguardando Consultor">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
@@ -136,7 +134,7 @@ export function KanbanCard({
             e.stopPropagation()
             onDelete()
           }}
-          className="text-steel-blue hover:text-red-500 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
+          className="text-slate-400 hover:text-red-400 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -144,12 +142,16 @@ export function KanbanCard({
 
       <div className="mb-2.5" onClick={(e) => e.stopPropagation()}>
         <Select value={lead.status} onValueChange={(val) => onStatusChange(lead.id, val)}>
-          <SelectTrigger className="h-7 text-xs bg-white text-midnight-navy border-steel-blue/30 w-full font-medium shadow-none focus:ring-1 focus:ring-dark-denim">
+          <SelectTrigger className="h-7 text-xs bg-[#0A1931]/50 text-[#F6FAFD] border-[#2A5282] w-full font-medium shadow-none focus:ring-1 focus:ring-[#4B8BDB]">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-[#0A1931] border-[#2A5282] text-white">
             {columns.map((c) => (
-              <SelectItem key={c} value={c} className="text-xs">
+              <SelectItem
+                key={c}
+                value={c}
+                className="text-xs hover:bg-[#1A3D63] focus:bg-[#1A3D63] focus:text-white"
+              >
                 {c}
               </SelectItem>
             ))}
@@ -157,8 +159,8 @@ export function KanbanCard({
         </Select>
       </div>
 
-      <div className="flex items-end justify-between pt-2.5 border-t border-steel-blue/20">
-        <div className="flex flex-col gap-1.5 text-[11px] text-steel-blue">
+      <div className="flex items-end justify-between pt-2.5 border-t border-[#2A5282]">
+        <div className="flex flex-col gap-1.5 text-[11px] text-slate-300">
           <div className="flex items-center gap-1.5" title="Data de contato">
             <Calendar className="w-3 h-3 shrink-0" />
             <span>
@@ -173,14 +175,14 @@ export function KanbanCard({
           </div>
           <div className="flex items-center gap-1.5" title="Tempo desde o primeiro contato">
             <Clock className="w-3 h-3 shrink-0" />
-            <span className="font-medium text-dark-denim">{elapsed}</span>
+            <span className="font-medium text-[#F6FAFD]">{elapsed}</span>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-1">
           {consultorNome && (
             <div
-              className="flex items-center gap-1 text-[10px] text-steel-blue font-medium bg-steel-blue/5 px-1.5 py-0.5 rounded w-fit"
+              className="flex items-center gap-1 text-[10px] text-slate-200 font-medium bg-[#0A1931]/50 px-1.5 py-0.5 rounded w-fit border border-[#2A5282]/50"
               title={`Consultor: ${consultorNome}`}
             >
               <User className="w-2.5 h-2.5" />
@@ -189,9 +191,10 @@ export function KanbanCard({
           )}
           <div
             className={cn(
-              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wide w-fit',
+              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wide w-fit border',
               catColor,
               catBg,
+              catBorder,
             )}
             title={`Categoria: ${catName}`}
           >

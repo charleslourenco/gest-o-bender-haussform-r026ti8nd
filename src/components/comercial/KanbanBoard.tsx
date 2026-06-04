@@ -10,10 +10,16 @@ import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { createPortal } from 'react-dom'
 
 import { COLUMNS } from './constants'
 
-export function KanbanBoard() {
+interface KanbanBoardProps {
+  toolbarPortal?: HTMLDivElement | null
+  isActive?: boolean
+}
+
+export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps) {
   const { user } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -209,56 +215,57 @@ export function KanbanBoard() {
     )
   }
 
+  const controls = (
+    <>
+      <div className="relative flex-1 min-w-[200px] max-w-md">
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-white/50 pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Buscar lead..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full pl-9 bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 focus:ring-1 focus:ring-white/40 transition-all"
+        />
+      </div>
+      <select
+        value={sourceFilter}
+        onChange={(e) => setSourceFilter(e.target.value)}
+        className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 transition-all cursor-pointer min-w-[140px] [&>option]:bg-[#0A1931] [&>option]:text-white"
+      >
+        <option value="">Origem (Todas)</option>
+        <option value="Instagram">Instagram</option>
+        <option value="Google">Google</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Indicação">Indicação</option>
+        <option value="Outro">Outro</option>
+      </select>
+      <select
+        value={consultantFilter}
+        onChange={(e) => setConsultantFilter(e.target.value)}
+        className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 transition-all cursor-pointer min-w-[150px] [&>option]:bg-[#0A1931] [&>option]:text-white"
+      >
+        <option value="">Consultor (Todos)</option>
+        {users.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.nome}
+          </option>
+        ))}
+      </select>
+      <button
+        onClick={() => {
+          setEditingLead(null)
+          setFormOpen(true)
+        }}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors shadow-sm text-sm border border-emerald-500/30 whitespace-nowrap"
+      >
+        + Novo Lead
+      </button>
+    </>
+  )
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm mb-6 shrink-0 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between border border-gray-100">
-        <div className="flex-1 flex flex-col md:flex-row flex-wrap gap-3 w-full justify-end">
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-steel-blue pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Buscar lead..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 bg-gray-50 border border-gray-200 text-midnight-navy rounded-lg px-3 py-2 text-sm outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all"
-            />
-          </div>
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-200 text-midnight-navy rounded-lg px-3 py-2 text-sm outline-none focus:border-dark-denim transition-all cursor-pointer min-w-[140px]"
-          >
-            <option value="">Origem (Todas)</option>
-            <option value="Instagram">Instagram</option>
-            <option value="Google">Google</option>
-            <option value="WhatsApp">WhatsApp</option>
-            <option value="Indicação">Indicação</option>
-            <option value="Outro">Outro</option>
-          </select>
-          <select
-            value={consultantFilter}
-            onChange={(e) => setConsultantFilter(e.target.value)}
-            className="bg-gray-50 border border-gray-200 text-midnight-navy rounded-lg px-3 py-2 text-sm outline-none focus:border-dark-denim transition-all cursor-pointer min-w-[150px]"
-          >
-            <option value="">Consultor (Todos)</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.nome}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              setEditingLead(null)
-              setFormOpen(true)
-            }}
-            className="bg-dark-denim text-white px-4 py-2 rounded-lg hover:opacity-90 font-medium transition-opacity shadow-sm text-sm"
-          >
-            + Novo Lead
-          </button>
-        </div>
-      </div>
+      {toolbarPortal && isActive ? createPortal(controls, toolbarPortal) : null}
 
       {/* Content */}
       {leads.length === 0 && !debouncedSearch && !sourceFilter && !consultantFilter ? (

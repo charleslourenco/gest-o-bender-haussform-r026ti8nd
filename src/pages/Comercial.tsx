@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 export default function Comercial() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+  const [activeTab, setActiveTab] = useState('kanban')
+  const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
 
   // Refs for dual scrollbar sync
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -177,42 +179,51 @@ export default function Comercial() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-4">
-      <div className="bg-midnight-navy p-4 shrink-0 rounded-xl shadow-sm flex items-center gap-3">
-        <TrendingUp className="h-8 w-8 text-emerald-400 hidden sm:block" />
-        <div>
-          <h1 className="text-2xl font-bold text-off-white">Gestão Comercial</h1>
-          <p className="text-pale-cornflower text-sm mt-0.5">Acompanhamento e evolução de leads</p>
-        </div>
-      </div>
-
-      <Tabs defaultValue="kanban" className="flex-1 flex flex-col min-h-0">
-        <div className="shrink-0 mb-4">
-          <TabsList className="bg-white border border-gray-200 shadow-sm h-auto p-1">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 pt-0 space-y-4"
+    >
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-b-xl shrink-0 shadow-sm gap-4 xl:gap-0">
+        <div className="flex items-center gap-6">
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-400 hidden sm:block" />
+            Comercial
+          </h1>
+          <TabsList className="bg-transparent border-none p-0 flex gap-2 h-auto">
             <TabsTrigger
               value="kanban"
-              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+              onClick={() => setActiveTab('kanban')}
+              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
             >
               <LayoutDashboard className="w-4 h-4 mr-2" />
               Kanban
             </TabsTrigger>
             <TabsTrigger
               value="lista"
-              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+              onClick={() => setActiveTab('lista')}
+              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
             >
               <ListIcon className="w-4 h-4 mr-2" />
               Lista
             </TabsTrigger>
             <TabsTrigger
               value="indicadores"
-              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-white py-2 px-4"
+              onClick={() => setActiveTab('indicadores')}
+              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Indicadores
             </TabsTrigger>
           </TabsList>
         </div>
+        <div
+          ref={setToolbarNode}
+          className="flex items-center gap-3 flex-wrap xl:justify-end w-full xl:w-auto"
+        />
+      </div>
 
+      <div className="flex-1 flex flex-col min-h-0">
         <TabsContent
           value="kanban"
           className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
@@ -229,7 +240,7 @@ export default function Comercial() {
           </div>
 
           <div ref={kanbanWrapperRef} className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <KanbanBoard />
+            <KanbanBoard toolbarPortal={toolbarNode} isActive={activeTab === 'kanban'} />
           </div>
         </TabsContent>
 
@@ -248,7 +259,7 @@ export default function Comercial() {
         >
           <ComercialIndicators />
         </TabsContent>
-      </Tabs>
-    </div>
+      </div>
+    </Tabs>
   )
 }
