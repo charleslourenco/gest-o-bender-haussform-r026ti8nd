@@ -14,7 +14,7 @@ const COLUMNS = [
 
 export default function AnaliseTecnica() {
   return (
-    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 animate-in fade-in duration-300">
+    <div className="h-full flex flex-col bg-off-white animate-in fade-in duration-300 mt-0 pt-0">
       <div className="flex-1 overflow-hidden min-h-0 relative">
         <KanbanBoard title="" columns={COLUMNS} />
       </div>

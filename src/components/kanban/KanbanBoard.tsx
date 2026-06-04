@@ -81,6 +81,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [showSobrasRegister, setShowSobrasRegister] = useState(false)
   const [novaSobra, setNovaSobra] = useState({ nome: '', largura: 0, altura: 0 })
   const [descarteSugerido, setDescarteSugerido] = useState(false)
+  const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores'>('kanban')
 
   useEffect(() => {
     if (novaSobra.largura > 0 && novaSobra.altura > 0) {
@@ -352,17 +353,54 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       className={cn(
         'flex h-full flex-col overflow-hidden shadow-sm',
         isAnaliseTecnica
-          ? 'bg-off-white rounded-xl'
+          ? 'bg-off-white rounded-none border-0'
           : 'bg-off-white rounded-lg border border-steel-blue/10',
       )}
     >
       {isAnaliseTecnica ? (
-        <div className="flex flex-col sm:flex-row items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0">
-          <div className="flex items-center gap-3 w-full sm:w-auto mb-3 sm:mb-0">
-            <FileSearch className="h-6 w-6 text-emerald-400" />
-            <h1 className="text-white font-bold text-xl">Análise Técnica</h1>
+        <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full xl:w-auto">
+            <div className="flex items-center gap-3">
+              <FileSearch className="h-6 w-6 text-emerald-400" />
+              <h1 className="text-white font-bold text-xl">Análise Técnica</h1>
+            </div>
+            <div className="flex bg-white/10 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveView('kanban')}
+                className={cn(
+                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  activeView === 'kanban'
+                    ? 'bg-white text-[#0A1931] shadow'
+                    : 'text-white hover:bg-white/20',
+                )}
+              >
+                Kanban
+              </button>
+              <button
+                onClick={() => setActiveView('lista')}
+                className={cn(
+                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  activeView === 'lista'
+                    ? 'bg-white text-[#0A1931] shadow'
+                    : 'text-white hover:bg-white/20',
+                )}
+              >
+                Lista
+              </button>
+              <button
+                onClick={() => setActiveView('indicadores')}
+                className={cn(
+                  'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  activeView === 'indicadores'
+                    ? 'bg-white text-[#0A1931] shadow'
+                    : 'text-white hover:bg-white/20',
+                )}
+              >
+                Indicadores
+              </button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
             <Input
               placeholder="Buscar cards..."
               value={searchQuery}
@@ -440,222 +478,255 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      <ScrollArea className="flex-1 px-6 pb-6">
-        <div className="flex h-full gap-6 pb-4 pt-4">
-          {columns.map((col) => {
-            const colItems = filteredItems.filter((i) => i.status_analise === col.id)
-            return (
-              <div
-                key={col.id}
-                className="flex h-full w-[320px] shrink-0 flex-col rounded-xl bg-pale-cornflower/30 border border-steel-blue/20 transition-colors duration-200"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, col.id)}
-              >
-                <div className="flex items-center justify-between border-b border-steel-blue/10 bg-pale-cornflower/60 px-4 py-3 rounded-t-xl sticky top-0 z-10 shadow-sm">
-                  <h3 className="font-semibold text-midnight-navy text-sm uppercase tracking-wider">
-                    {col.title}
-                  </h3>
-                  <Badge
-                    variant="secondary"
-                    className="bg-white text-steel-blue font-bold shadow-sm"
-                  >
-                    {colItems.length}
-                  </Badge>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-[150px]">
-                  {colItems.map((item) => (
-                    <div
-                      key={item.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id)}
-                      onDragEnd={handleDragEnd}
-                      className={cn(
-                        'group relative cursor-grab rounded-lg border p-4 shadow-sm hover:shadow-md active:cursor-grabbing transition-all duration-200',
-                        isAnaliseTecnica
-                          ? 'bg-[#1A3D63] border-white/10 hover:border-white/30'
-                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50',
-                      )}
+      {activeView === 'kanban' && (
+        <ScrollArea className="flex-1 px-6 pb-6">
+          <div className="flex h-full gap-6 pb-4 pt-4">
+            {columns.map((col) => {
+              const colItems = filteredItems.filter((i) => i.status_analise === col.id)
+              return (
+                <div
+                  key={col.id}
+                  className="flex h-full w-[320px] shrink-0 flex-col rounded-xl bg-pale-cornflower/30 border border-steel-blue/20 transition-colors duration-200"
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, col.id)}
+                >
+                  <div className="flex items-center justify-between border-b border-steel-blue/10 bg-pale-cornflower/60 px-4 py-3 rounded-t-xl sticky top-0 z-10 shadow-sm">
+                    <h3 className="font-semibold text-midnight-navy text-sm uppercase tracking-wider">
+                      {col.title}
+                    </h3>
+                    <Badge
+                      variant="secondary"
+                      className="bg-white text-steel-blue font-bold shadow-sm"
                     >
+                      {colItems.length}
+                    </Badge>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar min-h-[150px]">
+                    {colItems.map((item) => (
                       <div
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragEnd={handleDragEnd}
                         className={cn(
-                          'absolute top-4 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 pl-2',
+                          'group relative cursor-grab rounded-lg border shadow-sm hover:shadow-md active:cursor-grabbing transition-all duration-200 flex flex-col',
                           isAnaliseTecnica
-                            ? 'text-white/30 bg-[#1A3D63]'
-                            : 'text-steel-blue/30 bg-white',
+                            ? 'bg-[#1A3D63] border-white/10 hover:border-white/30 p-2.5 gap-1.5'
+                            : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-4 gap-3',
                         )}
                       >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteCard(item.id)
-                          }}
+                        <div
                           className={cn(
-                            'p-1 rounded transition-colors',
+                            'absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5',
                             isAnaliseTecnica
-                              ? 'hover:text-red-400 hover:bg-red-400/10'
-                              : 'hover:text-red-500 hover:bg-red-50',
-                          )}
-                          title="Excluir card"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <div className="p-1 cursor-grab active:cursor-grabbing">
-                          <GripVertical className="h-4 w-4" />
-                        </div>
-                      </div>
-
-                      <div className="mb-3 pr-16">
-                        <h4
-                          className={cn(
-                            'font-semibold leading-snug',
-                            isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy',
+                              ? 'top-2 text-white/30 bg-[#1A3D63]'
+                              : 'top-3 text-steel-blue/30 bg-white',
                           )}
                         >
-                          {item.nome_produto}
-                        </h4>
-                        {item.codigo_rastreio && (
-                          <div className="mt-2">
-                            <span
-                              className={cn(
-                                'inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded border',
-                                isAnaliseTecnica
-                                  ? 'text-white bg-white/10 border-white/20'
-                                  : 'text-steel-blue bg-pale-cornflower border-steel-blue/20',
-                              )}
-                            >
-                              {item.codigo_rastreio}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div
-                        className={cn(
-                          'space-y-2 mt-4 pt-3 border-t text-xs font-medium',
-                          isAnaliseTecnica
-                            ? 'border-white/10 text-white/70'
-                            : 'border-steel-blue/10 text-midnight-navy/70',
-                        )}
-                      >
-                        {item.cliente && (
-                          <div
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteCard(item.id)
+                            }}
                             className={cn(
-                              'flex items-center gap-2',
-                              isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
-                            )}
-                          >
-                            <User
-                              className={cn(
-                                'h-3.5 w-3.5 shrink-0',
-                                isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
-                              )}
-                            />
-                            <span className="truncate">{item.cliente.nome}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Package
-                              className={cn(
-                                'h-3.5 w-3.5 shrink-0',
-                                isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
-                              )}
-                            />
-                            <span>Qtd: {item.qtd}</span>
-                          </div>
-                          <div
-                            className={cn(
-                              'flex items-center gap-1.5',
-                              isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
-                            )}
-                          >
-                            <CalendarClock className="h-3.5 w-3.5 shrink-0" />
-                            <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div
-                        className={cn(
-                          'mt-4 pt-3 border-t flex flex-col gap-1.5',
-                          isAnaliseTecnica ? 'border-white/10' : 'border-steel-blue/10',
-                        )}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Select
-                          value={item.analista_id || 'unassigned'}
-                          onValueChange={(val) =>
-                            handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
-                          }
-                        >
-                          <SelectTrigger
-                            className={cn(
-                              'h-8 text-xs w-full focus:ring-0 focus:ring-offset-0',
+                              'p-1 rounded transition-colors',
                               isAnaliseTecnica
-                                ? 'bg-white/10 border-white/20 text-white'
-                                : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
+                                ? 'hover:text-red-400 hover:bg-red-400/10'
+                                : 'hover:text-red-500 hover:bg-red-50',
                             )}
+                            title="Excluir card"
                           >
-                            <SelectValue placeholder="Atribuir responsável..." />
-                          </SelectTrigger>
-                          <SelectContent
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                          <div className="p-1 cursor-grab active:cursor-grabbing">
+                            <GripVertical className="h-3.5 w-3.5" />
+                          </div>
+                        </div>
+
+                        <div className={cn('pr-12', isAnaliseTecnica ? 'mb-0.5' : 'mb-1')}>
+                          <h4
                             className={cn(
-                              isAnaliseTecnica && 'bg-[#1A3D63] border-white/20 text-white',
+                              'font-semibold leading-snug',
+                              isAnaliseTecnica ? 'text-[#F6FAFD] text-sm' : 'text-midnight-navy',
                             )}
                           >
-                            <SelectItem
-                              value="unassigned"
-                              className={cn(
-                                'text-xs',
-                                isAnaliseTecnica
-                                  ? 'text-white/60 focus:bg-white/10 focus:text-white'
-                                  : 'text-muted-foreground',
-                              )}
-                            >
-                              Não atribuído
-                            </SelectItem>
-                            {allUsers.map((u) => (
-                              <SelectItem
-                                key={u.id}
-                                value={u.id}
+                            {item.nome_produto}
+                          </h4>
+                          {item.codigo_rastreio && (
+                            <div className={cn('mt-1.5', isAnaliseTecnica && 'mt-1')}>
+                              <span
                                 className={cn(
-                                  'text-xs',
-                                  isAnaliseTecnica && 'focus:bg-white/10 focus:text-white',
+                                  'inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border',
+                                  isAnaliseTecnica
+                                    ? 'text-white bg-white/10 border-white/20'
+                                    : 'text-steel-blue bg-pale-cornflower border-steel-blue/20',
                                 )}
                               >
-                                {u.nome}
+                                {item.codigo_rastreio}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className={cn(
+                            'flex flex-col text-xs font-medium border-t',
+                            isAnaliseTecnica
+                              ? 'border-white/10 text-white/70 pt-1.5 gap-1'
+                              : 'border-steel-blue/10 text-midnight-navy/70 pt-2.5 gap-1.5',
+                          )}
+                        >
+                          {item.cliente && (
+                            <div
+                              className={cn(
+                                'flex items-center gap-1.5 truncate',
+                                isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
+                              )}
+                            >
+                              <User
+                                className={cn(
+                                  'h-3 w-3 shrink-0',
+                                  isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
+                                )}
+                              />
+                              <span className="truncate">{item.cliente.nome}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Package
+                                className={cn(
+                                  'h-3 w-3 shrink-0',
+                                  isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
+                                )}
+                              />
+                              <span>Qtd: {item.qtd}</span>
+                            </div>
+                            <div
+                              className={cn(
+                                'flex items-center gap-1',
+                                isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
+                              )}
+                            >
+                              <CalendarClock className="h-3 w-3 shrink-0" />
+                              <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          className={cn(
+                            'border-t flex flex-col',
+                            isAnaliseTecnica
+                              ? 'border-white/10 pt-1.5 gap-1'
+                              : 'border-steel-blue/10 pt-2.5 gap-1.5',
+                          )}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Select
+                            value={item.analista_id || 'unassigned'}
+                            onValueChange={(val) =>
+                              handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                            }
+                          >
+                            <SelectTrigger
+                              className={cn(
+                                'h-8 text-xs w-full focus:ring-0 focus:ring-offset-0',
+                                isAnaliseTecnica
+                                  ? 'bg-white/10 border-white/20 text-white'
+                                  : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
+                              )}
+                            >
+                              <SelectValue placeholder="Atribuir responsável..." />
+                            </SelectTrigger>
+                            <SelectContent
+                              className={cn(
+                                isAnaliseTecnica && 'bg-[#1A3D63] border-white/20 text-white',
+                              )}
+                            >
+                              <SelectItem
+                                value="unassigned"
+                                className={cn(
+                                  'text-xs',
+                                  isAnaliseTecnica
+                                    ? 'text-white/60 focus:bg-white/10 focus:text-white'
+                                    : 'text-muted-foreground',
+                                )}
+                              >
+                                Não atribuído
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              {allUsers.map((u) => (
+                                <SelectItem
+                                  key={u.id}
+                                  value={u.id}
+                                  className={cn(
+                                    'text-xs',
+                                    isAnaliseTecnica && 'focus:bg-white/10 focus:text-white',
+                                  )}
+                                >
+                                  {u.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-                        {isMontagemRoute && (
-                          <MontadorSelect
-                            item={item}
-                            montadores={allMontadores}
-                            onUpdate={fetchItems}
-                          />
-                        )}
+                          {isMontagemRoute && (
+                            <MontadorSelect
+                              item={item}
+                              montadores={allMontadores}
+                              onUpdate={fetchItems}
+                            />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {colItems.length === 0 && (
-                    <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40">
-                      <p className="text-sm font-medium text-steel-blue/50">Solte os cards aqui</p>
-                    </div>
-                  )}
+                    {colItems.length === 0 && (
+                      <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40">
+                        <p className="text-sm font-medium text-steel-blue/50">
+                          Solte os cards aqui
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+          <ScrollBar orientation="horizontal" className="h-2.5" />
+        </ScrollArea>
+      )}
+
+      {activeView === 'lista' && (
+        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-off-white animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-xl border border-steel-blue/10 shadow-sm max-w-md text-center">
+            <h3 className="text-xl font-bold text-midnight-navy mb-2">
+              Modo Lista em desenvolvimento
+            </h3>
+            <p className="text-midnight-navy/60">
+              Visualize todos os itens de forma tabular para uma edição rápida e em lote. Em breve.
+            </p>
+          </div>
         </div>
-        <ScrollBar orientation="horizontal" className="h-2.5" />
-      </ScrollArea>
+      )}
+
+      {activeView === 'indicadores' && (
+        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-off-white animate-in fade-in duration-300">
+          <div className="bg-white p-8 rounded-xl border border-steel-blue/10 shadow-sm max-w-md text-center">
+            <h3 className="text-xl font-bold text-midnight-navy mb-2">
+              Indicadores em desenvolvimento
+            </h3>
+            <p className="text-midnight-navy/60">
+              Acompanhe métricas, gargalos e a performance da equipe de análise técnica em tempo
+              real. Em breve.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Dialog open={showSobrasPrompt} onOpenChange={setShowSobrasPrompt}>
         <DialogContent className="sm:max-w-md">

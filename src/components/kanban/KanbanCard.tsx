@@ -41,17 +41,19 @@ export function KanbanCard({
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
       className={cn(
-        'p-4 rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-all',
+        'rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
         isAnaliseTecnica
-          ? 'bg-[#1A3D63] border-white/20 hover:border-white/40'
-          : 'bg-midnight-navy border-steel-blue/40 hover:border-pale-cornflower',
+          ? 'bg-[#1A3D63] border-white/20 hover:border-white/40 p-2.5 gap-1.5'
+          : 'bg-midnight-navy border-steel-blue/40 hover:border-pale-cornflower p-4 gap-2',
       )}
     >
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-start">
         <span
           className={cn(
-            'text-xs font-mono font-bold px-1.5 py-0.5 rounded',
-            isAnaliseTecnica ? 'text-white bg-white/10' : 'text-pale-cornflower bg-steel-blue/20',
+            'font-mono font-bold px-1.5 py-0.5 rounded',
+            isAnaliseTecnica
+              ? 'text-[10px] text-white bg-white/10'
+              : 'text-xs text-pale-cornflower bg-steel-blue/20',
           )}
         >
           {card.codigo_rastreio ||
@@ -66,14 +68,19 @@ export function KanbanCard({
           Qtd: {card.qtd}
         </Badge>
       </div>
-      <div className="font-semibold text-[#F6FAFD] text-sm mb-1 leading-snug">
+      <div
+        className={cn(
+          'font-semibold text-[#F6FAFD] leading-snug',
+          isAnaliseTecnica ? 'text-sm' : 'text-base',
+        )}
+      >
         {card.nome_produto}
       </div>
-      <div className="flex justify-between items-end mt-2">
+      <div className="flex justify-between items-end mt-1">
         <div
           className={cn(
             'text-xs truncate max-w-[150px]',
-            isAnaliseTecnica ? 'text-white/80' : 'text-pale-cornflower/80',
+            isAnaliseTecnica ? 'text-white/70' : 'text-pale-cornflower/80',
           )}
         >
           {card.clientes?.nome || 'Cliente N/A'}
