@@ -35,6 +35,14 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Scissors, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface ColumnDef {
   id: string
@@ -795,14 +803,102 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'lista' && (
-        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-off-white animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-xl border border-steel-blue/10 shadow-sm max-w-md text-center">
-            <h3 className="text-xl font-bold text-midnight-navy mb-2">
-              Modo Lista em desenvolvimento
-            </h3>
-            <p className="text-midnight-navy/60">
-              Visualize todos os itens de forma tabular para uma edição rápida e em lote. Em breve.
-            </p>
+        <div className="flex-1 p-6 overflow-hidden flex flex-col bg-off-white animate-in fade-in duration-300">
+          <div className="bg-white rounded-xl border border-steel-blue/10 shadow-sm flex-1 overflow-hidden flex flex-col">
+            <div className="overflow-x-auto w-full flex-1">
+              <Table>
+                <TableHeader className="bg-[#0A1931]">
+                  <TableRow className="hover:bg-[#0A1931]">
+                    <TableHead className="text-white font-semibold">Ambiente</TableHead>
+                    <TableHead className="text-white font-semibold">Data</TableHead>
+                    <TableHead className="text-white font-semibold">Status</TableHead>
+                    <TableHead className="text-white font-semibold">Responsável</TableHead>
+                    <TableHead className="text-white font-semibold text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nenhum item encontrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredItems.map((item) => (
+                      <TableRow
+                        key={item.id}
+                        className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
+                      >
+                        <TableCell>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="font-semibold leading-tight">{item.nome_produto}</span>
+                            {item.codigo_rastreio && (
+                              <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
+                                {item.codigo_rastreio}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {new Date(item.criado_em).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.status_analise}
+                            onValueChange={(val) => handleStatusChange(item.id, val)}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              {ALL_STATUS_OPTIONS.map((c) => (
+                                <SelectItem key={c.id} value={c.id} className="text-xs">
+                                  {c.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={item.analista_id || 'unassigned'}
+                            onValueChange={(val) =>
+                              handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                            }
+                          >
+                            <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                              <SelectValue placeholder="Responsável" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem
+                                value="unassigned"
+                                className="text-xs text-muted-foreground"
+                              >
+                                Não atribuído
+                              </SelectItem>
+                              {allUsers.map((u) => (
+                                <SelectItem key={u.id} value={u.id} className="text-xs">
+                                  {u.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            onClick={() => handleDeleteCard(item.id)}
+                            className="p-2 rounded-md hover:bg-red-50 text-red-500 transition-colors inline-flex items-center justify-center"
+                            title="Excluir item"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
       )}
