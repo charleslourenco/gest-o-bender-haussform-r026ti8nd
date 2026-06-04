@@ -358,7 +358,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
     >
       {isAnaliseTecnica ? (
-        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-2 shrink-0 gap-4 -mt-6 -mx-6">
+        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4 mt-6 mx-6 rounded-md">
           <div className="flex flex-row flex-nowrap items-center gap-4">
             <div className="flex items-center gap-2 whitespace-nowrap">
               <FileSearch className="h-5 w-5 text-emerald-400" />
