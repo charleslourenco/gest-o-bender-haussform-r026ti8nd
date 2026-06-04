@@ -9,6 +9,16 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   const [activeTab, setActiveTab] = useState('kanban')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    window.dispatchEvent(new CustomEvent('kanban_tab_change', { detail: val }))
+  }
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+    window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: e.target.value }))
+  }
+
   // Specific header layout for Análise Técnica
   if (title === 'Análise Técnica') {
     return (
@@ -21,7 +31,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <h2 className="text-lg font-bold text-white">Análise Técnica</h2>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
               <TabsList className="bg-white/10 border-none h-9">
                 <TabsTrigger
                   value="kanban"
@@ -52,7 +62,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/40 h-9 w-full"
               />
             </div>
