@@ -88,6 +88,59 @@ const ALL_STATUS_OPTIONS = [
   { id: 'concluido', title: 'Concluído' },
 ]
 
+function TimeInColumn({
+  cardId,
+  status,
+  criado_em,
+}: {
+  cardId: string
+  status: string
+  criado_em: string
+}) {
+  const [timeStr, setTimeStr] = useState<string>('')
+
+  useEffect(() => {
+    let isMounted = true
+    const fetchTime = async () => {
+      const { data } = await supabase
+        .from('kanban_historico')
+        .select('criado_em')
+        .eq('card_id', cardId)
+        .eq('status_novo', status)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+
+      if (!isMounted) return
+
+      const startTime = data && data.length > 0 ? data[0].criado_em : criado_em
+
+      if (startTime) {
+        const diffInMs = new Date().getTime() - new Date(startTime).getTime()
+        const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+        const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+
+        if (diffInDays > 0) {
+          setTimeStr(`⏱️ ${diffInDays}d`)
+        } else if (diffInHours > 0) {
+          setTimeStr(`⏱️ ${diffInHours}h`)
+        } else {
+          setTimeStr(`⏱️ < 1h`)
+        }
+      }
+    }
+
+    fetchTime()
+    const interval = setInterval(fetchTime, 60000)
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+    }
+  }, [cardId, status, criado_em])
+
+  if (!timeStr) return null
+  return <span className="text-xs text-white/80 font-medium">{timeStr}</span>
+}
+
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [items, setItems] = useState<Item[]>([])
 
@@ -105,6 +158,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
   const isAnaliseTecnica =
     typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
+  const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
 
   const [showSobrasPrompt, setShowSobrasPrompt] = useState(false)
   const [showSobrasRegister, setShowSobrasRegister] = useState(false)
@@ -448,16 +502,21 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 onDragStart={(e) => handleDragStart(e, item.id)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  'group relative cursor-grab rounded-lg border shadow-sm hover:shadow-md active:cursor-grabbing transition-all duration-200 flex flex-col',
-                  isAnaliseTecnica
-                    ? 'bg-[#1A3D63] border-white/10 hover:border-white/30 p-2.5 gap-1.5'
-                    : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-4 gap-3',
+                  'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
+                  isProducao
+                    ? 'bg-[#1A3D63] text-white p-3 rounded-md shadow-sm w-full flex flex-col gap-2'
+                    : cn(
+                        'rounded-lg border shadow-sm hover:shadow-md flex flex-col',
+                        isAnaliseTecnica
+                          ? 'bg-[#1A3D63] border-white/10 hover:border-white/30 p-2.5 gap-1.5'
+                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-4 gap-3',
+                      ),
                 )}
               >
                 <div
                   className={cn(
-                    'absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5',
-                    isAnaliseTecnica
+                    'absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
+                    isAnaliseTecnica || isProducao
                       ? 'top-2 text-white/30 bg-[#1A3D63]'
                       : 'top-3 text-steel-blue/30 bg-white',
                   )}
@@ -470,7 +529,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     }}
                     className={cn(
                       'p-1 rounded transition-colors',
-                      isAnaliseTecnica
+                      isAnaliseTecnica || isProducao
                         ? 'hover:text-red-400 hover:bg-red-400/10'
                         : 'hover:text-red-500 hover:bg-red-50',
                     )}
@@ -483,8 +542,30 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   </div>
                 </div>
 
-                <div className={cn('pr-12', isAnaliseTecnica ? 'mb-0.5' : 'mb-1')}>
-                  {isAnaliseTecnica ? (
+                <div
+                  className={cn(
+                    'pr-12',
+                    isAnaliseTecnica ? 'mb-0.5' : isProducao ? 'mb-0' : 'mb-1',
+                  )}
+                >
+                  {isProducao ? (
+                    <>
+                      <div className="flex flex-row items-baseline gap-2 w-full truncate text-sm font-medium">
+                        {item.codigo_rastreio && (
+                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
+                            {item.codigo_rastreio}
+                          </span>
+                        )}
+                        <span className="truncate">{item.cliente?.nome}</span>
+                      </div>
+                      <h4
+                        className="font-semibold leading-snug text-white/90 text-sm mt-1 truncate"
+                        title={item.nome_produto}
+                      >
+                        {item.nome_produto}
+                      </h4>
+                    </>
+                  ) : isAnaliseTecnica ? (
                     <div className="flex flex-row items-baseline gap-2 mt-0.5">
                       {item.codigo_rastreio && (
                         <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
@@ -514,58 +595,76 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   )}
                 </div>
 
-                <div
-                  className={cn(
-                    'flex flex-col text-xs font-medium border-t',
-                    isAnaliseTecnica
-                      ? 'border-white/10 text-white/70 pt-1.5 gap-1'
-                      : 'border-steel-blue/10 text-midnight-navy/70 pt-2.5 gap-1.5',
-                  )}
-                >
-                  {item.cliente && (
-                    <div
-                      className={cn(
-                        'flex items-center gap-1.5 truncate',
-                        isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
-                      )}
-                    >
-                      <User
+                {!isProducao && (
+                  <div
+                    className={cn(
+                      'flex flex-col text-xs font-medium border-t',
+                      isAnaliseTecnica
+                        ? 'border-white/10 text-white/70 pt-1.5 gap-1'
+                        : 'border-steel-blue/10 text-midnight-navy/70 pt-2.5 gap-1.5',
+                    )}
+                  >
+                    {item.cliente && (
+                      <div
                         className={cn(
-                          'h-3 w-3 shrink-0',
-                          isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
+                          'flex items-center gap-1.5 truncate',
+                          isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
                         )}
-                      />
-                      <span className="truncate">{item.cliente.nome}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <Package
+                      >
+                        <User
+                          className={cn(
+                            'h-3 w-3 shrink-0',
+                            isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
+                          )}
+                        />
+                        <span className="truncate">{item.cliente.nome}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Package
+                          className={cn(
+                            'h-3 w-3 shrink-0',
+                            isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
+                          )}
+                        />
+                        <span>Qtd: {item.qtd}</span>
+                      </div>
+                      <div
                         className={cn(
-                          'h-3 w-3 shrink-0',
-                          isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
+                          'flex items-center gap-1',
+                          isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
                         )}
-                      />
-                      <span>Qtd: {item.qtd}</span>
-                    </div>
-                    <div
-                      className={cn(
-                        'flex items-center gap-1',
-                        isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
-                      )}
-                    >
-                      <CalendarClock className="h-3 w-3 shrink-0" />
-                      <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
+                      >
+                        <CalendarClock className="h-3 w-3 shrink-0" />
+                        <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {isProducao && (
+                  <div className="flex items-center justify-between mt-auto">
+                    <TimeInColumn
+                      cardId={item.id}
+                      status={item.status_analise}
+                      criado_em={item.criado_em}
+                    />
+                    <div className="flex items-center gap-1">
+                      <Package className="h-3 w-3 shrink-0 text-white/50" />
+                      <span className="text-xs text-white/80">Qtd: {item.qtd}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div
                   className={cn(
                     'border-t flex flex-col',
-                    isAnaliseTecnica
-                      ? 'border-white/10 pt-2 gap-2'
-                      : 'border-steel-blue/10 pt-2.5 gap-1.5',
+                    isProducao
+                      ? 'border-white/10 pt-2 gap-1.5'
+                      : isAnaliseTecnica
+                        ? 'border-white/10 pt-2 gap-2'
+                        : 'border-steel-blue/10 pt-2.5 gap-1.5',
                   )}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
@@ -601,7 +700,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     <SelectTrigger
                       className={cn(
                         'h-8 text-xs w-full focus:ring-0 focus:ring-offset-0',
-                        isAnaliseTecnica
+                        isAnaliseTecnica || isProducao
                           ? 'bg-white/10 border-white/20 text-white'
                           : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
                       )}
@@ -609,13 +708,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       <SelectValue placeholder="Atribuir responsável..." />
                     </SelectTrigger>
                     <SelectContent
-                      className={cn(isAnaliseTecnica && 'bg-[#1A3D63] border-white/20 text-white')}
+                      className={cn(
+                        (isAnaliseTecnica || isProducao) &&
+                          'bg-[#1A3D63] border-white/20 text-white',
+                      )}
                     >
                       <SelectItem
                         value="unassigned"
                         className={cn(
                           'text-xs',
-                          isAnaliseTecnica
+                          isAnaliseTecnica || isProducao
                             ? 'text-white/60 focus:bg-white/10 focus:text-white'
                             : 'text-muted-foreground',
                         )}
@@ -628,7 +730,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           value={u.id}
                           className={cn(
                             'text-xs',
-                            isAnaliseTecnica && 'focus:bg-white/10 focus:text-white',
+                            (isAnaliseTecnica || isProducao) &&
+                              'focus:bg-white/10 focus:text-white',
                           )}
                         >
                           {u.nome}
