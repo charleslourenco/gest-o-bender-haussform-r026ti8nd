@@ -12,8 +12,8 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   // Specific header layout for Análise Técnica
   if (title === 'Análise Técnica') {
     return (
-      <div className="w-full px-4 pt-4">
-        <div className="bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md flex flex-row items-center justify-between w-full whitespace-nowrap">
+      <div className="w-full px-4 pt-0 mt-0">
+        <div className="bg-[#0A1931] text-white px-4 py-3 mb-4 mt-0 rounded-md flex flex-row flex-nowrap items-center justify-between w-full whitespace-nowrap">
           {/* Left Side Group */}
           <div className="flex flex-row items-center gap-6">
             <div className="flex items-center gap-2">
