@@ -19,6 +19,7 @@ export function KanbanCard({
   const isMontagem = typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
   const isAnaliseTecnica =
     typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
+  const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
   const [montadores, setMontadores] = useState<string[]>([])
 
   useEffect(() => {
@@ -42,45 +43,64 @@ export function KanbanCard({
       onClick={onClick}
       className={cn(
         'rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
-        isAnaliseTecnica
+        isAnaliseTecnica || isProducao
           ? 'bg-[#1A3D63] border-white/20 hover:border-white/40 p-2.5 gap-1.5'
           : 'bg-midnight-navy border-steel-blue/40 hover:border-pale-cornflower p-4 gap-2',
       )}
     >
-      <div className="flex justify-between items-start">
-        <span
-          className={cn(
-            'font-mono font-bold px-1.5 py-0.5 rounded',
-            isAnaliseTecnica
-              ? 'text-[10px] text-white bg-white/10'
-              : 'text-xs text-pale-cornflower bg-steel-blue/20',
-          )}
-        >
-          {card.codigo_rastreio ||
-            `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
-        </span>
-        <Badge
-          className={cn(
-            'text-[10px] py-0',
-            isAnaliseTecnica ? 'bg-white/20 text-white' : 'bg-steel-blue',
-          )}
-        >
-          Qtd: {card.qtd}
-        </Badge>
-      </div>
-      <div
-        className={cn(
-          'font-semibold text-[#F6FAFD] leading-snug',
-          isAnaliseTecnica ? 'text-sm' : 'text-base',
-        )}
-      >
-        {card.nome_produto}
-      </div>
+      {isProducao ? (
+        <div className="flex justify-between items-start w-full">
+          <div className="flex flex-row items-baseline gap-2 w-full truncate">
+            <span className="font-mono font-bold px-1.5 py-0.5 rounded text-[10px] text-white bg-white/10 shrink-0">
+              {card.codigo_rastreio ||
+                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
+            </span>
+            <span className="font-semibold text-[#F6FAFD] text-sm truncate">
+              {card.nome_produto}
+            </span>
+          </div>
+          <Badge className="text-[10px] py-0 bg-white/20 text-white shrink-0 ml-2">
+            Qtd: {card.qtd}
+          </Badge>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-between items-start">
+            <span
+              className={cn(
+                'font-mono font-bold px-1.5 py-0.5 rounded',
+                isAnaliseTecnica
+                  ? 'text-[10px] text-white bg-white/10'
+                  : 'text-xs text-pale-cornflower bg-steel-blue/20',
+              )}
+            >
+              {card.codigo_rastreio ||
+                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
+            </span>
+            <Badge
+              className={cn(
+                'text-[10px] py-0',
+                isAnaliseTecnica ? 'bg-white/20 text-white' : 'bg-steel-blue',
+              )}
+            >
+              Qtd: {card.qtd}
+            </Badge>
+          </div>
+          <div
+            className={cn(
+              'font-semibold text-[#F6FAFD] leading-snug',
+              isAnaliseTecnica ? 'text-sm' : 'text-base',
+            )}
+          >
+            {card.nome_produto}
+          </div>
+        </>
+      )}
       <div className="flex justify-between items-end mt-1">
         <div
           className={cn(
             'text-xs truncate max-w-[150px]',
-            isAnaliseTecnica ? 'text-white/70' : 'text-pale-cornflower/80',
+            isAnaliseTecnica || isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
           )}
         >
           {card.clientes?.nome || 'Cliente N/A'}
