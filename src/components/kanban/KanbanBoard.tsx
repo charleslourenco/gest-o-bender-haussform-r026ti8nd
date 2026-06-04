@@ -10,6 +10,7 @@ import {
   Package,
   CalendarClock,
   Trash2,
+  FileSearch,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -73,6 +74,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   const isMontagemRoute =
     typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
+  const isAnaliseTecnica =
+    typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
 
   const [showSobrasPrompt, setShowSobrasPrompt] = useState(false)
   const [showSobrasRegister, setShowSobrasRegister] = useState(false)
@@ -345,26 +348,97 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-off-white rounded-lg border border-steel-blue/10 shadow-sm">
-      <div className="border-b border-steel-blue/10 bg-white">
-        <KanbanHeader
-          title={title}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          selectedAnalyst={selectedAnalyst}
-          setSelectedAnalyst={setSelectedAnalyst}
-          selectedConsultant={selectedConsultant}
-          setSelectedConsultant={setSelectedConsultant}
-          uniqueAnalysts={uniqueAnalysts}
-          uniqueConsultants={uniqueConsultants}
-          usersMap={usersMap}
-        />
-        <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
-          <p className="text-midnight-navy/60 text-sm">
-            Arraste os cards entre as colunas para atualizar o status.
-          </p>
+    <div
+      className={cn(
+        'flex h-full flex-col overflow-hidden shadow-sm',
+        isAnaliseTecnica
+          ? 'bg-off-white rounded-xl'
+          : 'bg-off-white rounded-lg border border-steel-blue/10',
+      )}
+    >
+      {isAnaliseTecnica ? (
+        <div className="flex flex-col sm:flex-row items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0">
+          <div className="flex items-center gap-3 w-full sm:w-auto mb-3 sm:mb-0">
+            <FileSearch className="h-6 w-6 text-emerald-400" />
+            <h1 className="text-white font-bold text-xl">Análise Técnica</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+            <Input
+              placeholder="Buscar cards..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-[200px]"
+            />
+            <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
+              <SelectTrigger className="bg-white/10 border-white/20 text-white h-9 w-[180px]">
+                <SelectValue placeholder="Responsável" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
+                <SelectItem value="all" className="focus:bg-white/10 focus:text-white">
+                  Todos Responsáveis
+                </SelectItem>
+                <SelectItem value="unassigned" className="focus:bg-white/10 focus:text-white">
+                  Não atribuído
+                </SelectItem>
+                {uniqueAnalysts.map(
+                  (id) =>
+                    usersMap[id] && (
+                      <SelectItem
+                        key={id}
+                        value={id}
+                        className="focus:bg-white/10 focus:text-white"
+                      >
+                        {usersMap[id].nome}
+                      </SelectItem>
+                    ),
+                )}
+              </SelectContent>
+            </Select>
+            <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
+              <SelectTrigger className="bg-white/10 border-white/20 text-white h-9 w-[180px]">
+                <SelectValue placeholder="Consultor" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
+                <SelectItem value="all" className="focus:bg-white/10 focus:text-white">
+                  Todos Consultores
+                </SelectItem>
+                {uniqueConsultants.map(
+                  (id) =>
+                    usersMap[id] && (
+                      <SelectItem
+                        key={id}
+                        value={id}
+                        className="focus:bg-white/10 focus:text-white"
+                      >
+                        {usersMap[id].nome}
+                      </SelectItem>
+                    ),
+                )}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="border-b border-steel-blue/10 bg-white">
+          <KanbanHeader
+            title={title}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            selectedAnalyst={selectedAnalyst}
+            setSelectedAnalyst={setSelectedAnalyst}
+            selectedConsultant={selectedConsultant}
+            setSelectedConsultant={setSelectedConsultant}
+            uniqueAnalysts={uniqueAnalysts}
+            uniqueConsultants={uniqueConsultants}
+            usersMap={usersMap}
+          />
+          <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
+            <p className="text-midnight-navy/60 text-sm">
+              Arraste os cards entre as colunas para atualizar o status.
+            </p>
+          </div>
+        </div>
+      )}
 
       <ScrollArea className="flex-1 px-6 pb-6">
         <div className="flex h-full gap-6 pb-4 pt-4">
@@ -397,16 +471,33 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       draggable
                       onDragStart={(e) => handleDragStart(e, item.id)}
                       onDragEnd={handleDragEnd}
-                      className="group relative cursor-grab rounded-lg border border-steel-blue/20 bg-white p-4 shadow-sm hover:border-steel-blue/50 hover:shadow-md active:cursor-grabbing transition-all duration-200"
+                      className={cn(
+                        'group relative cursor-grab rounded-lg border p-4 shadow-sm hover:shadow-md active:cursor-grabbing transition-all duration-200',
+                        isAnaliseTecnica
+                          ? 'bg-[#1A3D63] border-white/10 hover:border-white/30'
+                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50',
+                      )}
                     >
-                      <div className="absolute top-4 right-3 text-steel-blue/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-white pl-2">
+                      <div
+                        className={cn(
+                          'absolute top-4 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 pl-2',
+                          isAnaliseTecnica
+                            ? 'text-white/30 bg-[#1A3D63]'
+                            : 'text-steel-blue/30 bg-white',
+                        )}
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleDeleteCard(item.id)
                           }}
-                          className="p-1 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            isAnaliseTecnica
+                              ? 'hover:text-red-400 hover:bg-red-400/10'
+                              : 'hover:text-red-500 hover:bg-red-50',
+                          )}
                           title="Excluir card"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -417,31 +508,70 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </div>
 
                       <div className="mb-3 pr-16">
-                        <h4 className="font-semibold text-midnight-navy leading-snug">
+                        <h4
+                          className={cn(
+                            'font-semibold leading-snug',
+                            isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy',
+                          )}
+                        >
                           {item.nome_produto}
                         </h4>
                         {item.codigo_rastreio && (
                           <div className="mt-2">
-                            <span className="inline-block text-[11px] font-mono font-bold text-steel-blue bg-pale-cornflower px-2 py-0.5 rounded border border-steel-blue/20">
+                            <span
+                              className={cn(
+                                'inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded border',
+                                isAnaliseTecnica
+                                  ? 'text-white bg-white/10 border-white/20'
+                                  : 'text-steel-blue bg-pale-cornflower border-steel-blue/20',
+                              )}
+                            >
                               {item.codigo_rastreio}
                             </span>
                           </div>
                         )}
                       </div>
 
-                      <div className="space-y-2 mt-4 pt-3 border-t border-steel-blue/10 text-xs font-medium text-midnight-navy/70">
+                      <div
+                        className={cn(
+                          'space-y-2 mt-4 pt-3 border-t text-xs font-medium',
+                          isAnaliseTecnica
+                            ? 'border-white/10 text-white/70'
+                            : 'border-steel-blue/10 text-midnight-navy/70',
+                        )}
+                      >
                         {item.cliente && (
-                          <div className="flex items-center gap-2 text-midnight-navy/90">
-                            <User className="h-3.5 w-3.5 shrink-0 text-steel-blue" />
+                          <div
+                            className={cn(
+                              'flex items-center gap-2',
+                              isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
+                            )}
+                          >
+                            <User
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0',
+                                isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
+                              )}
+                            />
                             <span className="truncate">{item.cliente.nome}</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Package className="h-3.5 w-3.5 shrink-0 text-steel-blue" />
+                            <Package
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0',
+                                isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
+                              )}
+                            />
                             <span>Qtd: {item.qtd}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-midnight-navy/50">
+                          <div
+                            className={cn(
+                              'flex items-center gap-1.5',
+                              isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
+                            )}
+                          >
                             <CalendarClock className="h-3.5 w-3.5 shrink-0" />
                             <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
                           </div>
@@ -449,7 +579,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </div>
 
                       <div
-                        className="mt-4 pt-3 border-t border-steel-blue/10 flex flex-col gap-1.5"
+                        className={cn(
+                          'mt-4 pt-3 border-t flex flex-col gap-1.5',
+                          isAnaliseTecnica ? 'border-white/10' : 'border-steel-blue/10',
+                        )}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -459,18 +592,41 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
                           }
                         >
-                          <SelectTrigger className="h-8 text-xs border-steel-blue/20 bg-pale-cornflower/20 w-full focus:ring-0 focus:ring-offset-0">
+                          <SelectTrigger
+                            className={cn(
+                              'h-8 text-xs w-full focus:ring-0 focus:ring-offset-0',
+                              isAnaliseTecnica
+                                ? 'bg-white/10 border-white/20 text-white'
+                                : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
+                            )}
+                          >
                             <SelectValue placeholder="Atribuir responsável..." />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent
+                            className={cn(
+                              isAnaliseTecnica && 'bg-[#1A3D63] border-white/20 text-white',
+                            )}
+                          >
                             <SelectItem
                               value="unassigned"
-                              className="text-xs text-muted-foreground"
+                              className={cn(
+                                'text-xs',
+                                isAnaliseTecnica
+                                  ? 'text-white/60 focus:bg-white/10 focus:text-white'
+                                  : 'text-muted-foreground',
+                              )}
                             >
                               Não atribuído
                             </SelectItem>
                             {allUsers.map((u) => (
-                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                              <SelectItem
+                                key={u.id}
+                                value={u.id}
+                                className={cn(
+                                  'text-xs',
+                                  isAnaliseTecnica && 'focus:bg-white/10 focus:text-white',
+                                )}
+                              >
                                 {u.nome}
                               </SelectItem>
                             ))}

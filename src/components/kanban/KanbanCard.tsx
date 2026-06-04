@@ -3,6 +3,7 @@ import { CardData } from './types'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Wrench } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export function KanbanCard({
   card,
@@ -16,6 +17,8 @@ export function KanbanCard({
   onDragStart: (e: React.DragEvent, id: string) => void
 }) {
   const isMontagem = typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
+  const isAnaliseTecnica =
+    typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
   const [montadores, setMontadores] = useState<string[]>([])
 
   useEffect(() => {
@@ -37,20 +40,42 @@ export function KanbanCard({
       draggable
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
-      className="p-4 bg-midnight-navy rounded-lg border border-steel-blue/40 shadow-sm cursor-pointer hover:border-pale-cornflower hover:shadow-md transition-all"
+      className={cn(
+        'p-4 rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-all',
+        isAnaliseTecnica
+          ? 'bg-[#1A3D63] border-white/20 hover:border-white/40'
+          : 'bg-midnight-navy border-steel-blue/40 hover:border-pale-cornflower',
+      )}
     >
       <div className="flex justify-between items-start mb-2">
-        <span className="text-xs font-mono font-bold text-pale-cornflower bg-steel-blue/20 px-1.5 py-0.5 rounded">
+        <span
+          className={cn(
+            'text-xs font-mono font-bold px-1.5 py-0.5 rounded',
+            isAnaliseTecnica ? 'text-white bg-white/10' : 'text-pale-cornflower bg-steel-blue/20',
+          )}
+        >
           {card.codigo_rastreio ||
             `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
         </span>
-        <Badge className="bg-steel-blue text-[10px] py-0">Qtd: {card.qtd}</Badge>
+        <Badge
+          className={cn(
+            'text-[10px] py-0',
+            isAnaliseTecnica ? 'bg-white/20 text-white' : 'bg-steel-blue',
+          )}
+        >
+          Qtd: {card.qtd}
+        </Badge>
       </div>
-      <div className="font-semibold text-off-white text-sm mb-1 leading-snug">
+      <div className="font-semibold text-[#F6FAFD] text-sm mb-1 leading-snug">
         {card.nome_produto}
       </div>
       <div className="flex justify-between items-end mt-2">
-        <div className="text-xs text-pale-cornflower/80 truncate max-w-[150px]">
+        <div
+          className={cn(
+            'text-xs truncate max-w-[150px]',
+            isAnaliseTecnica ? 'text-white/80' : 'text-pale-cornflower/80',
+          )}
+        >
           {card.clientes?.nome || 'Cliente N/A'}
         </div>
 
