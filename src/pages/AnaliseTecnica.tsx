@@ -13,7 +13,7 @@ const COLUMNS = [
 
 export default function AnaliseTecnica() {
   return (
-    <div className="h-full flex flex-col bg-off-white animate-in fade-in duration-300 mt-0 pt-0">
+    <div className="h-full flex flex-col bg-off-white animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden">
       <div className="flex-1 overflow-hidden min-h-0 relative">
         <KanbanBoard title="Análise Técnica" columns={COLUMNS} />
       </div>
