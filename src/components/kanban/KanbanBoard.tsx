@@ -60,6 +60,26 @@ interface Item {
   alocacao_montagem?: { montador_id: string }[]
 }
 
+const ALL_STATUS_OPTIONS = [
+  { id: 'iniciar', title: 'Iniciar' },
+  { id: 'aguardando_liberacao', title: 'Aguardando liberação' },
+  { id: 'medida_fina', title: 'Medida Fina' },
+  { id: 'reuniao_analise', title: 'Reunião de Análise' },
+  { id: 'caderno_tecnico', title: 'Caderno Técnico' },
+  { id: 'alteracao_projeto', title: 'Alteração de projeto' },
+  { id: 'lista_materiais', title: 'Lista de Materiais' },
+  { id: 'aguardando_plano_corte', title: 'Aguardando Plano de Corte' },
+  { id: 'router', title: 'Router' },
+  { id: 'coladeira', title: 'Coladeira' },
+  { id: 'bancada', title: 'Bancada' },
+  { id: 'embalagem', title: 'Embalagem' },
+  { id: 'expedicao', title: 'Expedição' },
+  { id: 'transporte', title: 'Transporte' },
+  { id: 'montagem', title: 'Montagem' },
+  { id: 'assistencia', title: 'Assistência' },
+  { id: 'concluido', title: 'Concluído' },
+]
+
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [items, setItems] = useState<Item[]>([])
 
@@ -434,7 +454,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
     >
       {isAnaliseTecnica ? (
-        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4 mt-6 mx-6 rounded-md">
+        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4 mt-0 mx-0 rounded-none w-full">
           <div className="flex flex-row flex-nowrap items-center gap-4">
             <div className="flex items-center gap-2 whitespace-nowrap">
               <FileSearch className="h-5 w-5 text-emerald-400" />
@@ -742,8 +762,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                                 <SelectTrigger className="h-8 text-xs w-full bg-white/10 border-white/20 text-white focus:ring-0 focus:ring-offset-0">
                                   <SelectValue placeholder="Status" />
                                 </SelectTrigger>
-                                <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
-                                  {columns.map((c) => (
+                                <SelectContent className="bg-[#1A3D63] border-white/20 text-white max-h-[300px]">
+                                  {ALL_STATUS_OPTIONS.map((c) => (
                                     <SelectItem
                                       key={c.id}
                                       value={c.id}
