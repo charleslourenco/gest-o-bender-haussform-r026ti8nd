@@ -62,7 +62,7 @@ export default function AnaliseTecnica() {
         // that can occur with HEAD requests returning empty bodies.
         const { data, count, error } = await supabase
           .from('solicitacoes_compra')
-          .select('id', { count: 'exact', head: false })
+          .select('*', { count: 'exact' })
           .eq('status', 'Pendente')
 
         if (error) {
