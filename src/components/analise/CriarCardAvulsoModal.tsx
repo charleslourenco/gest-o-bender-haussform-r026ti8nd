@@ -53,7 +53,7 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
       valor_total: Number(qtd) * Number(valorUnitario),
       cliente_id: clienteId,
       descricao: descricao || null,
-      formulario_comercial_id: null,
+      formulario_comercial_id: baseCard?.formulario_comercial_id || null,
       is_outsourced: true,
       outsourced_checked: true,
       terceirizado_validado: true,

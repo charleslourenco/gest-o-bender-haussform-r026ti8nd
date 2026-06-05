@@ -1,13 +1,57 @@
 import { useState } from 'react'
-import { Plus, Search, FileSearch, Filter, Hammer, Scissors } from 'lucide-react'
+import { Plus, Search, FileSearch, Filter, Hammer, Scissors, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { supabase } from '@/lib/supabase/client'
+import { useEffect } from 'react'
 
 export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   const [activeTab, setActiveTab] = useState('kanban')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (title !== 'Análise Técnica') return
+
+    let isMounted = true
+
+    const fetchPendingPurchases = async () => {
+      try {
+        const { data, count, error } = await supabase
+          .from('solicitacoes_compra')
+          .select('*', { count: 'exact' })
+          .eq('status', 'Pendente')
+
+        if (error) return
+
+        if (data && Array.isArray(data) && isMounted) {
+          setPendingPurchasesCount(count || 0)
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching pending purchases:', err)
+      }
+    }
+
+    fetchPendingPurchases()
+
+    const channel = supabase
+      .channel('public:solicitacoes_compra_header')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_compra' },
+        () => {
+          fetchPendingPurchases()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [title])
 
   const handleTabChange = (val: string) => {
     setActiveTab(val)
@@ -132,6 +176,15 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
 
           {/* Right Side Group */}
           <div className="flex flex-row items-center gap-4">
+            {pendingPurchasesCount !== null && pendingPurchasesCount > 0 && (
+              <div
+                className="bg-amber-100 text-amber-700 border border-amber-200 text-sm font-medium px-2 py-1.5 rounded-md shrink-0 flex items-center gap-1.5"
+                title={`${pendingPurchasesCount} Solicitação(ões) de Compra Pendente(s)`}
+              >
+                <AlertTriangle className="w-4 h-4" />
+                <span className="font-bold">{pendingPurchasesCount}</span>
+              </div>
+            )}
             <div className="relative w-48 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
               <Input
