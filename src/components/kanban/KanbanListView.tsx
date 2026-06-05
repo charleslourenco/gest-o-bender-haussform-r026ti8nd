@@ -65,6 +65,7 @@ export function KanbanListView({
       .select(`
         *,
         clientes(nome),
+        formulario_comercial(nome_cliente, clientes(nome)),
         alocacao_montagem(montador_id, card_id)
       `)
       .order('criado_em', { ascending: false })
@@ -153,10 +154,28 @@ export function KanbanListView({
     }
   }
 
+  const getClienteNome = (card: any) => {
+    const nome = Array.isArray(card.clientes) ? card.clientes[0]?.nome : card.clientes?.nome
+    if (nome) return nome
+
+    if (card.formulario_comercial) {
+      const form = Array.isArray(card.formulario_comercial)
+        ? card.formulario_comercial[0]
+        : card.formulario_comercial
+      const formClienteNome = Array.isArray(form?.clientes)
+        ? form.clientes[0]?.nome
+        : form?.clientes?.nome
+      if (formClienteNome) return formClienteNome
+      if (form?.nome_cliente) return form.nome_cliente
+    }
+
+    return null
+  }
+
   const filtered = cards.filter((c) => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
-    const clienteNome = Array.isArray(c.clientes) ? c.clientes[0]?.nome : c.clientes?.nome
+    const clienteNome = getClienteNome(c)
     return (
       c.nome_produto?.toLowerCase().includes(q) ||
       c.codigo_rastreio?.toLowerCase().includes(q) ||
@@ -198,9 +217,7 @@ export function KanbanListView({
               </TableRow>
             ) : (
               filtered.map((card) => {
-                const clienteNome = Array.isArray(card.clientes)
-                  ? card.clientes[0]?.nome
-                  : card.clientes?.nome
+                const clienteNome = getClienteNome(card)
                 return (
                   <TableRow
                     key={card.id}
