@@ -60,9 +60,9 @@ export default function AnaliseTecnica() {
       try {
         // Using a standard GET request (without head: true) to avoid JSON parsing errors
         // that can occur with HEAD requests returning empty bodies.
-        const { count, error } = await supabase
+        const { data, count, error } = await supabase
           .from('solicitacoes_compra')
-          .select('id', { count: 'exact' })
+          .select('id', { count: 'exact', head: false })
           .eq('status', 'Pendente')
 
         if (error) {
@@ -70,7 +70,8 @@ export default function AnaliseTecnica() {
           return
         }
 
-        if (isMounted) {
+        // Verify valid data returned (array) before processing to ensure valid JSON structure
+        if (data && Array.isArray(data) && isMounted) {
           setPendingPurchasesCount(count || 0)
         }
       } catch (err) {
