@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import {
   Loader2,
   AlertCircle,
@@ -446,6 +445,65 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollSpeedRef = useRef(0)
+  const animationRef = useRef<number | null>(null)
+
+  const startAutoScroll = () => {
+    if (!animationRef.current) {
+      const scroll = () => {
+        if (scrollContainerRef.current && scrollSpeedRef.current !== 0) {
+          scrollContainerRef.current.scrollLeft += scrollSpeedRef.current
+        }
+        animationRef.current = requestAnimationFrame(scroll)
+      }
+      animationRef.current = requestAnimationFrame(scroll)
+    }
+  }
+
+  const stopAutoScroll = () => {
+    scrollSpeedRef.current = 0
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    const handleGlobalDrop = () => stopAutoScroll()
+    window.addEventListener('dragend', handleGlobalDrop)
+    window.addEventListener('drop', handleGlobalDrop)
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDrop)
+      window.removeEventListener('drop', handleGlobalDrop)
+    }
+  }, [])
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (!scrollContainerRef.current) return
+
+    const container = scrollContainerRef.current
+    const rect = container.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const scrollThreshold = 100 // px from edge
+    const maxScrollSpeed = 15
+
+    let speed = 0
+    if (x < scrollThreshold) {
+      speed = -maxScrollSpeed * (1 - Math.max(0, x) / scrollThreshold)
+    } else if (rect.width - x < scrollThreshold) {
+      speed = maxScrollSpeed * (1 - Math.max(0, rect.width - x) / scrollThreshold)
+    }
+
+    if (speed !== 0) {
+      scrollSpeedRef.current = speed
+      startAutoScroll()
+    } else {
+      stopAutoScroll()
+    }
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.currentTarget.classList.add('bg-steel-blue/10')
@@ -546,10 +604,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         <div
           key={col.id}
           className={cn(
-            'transition-colors duration-200 shrink-0',
+            'transition-colors duration-200 shrink-0 flex flex-col h-full',
             isAnaliseTecnica
-              ? 'flex flex-col h-full max-h-full min-w-[260px] bg-slate-100 rounded-lg'
-              : 'flex h-full w-[260px] flex-col rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
+              ? 'max-h-full min-w-[260px] bg-slate-100 rounded-lg'
+              : isMontagemRoute
+                ? 'w-[320px] min-w-[320px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20'
+                : 'w-[260px] min-w-[260px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -1017,18 +1077,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'kanban' && (
-        <>
-          {isAnaliseTecnica ? (
-            <div className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar">
-              {renderColumns()}
-            </div>
-          ) : (
-            <ScrollArea className="flex-1 px-6 pb-6">
-              <div className="flex pb-4 pt-4 gap-6 h-full">{renderColumns()}</div>
-              <ScrollBar orientation="horizontal" className="h-2.5" />
-            </ScrollArea>
-          )}
-        </>
+        <div
+          ref={scrollContainerRef}
+          onDragOver={handleContainerDragOver}
+          onDragLeave={stopAutoScroll}
+          className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1"
+        >
+          {renderColumns()}
+        </div>
       )}
 
       {activeView === 'lista' && (

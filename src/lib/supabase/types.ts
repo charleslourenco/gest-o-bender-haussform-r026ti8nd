@@ -3590,7 +3590,7 @@ export const Constants = {
 //    SECURITY DEFINER
 //   AS $function$
 //   DECLARE
-//     status_map jsonb := '{"iniciar": "Iniciar", "medida_fina": "Medida Fina", "reuniao_analise": "Reunião de Análise", "caderno_tecnico": "Caderno Técnico", "lista_materiais": "Lista de Materiais", "aguardando_plano_corte": "Aguardando Plano de Corte", "router": "Router", "coladeira": "Coladeira", "bancada": "Bancada", "embalagem": "Embalagem", "expedicao": "Expedição", "transporte": "Transporte", "montagem": "Montagem", "assistencia": "Assistência", "concluido": "Concluído"}'::jsonb;
+//     status_map jsonb := '{"iniciar": "Iniciar", "aguardando_liberacao": "Aguardando liberação", "medida_fina": "Medida Fina", "reuniao_analise": "Reunião de Análise", "caderno_tecnico": "Caderno Técnico", "alteracao_projeto": "Alteração de projeto", "lista_materiais": "Lista de Materiais", "aguardando_plano_corte": "Aguardando Plano de Corte", "router": "Router", "coladeira": "Coladeira", "bancada": "Bancada", "embalagem": "Embalagem", "expedicao": "Expedição", "aguardando_agenda": "Aguardando Agenda", "transporte": "Transporte", "montagem": "Montagem", "item_terceirizado": "Item Terceirizado", "pendencia": "Pendência", "assistencia": "Assistência", "concluido": "Concluído"}'::jsonb;
 //     human_status text;
 //   BEGIN
 //     IF NEW.status_analise IS DISTINCT FROM OLD.status_analise THEN
