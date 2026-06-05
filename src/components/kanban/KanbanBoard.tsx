@@ -68,6 +68,8 @@ interface Item {
   formulario: { user_id: string } | null
   alocacao_montagem?: { montador_id: string }[]
   terceirizado_validado?: boolean
+  outsourced_checked?: boolean
+  is_outsourced?: boolean
 }
 
 const ALL_STATUS_OPTIONS = [
@@ -182,11 +184,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     try {
       const { error } = await supabase
         .from('produtos_servicos_projeto')
-        .update({ terceirizado_validado: true })
+        .update({ outsourced_checked: true })
         .eq('id', validatingCardId)
       if (error) throw error
       setItems((prev) =>
-        prev.map((i) => (i.id === validatingCardId ? { ...i, terceirizado_validado: true } : i)),
+        prev.map((i) => (i.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
       )
       toast.success('Validação concluída com sucesso!')
     } catch (err: any) {
@@ -207,10 +209,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       try {
         await supabase
           .from('produtos_servicos_projeto')
-          .update({ terceirizado_validado: true })
+          .update({ outsourced_checked: true })
           .eq('id', validatingCardId)
         setItems((prev) =>
-          prev.map((i) => (i.id === validatingCardId ? { ...i, terceirizado_validado: true } : i)),
+          prev.map((i) => (i.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
         )
       } catch (err) {
         console.error('Erro no auto-validation:', err)
@@ -225,7 +227,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const item = items.find((i) => i.id === itemId)
     if (!item || item.status_analise === newStatusId) return
 
-    if (isAnaliseTecnica && item.terceirizado_validado === false) {
+    if (isAnaliseTecnica && !item.is_outsourced && !item.outsourced_checked) {
       toast.error('Verifique os itens terceirizados primeiro.')
       return
     }
@@ -333,6 +335,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           analista_id,
           cliente_id,
           terceirizado_validado,
+          outsourced_checked,
+          is_outsourced,
           cliente:clientes(nome),
           formulario:formulario_comercial(user_id),
           alocacao_montagem(montador_id)
@@ -410,7 +414,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   })
 
   const handleDragStart = (e: React.DragEvent, item: Item) => {
-    if (isAnaliseTecnica && item.terceirizado_validado === false) {
+    if (isAnaliseTecnica && !item.is_outsourced && !item.outsourced_checked) {
       e.preventDefault()
       toast.error('Verifique os itens terceirizados primeiro.')
       return
@@ -572,9 +576,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   isProducao
                     ? 'bg-[#1A3D63] text-white p-3 rounded-md shadow-sm w-full flex flex-col gap-2'
                     : cn(
-                        'rounded-lg border shadow-sm hover:shadow-md flex flex-col',
+                        'rounded-lg shadow-sm hover:shadow-md flex flex-col',
                         isAnaliseTecnica
-                          ? 'bg-[#1A3D63] border-white/10 hover:border-white/30 p-2.5 gap-1.5'
+                          ? cn(
+                              'bg-[#1A3D63] text-white p-2 gap-1.5',
+                              item.is_outsourced
+                                ? 'border-2 border-orange-500'
+                                : 'border border-white/10 hover:border-white/30',
+                            )
                           : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-4 gap-3',
                       ),
                 )}
@@ -633,29 +642,33 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </>
                   ) : isAnaliseTecnica ? (
                     <div className="flex flex-col gap-1.5 mt-0.5">
-                      <div className="flex flex-row items-baseline gap-2">
+                      <div className="flex flex-row items-baseline gap-2 w-full truncate">
                         {item.codigo_rastreio && (
-                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
+                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-white/20 text-white bg-white/10 shrink-0">
                             {item.codigo_rastreio}
                           </span>
                         )}
-                        <h4
-                          className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
-                          title={item.nome_produto}
-                        >
-                          {item.nome_produto}
-                        </h4>
+                        <span className="text-sm truncate" title={item.cliente?.nome}>
+                          {item.cliente?.nome}
+                        </span>
                       </div>
-                      {item.terceirizado_validado === false && (
-                        <div
-                          className="inline-flex items-center self-start text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 cursor-pointer transition-colors"
+                      <h4
+                        className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
+                        title={item.nome_produto}
+                      >
+                        {item.nome_produto}
+                      </h4>
+                      {!item.is_outsourced && !item.outsourced_checked && (
+                        <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleOpenValidation(item.id)
                           }}
+                          className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded w-full mt-1 flex items-center justify-center hover:bg-red-600"
                         >
-                          ⚠️ Terceirizado?
-                        </div>
+                          ⚠️ Terceirizado Pendente
+                        </button>
                       )}
                     </div>
                   ) : (
@@ -683,19 +696,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         : 'border-steel-blue/10 text-midnight-navy/70 pt-2.5 gap-1.5',
                     )}
                   >
-                    {item.cliente && (
-                      <div
-                        className={cn(
-                          'flex items-center gap-1.5 truncate',
-                          isAnaliseTecnica ? 'text-[#F6FAFD]' : 'text-midnight-navy/90',
-                        )}
-                      >
-                        <User
-                          className={cn(
-                            'h-3 w-3 shrink-0',
-                            isAnaliseTecnica ? 'text-emerald-400' : 'text-steel-blue',
-                          )}
-                        />
+                    {!isAnaliseTecnica && item.cliente && (
+                      <div className="flex items-center gap-1.5 truncate text-midnight-navy/90">
+                        <User className="h-3 w-3 shrink-0 text-steel-blue" />
                         <span className="truncate">{item.cliente.nome}</span>
                       </div>
                     )}
@@ -1020,18 +1023,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                                   {item.codigo_rastreio}
                                 </span>
                               )}
-                              {isAnaliseTecnica && item.terceirizado_validado === false && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleOpenValidation(item.id)
-                                  }}
-                                  className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 border border-amber-300 hover:bg-amber-200 transition-colors"
-                                >
-                                  ⚠️ Terceirizado?
-                                </button>
-                              )}
+                              {isAnaliseTecnica &&
+                                !item.is_outsourced &&
+                                !item.outsourced_checked && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleOpenValidation(item.id)
+                                    }}
+                                    className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500 text-white border border-red-600 hover:bg-red-600 transition-colors"
+                                  >
+                                    ⚠️ Terceirizado Pendente
+                                  </button>
+                                )}
                             </div>
                           </div>
                         </TableCell>
@@ -1170,6 +1175,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         open={showCreateAvulsoForValidation}
         onOpenChange={setShowCreateAvulsoForValidation}
         onCreated={handleValidationCardCreated}
+        initialIsOutsourced={true}
       />
 
       <Dialog open={showSobrasRegister} onOpenChange={setShowSobrasRegister}>

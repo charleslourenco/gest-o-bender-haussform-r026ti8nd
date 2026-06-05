@@ -77,10 +77,17 @@ export function KanbanCard({
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
       className={cn(
-        'rounded-lg border shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
-        isAnaliseTecnica || isProducao
-          ? 'bg-[#1A3D63] border-white/20 hover:border-white/40 p-2.5 gap-1.5'
-          : 'bg-midnight-navy border-steel-blue/40 hover:border-pale-cornflower p-4 gap-2',
+        'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
+        isAnaliseTecnica
+          ? cn(
+              'bg-[#1A3D63] text-white p-2 gap-1.5',
+              card.is_outsourced
+                ? 'border-2 border-orange-500'
+                : 'border border-white/10 hover:border-white/30',
+            )
+          : isProducao
+            ? 'bg-[#1A3D63] border border-white/20 hover:border-white/40 p-2.5 gap-1.5 text-white'
+            : 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower p-4 gap-2 text-white',
       )}
     >
       {isProducao ? (
@@ -98,48 +105,62 @@ export function KanbanCard({
             Qtd: {card.qtd}
           </Badge>
         </div>
-      ) : (
+      ) : isAnaliseTecnica ? (
         <>
-          <div className="flex justify-between items-start">
-            <span
-              className={cn(
-                'font-mono font-bold px-1.5 py-0.5 rounded',
-                isAnaliseTecnica
-                  ? 'text-[10px] text-white bg-white/10'
-                  : 'text-xs text-pale-cornflower bg-steel-blue/20',
+          <div className="flex justify-between items-start w-full">
+            <div className="flex flex-row items-baseline gap-2 w-full truncate">
+              {card.codigo_rastreio && (
+                <span className="font-mono font-bold px-1.5 py-0.5 rounded text-[10px] border border-white/20 text-white bg-white/10 shrink-0">
+                  {card.codigo_rastreio}
+                </span>
               )}
-            >
-              {card.codigo_rastreio ||
-                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
-            </span>
-            <Badge
-              className={cn(
-                'text-[10px] py-0',
-                isAnaliseTecnica ? 'bg-white/20 text-white' : 'bg-steel-blue',
-              )}
-            >
+              <span className="text-sm truncate" title={card.clientes?.nome || 'Cliente N/A'}>
+                {card.clientes?.nome || 'Cliente N/A'}
+              </span>
+            </div>
+            <Badge className="text-[10px] py-0 bg-white/20 text-white shrink-0 ml-2">
               Qtd: {card.qtd}
             </Badge>
           </div>
-          <div
-            className={cn(
-              'font-semibold text-[#F6FAFD] leading-snug',
-              isAnaliseTecnica ? 'text-sm' : 'text-base',
-            )}
-          >
+          <div className="font-semibold text-[#F6FAFD] leading-snug text-sm">
+            {card.nome_produto}
+          </div>
+          {!card.is_outsourced && !card.outsourced_checked && (
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded w-full mt-1 flex items-center justify-center hover:bg-red-600"
+            >
+              ⚠️ Terceirizado Pendente
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex justify-between items-start">
+            <span className="font-mono font-bold px-1.5 py-0.5 rounded text-xs text-pale-cornflower bg-steel-blue/20">
+              {card.codigo_rastreio ||
+                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
+            </span>
+            <Badge className="text-[10px] py-0 bg-steel-blue">Qtd: {card.qtd}</Badge>
+          </div>
+          <div className="font-semibold text-[#F6FAFD] leading-snug text-base">
             {card.nome_produto}
           </div>
         </>
       )}
       <div className="flex justify-between items-end mt-1">
-        <div
-          className={cn(
-            'text-xs truncate max-w-[150px]',
-            isAnaliseTecnica || isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
-          )}
-        >
-          {card.clientes?.nome || 'Cliente N/A'}
-        </div>
+        {!isAnaliseTecnica && (
+          <div
+            className={cn(
+              'text-xs truncate max-w-[150px]',
+              isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
+            )}
+          >
+            {card.clientes?.nome || 'Cliente N/A'}
+          </div>
+        )}
+        {isAnaliseTecnica && <div></div>}
 
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {!isMontagem && !isProducao && card.analista_id && usersMap[card.analista_id] && (

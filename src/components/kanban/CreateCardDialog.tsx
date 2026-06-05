@@ -17,10 +17,12 @@ export function CreateCardDialog({
   open,
   onOpenChange,
   onCreated,
+  initialIsOutsourced = false,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   onCreated?: () => void
+  initialIsOutsourced?: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [clienteNome, setClienteNome] = useState('')
@@ -125,6 +127,8 @@ export function CreateCardDialog({
         valor_total: 0,
         status_analise: defaultStatus,
         codigo_rastreio: codigoRastreio,
+        // @ts-expect-error
+        is_outsourced: initialIsOutsourced,
       })
 
       if (error) throw error
