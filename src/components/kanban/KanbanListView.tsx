@@ -53,6 +53,7 @@ export function KanbanListView({
 }) {
   const location = useLocation()
   const isMontagem = location.pathname.includes('/montagem')
+  const isAnaliseTecnica = location.pathname.includes('/analise-tecnica')
 
   const [cards, setCards] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -198,9 +199,17 @@ export function KanbanListView({
         <Table>
           <TableHeader className="bg-[#0A1931]">
             <TableRow className="hover:bg-[#0A1931]">
-              <TableHead className="text-white font-semibold whitespace-nowrap">Codigo</TableHead>
-              <TableHead className="text-white font-semibold">Cliente</TableHead>
-              <TableHead className="text-white font-semibold">Ambiente</TableHead>
+              {isAnaliseTecnica ? (
+                <TableHead className="text-white font-semibold">Identificação</TableHead>
+              ) : (
+                <>
+                  <TableHead className="text-white font-semibold whitespace-nowrap">
+                    Codigo
+                  </TableHead>
+                  <TableHead className="text-white font-semibold">Cliente</TableHead>
+                  <TableHead className="text-white font-semibold">Ambiente</TableHead>
+                </>
+              )}
               <TableHead className="text-white font-semibold whitespace-nowrap">data</TableHead>
               <TableHead className="text-white font-semibold w-[180px]">Status</TableHead>
               {isMontagem ? (
@@ -216,7 +225,10 @@ export function KanbanListView({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                <TableCell
+                  colSpan={isAnaliseTecnica ? 5 : 7}
+                  className="text-center py-8 text-slate-500"
+                >
                   Nenhum item encontrado.
                 </TableCell>
               </TableRow>
@@ -228,11 +240,29 @@ export function KanbanListView({
                     key={card.id}
                     className="bg-white hover:bg-slate-50 text-[#1A3D63] border-b border-slate-100 transition-colors"
                   >
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {card.codigo_rastreio || '-'}
-                    </TableCell>
-                    <TableCell className="font-medium">{clienteNome || 'Avulso'}</TableCell>
-                    <TableCell>{card.nome_produto}</TableCell>
+                    {isAnaliseTecnica ? (
+                      <TableCell className="font-medium w-full max-w-0">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="whitespace-nowrap shrink-0 text-slate-500">
+                            {card.codigo_rastreio || '-'}
+                          </span>
+                          <span className="text-slate-300 shrink-0">|</span>
+                          <span className="truncate font-semibold text-[#1A3D63]">
+                            {clienteNome || 'Avulso'}
+                          </span>
+                          <span className="text-slate-300 shrink-0">|</span>
+                          <span className="truncate text-slate-600">{card.nome_produto}</span>
+                        </div>
+                      </TableCell>
+                    ) : (
+                      <>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {card.codigo_rastreio || '-'}
+                        </TableCell>
+                        <TableCell className="font-medium">{clienteNome || 'Avulso'}</TableCell>
+                        <TableCell>{card.nome_produto}</TableCell>
+                      </>
+                    )}
                     <TableCell className="whitespace-nowrap">
                       {card.criado_em ? format(new Date(card.criado_em), 'dd/MM/yyyy') : '-'}
                     </TableCell>
