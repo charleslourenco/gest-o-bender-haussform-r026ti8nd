@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
+import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
 
 const COLUMNS = [
   { id: 'iniciar', title: 'Iniciar' },
@@ -16,6 +18,8 @@ const COLUMNS = [
 export default function AnaliseTecnica() {
   const [activeTab, setActiveTab] = useState('kanban')
   const [search, setSearch] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [headerNode, setHeaderNode] = useState<Element | null>(null)
 
   useEffect(() => {
     const handleTab = (e: any) => setActiveTab(e.detail)
@@ -24,11 +28,32 @@ export default function AnaliseTecnica() {
     window.addEventListener('kanban_tab_change', handleTab)
     window.addEventListener('kanban_search_change', handleSearch)
 
+    const observer = new MutationObserver(() => {
+      const node = document.querySelector(
+        '.flex.flex-row.items-center.gap-2.shrink-0.whitespace-nowrap',
+      )
+      if (node && node !== headerNode) {
+        setHeaderNode(node)
+      }
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    const initialNode = document.querySelector(
+      '.flex.flex-row.items-center.gap-2.shrink-0.whitespace-nowrap',
+    )
+    if (initialNode) setHeaderNode(initialNode)
+
     return () => {
       window.removeEventListener('kanban_tab_change', handleTab)
       window.removeEventListener('kanban_search_change', handleSearch)
+      observer.disconnect()
     }
-  }, [])
+  }, [headerNode])
+
+  const handleSuccess = () => {
+    setShowModal(false)
+    window.dispatchEvent(new CustomEvent('kanban_refresh'))
+  }
 
   return (
     <div className="h-full flex flex-col bg-off-white animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
@@ -41,6 +66,21 @@ export default function AnaliseTecnica() {
           </div>
         )}
       </div>
+
+      {showModal && (
+        <CriarCardAvulsoModal onClose={() => setShowModal(false)} onSuccess={handleSuccess} />
+      )}
+
+      {headerNode &&
+        createPortal(
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-indigo-600 text-white text-sm font-medium px-3 py-1.5 rounded-md shrink-0 hover:opacity-90 transition-opacity"
+          >
+            + Criar Card Avulso
+          </button>,
+          headerNode,
+        )}
     </div>
   )
 }
