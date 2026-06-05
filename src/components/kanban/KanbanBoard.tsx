@@ -349,7 +349,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           outsourced_checked,
           is_outsourced,
           cliente:clientes(nome),
-          formulario:formulario_comercial(user_id),
+          formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
           alocacao_montagem(montador_id)
         `)
 
@@ -403,12 +403,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     fetchUsers()
   }, [])
 
+  const getClienteNome = (item: any) => {
+    const nome = Array.isArray(item.cliente) ? item.cliente[0]?.nome : item.cliente?.nome
+    if (nome) return nome
+
+    if (item.formulario) {
+      const form = Array.isArray(item.formulario) ? item.formulario[0] : item.formulario
+      const formCli = Array.isArray(form?.cliente) ? form.cliente[0]?.nome : form?.cliente?.nome
+      if (formCli) return formCli
+      if (form?.nome_cliente) return form.nome_cliente
+    }
+    return null
+  }
+
   const filteredItems = items.filter((item) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matchName = item.nome_produto?.toLowerCase().includes(q)
       const matchCode = item.codigo_rastreio?.toLowerCase().includes(q)
-      const matchClient = item.cliente?.nome?.toLowerCase().includes(q)
+      const matchClient = getClienteNome(item)?.toLowerCase().includes(q)
       if (!matchName && !matchCode && !matchClient) return false
     }
 
@@ -738,7 +751,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             {item.codigo_rastreio}
                           </span>
                         )}
-                        <span className="truncate">{item.cliente?.nome}</span>
+                        <span className="truncate">{getClienteNome(item) || 'Avulso'}</span>
                       </div>
                       <h4
                         className="font-semibold leading-tight text-white/90 text-xs mt-1 truncate"
@@ -755,8 +768,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             {item.codigo_rastreio}
                           </span>
                         )}
-                        <span className="text-xs truncate" title={item.cliente?.nome}>
-                          {item.cliente?.nome}
+                        <span className="text-xs truncate" title={getClienteNome(item) || 'Avulso'}>
+                          {getClienteNome(item) || 'Avulso'}
                         </span>
                       </div>
                       <h4
@@ -804,10 +817,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         : 'border-steel-blue/10 text-midnight-navy/70 pt-2 gap-1 text-xs',
                     )}
                   >
-                    {!isAnaliseTecnica && item.cliente && (
+                    {!isAnaliseTecnica && getClienteNome(item) && (
                       <div className="flex items-center gap-1 truncate text-midnight-navy/90">
                         <User className="h-3 w-3 shrink-0 text-steel-blue" />
-                        <span className="truncate">{item.cliente.nome}</span>
+                        <span className="truncate">{getClienteNome(item)}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
@@ -878,7 +891,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#1A3D63] border-white/20 text-white max-h-[300px]">
-                        {ALL_STATUS_OPTIONS.map((c) => (
+                        {columns.map((c) => (
                           <SelectItem
                             key={c.id}
                             value={c.id}
@@ -1132,6 +1145,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       >
                         <TableCell>
                           <div className="flex flex-col gap-1 items-start">
+                            <span className="text-[10px] text-steel-blue font-medium mb-0.5">
+                              {getClienteNome(item) || 'Avulso'}
+                            </span>
                             <span className="font-semibold leading-tight">{item.nome_produto}</span>
                             <div className="flex items-center gap-2">
                               {item.codigo_rastreio && (
@@ -1169,7 +1185,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                               <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent className="max-h-[300px]">
-                              {ALL_STATUS_OPTIONS.map((c) => (
+                              {columns.map((c) => (
                                 <SelectItem key={c.id} value={c.id} className="text-xs">
                                   {c.title}
                                 </SelectItem>

@@ -173,6 +173,11 @@ export function KanbanListView({
   }
 
   const filtered = cards.filter((c) => {
+    if (columns && columns.length > 0) {
+      const validColumn = columns.some((col) => col.id === c.status_analise)
+      if (!validColumn) return false
+    }
+
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
     const clienteNome = getClienteNome(c)
@@ -240,7 +245,7 @@ export function KanbanListView({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {ALL_STAGES.map((col) => (
+                          {(columns && columns.length > 0 ? columns : ALL_STAGES).map((col) => (
                             <SelectItem key={col.id} value={col.id}>
                               {col.title}
                             </SelectItem>
