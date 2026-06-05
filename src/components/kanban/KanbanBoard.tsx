@@ -144,7 +144,7 @@ function TimeInColumn({
   }, [cardId, status, criado_em])
 
   if (!timeStr) return null
-  return <span className="text-xs text-white/80 font-medium">{timeStr}</span>
+  return <span className="text-[10px] text-white/80 font-medium leading-none">{timeStr}</span>
 }
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
@@ -538,8 +538,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           className={cn(
             'transition-colors duration-200 shrink-0',
             isAnaliseTecnica
-              ? 'flex flex-col h-full max-h-full min-w-[320px] bg-slate-100 rounded-lg'
-              : 'flex h-full w-[320px] flex-col rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
+              ? 'flex flex-col h-full max-h-full min-w-[260px] bg-slate-100 rounded-lg'
+              : 'flex h-full w-[260px] flex-col rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
           )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
@@ -579,8 +579,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
           <div
             className={cn(
-              'flex-1 overflow-y-auto space-y-3 custom-scrollbar',
-              isAnaliseTecnica ? 'p-2 min-h-[200px]' : 'p-3 min-h-[150px]',
+              'flex-1 overflow-y-auto space-y-2 custom-scrollbar',
+              isAnaliseTecnica ? 'p-1.5 min-h-[200px]' : 'p-2 min-h-[150px]',
             )}
           >
             {colItems.map((item) => (
@@ -592,26 +592,26 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 className={cn(
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao
-                    ? 'bg-[#1A3D63] text-white p-3 rounded-md shadow-sm w-full flex flex-col gap-2'
+                    ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5'
                     : cn(
                         'rounded-lg shadow-sm hover:shadow-md flex flex-col',
                         isAnaliseTecnica
                           ? cn(
-                              'bg-[#1A3D63] text-white p-2 gap-1.5',
+                              'bg-[#1A3D63] text-white p-1.5 gap-1',
                               item.is_outsourced
-                                ? 'border-2 border-orange-500'
+                                ? 'border border-orange-500'
                                 : 'border border-white/10 hover:border-white/30',
                             )
-                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-4 gap-3',
+                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-3 gap-2',
                       ),
                 )}
               >
                 <div
                   className={cn(
-                    'absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
+                    'absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
                     isAnaliseTecnica || isProducao
-                      ? 'top-2 text-white/30 bg-[#1A3D63]'
-                      : 'top-3 text-steel-blue/30 bg-white',
+                      ? 'top-1 text-white/30 bg-[#1A3D63] rounded'
+                      : 'top-2 text-steel-blue/30 bg-white rounded',
                   )}
                 >
                   <button
@@ -643,35 +643,35 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 >
                   {isProducao ? (
                     <>
-                      <div className="flex flex-row items-baseline gap-2 w-full truncate text-sm font-medium">
+                      <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-xs font-medium">
                         {item.codigo_rastreio && (
-                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
                         )}
                         <span className="truncate">{item.cliente?.nome}</span>
                       </div>
                       <h4
-                        className="font-semibold leading-snug text-white/90 text-sm mt-1 truncate"
+                        className="font-semibold leading-tight text-white/90 text-xs mt-1 truncate"
                         title={item.nome_produto}
                       >
                         {item.nome_produto}
                       </h4>
                     </>
                   ) : isAnaliseTecnica ? (
-                    <div className="flex flex-col gap-1.5 mt-0.5">
-                      <div className="flex flex-row items-baseline gap-2 w-full truncate">
+                    <div className="flex flex-col gap-1 mt-0.5">
+                      <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
                         {item.codigo_rastreio && (
-                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-white/20 text-white bg-white/10 shrink-0">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-white/20 text-white bg-white/10 shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
                         )}
-                        <span className="text-sm truncate" title={item.cliente?.nome}>
+                        <span className="text-xs truncate" title={item.cliente?.nome}>
                           {item.cliente?.nome}
                         </span>
                       </div>
                       <h4
-                        className="font-semibold leading-snug text-[#F6FAFD] text-sm truncate"
+                        className="font-semibold leading-tight text-[#F6FAFD] text-xs truncate"
                         title={item.nome_produto}
                       >
                         {item.nome_produto}
@@ -684,20 +684,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             handleOpenValidation(item.id)
                           }}
                           title="Terceirizado Pendente"
-                          className="bg-amber-500 text-white p-1 rounded w-fit mt-1 flex items-center justify-center hover:bg-amber-600 transition-colors"
+                          className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors"
                         >
-                          <AlertTriangle className="h-4 w-4" />
+                          <AlertTriangle className="h-3.5 w-3.5" />
                         </button>
                       )}
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-semibold leading-snug text-midnight-navy">
+                      <h4 className="font-semibold leading-tight text-midnight-navy text-sm">
                         {item.nome_produto}
                       </h4>
                       {item.codigo_rastreio && (
-                        <div className="mt-1.5">
-                          <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border text-steel-blue bg-pale-cornflower border-steel-blue/20">
+                        <div className="mt-1">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-steel-blue bg-pale-cornflower border-steel-blue/20 leading-none">
                             {item.codigo_rastreio}
                           </span>
                         </div>
@@ -709,20 +709,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 {!isProducao && (
                   <div
                     className={cn(
-                      'flex flex-col text-xs font-medium border-t',
+                      'flex flex-col font-medium border-t',
                       isAnaliseTecnica
-                        ? 'border-white/10 text-white/70 pt-1.5 gap-1'
-                        : 'border-steel-blue/10 text-midnight-navy/70 pt-2.5 gap-1.5',
+                        ? 'border-white/10 text-white/70 pt-1 gap-0.5 text-[10px]'
+                        : 'border-steel-blue/10 text-midnight-navy/70 pt-2 gap-1 text-xs',
                     )}
                   >
                     {!isAnaliseTecnica && item.cliente && (
-                      <div className="flex items-center gap-1.5 truncate text-midnight-navy/90">
+                      <div className="flex items-center gap-1 truncate text-midnight-navy/90">
                         <User className="h-3 w-3 shrink-0 text-steel-blue" />
                         <span className="truncate">{item.cliente.nome}</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <Package
                           className={cn(
                             'h-3 w-3 shrink-0',
@@ -745,15 +745,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 )}
 
                 {isProducao && (
-                  <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center justify-between mt-auto pt-0.5">
                     <TimeInColumn
                       cardId={item.id}
                       status={item.status_analise}
                       criado_em={item.criado_em}
                     />
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-[10px]">
                       <Package className="h-3 w-3 shrink-0 text-white/50" />
-                      <span className="text-xs text-white/80">Qtd: {item.qtd}</span>
+                      <span className="text-white/80">Qtd: {item.qtd}</span>
                     </div>
                   </div>
                 )}
@@ -762,10 +762,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   className={cn(
                     'border-t flex flex-col',
                     isProducao
-                      ? 'border-white/10 pt-2 gap-1.5'
+                      ? 'border-white/10 pt-1.5 gap-1'
                       : isAnaliseTecnica
-                        ? 'border-white/10 pt-2 gap-2'
-                        : 'border-steel-blue/10 pt-2.5 gap-1.5',
+                        ? 'border-white/10 pt-1.5 gap-1'
+                        : 'border-steel-blue/10 pt-2 gap-1.5',
                   )}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
@@ -775,7 +775,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       value={item.status_analise}
                       onValueChange={(val) => handleStatusChange(item.id, val)}
                     >
-                      <SelectTrigger className="h-8 text-xs w-full bg-white/10 border-white/20 text-white focus:ring-0 focus:ring-offset-0">
+                      <SelectTrigger className="h-6 text-[10px] w-full bg-white/10 border-white/20 text-white focus:ring-0 focus:ring-offset-0 px-2">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent className="bg-[#1A3D63] border-white/20 text-white max-h-[300px]">
@@ -783,7 +783,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           <SelectItem
                             key={c.id}
                             value={c.id}
-                            className="text-xs text-white/80 focus:bg-white/10 focus:text-white"
+                            className="text-[10px] py-1 text-white/80 focus:bg-white/10 focus:text-white"
                           >
                             {c.title}
                           </SelectItem>
@@ -800,7 +800,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   >
                     <SelectTrigger
                       className={cn(
-                        'h-8 text-xs w-full focus:ring-0 focus:ring-offset-0',
+                        'h-6 text-[10px] px-2 w-full focus:ring-0 focus:ring-offset-0',
                         isAnaliseTecnica || isProducao
                           ? 'bg-white/10 border-white/20 text-white'
                           : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
@@ -817,7 +817,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       <SelectItem
                         value="unassigned"
                         className={cn(
-                          'text-xs',
+                          'text-[10px] py-1',
                           isAnaliseTecnica || isProducao
                             ? 'text-white/60 focus:bg-white/10 focus:text-white'
                             : 'text-muted-foreground',
@@ -830,7 +830,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           key={u.id}
                           value={u.id}
                           className={cn(
-                            'text-xs',
+                            'text-[10px] py-1',
                             (isAnaliseTecnica || isProducao) &&
                               'focus:bg-white/10 focus:text-white',
                           )}
