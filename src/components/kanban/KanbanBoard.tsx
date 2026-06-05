@@ -12,6 +12,7 @@ import {
   Trash2,
   FileSearch,
   AlertTriangle,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -552,9 +553,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 : 'bg-pale-cornflower/60 rounded-t-xl',
             )}
           >
-            <h3 className="font-semibold text-midnight-navy text-sm uppercase tracking-wider">
-              {col.title}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-midnight-navy text-sm uppercase tracking-wider">
+                {col.title}
+              </h3>
+              {isAnaliseTecnica && col.id === 'iniciar' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    window.dispatchEvent(new CustomEvent('open_criar_card_avulso'))
+                  }}
+                  className="bg-white text-midnight-navy text-[10px] font-semibold px-2 py-0.5 rounded border border-steel-blue/20 hover:bg-slate-50 transition-colors shadow-sm inline-flex items-center"
+                  title="Criar card avulso"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Criar
+                </button>
+              )}
+            </div>
             <Badge variant="secondary" className="bg-white text-steel-blue font-bold shadow-sm">
               {colItems.length}
             </Badge>
