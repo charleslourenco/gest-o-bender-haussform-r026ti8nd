@@ -18,7 +18,7 @@ export default function Montagem() {
   const fetchCards = async () => {
     const { data, error } = await supabase
       .from('produtos_servicos_projeto')
-      .select('*')
+      .select('*, clientes(nome)')
       .in(
         'status_analise',
         COLUMNS.map((c) => c.id),
@@ -66,31 +66,31 @@ export default function Montagem() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <Wrench className="h-10 w-10 text-emerald-400 hidden sm:block" />
-        <div>
-          <h1 className="text-off-white font-bold text-[32px]">Montagem</h1>
-          <p className="text-pale-cornflower mt-1">Gestão de expedição e montagem em campo</p>
-        </div>
-      </div>
+    <div className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white pt-0 px-6 pb-6 animate-in fade-in duration-300">
+      <Tabs defaultValue="kanban" className="flex-1 flex flex-col min-h-0 w-full mt-4">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">Montagem</h2>
+            </div>
 
-      <Tabs defaultValue="kanban" className="flex-1 flex flex-col min-h-0">
-        <div className="flex justify-between items-center mb-4">
-          <TabsList className="bg-steel-blue/20">
-            <TabsTrigger
-              value="kanban"
-              className="data-[state=active]:bg-steel-blue data-[state=active]:text-white"
-            >
-              Quadro Kanban
-            </TabsTrigger>
-            <TabsTrigger
-              value="montadores"
-              className="data-[state=active]:bg-steel-blue data-[state=active]:text-white"
-            >
-              Gestão de Montadores
-            </TabsTrigger>
-          </TabsList>
+            <TabsList className="bg-white/10 border-none h-9 ml-2">
+              <TabsTrigger
+                value="kanban"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Quadro Kanban
+              </TabsTrigger>
+              <TabsTrigger
+                value="montadores"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Gestão de Montadores
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
         </div>
 
         <TabsContent
@@ -111,17 +111,28 @@ export default function Montagem() {
                       {columnCards.map((card) => (
                         <div
                           key={card.id}
-                          className="bg-white p-4 rounded shadow flex flex-col gap-2 shrink-0"
+                          className="bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border-none shrink-0"
                         >
-                          <div className="font-semibold text-gray-900">{card.nome_produto}</div>
-                          <div className="text-sm text-gray-600">Qtd: {card.qtd}</div>
-                          {card.codigo_rastreio && (
-                            <div className="text-sm text-gray-500">
-                              Rastreio: {card.codigo_rastreio}
-                            </div>
-                          )}
+                          <div className="flex flex-row items-baseline gap-1 w-full truncate text-xs font-medium">
+                            <span className="truncate w-full">
+                              {card.codigo_rastreio
+                                ? `#${card.codigo_rastreio}`
+                                : `#${card.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
+                              {' - '}
+                              {card.clientes?.nome || 'Cliente N/A'}
+                            </span>
+                          </div>
+
+                          <div className="truncate w-full text-xs font-semibold text-[#F6FAFD]">
+                            {card.nome_produto}
+                          </div>
+
+                          <div className="truncate w-full text-[10px] text-white/70">
+                            Qtd: {card.qtd}
+                          </div>
+
                           <select
-                            className="mt-2 p-1.5 border border-gray-200 rounded text-sm w-full bg-white focus:outline-none focus:ring-2 focus:ring-steel-blue/20"
+                            className="mt-1 p-1 border border-white/20 rounded text-[11px] w-full bg-[#0A1931] text-white focus:outline-none focus:ring-1 focus:ring-white/30 truncate"
                             value={card.status_analise}
                             onChange={(e) => onStatusChange(card.id, e.target.value)}
                           >

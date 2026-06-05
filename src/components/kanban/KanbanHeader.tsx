@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { Plus, Search, FileSearch, Filter, Hammer, Scissors, AlertTriangle } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  FileSearch,
+  Filter,
+  Hammer,
+  Scissors,
+  AlertTriangle,
+  Wrench,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
@@ -61,6 +70,66 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
     window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: e.target.value }))
+  }
+
+  if (title === 'Montagem') {
+    return (
+      <div className="w-full px-4 pt-0 mt-0">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">Montagem</h2>
+            </div>
+
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+              <TabsList className="bg-white/10 border-none h-9">
+                <TabsTrigger
+                  value="kanban"
+                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                >
+                  Quadro Kanban
+                </TabsTrigger>
+                <TabsTrigger
+                  value="montadores"
+                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                >
+                  Gestão de Montadores
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="relative min-w-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Input
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-28 lg:w-40"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-white/10 h-9 w-9 shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Criar Card Avulso
+            </Button>
+          </div>
+
+          <CreateCardDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+        </div>
+      </div>
+    )
   }
 
   if (title === 'Produção') {

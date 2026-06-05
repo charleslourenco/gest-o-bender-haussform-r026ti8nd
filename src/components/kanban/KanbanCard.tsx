@@ -77,20 +77,53 @@ export function KanbanCard({
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
       className={cn(
-        'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
-        isAnaliseTecnica
+        isMontagem
+          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border-none cursor-pointer hover:shadow-md transition-all'
+          : 'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
+        !isMontagem && isAnaliseTecnica
           ? cn(
               'bg-[#1A3D63] text-white p-1.5 gap-1',
               card.is_outsourced
                 ? 'border border-orange-500'
                 : 'border border-white/10 hover:border-white/30',
             )
-          : isProducao
+          : !isMontagem && isProducao
             ? 'bg-[#1A3D63] border border-white/20 hover:border-white/40 p-2 gap-1 text-white'
-            : 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower p-3 gap-2 text-white',
+            : !isMontagem
+              ? 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower p-3 gap-2 text-white'
+              : '',
       )}
     >
-      {isProducao ? (
+      {isMontagem ? (
+        <>
+          <div className="flex flex-row items-baseline gap-1 w-full truncate text-xs font-medium">
+            <span className="truncate w-full">
+              {card.codigo_rastreio
+                ? `#${card.codigo_rastreio}`
+                : `#${card.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
+              {' - '}
+              {card.clientes?.nome || 'Cliente N/A'}
+            </span>
+          </div>
+          <div className="truncate w-full text-xs font-semibold text-[#F6FAFD]">
+            {card.nome_produto}
+          </div>
+          <div className="flex justify-between items-center w-full mt-1">
+            <div className="truncate w-full text-[10px] text-white/70">Qtd: {card.qtd}</div>
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {montadores.length > 0 && (
+                <div
+                  className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
+                  title={`Montadores: ${montadores.join(', ')}`}
+                >
+                  <Wrench className="w-2.5 h-2.5" />
+                  <span className="truncate max-w-[80px]">{montadores.length} Alocado(s)</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      ) : isProducao ? (
         <div className="flex justify-between items-start w-full">
           <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
             <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none text-white bg-white/10 shrink-0">
@@ -152,60 +185,52 @@ export function KanbanCard({
           </div>
         </>
       )}
-      <div className="flex justify-between items-end mt-1">
-        {!isAnaliseTecnica && (
-          <div
-            className={cn(
-              'text-xs truncate max-w-[150px]',
-              isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
-            )}
-          >
-            {card.clientes?.nome || 'Cliente N/A'}
-          </div>
-        )}
-        {isAnaliseTecnica && <div></div>}
-
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {!isMontagem && !isProducao && card.analista_id && usersMap[card.analista_id] && (
+      {!isMontagem && (
+        <div className="flex justify-between items-end mt-1">
+          {!isAnaliseTecnica && (
             <div
-              className="flex items-center gap-1"
-              title={`Responsável: ${usersMap[card.analista_id].nome}`}
-            >
-              {usersMap[card.analista_id].foto_perfil ? (
-                <img
-                  src={usersMap[card.analista_id].foto_perfil as string}
-                  className="w-4 h-4 rounded-full object-cover border border-steel-blue"
-                  alt="Avatar"
-                />
-              ) : (
-                <div className="w-4 h-4 rounded-full bg-steel-blue text-midnight-navy flex items-center justify-center text-[8px] font-bold">
-                  {usersMap[card.analista_id].nome.charAt(0).toUpperCase()}
-                </div>
+              className={cn(
+                'text-xs truncate max-w-[150px]',
+                isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
               )}
-            </div>
-          )}
-
-          {isProducao && timeInColumn && (
-            <div
-              className="flex items-center gap-0.5 text-[9px] leading-none text-white/70 bg-white/10 px-1 py-0.5 rounded"
-              title={`Tempo nesta etapa`}
             >
-              <Clock className="w-2.5 h-2.5" />
-              <span>{timeInColumn}</span>
+              {card.clientes?.nome || 'Cliente N/A'}
             </div>
           )}
+          {isAnaliseTecnica && <div></div>}
 
-          {isMontagem && montadores.length > 0 && (
-            <div
-              className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
-              title={`Montadores: ${montadores.join(', ')}`}
-            >
-              <Wrench className="w-2.5 h-2.5" />
-              <span>{montadores.length} Alocado(s)</span>
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {!isMontagem && !isProducao && card.analista_id && usersMap[card.analista_id] && (
+              <div
+                className="flex items-center gap-1"
+                title={`Responsável: ${usersMap[card.analista_id].nome}`}
+              >
+                {usersMap[card.analista_id].foto_perfil ? (
+                  <img
+                    src={usersMap[card.analista_id].foto_perfil as string}
+                    className="w-4 h-4 rounded-full object-cover border border-steel-blue"
+                    alt="Avatar"
+                  />
+                ) : (
+                  <div className="w-4 h-4 rounded-full bg-steel-blue text-midnight-navy flex items-center justify-center text-[8px] font-bold">
+                    {usersMap[card.analista_id].nome.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isProducao && timeInColumn && (
+              <div
+                className="flex items-center gap-0.5 text-[9px] leading-none text-white/70 bg-white/10 px-1 py-0.5 rounded"
+                title={`Tempo nesta etapa`}
+              >
+                <Clock className="w-2.5 h-2.5" />
+                <span>{timeInColumn}</span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
