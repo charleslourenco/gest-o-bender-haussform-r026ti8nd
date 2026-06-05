@@ -149,15 +149,13 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <Filter className="w-4 h-4" />
             </Button>
             <Button
-              onClick={() => setIsCreateOpen(true)}
+              onClick={() => window.dispatchEvent(new CustomEvent('open_criar_card_avulso'))}
               className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Card Avulso
             </Button>
           </div>
-
-          <CreateCardDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
         </div>
       </div>
     )

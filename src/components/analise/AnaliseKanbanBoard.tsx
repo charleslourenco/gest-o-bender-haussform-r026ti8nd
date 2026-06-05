@@ -38,11 +38,18 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
       .subscribe()
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
+    const handleOpenAvulso = () => {
+      setAvulsoCardToUpdate(null)
+      setAvulsoModalOpen(true)
+    }
+
     window.addEventListener('kanban_search_change', handleSearch)
+    window.addEventListener('open_criar_card_avulso', handleOpenAvulso)
 
     return () => {
       supabase.removeChannel(sub)
       window.removeEventListener('kanban_search_change', handleSearch)
+      window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
     }
   }, [])
 
@@ -116,16 +123,6 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
     <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-off-white">
       <div className="p-4 bg-white border-b flex justify-between items-center shadow-sm z-10">
         <h2 className="font-bold text-lg text-slate-800">{title}</h2>
-        <Button
-          onClick={() => {
-            setAvulsoCardToUpdate(null)
-            setAvulsoModalOpen(true)
-          }}
-          size="sm"
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" /> Criar Card Avulso
-        </Button>
       </div>
       <ScrollArea className="flex-1 w-full kanban-scroll-wrapper">
         <div className="flex gap-4 p-4 h-full min-h-[calc(100vh-200px)] w-max items-stretch">
