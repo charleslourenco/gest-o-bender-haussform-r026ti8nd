@@ -129,7 +129,7 @@ export default function Dashboard() {
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
       <Tabs defaultValue="captacao" className="w-full flex-1 flex flex-col min-h-0 mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center w-full bg-[#0A1931] text-white px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
               <Presentation className="w-5 h-5 text-emerald-400" />
@@ -168,24 +168,26 @@ export default function Dashboard() {
               </TabsTrigger>
             </TabsList>
           </div>
+        </div>
 
-          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
-            <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-md h-9 border border-white/10">
-              <span className="text-white/70 text-sm">Contas a Pagar:</span>
+        <div className="flex flex-row items-center justify-end w-full px-1 py-3 mb-2 flex-wrap gap-4">
+          <div className="flex flex-row items-center gap-3 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md h-9 border border-border">
+              <span className="text-muted-foreground text-sm font-medium">Contas a Pagar:</span>
               {loading ? (
-                <Skeleton className="h-5 w-8 bg-white/20" />
+                <Skeleton className="h-5 w-8" />
               ) : data.contasPagarCount === null ? (
-                <span className="text-rose-400 text-sm font-medium">Erro</span>
+                <span className="text-destructive text-sm font-medium">Erro</span>
               ) : (
-                <span className="font-bold text-white">{data.contasPagarCount}</span>
+                <span className="font-bold text-foreground">{data.contasPagarCount}</span>
               )}
             </div>
 
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant="ghost"
-                  className="h-9 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white px-3"
+                  variant="outline"
+                  className="h-9 px-3 border-border text-foreground hover:bg-muted"
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {date?.from ? (
@@ -204,7 +206,7 @@ export default function Dashboard() {
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-off-white border-steel-blue/20" align="end">
+              <PopoverContent className="w-auto p-0 border-border" align="end">
                 <Calendar
                   initialFocus
                   mode="range"
