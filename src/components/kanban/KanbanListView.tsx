@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Table,
@@ -19,18 +19,23 @@ import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+export interface KanbanColumn {
+  id: string
+  title: string
+}
+
 export function KanbanListView({
   searchQuery = '',
   columns = [],
 }: {
   searchQuery?: string
-  columns?: any[]
+  columns?: KanbanColumn[]
 }) {
   const [cards, setCards] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchCards = async () => {
+  const fetchCards = useCallback(async () => {
     const { data, error } = await supabase
       .from('produtos_servicos_projeto')
       .select(`
@@ -39,16 +44,23 @@ export function KanbanListView({
       `)
       .order('criado_em', { ascending: false })
 
-    if (data) {
+    if (error) {
+      console.error('Erro ao buscar itens:', error)
+      toast.error('Erro ao buscar itens')
+    } else if (data) {
       setCards(data)
     }
     setLoading(false)
-  }
+  }, [])
 
-  const fetchUsers = async () => {
-    const { data } = await supabase.from('users').select('id, nome').eq('status', true)
-    if (data) setUsers(data)
-  }
+  const fetchUsers = useCallback(async () => {
+    const { data, error } = await supabase.from('users').select('id, nome').eq('status', true)
+    if (error) {
+      console.error('Erro ao buscar usuários:', error)
+    } else if (data) {
+      setUsers(data)
+    }
+  }, [])
 
   useEffect(() => {
     fetchCards()
@@ -57,7 +69,7 @@ export function KanbanListView({
     const handleUpdate = () => fetchCards()
     window.addEventListener('kanban_updated', handleUpdate)
     return () => window.removeEventListener('kanban_updated', handleUpdate)
-  }, [])
+  }, [fetchCards, fetchUsers])
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase
