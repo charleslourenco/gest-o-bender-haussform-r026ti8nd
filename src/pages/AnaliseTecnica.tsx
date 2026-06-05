@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
-import { KanbanListView } from '@/components/kanban/KanbanListView'
+import { AnaliseTecnicaListView } from '@/components/analise/AnaliseTecnicaListView'
 import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
 
 const COLUMNS = [
@@ -47,7 +47,7 @@ export default function AnaliseTecnica() {
 
         {activeTab === 'lista' && (
           <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
-            <KanbanListView searchQuery={search} columns={COLUMNS} />
+            <AnaliseTecnicaListView searchQuery={search} columns={COLUMNS} />
           </div>
         )}
       </div>
