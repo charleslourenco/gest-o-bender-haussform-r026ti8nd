@@ -19,38 +19,53 @@ export default function GestaoPessoas() {
   }
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-6 bg-off-white">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <UsersRound className="h-10 w-10 text-emerald-400 hidden sm:block" />
-        <div>
-          <h1 className="text-off-white font-bold text-[32px]">Gestão de Pessoas</h1>
-          <p className="text-pale-cornflower mt-1">
-            Gestão de equipe, parceiros e controle de férias
-          </p>
+    <div className="pt-0 pb-6 px-6 h-full flex flex-col bg-off-white">
+      <Tabs defaultValue="clt" className="flex-1 flex flex-col min-h-0 w-full mt-0">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 mr-2">
+              <UsersRound className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">Gestão de Pessoas</h2>
+            </div>
+            <TabsList className="bg-white/10 border-none h-9">
+              <TabsTrigger
+                value="clt"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Time CLT
+              </TabsTrigger>
+              <TabsTrigger
+                value="pj"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Parceiros PJ
+              </TabsTrigger>
+              <TabsTrigger
+                value="fornecedores"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Fornecedores
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
         </div>
-      </div>
 
-      <Tabs defaultValue="clt" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-fit mb-4">
-          <TabsTrigger value="clt">Time CLT</TabsTrigger>
-          <TabsTrigger value="pj">Parceiros PJ</TabsTrigger>
-          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
-        </TabsList>
         <TabsContent
           value="clt"
-          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+          className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaCLT />
         </TabsContent>
         <TabsContent
           value="pj"
-          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+          className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaPJ />
         </TabsContent>
         <TabsContent
           value="fornecedores"
-          className="flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+          className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaFornecedores />
         </TabsContent>

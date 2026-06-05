@@ -11,28 +11,63 @@ import { GestaoSobras } from '@/components/estoque/GestaoSobras'
 
 export default function EstoqueCompras() {
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-300 h-full flex flex-col">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm shrink-0 flex items-center gap-4">
-        <PackageSearch className="h-10 w-10 text-emerald-400 hidden sm:block" />
-        <div>
-          <h1 className="text-[32px] font-bold text-off-white">Estoque & Compras</h1>
-          <p className="text-pale-cornflower mt-1">
-            Gestão inteligente de suprimentos e conciliação de notas
-          </p>
+    <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
+      <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 w-full mt-0">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 mr-2">
+              <PackageSearch className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">Estoque & Compras</h2>
+            </div>
+            <TabsList className="bg-white/10 border-none h-9">
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Visão Geral
+              </TabsTrigger>
+              <TabsTrigger
+                value="solicitacoes"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Solicitações
+              </TabsTrigger>
+              <TabsTrigger
+                value="estoque"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Inventário
+              </TabsTrigger>
+              <TabsTrigger
+                value="documentos"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Documentos & OCR
+              </TabsTrigger>
+              <TabsTrigger
+                value="itens-cliente"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Itens de Cliente
+              </TabsTrigger>
+              <TabsTrigger
+                value="separacao"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Separação
+              </TabsTrigger>
+              <TabsTrigger
+                value="sobras"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Sobras
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
         </div>
-      </div>
 
-      <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-full justify-start bg-white p-1 border-b rounded-none shrink-0 overflow-x-auto">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="solicitacoes">Solicitações</TabsTrigger>
-          <TabsTrigger value="estoque">Inventário</TabsTrigger>
-          <TabsTrigger value="documentos">Documentos & OCR</TabsTrigger>
-          <TabsTrigger value="itens-cliente">Itens de Cliente</TabsTrigger>
-          <TabsTrigger value="separacao">Separação (Caixas)</TabsTrigger>
-          <TabsTrigger value="sobras">Gestão de Sobras</TabsTrigger>
-        </TabsList>
-        <div className="flex-1 overflow-y-auto mt-4 pb-20">
+        <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
           <TabsContent value="overview" className="m-0 border-none outline-none">
             <EstoqueOverview />
           </TabsContent>

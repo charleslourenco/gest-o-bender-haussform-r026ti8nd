@@ -127,134 +127,130 @@ export default function Dashboard() {
   }, [date])
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-300">
-      <div className="bg-midnight-navy p-6 rounded-xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Presentation className="h-10 w-10 text-emerald-400 hidden sm:block" />
-          <div>
-            <h1 className="text-[32px] font-bold text-off-white">Dashboard Integrado</h1>
-            <p className="text-pale-cornflower mt-1">Inteligência Operacional Bender Haussform</p>
+    <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
+      <Tabs defaultValue="captacao" className="w-full flex-1 flex flex-col min-h-0 mt-0">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 mr-2">
+              <Presentation className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-bold text-white">Dashboard Integrado</h2>
+            </div>
+            <TabsList className="bg-white/10 border-none h-9">
+              <TabsTrigger
+                value="captacao"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Captação de Leads
+              </TabsTrigger>
+              <TabsTrigger
+                value="comercial"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Comercial
+              </TabsTrigger>
+              <TabsTrigger
+                value="analise"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Análise Técnica
+              </TabsTrigger>
+              <TabsTrigger
+                value="producao"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Produção
+              </TabsTrigger>
+              <TabsTrigger
+                value="montagem"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Montagem
+              </TabsTrigger>
+            </TabsList>
           </div>
-        </div>
 
-        <div className="w-full sm:w-auto bg-steel-blue/10 p-4 rounded-lg border border-steel-blue/20 flex flex-col">
-          <p className="text-pale-cornflower text-sm font-medium">Contas a Pagar</p>
-          <div className="flex items-baseline gap-2 mt-1 min-h-[32px]">
-            {loading ? (
-              <Skeleton className="h-8 w-16 bg-steel-blue/20" />
-            ) : data.contasPagarCount === null ? (
-              <span className="text-rose-400 text-sm font-medium">Erro de conexão</span>
-            ) : (
-              <>
-                <span className="text-2xl font-bold text-off-white">{data.contasPagarCount}</span>
-                <span className="text-pale-cornflower text-xs">aguardando</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'w-full sm:w-[280px] justify-start text-left font-normal bg-white text-midnight-navy hover:bg-pale-cornflower/20',
-                !date && 'text-muted-foreground',
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date?.from ? (
-                date.to ? (
-                  <>
-                    {format(date.from, 'dd/MM/yyyy', { locale: ptBR })} -{' '}
-                    {format(date.to, 'dd/MM/yyyy', { locale: ptBR })}
-                  </>
-                ) : (
-                  format(date.from, 'dd/MM/yyyy', { locale: ptBR })
-                )
+          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+            <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-md h-9 border border-white/10">
+              <span className="text-white/70 text-sm">Contas a Pagar:</span>
+              {loading ? (
+                <Skeleton className="h-5 w-8 bg-white/20" />
+              ) : data.contasPagarCount === null ? (
+                <span className="text-rose-400 text-sm font-medium">Erro</span>
               ) : (
-                <span>Filtrar período</span>
+                <span className="font-bold text-white">{data.contasPagarCount}</span>
               )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 bg-off-white border-steel-blue/20" align="end">
-            <Calendar
-              initialFocus
-              mode="range"
-              defaultMonth={date?.from}
-              selected={date}
-              onSelect={setDate}
-              numberOfMonths={2}
-              locale={ptBR}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
+            </div>
 
-      {loading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-12 w-full max-w-2xl rounded-lg bg-steel-blue/20" />
-          <div className="grid gap-6 md:grid-cols-3">
-            <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
-            <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
-            <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-9 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white px-3"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date?.from ? (
+                    date.to ? (
+                      <span className="text-sm font-normal">
+                        {format(date.from, 'dd/MM/yyyy', { locale: ptBR })} -{' '}
+                        {format(date.to, 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-normal">
+                        {format(date.from, 'dd/MM/yyyy', { locale: ptBR })}
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-sm font-normal">Filtrar período</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-off-white border-steel-blue/20" align="end">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={date?.from}
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-          <Skeleton className="h-96 w-full rounded-xl bg-steel-blue/20" />
         </div>
-      ) : (
-        <Tabs defaultValue="captacao" className="w-full">
-          <TabsList className="bg-pale-cornflower/20 p-1 rounded-xl mb-6 flex flex-wrap h-auto gap-2">
-            <TabsTrigger
-              value="captacao"
-              className="rounded-lg data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
-            >
-              Captação de Leads
-            </TabsTrigger>
-            <TabsTrigger
-              value="comercial"
-              className="rounded-lg data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
-            >
-              Comercial
-            </TabsTrigger>
-            <TabsTrigger
-              value="analise"
-              className="rounded-lg data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
-            >
-              Análise Técnica
-            </TabsTrigger>
-            <TabsTrigger
-              value="producao"
-              className="rounded-lg data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
-            >
-              Produção
-            </TabsTrigger>
-            <TabsTrigger
-              value="montagem"
-              className="rounded-lg data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
-            >
-              Montagem
-            </TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="captacao" className="mt-0">
-            <CaptacaoTab data={data} />
-          </TabsContent>
-          <TabsContent value="comercial" className="mt-0">
-            <ComercialTab data={data} />
-          </TabsContent>
-          <TabsContent value="analise" className="mt-0">
-            <AnaliseTab data={data} />
-          </TabsContent>
-          <TabsContent value="producao" className="mt-0">
-            <ProducaoTab data={data} />
-          </TabsContent>
-          <TabsContent value="montagem" className="mt-0">
-            <MontagemTab data={data} />
-          </TabsContent>
-        </Tabs>
-      )}
+        <div className="flex-1 overflow-y-auto min-h-0 w-full">
+          {loading ? (
+            <div className="space-y-6">
+              <Skeleton className="h-12 w-full max-w-2xl rounded-lg bg-steel-blue/20" />
+              <div className="grid gap-6 md:grid-cols-3">
+                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
+                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
+                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
+              </div>
+              <Skeleton className="h-96 w-full rounded-xl bg-steel-blue/20" />
+            </div>
+          ) : (
+            <>
+              <TabsContent value="captacao" className="mt-0">
+                <CaptacaoTab data={data} />
+              </TabsContent>
+              <TabsContent value="comercial" className="mt-0">
+                <ComercialTab data={data} />
+              </TabsContent>
+              <TabsContent value="analise" className="mt-0">
+                <AnaliseTab data={data} />
+              </TabsContent>
+              <TabsContent value="producao" className="mt-0">
+                <ProducaoTab data={data} />
+              </TabsContent>
+              <TabsContent value="montagem" className="mt-0">
+                <MontagemTab data={data} />
+              </TabsContent>
+            </>
+          )}
+        </div>
+      </Tabs>
     </div>
   )
 }
