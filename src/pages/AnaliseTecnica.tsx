@@ -75,7 +75,7 @@ export default function AnaliseTecnica() {
         createPortal(
           <button
             onClick={() => setShowModal(true)}
-            className="bg-indigo-600 text-white text-sm font-medium px-3 py-1.5 rounded-md shrink-0 hover:opacity-90 transition-opacity"
+            className="bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md shrink-0 hover:opacity-90 transition-opacity"
           >
             + Criar Card Avulso
           </button>,

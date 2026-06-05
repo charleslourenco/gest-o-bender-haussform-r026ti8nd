@@ -31,9 +31,10 @@ export function AnaliseKanbanCard({
             e.stopPropagation()
             onCheckOutsourced()
           }}
-          className="bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded w-fit self-center mt-1 flex items-center justify-center hover:bg-red-600 cursor-pointer"
+          title="Possui Terceirizado??"
+          className="bg-red-500 text-white text-sm px-2 py-1 rounded w-fit self-center mt-1 flex items-center justify-center hover:bg-red-600 cursor-pointer shrink-0"
         >
-          ⚠️ Possui Terceirizado??
+          ⚠️
         </button>
       )}
     </div>

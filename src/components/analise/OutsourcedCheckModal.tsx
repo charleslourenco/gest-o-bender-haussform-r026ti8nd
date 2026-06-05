@@ -16,7 +16,7 @@ export function OutsourcedCheckModal({ onClose, onConfirm }: any) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-red-600">
             <AlertTriangle className="w-5 h-5" />
-            Este ambiente possui itens terceirizados?
+            Possui Terceirizado??
           </DialogTitle>
           <DialogDescription className="pt-2 text-slate-600">
             Verifique o caderno técnico ou lista de materiais para confirmar se há necessidade de
