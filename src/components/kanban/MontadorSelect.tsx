@@ -102,7 +102,7 @@ export function MontadorSelect({
           <Button
             variant="outline"
             role="combobox"
-            className="h-8 text-[11px] border-steel-blue/20 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 hover:text-emerald-800 w-full justify-between focus:ring-0 focus:ring-offset-0 px-2"
+            className="h-8 text-[11px] border-steel-blue/20 bg-emerald-500/10 text-white hover:bg-emerald-500/20 hover:text-white w-full justify-between focus:ring-0 focus:ring-offset-0 px-2"
           >
             <div className="flex items-center gap-1.5 truncate">
               <Wrench className="w-3 h-3 shrink-0" />
