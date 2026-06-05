@@ -1942,6 +1942,7 @@ export type Database = {
           descricao: string | null
           formulario_comercial_id: string | null
           id: string
+          is_outsourced: boolean
           nome_produto: string
           outsourced_checked: boolean
           qtd: number
@@ -1959,6 +1960,7 @@ export type Database = {
           descricao?: string | null
           formulario_comercial_id?: string | null
           id?: string
+          is_outsourced?: boolean
           nome_produto: string
           outsourced_checked?: boolean
           qtd: number
@@ -1976,6 +1978,7 @@ export type Database = {
           descricao?: string | null
           formulario_comercial_id?: string | null
           id?: string
+          is_outsourced?: boolean
           nome_produto?: string
           outsourced_checked?: boolean
           qtd?: number
@@ -2858,6 +2861,7 @@ export const Constants = {
 //   codigo_rastreio: text (nullable)
 //   terceirizado_validado: boolean (not null, default: false)
 //   outsourced_checked: boolean (not null, default: false)
+//   is_outsourced: boolean (not null, default: false)
 // Table: solicitacoes_compra
 //   id: uuid (not null, default: gen_random_uuid())
 //   usuario_id: uuid (not null)
