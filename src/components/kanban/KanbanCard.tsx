@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { CardData } from './types'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Wrench, Clock } from 'lucide-react'
+import { Wrench, Clock, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function KanbanCard({
@@ -129,9 +129,10 @@ export function KanbanCard({
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}
-              className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded w-full mt-1 flex items-center justify-center hover:bg-red-600"
+              title="Terceirizado Pendente"
+              className="bg-amber-500 text-white p-1 rounded w-fit mt-1 flex items-center justify-center hover:bg-amber-600 transition-colors"
             >
-              ⚠️ Terceirizado Pendente
+              <AlertTriangle className="h-4 w-4" />
             </button>
           )}
         </>

@@ -11,6 +11,7 @@ import {
   CalendarClock,
   Trash2,
   FileSearch,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -665,9 +666,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             e.stopPropagation()
                             handleOpenValidation(item.id)
                           }}
-                          className="bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded w-full mt-1 flex items-center justify-center hover:bg-red-600"
+                          title="Terceirizado Pendente"
+                          className="bg-amber-500 text-white p-1 rounded w-fit mt-1 flex items-center justify-center hover:bg-amber-600 transition-colors"
                         >
-                          ⚠️ Terceirizado Pendente
+                          <AlertTriangle className="h-4 w-4" />
                         </button>
                       )}
                     </div>
@@ -1032,9 +1034,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                                       e.stopPropagation()
                                       handleOpenValidation(item.id)
                                     }}
-                                    className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500 text-white border border-red-600 hover:bg-red-600 transition-colors"
+                                    title="Terceirizado Pendente"
+                                    className="inline-flex items-center justify-center p-1 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
                                   >
-                                    ⚠️ Terceirizado Pendente
+                                    <AlertTriangle className="h-3.5 w-3.5" />
                                   </button>
                                 )}
                             </div>
