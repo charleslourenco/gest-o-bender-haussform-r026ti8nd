@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { AnaliseKanbanColumn } from './AnaliseKanbanColumn'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { useRef } from 'react'
 import { CriarCardAvulsoModal } from './CriarCardAvulsoModal'
 import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,14 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
   const [checkModalCard, setCheckModalCard] = useState<any | null>(null)
   const [avulsoModalOpen, setAvulsoModalOpen] = useState(false)
   const [avulsoCardToUpdate, setAvulsoCardToUpdate] = useState<any | null>(null)
+
+  const topScrollRef = useRef<HTMLDivElement>(null)
+  const bottomScrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentWidth, setContentWidth] = useState(0)
+
+  const isSyncingTop = useRef(false)
+  const isSyncingBottom = useRef(false)
 
   const loadCards = async () => {
     const { data } = await supabase.from('produtos_servicos_projeto').select('*, clientes(nome)')
@@ -52,6 +60,40 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
       window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
     }
   }, [])
+
+  useEffect(() => {
+    if (!contentRef.current) return
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContentWidth(entry.target.scrollWidth)
+      }
+    })
+    ro.observe(contentRef.current)
+    setContentWidth(contentRef.current.scrollWidth)
+    return () => ro.disconnect()
+  }, [columns, cards])
+
+  const handleTopScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isSyncingTop.current) {
+      isSyncingTop.current = false
+      return
+    }
+    if (bottomScrollRef.current) {
+      isSyncingBottom.current = true
+      bottomScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+    }
+  }
+
+  const handleBottomScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isSyncingBottom.current) {
+      isSyncingBottom.current = false
+      return
+    }
+    if (topScrollRef.current) {
+      isSyncingTop.current = true
+      topScrollRef.current.scrollLeft = e.currentTarget.scrollLeft
+    }
+  }
 
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
@@ -117,15 +159,28 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
     )
   })
 
-  if (loading) return <div className="p-8">Carregando...</div>
+  if (loading) return <div className="p-8 text-slate-500">Carregando...</div>
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-off-white">
-      <div className="p-4 bg-white border-b flex justify-between items-center shadow-sm z-10">
-        <h2 className="font-bold text-lg text-slate-800">{title}</h2>
+    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50">
+      <div className="px-4 py-2.5 bg-white border-b flex justify-between items-center shadow-sm z-10 shrink-0">
+        <h2 className="font-bold text-base text-slate-800">{title}</h2>
       </div>
-      <ScrollArea className="flex-1 w-full kanban-scroll-wrapper">
-        <div className="flex gap-4 p-4 h-full min-h-[calc(100vh-200px)] w-max items-stretch">
+
+      <div
+        ref={topScrollRef}
+        className="overflow-x-auto overflow-y-hidden shrink-0 bg-white border-b border-slate-200 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100"
+        onScroll={handleTopScroll}
+      >
+        <div style={{ width: contentWidth > 0 ? `${contentWidth}px` : '100%', height: '1px' }} />
+      </div>
+
+      <div
+        ref={bottomScrollRef}
+        className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100"
+        onScroll={handleBottomScroll}
+      >
+        <div ref={contentRef} className="flex gap-2.5 p-3 h-full w-max items-stretch">
           {columns.map((col) => (
             <AnaliseKanbanColumn
               key={col.id}
@@ -148,8 +203,7 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
             />
           ))}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
 
       {checkModalCard && (
         <OutsourcedCheckModal

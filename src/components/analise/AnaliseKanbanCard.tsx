@@ -12,33 +12,37 @@ export function AnaliseKanbanCard({
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`flex flex-col gap-0.5 p-1.5 w-full h-fit bg-[#1A3D63] text-white rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all ${card.is_outsourced ? 'border border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
+      className={`flex flex-col gap-0 p-1.5 w-full h-fit bg-[#1A3D63] text-white rounded shadow-sm cursor-grab hover:shadow-md transition-all ${card.is_outsourced ? 'border border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
     >
-      <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-[10px]">
-        {card.codigo_rastreio && (
-          <span className="truncate max-w-[40%] font-bold text-blue-200">
-            {card.codigo_rastreio}
-          </span>
+      <div className="flex flex-row items-center justify-between gap-1 w-full text-[9px] mb-0.5">
+        {card.codigo_rastreio ? (
+          <span className="font-bold text-blue-200 truncate">{card.codigo_rastreio}</span>
+        ) : (
+          <span className="text-transparent">N/A</span>
         )}
-        {card.clientes?.nome && (
-          <span className="truncate max-w-[60%] text-gray-300">{card.clientes.nome}</span>
+        {needsCheck && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onCheckOutsourced()
+            }}
+            title="Possui Terceirizado?"
+            className="bg-amber-500 text-white text-[9px] px-1 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0 h-3.5"
+          >
+            ⚠️
+          </button>
         )}
       </div>
 
-      <h4 className="font-semibold text-xs truncate w-full">{card.nome_produto}</h4>
-
-      {needsCheck && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onCheckOutsourced()
-          }}
-          title="Possui Terceirizado??"
-          className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded w-fit self-center mt-0.5 flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"
-        >
-          ⚠️
-        </button>
+      {card.clientes?.nome && (
+        <span className="truncate text-slate-300 text-[9px] leading-none mb-0.5">
+          {card.clientes.nome}
+        </span>
       )}
+
+      <h4 className="font-medium text-[11px] leading-tight line-clamp-2 w-full break-words">
+        {card.nome_produto}
+      </h4>
     </div>
   )
 }
