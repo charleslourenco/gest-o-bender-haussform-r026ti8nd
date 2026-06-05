@@ -18,11 +18,30 @@ import {
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { MontadorSelect } from './MontadorSelect'
 
 export interface KanbanColumn {
   id: string
   title: string
 }
+
+const ALL_STAGES = [
+  { id: 'iniciar', title: 'Iniciar' },
+  { id: 'medida_fina', title: 'Medida Fina' },
+  { id: 'reuniao_analise', title: 'Reunião de Análise' },
+  { id: 'caderno_tecnico', title: 'Caderno Técnico' },
+  { id: 'lista_materiais', title: 'Lista de Materiais' },
+  { id: 'aguardando_plano_corte', title: 'Aguardando Plano de Corte' },
+  { id: 'router', title: 'Router' },
+  { id: 'coladeira', title: 'Coladeira' },
+  { id: 'bancada', title: 'Bancada' },
+  { id: 'embalagem', title: 'Embalagem' },
+  { id: 'expedicao', title: 'Expedição' },
+  { id: 'transporte', title: 'Transporte' },
+  { id: 'montagem', title: 'Montagem' },
+  { id: 'assistencia', title: 'Assistência' },
+  { id: 'concluido', title: 'Concluído' },
+]
 
 export function KanbanListView({
   searchQuery = '',
@@ -33,6 +52,7 @@ export function KanbanListView({
 }) {
   const [cards, setCards] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
+  const [montadores, setMontadores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchCards = useCallback(async () => {
@@ -40,7 +60,8 @@ export function KanbanListView({
       .from('produtos_servicos_projeto')
       .select(`
         *,
-        clientes(nome)
+        clientes(nome),
+        alocacao_montagem(montador_id, card_id)
       `)
       .order('criado_em', { ascending: false })
 
@@ -62,14 +83,30 @@ export function KanbanListView({
     }
   }, [])
 
+  const fetchMontadores = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('montadores')
+      .select(
+        'id, nome_completo, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))',
+      )
+
+    if (!error && data) {
+      setMontadores(data)
+    }
+  }, [])
+
   useEffect(() => {
     fetchCards()
     fetchUsers()
+    fetchMontadores()
 
-    const handleUpdate = () => fetchCards()
+    const handleUpdate = () => {
+      fetchCards()
+      fetchMontadores()
+    }
     window.addEventListener('kanban_updated', handleUpdate)
     return () => window.removeEventListener('kanban_updated', handleUpdate)
-  }, [fetchCards, fetchUsers])
+  }, [fetchCards, fetchUsers, fetchMontadores])
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase
@@ -136,15 +173,16 @@ export function KanbanListView({
               <TableHead className="text-white font-semibold whitespace-nowrap">Código</TableHead>
               <TableHead className="text-white font-semibold">Cliente</TableHead>
               <TableHead className="text-white font-semibold">Produto</TableHead>
-              <TableHead className="text-white font-semibold w-[200px]">Status</TableHead>
-              <TableHead className="text-white font-semibold w-[200px]">Responsável</TableHead>
+              <TableHead className="text-white font-semibold w-[180px]">Status</TableHead>
+              <TableHead className="text-white font-semibold w-[180px]">Responsável</TableHead>
+              <TableHead className="text-white font-semibold w-[200px]">Montadores</TableHead>
               <TableHead className="text-white font-semibold text-right w-[80px]">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={7} className="text-center py-8 text-slate-500">
                   Nenhum item encontrado.
                 </TableCell>
               </TableRow>
@@ -172,7 +210,7 @@ export function KanbanListView({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {columns.map((col) => (
+                          {ALL_STAGES.map((col) => (
                             <SelectItem key={col.id} value={col.id}>
                               {col.title}
                             </SelectItem>
@@ -197,6 +235,13 @@ export function KanbanListView({
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <MontadorSelect
+                        item={card}
+                        montadores={montadores}
+                        onUpdate={() => window.dispatchEvent(new Event('kanban_updated'))}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

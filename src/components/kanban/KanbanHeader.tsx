@@ -92,6 +92,12 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
                   Quadro Kanban
                 </TabsTrigger>
                 <TabsTrigger
+                  value="lista"
+                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+                >
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger
                   value="montadores"
                   className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
                 >
