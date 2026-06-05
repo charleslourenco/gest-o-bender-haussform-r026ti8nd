@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
+import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import {
   Table,
@@ -18,7 +20,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { MontadorSelect } from './MontadorSelect'
 
 export interface KanbanColumn {
   id: string
@@ -50,6 +51,9 @@ export function KanbanListView({
   searchQuery?: string
   columns?: KanbanColumn[]
 }) {
+  const location = useLocation()
+  const isMontagem = location.pathname.includes('/montagem')
+
   const [cards, setCards] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [montadores, setMontadores] = useState<any[]>([])
@@ -170,13 +174,19 @@ export function KanbanListView({
         <Table>
           <TableHeader className="bg-[#0A1931]">
             <TableRow className="hover:bg-[#0A1931]">
-              <TableHead className="text-white font-semibold whitespace-nowrap">Código</TableHead>
+              <TableHead className="text-white font-semibold whitespace-nowrap">Codigo</TableHead>
               <TableHead className="text-white font-semibold">Cliente</TableHead>
-              <TableHead className="text-white font-semibold">Produto</TableHead>
+              <TableHead className="text-white font-semibold">Ambiente</TableHead>
+              <TableHead className="text-white font-semibold whitespace-nowrap">data</TableHead>
               <TableHead className="text-white font-semibold w-[180px]">Status</TableHead>
-              <TableHead className="text-white font-semibold w-[180px]">Responsável</TableHead>
-              <TableHead className="text-white font-semibold w-[200px]">Montadores</TableHead>
-              <TableHead className="text-white font-semibold text-right w-[80px]">Ações</TableHead>
+              {isMontagem ? (
+                <TableHead className="text-white font-semibold w-[200px]">equipe alocada</TableHead>
+              ) : (
+                <TableHead className="text-white font-semibold w-[180px]">responsável</TableHead>
+              )}
+              <TableHead className="text-white font-semibold text-right w-[80px]">
+                excluir
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -201,6 +211,9 @@ export function KanbanListView({
                     </TableCell>
                     <TableCell className="font-medium">{clienteNome || 'Avulso'}</TableCell>
                     <TableCell>{card.nome_produto}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {card.criado_em ? format(new Date(card.criado_em), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
                     <TableCell>
                       <Select
                         value={card.status_analise || 'iniciar'}
@@ -218,31 +231,38 @@ export function KanbanListView({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={card.analista_id || 'unassigned'}
-                        onValueChange={(val) => updateAnalista(card.id, val)}
-                      >
-                        <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
-                          <SelectValue placeholder="Não atribuído" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Não atribuído</SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <MontadorSelect
-                        item={card}
-                        montadores={montadores}
-                        onUpdate={() => window.dispatchEvent(new Event('kanban_updated'))}
-                      />
-                    </TableCell>
+                    {isMontagem ? (
+                      <TableCell>
+                        {card.alocacao_montagem && card.alocacao_montagem.length > 0
+                          ? card.alocacao_montagem
+                              .map((am: any) => {
+                                const m = montadores.find((m) => m.id === am.montador_id)
+                                return m?.nome_completo
+                              })
+                              .filter(Boolean)
+                              .join(', ')
+                          : 'Não alocada'}
+                      </TableCell>
+                    ) : (
+                      <TableCell>
+                        <Select
+                          value={card.analista_id || 'unassigned'}
+                          onValueChange={(val) => updateAnalista(card.id, val)}
+                        >
+                          <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
+                            <SelectValue placeholder="Não atribuído" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Não atribuído</SelectItem>
+                            {users.map((u) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    )}
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
