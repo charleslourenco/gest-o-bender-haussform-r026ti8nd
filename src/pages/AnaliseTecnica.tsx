@@ -4,7 +4,7 @@ import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
 import { supabase } from '@/lib/supabase/client'
-import { ShoppingCart } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
 const COLUMNS = [
   { id: 'iniciar', title: 'Iniciar' },
@@ -53,16 +53,16 @@ export default function AnaliseTecnica() {
     }
   }, [headerNode])
 
-  // Fix for the runtime "Unexpected end of JSON input" error
-  // Robustly handle count-only requests using the Supabase client properly (head: true, count: 'exact')
   useEffect(() => {
     let isMounted = true
 
     const fetchPendingPurchases = async () => {
       try {
+        // Using a standard GET request (without head: true) to avoid JSON parsing errors
+        // that can occur with HEAD requests returning empty bodies.
         const { count, error } = await supabase
           .from('solicitacoes_compra')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
           .eq('status', 'Pendente')
 
         if (error) {
@@ -123,11 +123,10 @@ export default function AnaliseTecnica() {
           <>
             {pendingPurchasesCount !== null && pendingPurchasesCount > 0 && (
               <div
-                className="bg-amber-100 text-amber-700 border border-amber-200 text-sm font-medium px-3 py-1.5 rounded-md shrink-0 flex items-center gap-2"
-                title="Solicitações de Compra Pendentes"
+                className="bg-amber-100 text-amber-700 border border-amber-200 text-sm font-medium px-2 py-1.5 rounded-md shrink-0 flex items-center gap-1.5"
+                title={`${pendingPurchasesCount} Solicitação(ões) de Compra Pendente(s)`}
               >
-                <ShoppingCart className="w-4 h-4" />
-                <span>Compras Pendentes:</span>
+                <AlertTriangle className="w-4 h-4" />
                 <span className="font-bold">{pendingPurchasesCount}</span>
               </div>
             )}
