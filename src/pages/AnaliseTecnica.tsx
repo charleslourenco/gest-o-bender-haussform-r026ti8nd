@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
+import { supabase } from '@/lib/supabase/client'
+import { ShoppingCart } from 'lucide-react'
 
 const COLUMNS = [
   { id: 'iniciar', title: 'Iniciar' },
@@ -20,6 +22,7 @@ export default function AnaliseTecnica() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [headerNode, setHeaderNode] = useState<Element | null>(null)
+  const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number | null>(null)
 
   useEffect(() => {
     const handleTab = (e: any) => setActiveTab(e.detail)
@@ -50,6 +53,50 @@ export default function AnaliseTecnica() {
     }
   }, [headerNode])
 
+  // Fix for the runtime "Unexpected end of JSON input" error
+  // Robustly handle count-only requests using the Supabase client properly (head: true, count: 'exact')
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchPendingPurchases = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('solicitacoes_compra')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Pendente')
+
+        if (error) {
+          console.error('Error fetching pending purchases count:', error)
+          return
+        }
+
+        if (isMounted) {
+          setPendingPurchasesCount(count || 0)
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching pending purchases:', err)
+      }
+    }
+
+    fetchPendingPurchases()
+
+    const channel = supabase
+      .channel('public:solicitacoes_compra')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_compra' },
+        () => {
+          fetchPendingPurchases()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   const handleSuccess = () => {
     setShowModal(false)
     window.dispatchEvent(new CustomEvent('kanban_refresh'))
@@ -73,12 +120,24 @@ export default function AnaliseTecnica() {
 
       {headerNode &&
         createPortal(
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md shrink-0 hover:opacity-90 transition-opacity"
-          >
-            + Criar Card Avulso
-          </button>,
+          <>
+            {pendingPurchasesCount !== null && pendingPurchasesCount > 0 && (
+              <div
+                className="bg-amber-100 text-amber-700 border border-amber-200 text-sm font-medium px-3 py-1.5 rounded-md shrink-0 flex items-center gap-2"
+                title="Solicitações de Compra Pendentes"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span>Compras Pendentes:</span>
+                <span className="font-bold">{pendingPurchasesCount}</span>
+              </div>
+            )}
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-blue-600 text-white text-sm font-medium px-3 py-1.5 rounded-md shrink-0 hover:opacity-90 transition-opacity"
+            >
+              + Criar Card Avulso
+            </button>
+          </>,
           headerNode,
         )}
     </div>
