@@ -40,7 +40,7 @@ export function KanbanListView({
       .from('produtos_servicos_projeto')
       .select(`
         *,
-        cliente:clientes(nome)
+        clientes(nome)
       `)
       .order('criado_em', { ascending: false })
 
@@ -115,7 +115,7 @@ export function KanbanListView({
   const filtered = cards.filter((c) => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
-    const clienteNome = Array.isArray(c.cliente) ? c.cliente[0]?.nome : c.cliente?.nome
+    const clienteNome = Array.isArray(c.clientes) ? c.clientes[0]?.nome : c.clientes?.nome
     return (
       c.nome_produto?.toLowerCase().includes(q) ||
       c.codigo_rastreio?.toLowerCase().includes(q) ||
@@ -150,9 +150,9 @@ export function KanbanListView({
               </TableRow>
             ) : (
               filtered.map((card) => {
-                const clienteNome = Array.isArray(card.cliente)
-                  ? card.cliente[0]?.nome
-                  : card.cliente?.nome
+                const clienteNome = Array.isArray(card.clientes)
+                  ? card.clientes[0]?.nome
+                  : card.clientes?.nome
                 return (
                   <TableRow
                     key={card.id}
