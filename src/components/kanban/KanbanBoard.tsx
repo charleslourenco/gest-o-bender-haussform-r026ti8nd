@@ -13,6 +13,7 @@ import {
   FileSearch,
   AlertTriangle,
   Plus,
+  Wrench,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -89,8 +90,11 @@ const ALL_STATUS_OPTIONS = [
   { id: 'bancada', title: 'Bancada' },
   { id: 'embalagem', title: 'Embalagem' },
   { id: 'expedicao', title: 'Expedição' },
+  { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
   { id: 'transporte', title: 'Transporte' },
   { id: 'montagem', title: 'Montagem' },
+  { id: 'item_terceirizado', title: 'Item Terceirizado' },
+  { id: 'pendencia', title: 'Pendência' },
   { id: 'assistencia', title: 'Assistência' },
   { id: 'concluido', title: 'Concluído' },
 ]
@@ -598,7 +602,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 className={cn(
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao || isMontagemRoute
-                    ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5'
+                    ? cn(
+                        'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border',
+                        item.is_outsourced ? 'border-orange-500' : 'border-transparent',
+                      )
                     : cn(
                         'rounded-lg shadow-sm hover:shadow-md flex flex-col',
                         isAnaliseTecnica
@@ -752,11 +759,21 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
                 {(isProducao || isMontagemRoute) && (
                   <div className="flex items-center justify-between mt-auto pt-0.5">
-                    <TimeInColumn
-                      cardId={item.id}
-                      status={item.status_analise}
-                      criado_em={item.criado_em}
-                    />
+                    <div className="flex items-center gap-2">
+                      <TimeInColumn
+                        cardId={item.id}
+                        status={item.status_analise}
+                        criado_em={item.criado_em}
+                      />
+                      {isMontagemRoute &&
+                        item.alocacao_montagem &&
+                        item.alocacao_montagem.length > 0 && (
+                          <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                            <Wrench className="w-2.5 h-2.5" />
+                            <span>{item.alocacao_montagem.length} Alocado(s)</span>
+                          </div>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1 text-[10px]">
                       <Package className="h-3 w-3 shrink-0 text-white/50" />
                       <span className="text-white/80">Qtd: {item.qtd}</span>

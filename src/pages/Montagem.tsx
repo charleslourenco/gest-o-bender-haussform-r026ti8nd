@@ -1,8 +1,11 @@
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 
 const COLUMNS = [
+  { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
   { id: 'transporte', title: 'Transporte' },
   { id: 'montagem', title: 'Montagem' },
+  { id: 'item_terceirizado', title: 'Item Terceirizado' },
+  { id: 'pendencia', title: 'Pendência' },
   { id: 'assistencia', title: 'Assistência' },
   { id: 'concluido', title: 'Concluído' },
 ]
