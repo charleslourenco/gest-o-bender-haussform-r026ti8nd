@@ -74,60 +74,66 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
 
   if (title === 'Montagem') {
     return (
-      <div className="w-full px-4 pt-0 mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
+      <div className="w-full flex flex-col">
+        {/* Top bar: Background color #0A1931 containing the module title */}
+        <div className="flex items-center justify-between w-full bg-[#0A1931] text-white px-6 py-4">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Montagem</h2>
+              <Wrench className="w-6 h-6 text-emerald-400" />
+              <h1 className="text-xl font-bold text-white tracking-tight">Montagem</h1>
             </div>
 
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto ml-4">
               <TabsList className="bg-white/10 border-none h-9">
                 <TabsTrigger
                   value="kanban"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
                 >
                   Quadro Kanban
                 </TabsTrigger>
                 <TabsTrigger
                   value="montadores"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
                 >
                   Gestão de Montadores
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
+        </div>
 
-          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
+        {/* Action Row: A row immediately below the blue header for filters and primary action buttons */}
+        <div className="flex items-center justify-between w-full bg-white border-b border-steel-blue/10 px-6 py-3 shadow-sm">
+          <div className="flex items-center gap-2">
             <div className="relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-steel-blue/50" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-28 lg:w-40"
+                className="pl-9 bg-white border-steel-blue/20 text-midnight-navy placeholder:text-steel-blue/50 h-9 w-64"
               />
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="text-white hover:bg-white/10 h-9 w-9 shrink-0"
+              className="text-steel-blue border-steel-blue/20 hover:bg-steel-blue/5 h-9 w-9 shrink-0"
             >
               <Filter className="w-4 h-4" />
             </Button>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
               onClick={() => setIsCreateOpen(true)}
-              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0"
+              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0 shadow-sm"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Card Avulso
             </Button>
           </div>
-
-          <CreateCardDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
         </div>
+
+        <CreateCardDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
       </div>
     )
   }

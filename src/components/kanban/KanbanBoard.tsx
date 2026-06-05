@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { KanbanHeader } from './KanbanHeader'
 import { MontadorSelect } from './MontadorSelect'
 import { CreateCardDialog } from './CreateCardDialog'
+import { MontadoresTab } from '@/pages/MontadoresTab'
 import {
   Select,
   SelectContent,
@@ -170,7 +171,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [showSobrasRegister, setShowSobrasRegister] = useState(false)
   const [novaSobra, setNovaSobra] = useState({ nome: '', largura: 0, altura: 0 })
   const [descarteSugerido, setDescarteSugerido] = useState(false)
-  const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores'>('kanban')
+  const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores' | 'montadores'>(
+    'kanban',
+  )
 
   const [validatingCardId, setValidatingCardId] = useState<string | null>(null)
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
@@ -299,7 +302,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     fetchItems()
 
     const handleKanbanUpdated = () => fetchItems()
+    const handleTabChange = (e: any) => setActiveView(e.detail)
     window.addEventListener('kanban_updated', handleKanbanUpdated)
+    window.addEventListener('kanban_tab_change', handleTabChange)
 
     const channel = supabase
       .channel('kanban_changes')
@@ -318,6 +323,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
     return () => {
       window.removeEventListener('kanban_updated', handleKanbanUpdated)
+      window.removeEventListener('kanban_tab_change', handleTabChange)
       supabase.removeChannel(channel)
     }
   }, [columns])
@@ -591,7 +597,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 onDragEnd={handleDragEnd}
                 className={cn(
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
-                  isProducao
+                  isProducao || isMontagemRoute
                     ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5'
                     : cn(
                         'rounded-lg shadow-sm hover:shadow-md flex flex-col',
@@ -609,7 +615,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 <div
                   className={cn(
                     'absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
-                    isAnaliseTecnica || isProducao
+                    isAnaliseTecnica || isProducao || isMontagemRoute
                       ? 'top-1 text-white/30 bg-[#1A3D63] rounded'
                       : 'top-2 text-steel-blue/30 bg-white rounded',
                   )}
@@ -622,7 +628,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     }}
                     className={cn(
                       'p-1 rounded transition-colors',
-                      isAnaliseTecnica || isProducao
+                      isAnaliseTecnica || isProducao || isMontagemRoute
                         ? 'hover:text-red-400 hover:bg-red-400/10'
                         : 'hover:text-red-500 hover:bg-red-50',
                     )}
@@ -638,10 +644,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 <div
                   className={cn(
                     'pr-12',
-                    isAnaliseTecnica ? 'mb-0.5' : isProducao ? 'mb-0' : 'mb-1',
+                    isAnaliseTecnica ? 'mb-0.5' : isProducao || isMontagemRoute ? 'mb-0' : 'mb-1',
                   )}
                 >
-                  {isProducao ? (
+                  {isProducao || isMontagemRoute ? (
                     <>
                       <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-xs font-medium">
                         {item.codigo_rastreio && (
@@ -706,7 +712,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   )}
                 </div>
 
-                {!isProducao && (
+                {!(isProducao || isMontagemRoute) && (
                   <div
                     className={cn(
                       'flex flex-col font-medium border-t',
@@ -744,7 +750,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   </div>
                 )}
 
-                {isProducao && (
+                {(isProducao || isMontagemRoute) && (
                   <div className="flex items-center justify-between mt-auto pt-0.5">
                     <TimeInColumn
                       cardId={item.id}
@@ -761,7 +767,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 <div
                   className={cn(
                     'border-t flex flex-col',
-                    isProducao
+                    isProducao || isMontagemRoute
                       ? 'border-white/10 pt-1.5 gap-1'
                       : isAnaliseTecnica
                         ? 'border-white/10 pt-1.5 gap-1'
@@ -801,7 +807,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     <SelectTrigger
                       className={cn(
                         'h-6 text-[10px] px-2 w-full focus:ring-0 focus:ring-offset-0',
-                        isAnaliseTecnica || isProducao
+                        isAnaliseTecnica || isProducao || isMontagemRoute
                           ? 'bg-white/10 border-white/20 text-white'
                           : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
                       )}
@@ -810,7 +816,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </SelectTrigger>
                     <SelectContent
                       className={cn(
-                        (isAnaliseTecnica || isProducao) &&
+                        (isAnaliseTecnica || isProducao || isMontagemRoute) &&
                           'bg-[#1A3D63] border-white/20 text-white',
                       )}
                     >
@@ -818,7 +824,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         value="unassigned"
                         className={cn(
                           'text-[10px] py-1',
-                          isAnaliseTecnica || isProducao
+                          isAnaliseTecnica || isProducao || isMontagemRoute
                             ? 'text-white/60 focus:bg-white/10 focus:text-white'
                             : 'text-muted-foreground',
                         )}
@@ -831,7 +837,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           value={u.id}
                           className={cn(
                             'text-[10px] py-1',
-                            (isAnaliseTecnica || isProducao) &&
+                            (isAnaliseTecnica || isProducao || isMontagemRoute) &&
                               'focus:bg-white/10 focus:text-white',
                           )}
                         >
@@ -862,7 +868,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     <div
       className={cn(
         'flex h-full flex-col overflow-hidden shadow-sm',
-        isAnaliseTecnica
+        isAnaliseTecnica || isMontagemRoute
           ? 'bg-off-white rounded-none border-0'
           : 'bg-off-white rounded-lg border border-steel-blue/10',
       )}
@@ -970,7 +976,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           </div>
         </div>
       ) : (
-        <div className="border-b border-steel-blue/10 bg-white">
+        <div className={cn(isMontagemRoute ? '' : 'border-b border-steel-blue/10 bg-white')}>
           <KanbanHeader
             title={title}
             searchQuery={searchQuery}
@@ -983,11 +989,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             uniqueConsultants={uniqueConsultants}
             usersMap={usersMap}
           />
-          <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
-            <p className="text-midnight-navy/60 text-sm">
-              Arraste os cards entre as colunas para atualizar o status.
-            </p>
-          </div>
+          {!isMontagemRoute && (
+            <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
+              <p className="text-midnight-navy/60 text-sm">
+                Arraste os cards entre as colunas para atualizar o status.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1135,6 +1143,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               real. Em breve.
             </p>
           </div>
+        </div>
+      )}
+
+      {activeView === 'montadores' && (
+        <div className="flex-1 overflow-auto bg-white m-6 rounded-xl shadow-sm border border-steel-blue/10 p-6 animate-in fade-in duration-300">
+          <MontadoresTab />
         </div>
       )}
 
