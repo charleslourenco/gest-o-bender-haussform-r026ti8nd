@@ -504,6 +504,22 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
+  const handleContainerDragLeave = (e: React.DragEvent) => {
+    const rect = scrollContainerRef.current?.getBoundingClientRect()
+    if (rect) {
+      if (
+        e.clientX <= rect.left ||
+        e.clientX >= rect.right ||
+        e.clientY <= rect.top ||
+        e.clientY >= rect.bottom
+      ) {
+        stopAutoScroll()
+      }
+    } else {
+      stopAutoScroll()
+    }
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.currentTarget.classList.add('bg-steel-blue/10')
@@ -606,8 +622,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           className={cn(
             'transition-colors duration-200 shrink-0 flex flex-col h-full',
             isAnaliseTecnica
-              ? 'max-h-full min-w-[260px] bg-slate-100 rounded-lg'
-              : isMontagemRoute
+              ? 'max-h-full w-[320px] min-w-[320px] bg-slate-100 rounded-lg'
+              : isMontagemRoute || isProducao
                 ? 'w-[320px] min-w-[320px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20'
                 : 'w-[260px] min-w-[260px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
           )}
@@ -1080,7 +1096,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         <div
           ref={scrollContainerRef}
           onDragOver={handleContainerDragOver}
-          onDragLeave={stopAutoScroll}
+          onDragLeave={handleContainerDragLeave}
           className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1"
         >
           {renderColumns()}
