@@ -289,7 +289,8 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 6000) // 6 seconds timeout to leave time for fallback
+    // Aumentado para 45 segundos para estabilizar a geração de PDFs longos (ex: 22 páginas)
+    const timeoutId = setTimeout(() => controller.abort(), 45000)
 
     const response = await fetch('https://api.html2pdf.app/v1/generate', {
       method: 'POST',

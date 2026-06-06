@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { SignatureModal } from './signature-modal'
+import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -516,24 +517,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               {editingDoc?.isNew ? 'Revisar e Gerar Documento' : 'Editar Documento'}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0 py-2 flex flex-col lg:flex-row gap-4">
-            <div className="flex-1 flex flex-col">
-              <label className="mb-2 text-sm font-semibold text-steel-blue">
-                Código-fonte (HTML)
-              </label>
-              <Textarea
-                value={editingContent}
-                onChange={(e) => setEditingContent(e.target.value)}
-                className="flex-1 min-h-[200px] resize-none font-mono text-xs border-2 border-steel-blue/30 focus-visible:ring-steel-blue"
-              />
-            </div>
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <label className="mb-2 text-sm font-semibold text-steel-blue">Pré-visualização</label>
-              <div
-                className="flex-1 overflow-y-auto bg-white border-2 border-steel-blue/30 rounded-md p-8 prose prose-sm max-w-none shadow-inner"
-                dangerouslySetInnerHTML={{ __html: editingContent }}
-              />
-            </div>
+          <div className="flex-1 min-h-0 py-2 flex flex-col">
+            <RichTextEditor
+              value={editingContent}
+              onChange={setEditingContent}
+              className="flex-1 h-full min-h-[300px]"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditModalOpen(false)}>
