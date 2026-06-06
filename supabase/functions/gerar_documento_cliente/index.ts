@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { PDFDocument, StandardFonts } from 'npm:pdf-lib@1.17.1'
+import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +18,225 @@ function formatDateStr(dateStr: string) {
   const parts = dateStr.split('-')
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
   return dateStr
+}
+
+async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create()
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  const margin = 50
+  const pageWidth = 595.28
+  const pageHeight = 841.89
+  const maxWidth = pageWidth - margin * 2
+
+  let page = pdfDoc.addPage([pageWidth, pageHeight])
+  let currentY = pageHeight - margin
+
+  let safeHtml = html
+  const unicodeMap: Record<string, string> = {
+    '“': '"',
+    '”': '"',
+    '‘': "'",
+    '’': "'",
+    '–': '-',
+    '—': '-',
+    '…': '...',
+    º: 'o',
+    ª: 'a',
+    '°': 'o',
+    '✅': '[X]',
+    '❌': '[ ]',
+    '⚠️': '!',
+    '&nbsp;': ' ',
+  }
+  for (const [char, replacement] of Object.entries(unicodeMap)) {
+    safeHtml = safeHtml.split(char).join(replacement)
+  }
+  safeHtml = safeHtml.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+  safeHtml = safeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+
+  // Convert tables to ||| format
+  safeHtml = safeHtml.replace(/<tr[^>]*>/gi, '\n')
+  safeHtml = safeHtml.replace(/<\/tr>/gi, '')
+  safeHtml = safeHtml.replace(/<th[^>]*>/gi, '')
+  safeHtml = safeHtml.replace(/<\/th>/gi, ' ||| ')
+  safeHtml = safeHtml.replace(/<td[^>]*>/gi, '')
+  safeHtml = safeHtml.replace(/<\/td>/gi, ' ||| ')
+
+  // Newlines for blocks
+  safeHtml = safeHtml.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li)>/gi, '\n')
+  safeHtml = safeHtml.replace(/<(br|hr)\s*\/?>/gi, '\n')
+
+  // Strip remaining tags
+  const text = safeHtml
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n\s*\n/g, '\n')
+    .trim()
+
+  const checkPageBreak = (needed: number) => {
+    if (currentY - needed < margin) {
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      currentY = pageHeight - margin
+    }
+  }
+
+  const wrapText = (textStr: string, font: any, size: number) => {
+    const words = textStr.split(' ')
+    let lines = []
+    let currentLine = ''
+    for (const word of words) {
+      if (!word) continue
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const width = font.widthOfTextAtSize(testLine, size)
+      if (width > maxWidth) {
+        if (currentLine) lines.push(currentLine)
+        if (font.widthOfTextAtSize(word, size) > maxWidth) {
+          let brokenWord = ''
+          for (const char of word) {
+            if (font.widthOfTextAtSize(brokenWord + char + '-', size) > maxWidth) {
+              lines.push(brokenWord + '-')
+              brokenWord = char
+            } else {
+              brokenWord += char
+            }
+          }
+          currentLine = brokenWord
+        } else {
+          currentLine = word
+        }
+      } else {
+        currentLine = testLine
+      }
+    }
+    if (currentLine) lines.push(currentLine)
+    return lines
+  }
+
+  const lines = text.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i].trim()
+    if (!rawLine) {
+      currentY -= 15
+      checkPageBreak(0)
+      continue
+    }
+
+    if (rawLine.includes(' ||| ')) {
+      const cells = rawLine.split(' ||| ').filter((c) => c.trim() !== '')
+      if (cells.length === 0) continue
+
+      const colWidth = maxWidth / cells.length
+      const rowHeight = 20
+      checkPageBreak(rowHeight)
+
+      let currentX = margin
+      for (let c = 0; c < cells.length; c++) {
+        const cellText = cells[c].trim()
+        const cellFont = i === 0 || rawLine.toUpperCase() === rawLine ? fontBold : fontRegular
+        page.drawRectangle({
+          x: currentX,
+          y: currentY - 14,
+          width: colWidth,
+          height: rowHeight,
+          borderColor: rgb(0, 0, 0),
+          borderWidth: 0.5,
+          color: rgb(1, 1, 1),
+        })
+
+        let displayTxt = cellText
+        if (cellFont.widthOfTextAtSize(displayTxt, 10) > colWidth - 4) {
+          let truncated = ''
+          for (const char of cellText) {
+            if (cellFont.widthOfTextAtSize(truncated + char + '...', 10) > colWidth - 4) break
+            truncated += char
+          }
+          displayTxt = truncated + '...'
+        }
+        const dtW = cellFont.widthOfTextAtSize(displayTxt, 10)
+        page.drawText(displayTxt, {
+          x: currentX + (colWidth - dtW) / 2,
+          y: currentY - 10,
+          size: 10,
+          font: cellFont,
+          color: rgb(0, 0, 0),
+        })
+        currentX += colWidth
+      }
+      currentY -= rowHeight
+      continue
+    }
+
+    const isMainTitle =
+      i === 0 ||
+      rawLine.toUpperCase().includes('CONTRATO UNIFICADO') ||
+      rawLine.toUpperCase().includes('TERMO')
+    const isBold = rawLine.toUpperCase() === rawLine && rawLine.length > 5
+
+    let font = fontRegular
+    let size = 10
+    let align = 'justify'
+
+    if (isMainTitle) {
+      font = fontBold
+      size = 14
+      align = 'center'
+      currentY -= 10
+    } else if (isBold) {
+      font = fontBold
+      size = 12
+      align = 'left'
+      currentY -= 5
+    }
+
+    const wrappedLines = wrapText(rawLine, font, size)
+    const lineHeight = size * 1.5
+
+    for (let j = 0; j < wrappedLines.length; j++) {
+      const wl = wrappedLines[j]
+      checkPageBreak(lineHeight)
+
+      const width = font.widthOfTextAtSize(wl, size)
+      let x = margin
+
+      if (align === 'center') {
+        x = margin + Math.max(0, (maxWidth - width) / 2)
+        page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+      } else if (align === 'justify' && j < wrappedLines.length - 1 && width > maxWidth * 0.7) {
+        const words = wl.split(' ')
+        if (words.length > 1) {
+          const textWidth = font.widthOfTextAtSize(wl.replace(/\s+/g, ''), size)
+          const spaceWidth = (maxWidth - textWidth) / (words.length - 1)
+          if (spaceWidth < font.widthOfTextAtSize(' ', size) * 3) {
+            let cx = margin
+            for (const word of words) {
+              page.drawText(word, { x: cx, y: currentY, size, font, color: rgb(0, 0, 0) })
+              cx += font.widthOfTextAtSize(word, size) + spaceWidth
+            }
+          } else {
+            page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+          }
+        } else {
+          page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+        }
+      } else {
+        page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
+      }
+
+      currentY -= lineHeight
+    }
+  }
+
+  const pages = pdfDoc.getPages()
+  for (let i = 0; i < pages.length; i++) {
+    const p = pages[i]
+    const footerY = margin / 2
+    const pageText = `Página ${i + 1} de ${pages.length}`
+    const tw = fontRegular.widthOfTextAtSize(pageText, 8)
+    p.drawText(pageText, { x: pageWidth - margin - tw, y: footerY, size: 8, font: fontRegular })
+  }
+
+  return await pdfDoc.save()
 }
 
 async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
@@ -43,59 +262,8 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
     console.error('Erro na requisição HTML2PDF:', err)
   }
 
-  // Fallback: Generate simple PDF using pdf-lib se a API externa falhar (Timeout/401)
-  console.log('Usando fallback interno do pdf-lib para gerar documento')
-  const pdfDoc = await PDFDocument.create()
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-
-  let page = pdfDoc.addPage([595.28, 841.89])
-
-  let safeHtml = html
-  const unicodeMap: Record<string, string> = {
-    '“': '"',
-    '”': '"',
-    '‘': "'",
-    '’': "'",
-    '–': '-',
-    '—': '-',
-    '…': '...',
-    º: 'o',
-    ª: 'a',
-    '°': 'o',
-    '✅': '[X]',
-    '❌': '[ ]',
-    '⚠️': '!',
-  }
-  for (const [char, replacement] of Object.entries(unicodeMap)) {
-    safeHtml = safeHtml.split(char).join(replacement)
-  }
-  safeHtml = safeHtml.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
-
-  const text = safeHtml
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, '\n')
-    .replace(/\n\s*\n/g, '\n')
-    .trim()
-
-  const lines = text.split('\n')
-  let y = 800
-  for (const line of lines) {
-    if (y < 50) {
-      page = pdfDoc.addPage([595.28, 841.89])
-      y = 800
-    }
-    const cleanLine = line.trim()
-    if (cleanLine.length > 0) {
-      try {
-        page.drawText(cleanLine.substring(0, 95), { x: 50, y, size: 10, font })
-        y -= 15
-      } catch (e) {
-        // Ignora caracteres não imprimíveis
-      }
-    }
-  }
-
-  return await pdfDoc.save()
+  console.log('Usando fallback avançado do pdf-lib para gerar documento longo')
+  return await generatePdfFromHtmlFallback(html)
 }
 
 Deno.serve(async (req: Request) => {
@@ -117,7 +285,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json()
     const { action, cliente_id, template_nome, documento_id, conteudo_editado } = body
 
-    if (action === 'gerar_novo') {
+    if (action === 'pre_gerar' || action === 'gerar_novo') {
       if (!cliente_id || !template_nome)
         throw new Error('cliente_id e template_nome são obrigatórios')
 
@@ -166,12 +334,11 @@ Deno.serve(async (req: Request) => {
       const desconto = Number(safeForm.desconto || 0)
       const metodoPagamento = safeForm.metodo_pagamento || pagData.meio || 'Não informado'
 
-      // Gerador dinâmico de tabelas de produtos
       let tabelaProdutos =
-        '<table><thead><tr><th>Produto/Serviço</th><th>Descrição</th><th>Qtd</th><th>V. Unit.</th><th>Total</th></tr></thead><tbody>'
+        '<table style="width: 100%; border-collapse: collapse;"><thead><tr><th style="border: 1px solid #ccc; padding: 4px;">Produto/Serviço</th><th style="border: 1px solid #ccc; padding: 4px;">Descrição</th><th style="border: 1px solid #ccc; padding: 4px;">Qtd</th><th style="border: 1px solid #ccc; padding: 4px;">V. Unit.</th><th style="border: 1px solid #ccc; padding: 4px;">Total</th></tr></thead><tbody>'
       if (produtos.length === 0) {
         tabelaProdutos +=
-          '<tr><td colspan="5" style="text-align: center;">Nenhum produto cadastrado</td></tr>'
+          '<tr><td colspan="5" style="border: 1px solid #ccc; padding: 4px; text-align: center;">Nenhum produto cadastrado</td></tr>'
       } else {
         produtos.forEach((p: any) => {
           const nome = p.nome || p.nome_produto || 'Item'
@@ -179,21 +346,20 @@ Deno.serve(async (req: Request) => {
           const qtd = Number(p.qtd || p.quantidade || 1)
           const vu = Number(p.valor_unitario || p.valor || 0)
           const vt = Number(p.valor_total || qtd * vu)
-          tabelaProdutos += `<tr><td>${nome}</td><td>${desc}</td><td>${qtd}</td><td>${formatCurrency(vu)}</td><td>${formatCurrency(vt)}</td></tr>`
+          tabelaProdutos += `<tr><td style="border: 1px solid #ccc; padding: 4px;">${nome}</td><td style="border: 1px solid #ccc; padding: 4px;">${desc}</td><td style="border: 1px solid #ccc; padding: 4px;">${qtd}</td><td style="border: 1px solid #ccc; padding: 4px;">${formatCurrency(vu)}</td><td style="border: 1px solid #ccc; padding: 4px;">${formatCurrency(vt)}</td></tr>`
         })
       }
       tabelaProdutos += '</tbody></table>'
 
-      // Gerador dinâmico de tabelas de pagamentos
       let tabelaPagamentos =
-        '<table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th><th>Meio de Pagamento</th></tr></thead><tbody>'
+        '<table style="width: 100%; border-collapse: collapse;"><thead><tr><th style="border: 1px solid #ccc; padding: 4px;">Parcela</th><th style="border: 1px solid #ccc; padding: 4px;">Vencimento</th><th style="border: 1px solid #ccc; padding: 4px;">Valor</th><th style="border: 1px solid #ccc; padding: 4px;">Meio de Pagamento</th></tr></thead><tbody>'
       const parcelas = safeForm.parcelas || pagData.parcelas || []
 
       if (pagData.forma === 'A_VISTA' || parcelas.length === 0) {
-        tabelaPagamentos += `<tr><td>Única</td><td>${formatDateStr(safeForm.data_pagamento || safeForm.criado_em)}</td><td>${formatCurrency(valorTotal)}</td><td>${metodoPagamento}</td></tr>`
+        tabelaPagamentos += `<tr><td style="border: 1px solid #ccc; padding: 4px;">Única</td><td style="border: 1px solid #ccc; padding: 4px;">${formatDateStr(safeForm.data_pagamento || safeForm.criado_em)}</td><td style="border: 1px solid #ccc; padding: 4px;">${formatCurrency(valorTotal)}</td><td style="border: 1px solid #ccc; padding: 4px;">${metodoPagamento}</td></tr>`
       } else {
         parcelas.forEach((p: any, index: number) => {
-          tabelaPagamentos += `<tr><td>${index + 1}/${parcelas.length}</td><td>${formatDateStr(p.data || p.vencimento)}</td><td>${formatCurrency(p.valor || valorTotal / parcelas.length)}</td><td>${p.meio || metodoPagamento}</td></tr>`
+          tabelaPagamentos += `<tr><td style="border: 1px solid #ccc; padding: 4px;">${index + 1}/${parcelas.length}</td><td style="border: 1px solid #ccc; padding: 4px;">${formatDateStr(p.data || p.vencimento)}</td><td style="border: 1px solid #ccc; padding: 4px;">${formatCurrency(p.valor || valorTotal / parcelas.length)}</td><td style="border: 1px solid #ccc; padding: 4px;">${p.meio || metodoPagamento}</td></tr>`
         })
       }
       tabelaPagamentos += '</tbody></table>'
@@ -253,8 +419,14 @@ Deno.serve(async (req: Request) => {
         conteudoFinal = conteudoFinal.split(key).join(safeValue)
       }
 
-      const pdfBytes = await convertHtmlToPdf(conteudoFinal)
+      if (action === 'pre_gerar') {
+        return new Response(JSON.stringify({ success: true, conteudo_preenchido: conteudoFinal }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
 
+      // Legacy fallback for gerar_novo
+      const pdfBytes = await convertHtmlToPdf(conteudoFinal)
       const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
       const fileName = `${safeNome}_${Date.now()}.pdf`
       const filePath = `contratos/${cliente_id}/${fileName}`
@@ -284,36 +456,69 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true, documento: docRecord }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
-    } else if (action === 'atualizar_pdf') {
-      if (!documento_id || !conteudo_editado)
-        throw new Error('documento_id e conteudo_editado são obrigatórios')
-
-      const { data: doc, error: docError } = await supabase
-        .from('documentos_cliente')
-        .select('*')
-        .eq('id', documento_id)
-        .maybeSingle()
-
-      if (docError) throw new Error(`Erro ao buscar documento: ${docError.message}`)
-      if (!doc) throw new Error('Documento não encontrado')
-
-      await supabase
-        .from('documentos_cliente')
-        .update({ conteudo_preenchido: conteudo_editado })
-        .eq('id', documento_id)
+    } else if (action === 'salvar_novo' || action === 'atualizar_pdf') {
+      if (!conteudo_editado) throw new Error('conteudo_editado é obrigatório')
 
       const pdfBytes = await convertHtmlToPdf(conteudo_editado)
 
-      const { error: uploadError } = await supabase.storage
-        .from('bender_clientes')
-        .upload(doc.arquivo_url, pdfBytes, { contentType: 'application/pdf', upsert: true })
+      if (action === 'salvar_novo') {
+        const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
+        const fileName = `${safeNome}_${Date.now()}.pdf`
+        const filePath = `contratos/${cliente_id}/${fileName}`
 
-      if (uploadError)
-        throw new Error(`Falha no upload do arquivo atualizado: ${uploadError.message}`)
+        const { error: uploadError } = await supabase.storage
+          .from('bender_clientes')
+          .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+        if (uploadError)
+          throw new Error(`Falha no upload do arquivo para o storage: ${uploadError.message}`)
+
+        const { data: docRecord, error: docError } = await supabase
+          .from('documentos_cliente')
+          .insert({
+            cliente_id,
+            tipo: template_nome.trim(),
+            template_nome: `${template_nome.trim()}.pdf`,
+            status: 'gerado',
+            arquivo_url: filePath,
+            conteudo_preenchido: conteudo_editado,
+          })
+          .select()
+          .single()
+
+        if (docError) throw new Error(`Erro ao salvar registro do documento: ${docError.message}`)
+
+        return new Response(JSON.stringify({ success: true, documento: docRecord }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      } else {
+        if (!documento_id) throw new Error('documento_id é obrigatório para atualizar')
+
+        const { data: doc, error: docError } = await supabase
+          .from('documentos_cliente')
+          .select('*')
+          .eq('id', documento_id)
+          .maybeSingle()
+
+        if (docError) throw new Error(`Erro ao buscar documento: ${docError.message}`)
+        if (!doc) throw new Error('Documento não encontrado')
+
+        await supabase
+          .from('documentos_cliente')
+          .update({ conteudo_preenchido: conteudo_editado })
+          .eq('id', documento_id)
+
+        const { error: uploadError } = await supabase.storage
+          .from('bender_clientes')
+          .upload(doc.arquivo_url, pdfBytes, { contentType: 'application/pdf', upsert: true })
+
+        if (uploadError)
+          throw new Error(`Falha no upload do arquivo atualizado: ${uploadError.message}`)
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
     }
 
     throw new Error('Ação inválida')

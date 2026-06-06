@@ -152,30 +152,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
   const handleGerarTemplate = async (templateNome: string) => {
     setGenerating(true)
-    toast.info(`Gerando ${templateNome}...`, { id: 'gerar-doc' })
+    toast.info(`Preparando ${templateNome} para revisão...`, { id: 'gerar-doc' })
     try {
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: { action: 'gerar_novo', cliente_id: dossie.cliente_id, template_nome: templateNome },
+        body: { action: 'pre_gerar', cliente_id: dossie.cliente_id, template_nome: templateNome },
       })
 
-      console.log('ERRO DETALHADO (gerar_novo):', JSON.stringify(data), JSON.stringify(error))
+      console.log('ERRO DETALHADO (pre_gerar):', JSON.stringify(data), JSON.stringify(error))
 
       if (error) throw error
       if (!data.success) throw new Error(data.error)
 
-      const { data: authData } = await supabase.auth.getUser()
-      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
-      await supabase.from('timeline_eventos').insert({
-        cliente_id: dossie.cliente_id,
-        usuario_nome: userName,
-        acao: `Documento ${templateNome} gerado`,
-      })
-
-      toast.success(`${templateNome} gerado com sucesso!`)
-      loadDocs()
-      onReload()
+      setEditingDoc({ isNew: true, template_nome: templateNome })
+      setEditingContent(data.conteudo_preenchido)
+      setEditModalOpen(true)
+      toast.success('Documento pronto para revisão!')
     } catch (e: any) {
-      toast.error(`Falha ao gerar ${templateNome}: ${e.message}`)
+      toast.error(`Falha ao preparar ${templateNome}: ${e.message}`)
     } finally {
       toast.dismiss('gerar-doc')
       setGenerating(false)
@@ -247,24 +240,43 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const handleSaveEdit = async () => {
-    toast.info('Salvando e regerando PDF...', { id: 'save-edit' })
+    toast.info(editingDoc.isNew ? 'Gerando PDF final...' : 'Salvando e regerando PDF...', {
+      id: 'save-edit',
+    })
     try {
-      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: {
-          action: 'atualizar_pdf',
-          documento_id: editingDoc.id,
-          conteudo_editado: editingContent,
-        },
-      })
+      const action = editingDoc.isNew ? 'salvar_novo' : 'atualizar_pdf'
+      const body = editingDoc.isNew
+        ? {
+            action,
+            cliente_id: dossie.cliente_id,
+            template_nome: editingDoc.template_nome,
+            conteudo_editado: editingContent,
+          }
+        : { action, documento_id: editingDoc.id, conteudo_editado: editingContent }
 
-      console.log('ERRO DETALHADO (atualizar_pdf):', JSON.stringify(data), JSON.stringify(error))
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
+
+      console.log(`ERRO DETALHADO (${action}):`, JSON.stringify(data), JSON.stringify(error))
 
       if (error) throw error
       if (data && !data.success) throw new Error(data.error)
 
-      toast.success('Documento salvo e atualizado!')
+      if (editingDoc.isNew) {
+        const { data: authData } = await supabase.auth.getUser()
+        const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+        await supabase.from('timeline_eventos').insert({
+          cliente_id: dossie.cliente_id,
+          usuario_nome: userName,
+          acao: `Documento ${editingDoc.template_nome} gerado após revisão`,
+        })
+      }
+
+      toast.success(
+        editingDoc.isNew ? 'Documento gerado com sucesso!' : 'Documento salvo e atualizado!',
+      )
       setEditModalOpen(false)
       loadDocs()
+      if (editingDoc.isNew) onReload()
     } catch (e: any) {
       toast.error(`Falha ao salvar: ${e.message}`)
     } finally {
@@ -443,16 +455,30 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       </div>
 
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+        <DialogContent className="max-w-[95vw] h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Editar Texto do Documento</DialogTitle>
+            <DialogTitle>
+              {editingDoc?.isNew ? 'Revisar e Gerar Documento' : 'Editar Documento'}
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 min-h-0 py-2">
-            <Textarea
-              value={editingContent}
-              onChange={(e) => setEditingContent(e.target.value)}
-              className="h-full min-h-[400px] w-full resize-none font-mono text-sm border-2 border-steel-blue/30 focus-visible:ring-steel-blue"
-            />
+          <div className="flex-1 min-h-0 py-2 flex flex-col lg:flex-row gap-4">
+            <div className="flex-1 flex flex-col">
+              <label className="mb-2 text-sm font-semibold text-steel-blue">
+                Código-fonte (HTML)
+              </label>
+              <Textarea
+                value={editingContent}
+                onChange={(e) => setEditingContent(e.target.value)}
+                className="flex-1 min-h-[200px] resize-none font-mono text-xs border-2 border-steel-blue/30 focus-visible:ring-steel-blue"
+              />
+            </div>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <label className="mb-2 text-sm font-semibold text-steel-blue">Pré-visualização</label>
+              <div
+                className="flex-1 overflow-y-auto bg-white border-2 border-steel-blue/30 rounded-md p-8 prose prose-sm max-w-none shadow-inner"
+                dangerouslySetInnerHTML={{ __html: editingContent }}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditModalOpen(false)}>
@@ -462,7 +488,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               onClick={handleSaveEdit}
               className="bg-dark-denim text-white hover:bg-dark-denim/90"
             >
-              Salvar e Regerar PDF
+              {editingDoc?.isNew ? 'Aprovar e Gerar PDF' : 'Salvar e Atualizar PDF'}
             </Button>
           </DialogFooter>
         </DialogContent>
