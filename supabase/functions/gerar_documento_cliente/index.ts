@@ -25,12 +25,43 @@ function sanitizeHtmlForPdf(html: string): string {
   clean = clean.replace(/<p><br><\/p>/gi, '')
   clean = clean.replace(/<p>\s*<\/p>/gi, '')
   clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-  clean = clean.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+  // Removed the <style> stripping so CSS is preserved in PDF
   clean = clean.replace(
     /src="data:image\/[^;]+;base64,[^"]+"/gi,
     'src="" alt="[Imagem removida para otimização]"',
   )
   return clean
+}
+
+function wrapHtmlWithStyles(html: string): string {
+  if (html.includes('<style>') || html.includes('<html')) {
+    return html
+  }
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; line-height: 1.5; color: #333; padding: 2cm; margin: 0; }
+  h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; }
+  h2 { text-align: center; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 2em; }
+  h3 { text-align: left; font-size: 12pt; background-color: #f2f2f2; padding: 5px; }
+  h4 { text-align: left; font-size: 11pt; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+  th { background-color: #f8f9fa; font-weight: bold; }
+  .text-center { text-align: center; }
+  .bold { font-weight: bold; }
+  .page-break { page-break-before: always; }
+  p { margin-bottom: 1em; text-align: justify; }
+  ul, ol { margin-bottom: 1em; padding-left: 20px; }
+  li { margin-bottom: 0.5em; text-align: justify; }
+</style>
+</head>
+<body>
+${html}
+</body>
+</html>`
 }
 
 async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
@@ -572,8 +603,9 @@ Deno.serve(async (req: Request) => {
 
           if (!conteudo_html) throw new Error('Conteúdo HTML do documento está vazio')
 
-          // Limpeza vital para estabilizar o processo de geração
+          // Limpeza vital para estabilizar o processo de geração e envelopamento de estilos
           conteudo_html = sanitizeHtmlForPdf(conteudo_html)
+          conteudo_html = wrapHtmlWithStyles(conteudo_html)
 
           // Timeout watchdog embutido na promessa para forçar a saída se o processo travar
           const timeoutPromise = new Promise<Uint8Array>((_, reject) => {
