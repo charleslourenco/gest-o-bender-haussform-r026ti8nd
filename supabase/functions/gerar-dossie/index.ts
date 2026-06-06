@@ -620,7 +620,7 @@ Deno.serve(async (req) => {
           fileText = await res.text()
         } else {
           const { data: fileData, error: downloadError } = await supabase.storage
-            .from('templates')
+            .from('bender_templates')
             .download(template.arquivo_url)
           if (downloadError) throw downloadError
           if (fileData) {

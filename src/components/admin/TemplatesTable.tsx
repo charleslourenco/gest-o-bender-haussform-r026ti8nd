@@ -21,10 +21,13 @@ interface TemplatesTableProps {
 export function TemplatesTable({ templates, onEdit, onRefresh }: TemplatesTableProps) {
   const { toast } = useToast()
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (tpl: any) => {
     if (!window.confirm('Tem certeza que deseja deletar este template?')) return
     try {
-      const { error } = await supabase.from('templates').delete().eq('id', id)
+      if (tpl.arquivo_url && !tpl.arquivo_url.startsWith('http')) {
+        await supabase.storage.from('bender_templates').remove([tpl.arquivo_url])
+      }
+      const { error } = await supabase.from('templates').delete().eq('id', tpl.id)
       if (error) throw error
       toast({
         title: 'Deletado com sucesso',
@@ -96,7 +99,7 @@ export function TemplatesTable({ templates, onEdit, onRefresh }: TemplatesTableP
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDelete(tpl.id)}
+                    onClick={() => handleDelete(tpl)}
                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4" />

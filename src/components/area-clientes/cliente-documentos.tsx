@@ -73,9 +73,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const loadTemplates = async () => {
     try {
       const { data, error } = await supabase
-        .from('document_templates')
+        .from('templates')
         .select('id, nome')
-        .eq('ativo', true)
+        .eq('status', 'ativo')
 
       if (error) throw error
       if (data) setTemplates(data)

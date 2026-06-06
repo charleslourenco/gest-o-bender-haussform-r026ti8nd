@@ -543,16 +543,25 @@ Deno.serve(async (req: Request) => {
         throw new Error('cliente_id e template_nome são obrigatórios')
 
       const { data: template, error: tplError } = await supabase
-        .from('document_templates')
-        .select('conteudo')
+        .from('templates')
+        .select('arquivo_url, nome')
         .ilike('nome', template_nome.trim())
         .limit(1)
         .maybeSingle()
 
       if (tplError)
         throw new Error(`Erro ao buscar template '${template_nome}': ${tplError.message}`)
-      if (!template)
-        throw new Error(`Template '${template_nome}' não encontrado no banco de dados.`)
+      if (!template || !template.arquivo_url)
+        throw new Error(
+          `Template '${template_nome}' não encontrado ou sem arquivo_url no banco de dados.`,
+        )
+
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('bender_templates')
+        .download(template.arquivo_url)
+      if (fileError || !fileData)
+        throw new Error(`Erro ao baixar arquivo do template: ${fileError?.message}`)
+      const conteudo = await fileData.text()
 
       const { data: form, error: formError } = await supabase
         .from('formulario_comercial')
@@ -666,7 +675,7 @@ Deno.serve(async (req: Request) => {
         '{{CLI_CPF_CNPJ}}': cli.cpf || '',
       }
 
-      let conteudoFinal = template.conteudo
+      let conteudoFinal = conteudo
       for (const [key, value] of Object.entries(placeholders)) {
         const safeValue = typeof value === 'string' ? value : ''
         conteudoFinal = conteudoFinal.split(key).join(safeValue)

@@ -42,16 +42,29 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
     }
   }, [isOpen, template])
 
+  const isFormValid = nome && tipo && arquivoUrl
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    const fileExt = file.name.split('.').pop()?.toLowerCase()
+    if (!['html', 'txt', 'md'].includes(fileExt || '')) {
+      toast({
+        title: 'Formato inválido',
+        description: 'Por favor, envie um arquivo .html, .txt ou .md',
+        variant: 'destructive',
+      })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setUploading(true)
     try {
-      const fileExt = file.name.split('.').pop()
       const safeName = nome ? nome.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'template'
       const fileName = `${safeName}_${Date.now()}.${fileExt}`
       const { error } = await supabase.storage
-        .from('templates')
+        .from('bender_templates')
         .upload(fileName, file, { upsert: true })
       if (error) throw error
       setArquivoUrl(fileName)
@@ -65,7 +78,7 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
   }
 
   const handleSave = async () => {
-    if (!nome || !tipo || !arquivoUrl)
+    if (!isFormValid)
       return toast({
         title: 'Preencha os campos obrigatórios e envie um arquivo',
         variant: 'destructive',
@@ -187,8 +200,8 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={saving}
-            className="bg-dark-denim text-off-white hover:bg-dark-denim/90"
+            disabled={saving || !isFormValid}
+            className="bg-dark-denim text-off-white hover:bg-dark-denim/90 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Salvar
           </Button>
