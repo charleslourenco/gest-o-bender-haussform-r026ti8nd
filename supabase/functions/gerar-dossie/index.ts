@@ -52,13 +52,19 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     '📒': '',
     '✅': '[X]',
     '❌': '[ ]',
+    '·': '.',
+    '•': '.',
+    '✓': '[X]',
+    '✔': '[X]',
+    '✗': '[ ]',
+    '✘': '[ ]',
   }
   for (const [char, replacement] of Object.entries(unicodeMap)) {
     safeText = safeText.split(char).join(replacement)
   }
 
-  // Remove emojis explicitly, keep everything else to avoid corrupting valid words
-  safeText = safeText.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+  // Remove ANY character that is not ASCII or Latin-1 Supplement (to avoid pdf-lib WinAnsi crash)
+  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
 
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)

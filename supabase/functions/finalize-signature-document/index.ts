@@ -87,6 +87,11 @@ Deno.serve(async (req: Request) => {
       font,
     })
 
+    const sanitizeText = (text: string) => {
+      if (!text) return 'N/A'
+      return text.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
+    }
+
     let y = 700
     for (const sig of assinaturas || []) {
       if (y < 250) {
@@ -94,25 +99,29 @@ Deno.serve(async (req: Request) => {
         y = 760
       }
 
-      certPage.drawText(`Signatário: ${sig.signatario_nome} (${sig.signatario_tipo})`, {
-        x: 85,
-        y,
-        size: 10,
-        font: boldFont,
-      })
+      certPage.drawText(
+        sanitizeText(`Signatário: ${sig.signatario_nome} (${sig.signatario_tipo})`),
+        { x: 85, y, size: 10, font: boldFont },
+      )
       y -= 15
       certPage.drawText(
-        `CPF/CNPJ: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
+        sanitizeText(
+          `CPF/CNPJ: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
+        ),
         { x: 85, y, size: 10, font },
       )
       y -= 15
       certPage.drawText(
-        `Data da Assinatura: ${sig.data_assinatura ? new Date(sig.data_assinatura).toLocaleString('pt-BR') : 'N/A'}`,
+        sanitizeText(
+          `Data da Assinatura: ${sig.data_assinatura ? new Date(sig.data_assinatura).toLocaleString('pt-BR') : 'N/A'}`,
+        ),
         { x: 85, y, size: 10, font },
       )
       y -= 15
       certPage.drawText(
-        `IP: ${sig.ip_assinatura || 'N/A'} | Código de Confirmação: ${sig.codigo_confirmacao}`,
+        sanitizeText(
+          `IP: ${sig.ip_assinatura || 'N/A'} | Código de Confirmação: ${sig.codigo_confirmacao}`,
+        ),
         { x: 85, y, size: 10, font },
       )
 

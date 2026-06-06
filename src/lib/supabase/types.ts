@@ -494,6 +494,7 @@ export type Database = {
         Row: {
           arquivo_assinado_url: string | null
           arquivo_url: string | null
+          atualizado_em: string | null
           cliente_id: string | null
           conteudo_preenchido: string | null
           criado_em: string
@@ -507,6 +508,7 @@ export type Database = {
         Insert: {
           arquivo_assinado_url?: string | null
           arquivo_url?: string | null
+          atualizado_em?: string | null
           cliente_id?: string | null
           conteudo_preenchido?: string | null
           criado_em?: string
@@ -520,6 +522,7 @@ export type Database = {
         Update: {
           arquivo_assinado_url?: string | null
           arquivo_url?: string | null
+          atualizado_em?: string | null
           cliente_id?: string | null
           conteudo_preenchido?: string | null
           criado_em?: string
@@ -2510,6 +2513,7 @@ export const Constants = {
 //   template_nome: text (nullable)
 //   arquivo_assinado_url: text (nullable)
 //   conteudo_preenchido: text (nullable)
+//   atualizado_em: timestamp with time zone (nullable, default: now())
 // Table: documentos_equipe
 //   id: uuid (not null, default: gen_random_uuid())
 //   clt_id: uuid (nullable)
@@ -3518,6 +3522,17 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION handle_documentos_cliente_updated_at()
+//   CREATE OR REPLACE FUNCTION public.handle_documentos_cliente_updated_at()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     NEW.atualizado_em = NOW();
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION handle_new_user()
 //   CREATE OR REPLACE FUNCTION public.handle_new_user()
 //    RETURNS trigger
@@ -3692,6 +3707,8 @@ export const Constants = {
 // --- TRIGGERS ---
 // Table: assinaturas
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
+// Table: documentos_cliente
+//   set_documentos_cliente_atualizado_em: CREATE TRIGGER set_documentos_cliente_atualizado_em BEFORE UPDATE ON public.documentos_cliente FOR EACH ROW EXECUTE FUNCTION handle_documentos_cliente_updated_at()
 // Table: estoque_caixas_itens
 //   trg_caixa_item_reservado: CREATE TRIGGER trg_caixa_item_reservado AFTER INSERT OR DELETE OR UPDATE ON public.estoque_caixas_itens FOR EACH ROW EXECUTE FUNCTION handle_caixa_item_reservado()
 // Table: fornecedores

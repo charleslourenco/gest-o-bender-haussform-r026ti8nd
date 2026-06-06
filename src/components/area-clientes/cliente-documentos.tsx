@@ -34,6 +34,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [now, setNow] = useState(Date.now())
+  const [localStartTimes, setLocalStartTimes] = useState<Record<string, number>>({})
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 10000)
@@ -267,6 +268,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       if (error) throw error
       if (data && !data.success) throw new Error(data.error)
 
+      setLocalStartTimes((prev) => ({ ...prev, [doc.id]: Date.now() }))
+
       toast.success('Reprocessamento iniciado. Aguarde um instante.', { id: 'retry-doc' })
       loadDocs()
     } catch (e: any) {
@@ -321,6 +324,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         documento_id: docId,
         cliente_id: dossie.cliente_id,
         template_nome: editingDoc.template_nome,
+        conteudo_editado: editingContent,
       }
 
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
@@ -339,6 +343,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           acao: `Geração do documento ${editingDoc.template_nome} iniciada`,
         })
       }
+
+      setLocalStartTimes((prev) => ({ ...prev, [docId]: Date.now() }))
 
       toast.success('Documento em processamento. Ele será atualizado na lista em breve.', {
         id: 'save-edit',
@@ -460,10 +466,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               const allAssinados = hasAssinaturas && pendentes === 0
 
               const timeRef = doc.atualizado_em || doc.criado_em
+
+              const elapsedLocal = localStartTimes[doc.id] ? now - localStartTimes[doc.id] : null
+              const elapsedServer = timeRef ? now - new Date(timeRef).getTime() : 0
+
               const isStuck =
                 doc.status === 'processando' &&
-                timeRef &&
-                now - new Date(timeRef).getTime() > 120000
+                (elapsedLocal !== null
+                  ? elapsedLocal > 120000
+                  : elapsedServer > 180000 && elapsedServer < 86400000)
 
               return (
                 <div

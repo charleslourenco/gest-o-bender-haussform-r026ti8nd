@@ -62,11 +62,26 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
     '❌': '[ ]',
     '⚠️': '!',
     '&nbsp;': ' ',
+    '·': '.',
+    '•': '.',
+    '✓': '[X]',
+    '✔': '[X]',
+    '✗': '[ ]',
+    '✘': '[ ]',
+    '\u201C': '"',
+    '\u201D': '"',
+    '\u2018': "'",
+    '\u2019': "'",
+    '\u2013': '-',
+    '\u2014': '-',
+    '\u2026': '...',
   }
   for (const [char, replacement] of Object.entries(unicodeMap)) {
     safeHtml = safeHtml.split(char).join(replacement)
   }
-  safeHtml = safeHtml.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+
+  // Remove ANY character that is not ASCII or Latin-1 Supplement (to avoid pdf-lib WinAnsi crash)
+  safeHtml = safeHtml.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t<>]/g, '')
 
   // Convert tables to ||| format
   safeHtml = safeHtml.replace(/<tr[^>]*>/gi, '\n')
