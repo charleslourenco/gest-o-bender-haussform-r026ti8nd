@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { AnaliseTecnicaListView } from '@/components/analise/AnaliseTecnicaListView'
 import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
+import { supabase } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 const COLUMNS = [
   { id: 'iniciar', title: 'Iniciar' },
@@ -33,6 +35,32 @@ export default function AnaliseTecnica() {
       window.removeEventListener('kanban_search_change', handleSearch)
       window.removeEventListener('open_criar_card_avulso', handleOpenModal)
     }
+  }, [])
+
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        // Fix JSON Parsing error from raw fetch: use supabase-js client directly
+        // with head: true to only get the count without parsing a JSON body.
+        const { count, error } = await supabase
+          .from('solicitacoes_compra')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Pendente')
+
+        if (error) {
+          console.error('Erro ao buscar solicitações pendentes:', error)
+          return
+        }
+
+        if (count !== null && count > 0) {
+          toast.warning(`Atenção: Existem ${count} solicitações de compra pendentes.`)
+        }
+      } catch (err) {
+        console.error('Erro no processamento das solicitações de compra:', err)
+      }
+    }
+
+    fetchPendingRequests()
   }, [])
 
   const handleSuccess = () => {
