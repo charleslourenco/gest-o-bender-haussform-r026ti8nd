@@ -33,6 +33,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 10000)
+    return () => clearInterval(timer)
+  }, [])
+
   const loadDocs = async () => {
     try {
       const { data: docsData, error: docsError } = await supabase
@@ -240,6 +247,33 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     setEditModalOpen(true)
   }
 
+  const handleRetryProcessing = async (doc: any) => {
+    toast.loading('Reiniciando geração do PDF...', { id: 'retry-doc' })
+    try {
+      await supabase
+        .from('documentos_cliente')
+        .update({ status: 'processando', atualizado_em: new Date().toISOString() })
+        .eq('id', doc.id)
+
+      const body = {
+        action: 'atualizar_pdf_async',
+        documento_id: doc.id,
+        cliente_id: dossie.cliente_id,
+        template_nome: doc.template_nome,
+      }
+
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
+
+      if (error) throw error
+      if (data && !data.success) throw new Error(data.error)
+
+      toast.success('Reprocessamento iniciado. Aguarde um instante.', { id: 'retry-doc' })
+      loadDocs()
+    } catch (e: any) {
+      toast.error(`Falha: ${e.message}`, { id: 'retry-doc' })
+    }
+  }
+
   const handleSaveEdit = async () => {
     toast.loading(
       editingDoc.isNew ? 'Preparando dados do documento...' : 'Salvando alterações...',
@@ -425,6 +459,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               const hasAssinaturas = doc.assinaturas?.length > 0
               const allAssinados = hasAssinaturas && pendentes === 0
 
+              const timeRef = doc.atualizado_em || doc.criado_em
+              const isStuck =
+                doc.status === 'processando' &&
+                timeRef &&
+                now - new Date(timeRef).getTime() > 120000
+
               return (
                 <div
                   key={doc.id}
@@ -440,13 +480,17 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       <p className="text-xs font-medium mt-1">
                         Status:{' '}
                         {doc.status === 'processando' ? (
-                          <span className="text-amber-600 animate-pulse">
-                            ⏳ Processando PDF (segundo plano)...
-                          </span>
+                          isStuck ? (
+                            <span className="text-red-600 font-semibold">
+                              ⚠️ Processamento demorado
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 animate-pulse">
+                              ⏳ Processando PDF (segundo plano)...
+                            </span>
+                          )
                         ) : doc.status === 'erro_geracao' ? (
-                          <span className="text-red-600">
-                            ❌ Erro ao gerar PDF. Tente novamente.
-                          </span>
+                          <span className="text-red-600">❌ Erro ao gerar PDF.</span>
                         ) : (
                           <span className="text-muted-foreground">{doc.status}</span>
                         )}
@@ -455,11 +499,34 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                   </div>
 
                   <div className="flex flex-wrap gap-2 shrink-0 items-center">
-                    {doc.status === 'processando' && (
+                    {doc.status === 'processando' && !isStuck && (
                       <span className="text-sm text-amber-600 font-semibold mr-2 animate-pulse">
                         Aguarde...
                       </span>
                     )}
+
+                    {doc.status === 'processando' && isStuck && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRetryProcessing(doc)}
+                        className="text-amber-700 border-amber-200 hover:bg-amber-50 mr-2"
+                      >
+                        Forçar Recomeço
+                      </Button>
+                    )}
+
+                    {doc.status === 'erro_geracao' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRetryProcessing(doc)}
+                        className="text-red-600 border-red-200 hover:bg-red-50 mr-2"
+                      >
+                        Tentar Novamente
+                      </Button>
+                    )}
+
                     {doc.conteudo_preenchido && doc.status !== 'processando' && (
                       <Button
                         variant="outline"

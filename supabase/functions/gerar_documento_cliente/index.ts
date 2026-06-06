@@ -20,6 +20,19 @@ function formatDateStr(dateStr: string) {
   return dateStr
 }
 
+function sanitizeHtmlForPdf(html: string): string {
+  let clean = html || ''
+  clean = clean.replace(/<p><br><\/p>/gi, '')
+  clean = clean.replace(/<p>\s*<\/p>/gi, '')
+  clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  clean = clean.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+  clean = clean.replace(
+    /src="data:image\/[^;]+;base64,[^"]+"/gi,
+    'src="" alt="[Imagem removida para otimização]"',
+  )
+  return clean
+}
+
 async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -54,7 +67,6 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
     safeHtml = safeHtml.split(char).join(replacement)
   }
   safeHtml = safeHtml.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
-  safeHtml = safeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
 
   // Convert tables to ||| format
   safeHtml = safeHtml.replace(/<tr[^>]*>/gi, '\n')
@@ -84,6 +96,8 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   // Cache optimization for text widths
   const wordWidthCache = new Map<string, number>()
   const getWordWidth = (word: string, font: any, size: number) => {
+    if (!word) return 0
+    if (wordWidthCache.size > 20000) wordWidthCache.clear()
     const fontId = font === fontBold ? 'b' : 'r'
     const key = `${word}_${size}_${fontId}`
     if (wordWidthCache.has(key)) return wordWidthCache.get(key)!
@@ -103,6 +117,8 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   }
 
   const getLineTextWidth = (line: string, font: any, size: number) => {
+    if (!line) return 0
+    if (wordWidthCache.size > 20000) wordWidthCache.clear()
     const fontId = font === fontBold ? 'b' : 'r'
     const key = `L_${line}_${size}_${fontId}`
     if (wordWidthCache.has(key)) return wordWidthCache.get(key)!
@@ -289,8 +305,8 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
 
   try {
     const controller = new AbortController()
-    // Aumentado para 45 segundos para estabilizar a geração de PDFs longos (ex: 22 páginas)
-    const timeoutId = setTimeout(() => controller.abort(), 45000)
+    // 25s timeout for the external API, to allow fallback processing if it gets stuck
+    const timeoutId = setTimeout(() => controller.abort(), 25000)
 
     const response = await fetch('https://api.html2pdf.app/v1/generate', {
       method: 'POST',
@@ -310,8 +326,12 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
     } else {
       console.error(`API HTML2PDF falhou: ${response.status} - ${await response.text()}`)
     }
-  } catch (err) {
-    console.error('Erro na requisição HTML2PDF:', err)
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.error('API HTML2PDF timeout após 25 segundos.')
+    } else {
+      console.error('Erro na requisição HTML2PDF:', err)
+    }
   }
 
   console.log('Usando fallback avançado do pdf-lib para gerar documento longo')
@@ -477,7 +497,7 @@ Deno.serve(async (req: Request) => {
         })
       }
 
-      // Legacy fallback for gerar_novo
+      conteudoFinal = sanitizeHtmlForPdf(conteudoFinal)
       const pdfBytes = await convertHtmlToPdf(conteudoFinal)
       const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
       const fileName = `${safeNome}_${Date.now()}.pdf`
@@ -537,8 +557,16 @@ Deno.serve(async (req: Request) => {
 
           if (!conteudo_html) throw new Error('Conteúdo HTML do documento está vazio')
 
-          // Otimização: Renderizando o PDF (processo pode ser longo)
-          const pdfBytes = await convertHtmlToPdf(conteudo_html)
+          // Limpeza vital para estabilizar o processo de geração
+          conteudo_html = sanitizeHtmlForPdf(conteudo_html)
+
+          // Timeout watchdog embutido na promessa para forçar a saída se o processo travar
+          const timeoutPromise = new Promise<Uint8Array>((_, reject) => {
+            setTimeout(() => reject(new Error('TIMEOUT_GERACAO_PDF')), 40000)
+          })
+
+          // Otimização: Renderizando o PDF (processo protegido por watchdog)
+          const pdfBytes = await Promise.race([convertHtmlToPdf(conteudo_html), timeoutPromise])
 
           if (action === 'salvar_novo' || action === 'salvar_novo_async') {
             const nomeBase = template_nome ? template_nome : docRecord?.tipo || 'Documento'
