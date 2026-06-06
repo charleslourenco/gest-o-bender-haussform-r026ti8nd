@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { PDFDocument, StandardFonts } from 'npm:pdf-lib@1.17.1'
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,21 +21,81 @@ function formatDateStr(dateStr: string) {
 }
 
 async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
-  // Utilizing a standard public API for high-fidelity HTML-to-PDF conversion
-  // This bypasses local CPU timeouts and allows full CSS/Table rendering for 22+ pages
-  const response = await fetch('https://api.html2pdf.app/v1/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ html }),
-  })
+  const apiKey = Deno.env.get('HTML2PDF_API_KEY') || Deno.env.get('PDF_API_KEY') || ''
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Falha ao converter HTML para PDF: Status ${response.status} - ${errorText}`)
+  try {
+    const response = await fetch('https://api.html2pdf.app/v1/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({ html, apiKey }),
+    })
+
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer()
+      return new Uint8Array(arrayBuffer)
+    } else {
+      console.error(`API HTML2PDF falhou: ${response.status} - ${await response.text()}`)
+    }
+  } catch (err) {
+    console.error('Erro na requisição HTML2PDF:', err)
   }
 
-  const arrayBuffer = await response.arrayBuffer()
-  return new Uint8Array(arrayBuffer)
+  // Fallback: Generate simple PDF using pdf-lib se a API externa falhar (Timeout/401)
+  console.log('Usando fallback interno do pdf-lib para gerar documento')
+  const pdfDoc = await PDFDocument.create()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+
+  let page = pdfDoc.addPage([595.28, 841.89])
+
+  let safeHtml = html
+  const unicodeMap: Record<string, string> = {
+    '“': '"',
+    '”': '"',
+    '‘': "'",
+    '’': "'",
+    '–': '-',
+    '—': '-',
+    '…': '...',
+    º: 'o',
+    ª: 'a',
+    '°': 'o',
+    '✅': '[X]',
+    '❌': '[ ]',
+    '⚠️': '!',
+  }
+  for (const [char, replacement] of Object.entries(unicodeMap)) {
+    safeHtml = safeHtml.split(char).join(replacement)
+  }
+  safeHtml = safeHtml.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+
+  const text = safeHtml
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/\n\s*\n/g, '\n')
+    .trim()
+
+  const lines = text.split('\n')
+  let y = 800
+  for (const line of lines) {
+    if (y < 50) {
+      page = pdfDoc.addPage([595.28, 841.89])
+      y = 800
+    }
+    const cleanLine = line.trim()
+    if (cleanLine.length > 0) {
+      try {
+        page.drawText(cleanLine.substring(0, 95), { x: 50, y, size: 10, font })
+        y -= 15
+      } catch (e) {
+        // Ignora caracteres não imprimíveis
+      }
+    }
+  }
+
+  return await pdfDoc.save()
 }
 
 Deno.serve(async (req: Request) => {
@@ -137,13 +198,17 @@ Deno.serve(async (req: Request) => {
       }
       tabelaPagamentos += '</tbody></table>'
 
-      // Direct Substitution Template Engine (Regex-based replace all)
       const placeholders: Record<string, string> = {
         '{{nome_cliente}}': cli.nome || '',
+        '{{CLI_NOME_COMPLETO}}': cli.nome || '',
         '{{cpf}}': safeForm.cpf || cli.cpf || '',
+        '{{CLI_CPF}}': safeForm.cpf || cli.cpf || '',
         '{{email}}': cli.email || '',
         '{{telefone}}': cli.telefone || '',
         '{{endereco_obra}}': safeForm.obra_rua
+          ? `${safeForm.obra_rua}, ${safeForm.obra_numero} - ${safeForm.obra_bairro}, ${safeForm.obra_municipio} - ${safeForm.obra_estado}`
+          : cli.endereco_obra || '',
+        '{{CLI_ENDERECO_OBRA}}': safeForm.obra_rua
           ? `${safeForm.obra_rua}, ${safeForm.obra_numero} - ${safeForm.obra_bairro}, ${safeForm.obra_municipio} - ${safeForm.obra_estado}`
           : cli.endereco_obra || '',
         '{{valor_total}}': formatCurrency(valorTotal),
@@ -153,12 +218,38 @@ Deno.serve(async (req: Request) => {
         '{{data_contrato}}': new Date().toLocaleDateString('pt-BR'),
         '{{tabela_produtos}}': tabelaProdutos,
         '{{tabela_pagamentos}}': tabelaPagamentos,
+        '{{TABELA_PRODUTOS_SERVICOS}}': tabelaProdutos,
+        '{{SUBTOTAL_PRODUTOS}}': formatCurrency(valorTotal + desconto),
+        '{{DESCONTO_PRODUTOS}}': formatCurrency(desconto),
+        '{{TOTAL_PRODUTOS}}': formatCurrency(valorTotal),
+        '{{FORMA_PAGAMENTO}}': pagData.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+        '{{METODO_PAGAMENTO}}': metodoPagamento,
+        '{{NUMERO_PARCELAS}}': parcelas.length > 0 ? parcelas.length.toString() : '1',
+        '{{VALOR_PARCELA}}':
+          parcelas.length > 0
+            ? formatCurrency(parcelas[0].valor || valorTotal / parcelas.length)
+            : formatCurrency(valorTotal),
+        '{{CLI_ENDERECO_COMPLETO}}': cli.rua
+          ? `${cli.rua}, ${cli.numero} - ${cli.bairro}, ${cli.cidade} - ${cli.estado}`
+          : '',
+        '{{CLI_PROFISSAO}}': cli.profissao || '',
+        '{{CLI_ESTADO_CIVIL}}': cli.estado_civil || '',
+        '{{CLI_EMAIL}}': cli.email || '',
+        '{{CLI_TELEFONE}}': cli.telefone || '',
+        '{{CLAUSULA_PAGAMENTO_NARRATIVA}}': `O valor total do contrato será pago em ${parcelas.length > 0 ? parcelas.length : 1} parcela(s).`,
+        '{{DATA_PREVISTA_ENTREGA_IMOVEL}}': formatDateStr(safeForm.data_prevista_entrega || ''),
+        '{{DATA_CONTRATO_EXTENSO}}': new Date().toLocaleDateString('pt-BR', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        '{{CLI_NOME}}': cli.nome || '',
+        '{{CLI_CPF_CNPJ}}': cli.cpf || '',
       }
 
       let conteudoFinal = template.conteudo
       for (const [key, value] of Object.entries(placeholders)) {
         const safeValue = typeof value === 'string' ? value : ''
-        // Usar split/join é a forma mais segura e rápida de fazer global replace de strings sem se preocupar com escape de regex
         conteudoFinal = conteudoFinal.split(key).join(safeValue)
       }
 
