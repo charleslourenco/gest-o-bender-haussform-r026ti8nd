@@ -25,6 +25,7 @@ function sanitizeHtmlForPdf(html: string): string {
   clean = clean.replace(/<p><br><\/p>/gi, '')
   clean = clean.replace(/<p>\s*<\/p>/gi, '')
   clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  clean = clean.replace(/_{2,}CELL_{2,}/gi, '')
   // Removed the <style> stripping so CSS is preserved in PDF
   clean = clean.replace(
     /src="data:image\/[^;]+;base64,[^"]+"/gi,
@@ -46,6 +47,7 @@ function wrapHtmlWithStyles(html: string): string {
   }
 
   processedHtml = processedHtml.replace(/<table/g, '<table class="content-table"')
+  processedHtml = processedHtml.replace(/_{2,}CELL_{2,}/gi, '')
 
   return `<!DOCTYPE html>
 <html>
@@ -56,6 +58,12 @@ function wrapHtmlWithStyles(html: string): string {
     size: A4;
     margin: 15mm 15mm 20mm 15mm;
   }
+  *, *:before, *:after {
+    box-sizing: border-box;
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
   body { 
     font-family: 'Helvetica', 'Arial', sans-serif; 
     font-size: 11pt; 
@@ -63,12 +71,15 @@ function wrapHtmlWithStyles(html: string): string {
     color: #333; 
     margin: 0; 
     padding: 0; 
+    box-sizing: border-box;
+    max-width: 100%;
   }
   
   table.main-document-table { 
     width: 100%; 
     border-collapse: collapse; 
     border: none; 
+    table-layout: fixed;
   }
   table.main-document-table > thead > tr > th { 
     border: none; 
@@ -86,25 +97,34 @@ function wrapHtmlWithStyles(html: string): string {
   table.main-document-table > tbody > tr > td { 
     border: none; 
     padding: 0; 
+    word-wrap: break-word;
   }
   
-  h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; }
+  h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; max-width: 100%; word-wrap: break-word; }
   h2 { text-align: center; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 2em; }
   h2.nova-secao { page-break-before: always; break-before: page; }
   h3 { text-align: left; font-size: 12pt; background-color: #f2f2f2; padding: 5px; }
   h4 { text-align: left; font-size: 11pt; }
   
-  .content-table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }
-  .content-table th, .content-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+  .content-table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; table-layout: fixed; word-wrap: break-word; }
+  .content-table th, .content-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
   .content-table th { background-color: #f8f9fa; font-weight: bold; }
   
   .text-center { text-align: center; }
   .bold { font-weight: bold; }
   .page-break { page-break-before: always; break-before: page; }
   
-  p { margin-bottom: 1em; text-align: justify; }
-  ul, ol { margin-bottom: 1em; padding-left: 20px; }
-  li { margin-bottom: 0.5em; text-align: justify; }
+  p, div, span { margin-bottom: 1em; text-align: justify; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
+  ul, ol { margin-bottom: 1em; padding-left: 20px; max-width: 100%; }
+  li { margin-bottom: 0.5em; text-align: justify; max-width: 100%; word-wrap: break-word; }
+
+  hr {
+    max-width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    border-top: 1px solid #000;
+    margin: 1em 0;
+  }
 
   .clausula, p, tr {
     page-break-inside: avoid;

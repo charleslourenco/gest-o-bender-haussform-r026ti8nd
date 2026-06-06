@@ -12,6 +12,9 @@ const corsHeaders = {
 async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint8Array | null) {
   let safeText = text
 
+  // Remove any template artifacts
+  safeText = safeText.replace(/_{2,}CELL_{2,}/gi, '')
+
   // Remove style and scripts before stripping tags
   safeText = safeText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
   safeText = safeText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
