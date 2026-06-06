@@ -71,13 +71,13 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
   // Remove ANY character that is not ASCII or Latin-1 Supplement (to avoid pdf-lib WinAnsi crash)
   safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t<>]/g, '')
 
-  // Convert tables to ||| format
+  // Convert tables to __CELL__ format
   safeText = safeText.replace(/<tr[^>]*>/gi, '\n')
   safeText = safeText.replace(/<\/tr>/gi, '\n')
   safeText = safeText.replace(/<th[^>]*>/gi, '')
-  safeText = safeText.replace(/<\/th>/gi, ' ||| ')
+  safeText = safeText.replace(/<\/th>/gi, ' __CELL__ ')
   safeText = safeText.replace(/<td[^>]*>/gi, '')
-  safeText = safeText.replace(/<\/td>/gi, ' ||| ')
+  safeText = safeText.replace(/<\/td>/gi, ' __CELL__ ')
 
   // Preserve page breaks
   safeText = safeText.replace(
@@ -243,12 +243,11 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       continue
     }
 
-    if (rawLine.includes(' ||| ')) {
-      const cleanLine = rawLine.replace(/ \|\|\| \s*$/, '')
-      const cells = cleanLine.split(' ||| ')
+    if (rawLine.includes(' __CELL__ ')) {
+      const cleanLine = rawLine.replace(/ __CELL__ \s*$/, '')
+      const cells = cleanLine.split(' __CELL__ ')
       if (cells.length === 0 || (cells.length === 1 && cells[0].trim() === '')) continue
 
-      // Tenta adaptar larguras de células. Se for uma tabela com mais colunas, usa largura igual.
       let cellWidths: number[] = []
       if (cells.length === 4) {
         cellWidths = [maxWidth * 0.45, maxWidth * 0.15, maxWidth * 0.2, maxWidth * 0.2]
@@ -257,44 +256,60 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
         cellWidths = Array(cells.length).fill(cw)
       }
 
-      const rowHeight = 20
+      const cellFont =
+        i === 0 || rawLine.toUpperCase().includes('TOTAL') || rawLine.startsWith('PRODUTO')
+          ? fontBold
+          : fontRegular
+
+      const cellsLines = cells.map((cellText, c) => {
+        const widthLimit = cellWidths[c] - 8
+        const words = cellText.trim().split(' ')
+        let lines = []
+        let curLine = ''
+        for (const word of words) {
+          if (!word) continue
+          const testLine = curLine ? curLine + ' ' + word : word
+          if (getWordW(testLine, cellFont, 10) <= widthLimit) {
+            curLine = testLine
+          } else {
+            if (curLine) lines.push(curLine)
+            curLine = word
+          }
+        }
+        if (curLine) lines.push(curLine)
+        if (lines.length === 0) lines.push('')
+        return lines
+      })
+
+      const maxLines = Math.max(...cellsLines.map((l) => l.length))
+      const rowHeight = Math.max(20, maxLines * 12 + 8)
+
       checkPageBreak(rowHeight)
 
       let currentX = margin
       for (let c = 0; c < Math.min(cells.length, cellWidths.length); c++) {
-        const text = cells[c].trim()
-        const cellFont =
-          i === 0 || text.toUpperCase() === 'TOTAL' || rawLine.startsWith('PRODUTO')
-            ? fontBold
-            : fontRegular
         page.drawRectangle({
           x: currentX,
-          y: currentY - 14,
+          y: currentY - rowHeight + 6,
           width: cellWidths[c],
           height: rowHeight,
           borderColor: rgb(0, 0, 0),
           borderWidth: 0.5,
           color: rgb(1, 1, 1),
         })
-        const textW = getWordW(text, cellFont, 10)
 
-        let displayTxt = text
-        if (textW > cellWidths[c] - 4) {
-          let truncated = ''
-          for (const char of text) {
-            if (getWordW(truncated + char + '...', cellFont, 10) > cellWidths[c] - 4) break
-            truncated += char
-          }
-          displayTxt = truncated + '...'
+        const linesToDraw = cellsLines[c]
+        let textY = currentY - 10
+        for (const line of linesToDraw) {
+          page.drawText(line, {
+            x: currentX + 4,
+            y: textY,
+            size: 10,
+            font: cellFont,
+            color: rgb(0, 0, 0),
+          })
+          textY -= 12
         }
-        const dtW = getWordW(displayTxt, cellFont, 10)
-        page.drawText(displayTxt, {
-          x: currentX + (cellWidths[c] - dtW) / 2,
-          y: currentY - 10,
-          size: 10,
-          font: cellFont,
-          color: rgb(0, 0, 0),
-        })
         currentX += cellWidths[c]
       }
       currentY -= rowHeight

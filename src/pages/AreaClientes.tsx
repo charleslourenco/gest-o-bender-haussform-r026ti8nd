@@ -21,7 +21,7 @@ export default function AreaClientes() {
   }, [id])
 
   return (
-    <div className="h-full flex flex-col animate-in fade-in duration-300">
+    <div className="h-full flex flex-col animate-in fade-in duration-300 print-format-wrapper">
       {/* Conteúdo do Módulo */}
       <div className="flex-1 overflow-hidden min-h-0">
         <div className="min-h-[calc(100vh-12rem)] bg-white rounded-xl border border-steel-blue/20 overflow-hidden shadow-sm flex flex-col">

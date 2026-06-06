@@ -34,32 +34,113 @@ function sanitizeHtmlForPdf(html: string): string {
 }
 
 function wrapHtmlWithStyles(html: string): string {
-  if (html.includes('<style>') || html.includes('<html')) {
+  if (html.includes('<!-- WRAPPED_HTML -->')) {
     return html
   }
+
+  let processedHtml = html
+  // Extrai o body se for um HTML completo para evitar duplicação de tags html/body
+  if (processedHtml.includes('<body')) {
+    const match = processedHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+    if (match) processedHtml = match[1]
+  }
+
+  processedHtml = processedHtml.replace(/<table/g, '<table class="content-table"')
+
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-  body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11pt; line-height: 1.5; color: #333; padding: 2cm; margin: 0; }
+  @page {
+    size: A4;
+    margin: 15mm 15mm 20mm 15mm;
+  }
+  body { 
+    font-family: 'Helvetica', 'Arial', sans-serif; 
+    font-size: 11pt; 
+    line-height: 1.5; 
+    color: #333; 
+    margin: 0; 
+    padding: 0; 
+  }
+  
+  table.main-document-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    border: none; 
+  }
+  table.main-document-table > thead > tr > th { 
+    border: none; 
+    padding-bottom: 20px; 
+    font-weight: normal; 
+    text-align: center;
+  }
+  table.main-document-table > tfoot > tr > td { 
+    border: none; 
+    padding-top: 20px; 
+    text-align: center; 
+    font-size: 9pt; 
+    color: #666; 
+  }
+  table.main-document-table > tbody > tr > td { 
+    border: none; 
+    padding: 0; 
+  }
+  
   h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; }
   h2 { text-align: center; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 2em; }
+  h2.nova-secao { page-break-before: always; break-before: page; }
   h3 { text-align: left; font-size: 12pt; background-color: #f2f2f2; padding: 5px; }
   h4 { text-align: left; font-size: 11pt; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
-  th { background-color: #f8f9fa; font-weight: bold; }
+  
+  .content-table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; }
+  .content-table th, .content-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+  .content-table th { background-color: #f8f9fa; font-weight: bold; }
+  
   .text-center { text-align: center; }
   .bold { font-weight: bold; }
-  .page-break { page-break-before: always; }
+  .page-break { page-break-before: always; break-before: page; }
+  
   p { margin-bottom: 1em; text-align: justify; }
   ul, ol { margin-bottom: 1em; padding-left: 20px; }
   li { margin-bottom: 0.5em; text-align: justify; }
+
+  .clausula, p, tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
 </style>
 </head>
 <body>
-${html}
+<!-- WRAPPED_HTML -->
+<table class="main-document-table">
+  <thead>
+    <tr>
+      <th>
+        <div style="text-align: center;">
+          <img src="https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/logo.png" alt="Bender Haussform" style="max-height: 60px; object-fit: contain;" onerror="this.style.display='none'" />
+        </div>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        ${processedHtml}
+      </td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr>
+      <td>
+        <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 10px;">
+          <strong>FORMA &middot; ESTILO &middot; VIDA</strong>
+        </div>
+      </td>
+    </tr>
+  </tfoot>
+</table>
 </body>
 </html>`
 }
@@ -123,9 +204,9 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   safeHtml = safeHtml.replace(/<tr[^>]*>/gi, '\n')
   safeHtml = safeHtml.replace(/<\/tr>/gi, '\n')
   safeHtml = safeHtml.replace(/<th[^>]*>/gi, '')
-  safeHtml = safeHtml.replace(/<\/th>/gi, ' ||| ')
+  safeHtml = safeHtml.replace(/<\/th>/gi, ' __CELL__ ')
   safeHtml = safeHtml.replace(/<td[^>]*>/gi, '')
-  safeHtml = safeHtml.replace(/<\/td>/gi, ' ||| ')
+  safeHtml = safeHtml.replace(/<\/td>/gi, ' __CELL__ ')
 
   // Preserve page breaks
   safeHtml = safeHtml.replace(
@@ -248,10 +329,9 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
       continue
     }
 
-    if (rawLine.includes(' ||| ')) {
-      // Remove trailing " ||| " so we don't get an empty cell at the end
-      const cleanLine = rawLine.replace(/ \|\|\| \s*$/, '')
-      const cells = cleanLine.split(' ||| ').map((c) => c.trim())
+    if (rawLine.includes(' __CELL__ ')) {
+      const cleanLine = rawLine.replace(/ __CELL__ \s*$/, '')
+      const cells = cleanLine.split(' __CELL__ ').map((c) => c.trim())
       if (cells.length === 0 || (cells.length === 1 && cells[0] === '')) continue
 
       let cellWidths: number[] = []
@@ -270,16 +350,38 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
         cellWidths = Array(cells.length).fill(cw)
       }
 
-      const rowHeight = 20
+      // Calculate wrapped lines for each cell to determine row height
+      const cellFont = i === 0 || rawLine.toUpperCase() === rawLine ? fontBold : fontRegular
+      const cellsLines = cells.map((cellText, c) => {
+        const widthLimit = cellWidths[c] - 8
+        const words = cellText.split(' ')
+        let lines = []
+        let curLine = ''
+        for (const word of words) {
+          if (!word) continue
+          const testLine = curLine ? curLine + ' ' + word : word
+          if (getLineTextWidth(testLine, cellFont, 10) <= widthLimit) {
+            curLine = testLine
+          } else {
+            if (curLine) lines.push(curLine)
+            curLine = word
+          }
+        }
+        if (curLine) lines.push(curLine)
+        if (lines.length === 0) lines.push('')
+        return lines
+      })
+
+      const maxLines = Math.max(...cellsLines.map((l) => l.length))
+      const rowHeight = Math.max(20, maxLines * 12 + 8)
+
       checkPageBreak(rowHeight)
 
       let currentX = margin
       for (let c = 0; c < Math.min(cells.length, cellWidths.length); c++) {
-        const cellText = cells[c]
-        const cellFont = i === 0 || rawLine.toUpperCase() === rawLine ? fontBold : fontRegular
         page.drawRectangle({
           x: currentX,
-          y: currentY - 14,
+          y: currentY - rowHeight + 6,
           width: cellWidths[c],
           height: rowHeight,
           borderColor: rgb(0, 0, 0),
@@ -287,23 +389,20 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
           color: rgb(1, 1, 1),
         })
 
-        let displayTxt = cellText
-        if (getLineTextWidth(displayTxt, cellFont, 10) > cellWidths[c] - 4) {
-          let truncated = ''
-          for (const char of cellText) {
-            if (getLineTextWidth(truncated + char + '...', cellFont, 10) > cellWidths[c] - 4) break
-            truncated += char
-          }
-          displayTxt = truncated + '...'
+        const linesToDraw = cellsLines[c]
+        let textY = currentY - 10
+        for (const line of linesToDraw) {
+          const dtW = getLineTextWidth(line, cellFont, 10)
+          page.drawText(line, {
+            x: currentX + 4,
+            y: textY,
+            size: 10,
+            font: cellFont,
+            color: rgb(0, 0, 0),
+          })
+          textY -= 12
         }
-        const dtW = getLineTextWidth(displayTxt, cellFont, 10)
-        page.drawText(displayTxt, {
-          x: currentX + (cellWidths[c] - dtW) / 2,
-          y: currentY - 10,
-          size: 10,
-          font: cellFont,
-          color: rgb(0, 0, 0),
-        })
+
         currentX += cellWidths[c]
       }
       currentY -= rowHeight
@@ -574,6 +673,16 @@ Deno.serve(async (req: Request) => {
       }
 
       if (action === 'pre_gerar') {
+        // Se já tiver uma tag de formatação wrapper, retorna. Senão, tenta extrair só o body para o editor.
+        if (conteudoFinal.includes('<!-- WRAPPED_HTML -->')) {
+          const bodyMatch = conteudoFinal.match(
+            /<tbody>\s*<tr>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>\s*<\/tbody>/i,
+          )
+          if (bodyMatch) conteudoFinal = bodyMatch[1]
+        } else if (conteudoFinal.includes('<body')) {
+          const bodyMatch = conteudoFinal.match(/<body[^>]*>([\s\S]*)<\/body>/i)
+          if (bodyMatch) conteudoFinal = bodyMatch[1]
+        }
         return new Response(JSON.stringify({ success: true, conteudo_preenchido: conteudoFinal }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
