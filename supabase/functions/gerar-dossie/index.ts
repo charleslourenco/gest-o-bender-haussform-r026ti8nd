@@ -14,6 +14,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
 
   // Remove any template artifacts
   safeText = safeText.replace(/_{2,}CELL_{2,}/gi, '')
+  safeText = safeText.replace(/______CELL_____/gi, '')
 
   // Remove style and scripts before stripping tags
   safeText = safeText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')

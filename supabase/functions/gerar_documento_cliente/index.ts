@@ -26,6 +26,7 @@ function sanitizeHtmlForPdf(html: string): string {
   clean = clean.replace(/<p>\s*<\/p>/gi, '')
   clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
   clean = clean.replace(/_{2,}CELL_{2,}/gi, '')
+  clean = clean.replace(/______CELL_____/gi, '')
   // Removed the <style> stripping so CSS is preserved in PDF
   clean = clean.replace(
     /src="data:image\/[^;]+;base64,[^"]+"/gi,
@@ -39,7 +40,7 @@ function wrapHtmlWithStyles(html: string): string {
     return html
   }
 
-  let processedHtml = html
+  let processedHtml = html || ''
   // Extrai o body se for um HTML completo para evitar duplicação de tags html/body
   if (processedHtml.includes('<body')) {
     const match = processedHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)
@@ -48,6 +49,7 @@ function wrapHtmlWithStyles(html: string): string {
 
   processedHtml = processedHtml.replace(/<table/g, '<table class="content-table"')
   processedHtml = processedHtml.replace(/_{2,}CELL_{2,}/gi, '')
+  processedHtml = processedHtml.replace(/______CELL_____/gi, '')
 
   return `<!DOCTYPE html>
 <html>
@@ -65,7 +67,7 @@ function wrapHtmlWithStyles(html: string): string {
     overflow-wrap: break-word;
   }
   body { 
-    font-family: 'Helvetica', 'Arial', sans-serif; 
+    font-family: 'Calibri', 'Helvetica', 'Arial', sans-serif; 
     font-size: 11pt; 
     line-height: 1.5; 
     color: #333; 
@@ -80,12 +82,16 @@ function wrapHtmlWithStyles(html: string): string {
     border-collapse: collapse; 
     border: none; 
     table-layout: fixed;
+    box-sizing: border-box;
+    max-width: 100%;
   }
   table.main-document-table > thead > tr > th { 
     border: none; 
     padding-bottom: 20px; 
     font-weight: normal; 
     text-align: center;
+    box-sizing: border-box;
+    max-width: 100%;
   }
   table.main-document-table > tfoot > tr > td { 
     border: none; 
@@ -93,33 +99,38 @@ function wrapHtmlWithStyles(html: string): string {
     text-align: center; 
     font-size: 9pt; 
     color: #666; 
+    box-sizing: border-box;
+    max-width: 100%;
   }
   table.main-document-table > tbody > tr > td { 
     border: none; 
     padding: 0; 
     word-wrap: break-word;
+    box-sizing: border-box;
+    max-width: 100%;
   }
   
-  h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; max-width: 100%; word-wrap: break-word; }
+  h2, h3, h4 { color: #000; margin-top: 1.5em; margin-bottom: 0.5em; max-width: 100%; word-wrap: break-word; box-sizing: border-box; }
   h2 { text-align: center; font-size: 14pt; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 2em; }
   h2.nova-secao { page-break-before: always; break-before: page; }
   h3 { text-align: left; font-size: 12pt; background-color: #f2f2f2; padding: 5px; }
   h4 { text-align: left; font-size: 11pt; }
   
-  .content-table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; table-layout: fixed; word-wrap: break-word; }
-  .content-table th, .content-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
+  .content-table { width: 100%; border-collapse: collapse; margin-top: 1em; margin-bottom: 1em; table-layout: fixed; word-wrap: break-word; box-sizing: border-box; max-width: 100%; }
+  .content-table th, .content-table td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; box-sizing: border-box; max-width: 100%; }
   .content-table th { background-color: #f8f9fa; font-weight: bold; }
   
   .text-center { text-align: center; }
   .bold { font-weight: bold; }
   .page-break { page-break-before: always; break-before: page; }
   
-  p, div, span { margin-bottom: 1em; text-align: justify; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; }
-  ul, ol { margin-bottom: 1em; padding-left: 20px; max-width: 100%; }
-  li { margin-bottom: 0.5em; text-align: justify; max-width: 100%; word-wrap: break-word; }
+  p, div, span { margin-bottom: 1em; text-align: justify; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; box-sizing: border-box; }
+  ul, ol { margin-bottom: 1em; padding-left: 20px; max-width: 100%; box-sizing: border-box; }
+  li { margin-bottom: 0.5em; text-align: justify; max-width: 100%; word-wrap: break-word; box-sizing: border-box; }
 
-  hr {
+  hr, .linha-decorativa {
     max-width: 100%;
+    width: 100%;
     box-sizing: border-box;
     border: 0;
     border-top: 1px solid #000;
@@ -138,15 +149,15 @@ function wrapHtmlWithStyles(html: string): string {
   <thead>
     <tr>
       <th>
-        <div style="text-align: center;">
-          <img src="https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/logo.png" alt="Bender Haussform" style="max-height: 60px; object-fit: contain;" onerror="this.style.display='none'" />
+        <div style="text-align: center; max-width: 100%; box-sizing: border-box;">
+          <img src="https://igsdtxyopeiecpxwovgh.supabase.co/storage/v1/object/public/bender_templates/logo.png" alt="Bender Haussform" style="max-height: 60px; max-width: 100%; object-fit: contain;" onerror="this.style.display='none'" />
         </div>
       </th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>
+      <td style="max-width: 100%; box-sizing: border-box;">
         ${processedHtml}
       </td>
     </tr>
@@ -154,7 +165,7 @@ function wrapHtmlWithStyles(html: string): string {
   <tfoot>
     <tr>
       <td>
-        <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 10px;">
+        <div style="text-align: center; border-top: 1px solid #ddd; padding-top: 10px; max-width: 100%; box-sizing: border-box;">
           <strong>FORMA &middot; ESTILO &middot; VIDA</strong>
         </div>
       </td>
