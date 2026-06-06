@@ -240,19 +240,53 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const handleSaveEdit = async () => {
-    toast.info(editingDoc.isNew ? 'Gerando PDF final...' : 'Salvando e regerando PDF...', {
-      id: 'save-edit',
-    })
+    toast.loading(
+      editingDoc.isNew ? 'Preparando dados do documento...' : 'Salvando alterações...',
+      {
+        id: 'save-edit',
+      },
+    )
     try {
-      const action = editingDoc.isNew ? 'salvar_novo' : 'atualizar_pdf'
-      const body = editingDoc.isNew
-        ? {
-            action,
+      let docId = editingDoc.id
+
+      if (editingDoc.isNew) {
+        const { data: newDoc, error: insertError } = await supabase
+          .from('documentos_cliente')
+          .insert({
             cliente_id: dossie.cliente_id,
-            template_nome: editingDoc.template_nome,
-            conteudo_editado: editingContent,
-          }
-        : { action, documento_id: editingDoc.id, conteudo_editado: editingContent }
+            tipo: editingDoc.template_nome,
+            template_nome: `${editingDoc.template_nome}.pdf`,
+            status: 'processando',
+            conteudo_preenchido: editingContent,
+          })
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+        docId = newDoc.id
+      } else {
+        const { error: updateError } = await supabase
+          .from('documentos_cliente')
+          .update({
+            conteudo_preenchido: editingContent,
+            status: 'processando',
+          })
+          .eq('id', docId)
+
+        if (updateError) throw updateError
+      }
+
+      toast.loading('Iniciando geração do PDF em segundo plano...', {
+        id: 'save-edit',
+      })
+
+      const action = editingDoc.isNew ? 'salvar_novo_async' : 'atualizar_pdf_async'
+      const body = {
+        action,
+        documento_id: docId,
+        cliente_id: dossie.cliente_id,
+        template_nome: editingDoc.template_nome,
+      }
 
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
 
@@ -267,20 +301,19 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         await supabase.from('timeline_eventos').insert({
           cliente_id: dossie.cliente_id,
           usuario_nome: userName,
-          acao: `Documento ${editingDoc.template_nome} gerado após revisão`,
+          acao: `Geração do documento ${editingDoc.template_nome} iniciada`,
         })
       }
 
-      toast.success(
-        editingDoc.isNew ? 'Documento gerado com sucesso!' : 'Documento salvo e atualizado!',
-      )
+      toast.success('Documento em processamento. Ele será atualizado na lista em breve.', {
+        id: 'save-edit',
+        duration: 8000,
+      })
       setEditModalOpen(false)
       loadDocs()
       if (editingDoc.isNew) onReload()
     } catch (e: any) {
-      toast.error(`Falha ao salvar: ${e.message}`)
-    } finally {
-      toast.dismiss('save-edit')
+      toast.error(`Falha ao salvar: ${e.message}`, { id: 'save-edit' })
     }
   }
 
@@ -403,12 +436,30 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                         📄 {doc.template_nome || doc.tipo} - {doc.clientes?.nome || 'Cliente'} -{' '}
                         {new Date(doc.criado_em).toLocaleDateString('pt-BR')}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">Status: {doc.status}</p>
+                      <p className="text-xs font-medium mt-1">
+                        Status:{' '}
+                        {doc.status === 'processando' ? (
+                          <span className="text-amber-600 animate-pulse">
+                            ⏳ Processando PDF (segundo plano)...
+                          </span>
+                        ) : doc.status === 'erro_geracao' ? (
+                          <span className="text-red-600">
+                            ❌ Erro ao gerar PDF. Tente novamente.
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">{doc.status}</span>
+                        )}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    {doc.conteudo_preenchido && (
+                  <div className="flex flex-wrap gap-2 shrink-0 items-center">
+                    {doc.status === 'processando' && (
+                      <span className="text-sm text-amber-600 font-semibold mr-2 animate-pulse">
+                        Aguarde...
+                      </span>
+                    )}
+                    {doc.conteudo_preenchido && doc.status !== 'processando' && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -419,16 +470,18 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSignatureDoc(doc)}
-                      className="hover:bg-slate-100"
-                    >
-                      <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
-                    </Button>
+                    {doc.status !== 'processando' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSignatureDoc(doc)}
+                        className="hover:bg-slate-100"
+                      >
+                        <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
+                      </Button>
+                    )}
 
-                    {allAssinados && doc.arquivo_assinado_url && (
+                    {doc.status !== 'processando' && allAssinados && doc.arquivo_assinado_url && (
                       <Button
                         variant="default"
                         size="sm"
@@ -439,13 +492,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {doc.status !== 'processando' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               )

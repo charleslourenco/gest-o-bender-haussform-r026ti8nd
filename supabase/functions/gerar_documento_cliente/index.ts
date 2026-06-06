@@ -507,65 +507,131 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true, documento: docRecord }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
-    } else if (action === 'salvar_novo' || action === 'atualizar_pdf') {
-      if (!conteudo_editado) throw new Error('conteudo_editado é obrigatório')
+    } else if (
+      action === 'salvar_novo' ||
+      action === 'atualizar_pdf' ||
+      action === 'salvar_novo_async' ||
+      action === 'atualizar_pdf_async'
+    ) {
+      const processPdfAsync = async () => {
+        try {
+          let conteudo_html = conteudo_editado
+          let docRecord: any = null
+          let currentClienteId = cliente_id
 
-      const pdfBytes = await convertHtmlToPdf(conteudo_editado)
+          if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
+            if (!documento_id)
+              throw new Error('documento_id é obrigatório para atualização assíncrona')
+            const { data: doc, error: docError } = await supabase
+              .from('documentos_cliente')
+              .select('*')
+              .eq('id', documento_id)
+              .single()
 
-      if (action === 'salvar_novo') {
-        const safeNome = template_nome.trim().replace(/[^a-zA-Z0-9]/g, '_')
-        const fileName = `${safeNome}_${Date.now()}.pdf`
-        const filePath = `contratos/${cliente_id}/${fileName}`
+            if (docError || !doc) throw new Error(`Documento não encontrado: ${docError?.message}`)
+            conteudo_html = doc.conteudo_preenchido
+            docRecord = doc
+            currentClienteId = doc.cliente_id
+          }
 
-        const { error: uploadError } = await supabase.storage
-          .from('bender_clientes')
-          .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
+          if (!conteudo_html) throw new Error('Conteúdo HTML do documento está vazio')
 
-        if (uploadError)
-          throw new Error(`Falha no upload do arquivo para o storage: ${uploadError.message}`)
+          // Otimização: Renderizando o PDF (processo pode ser longo)
+          const pdfBytes = await convertHtmlToPdf(conteudo_html)
 
-        const { data: docRecord, error: docError } = await supabase
-          .from('documentos_cliente')
-          .insert({
-            cliente_id,
-            tipo: template_nome.trim(),
-            template_nome: `${template_nome.trim()}.pdf`,
-            status: 'gerado',
-            arquivo_url: filePath,
-            conteudo_preenchido: conteudo_editado,
-          })
-          .select()
-          .single()
+          if (action === 'salvar_novo' || action === 'salvar_novo_async') {
+            const nomeBase = template_nome ? template_nome : docRecord?.tipo || 'Documento'
+            const safeNome = nomeBase.trim().replace(/[^a-zA-Z0-9]/g, '_')
+            const fileName = `${safeNome}_${Date.now()}.pdf`
+            const filePath = `contratos/${currentClienteId}/${fileName}`
 
-        if (docError) throw new Error(`Erro ao salvar registro do documento: ${docError.message}`)
+            const { error: uploadError } = await supabase.storage
+              .from('bender_clientes')
+              .upload(filePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
 
-        return new Response(JSON.stringify({ success: true, documento: docRecord }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
+            if (uploadError) throw new Error(`Falha no upload do arquivo: ${uploadError.message}`)
+
+            if (action === 'salvar_novo_async') {
+              await supabase
+                .from('documentos_cliente')
+                .update({
+                  status: 'gerado',
+                  arquivo_url: filePath,
+                })
+                .eq('id', documento_id)
+            } else {
+              await supabase.from('documentos_cliente').insert({
+                cliente_id: currentClienteId,
+                tipo: nomeBase.trim(),
+                template_nome: `${nomeBase.trim()}.pdf`,
+                status: 'gerado',
+                arquivo_url: filePath,
+                conteudo_preenchido: conteudo_html,
+              })
+            }
+          } else {
+            // atualizar_pdf ou atualizar_pdf_async
+            if (!documento_id) throw new Error('documento_id é obrigatório para atualizar')
+
+            if (!docRecord) {
+              const { data: doc, error: docError } = await supabase
+                .from('documentos_cliente')
+                .select('*')
+                .eq('id', documento_id)
+                .single()
+              if (docError || !doc)
+                throw new Error(`Erro ao buscar documento: ${docError?.message}`)
+              docRecord = doc
+            }
+
+            const { error: uploadError } = await supabase.storage
+              .from('bender_clientes')
+              .upload(docRecord.arquivo_url, pdfBytes, {
+                contentType: 'application/pdf',
+                upsert: true,
+              })
+
+            if (uploadError)
+              throw new Error(`Falha no upload do arquivo atualizado: ${uploadError.message}`)
+
+            await supabase
+              .from('documentos_cliente')
+              .update({
+                status: 'gerado',
+                conteudo_preenchido: conteudo_html,
+              })
+              .eq('id', documento_id)
+          }
+        } catch (err: any) {
+          console.error('Erro no processamento assíncrono de PDF:', err)
+          if (
+            documento_id &&
+            (action === 'salvar_novo_async' || action === 'atualizar_pdf_async')
+          ) {
+            await supabase
+              .from('documentos_cliente')
+              .update({ status: 'erro_geracao' })
+              .eq('id', documento_id)
+          }
+        }
+      }
+
+      if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
+        // Tenta executar em background se suportado
+        if (
+          typeof (globalThis as any).EdgeRuntime !== 'undefined' &&
+          typeof (globalThis as any).EdgeRuntime.waitUntil === 'function'
+        ) {
+          ;(globalThis as any).EdgeRuntime.waitUntil(processPdfAsync())
+        } else {
+          processPdfAsync().catch(console.error)
+        }
+        return new Response(
+          JSON.stringify({ success: true, message: 'Processamento em segundo plano iniciado.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
       } else {
-        if (!documento_id) throw new Error('documento_id é obrigatório para atualizar')
-
-        const { data: doc, error: docError } = await supabase
-          .from('documentos_cliente')
-          .select('*')
-          .eq('id', documento_id)
-          .maybeSingle()
-
-        if (docError) throw new Error(`Erro ao buscar documento: ${docError.message}`)
-        if (!doc) throw new Error('Documento não encontrado')
-
-        await supabase
-          .from('documentos_cliente')
-          .update({ conteudo_preenchido: conteudo_editado })
-          .eq('id', documento_id)
-
-        const { error: uploadError } = await supabase.storage
-          .from('bender_clientes')
-          .upload(doc.arquivo_url, pdfBytes, { contentType: 'application/pdf', upsert: true })
-
-        if (uploadError)
-          throw new Error(`Falha no upload do arquivo atualizado: ${uploadError.message}`)
-
+        await processPdfAsync()
         return new Response(JSON.stringify({ success: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
