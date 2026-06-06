@@ -78,6 +78,11 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   let currentY = pageHeight - margin
 
   let safeHtml = html
+
+  // Remover bloco de estilo e scripts para não imprimir como texto
+  safeHtml = safeHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+  safeHtml = safeHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+
   const unicodeMap: Record<string, string> = {
     '“': '"',
     '”': '"',
@@ -114,13 +119,19 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   // Remove ANY character that is not ASCII or Latin-1 Supplement (to avoid pdf-lib WinAnsi crash)
   safeHtml = safeHtml.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t<>]/g, '')
 
-  // Convert tables to ||| format
+  // Convert tables to a safe separator format
   safeHtml = safeHtml.replace(/<tr[^>]*>/gi, '\n')
-  safeHtml = safeHtml.replace(/<\/tr>/gi, '')
+  safeHtml = safeHtml.replace(/<\/tr>/gi, '\n')
   safeHtml = safeHtml.replace(/<th[^>]*>/gi, '')
   safeHtml = safeHtml.replace(/<\/th>/gi, ' ||| ')
   safeHtml = safeHtml.replace(/<td[^>]*>/gi, '')
   safeHtml = safeHtml.replace(/<\/td>/gi, ' ||| ')
+
+  // Preserve page breaks
+  safeHtml = safeHtml.replace(
+    /<[^>]*class="[^"]*page-break[^"]*"[^>]*>/gi,
+    '\n---PAGE-BREAK---\n$&',
+  )
 
   // Newlines for blocks
   safeHtml = safeHtml.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li)>/gi, '\n')
@@ -129,6 +140,8 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   // Strip remaining tags
   const text = safeHtml
     .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
     .replace(/\n\s*\n/g, '\n')
     .trim()
 
@@ -229,22 +242,45 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
       continue
     }
 
-    if (rawLine.includes(' ||| ')) {
-      const cells = rawLine.split(' ||| ').filter((c) => c.trim() !== '')
-      if (cells.length === 0) continue
+    if (rawLine === '---PAGE-BREAK---') {
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      currentY = pageHeight - margin
+      continue
+    }
 
-      const colWidth = maxWidth / cells.length
+    if (rawLine.includes(' ||| ')) {
+      // Remove trailing " ||| " so we don't get an empty cell at the end
+      const cleanLine = rawLine.replace(/ \|\|\| \s*$/, '')
+      const cells = cleanLine.split(' ||| ').map((c) => c.trim())
+      if (cells.length === 0 || (cells.length === 1 && cells[0] === '')) continue
+
+      let cellWidths: number[] = []
+      if (cells.length === 4) {
+        cellWidths = [maxWidth * 0.45, maxWidth * 0.15, maxWidth * 0.2, maxWidth * 0.2]
+      } else if (cells.length === 5) {
+        cellWidths = [
+          maxWidth * 0.35,
+          maxWidth * 0.25,
+          maxWidth * 0.1,
+          maxWidth * 0.15,
+          maxWidth * 0.15,
+        ]
+      } else {
+        const cw = maxWidth / cells.length
+        cellWidths = Array(cells.length).fill(cw)
+      }
+
       const rowHeight = 20
       checkPageBreak(rowHeight)
 
       let currentX = margin
-      for (let c = 0; c < cells.length; c++) {
-        const cellText = cells[c].trim()
+      for (let c = 0; c < Math.min(cells.length, cellWidths.length); c++) {
+        const cellText = cells[c]
         const cellFont = i === 0 || rawLine.toUpperCase() === rawLine ? fontBold : fontRegular
         page.drawRectangle({
           x: currentX,
           y: currentY - 14,
-          width: colWidth,
+          width: cellWidths[c],
           height: rowHeight,
           borderColor: rgb(0, 0, 0),
           borderWidth: 0.5,
@@ -252,23 +288,23 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
         })
 
         let displayTxt = cellText
-        if (getLineTextWidth(displayTxt, cellFont, 10) > colWidth - 4) {
+        if (getLineTextWidth(displayTxt, cellFont, 10) > cellWidths[c] - 4) {
           let truncated = ''
           for (const char of cellText) {
-            if (getLineTextWidth(truncated + char + '...', cellFont, 10) > colWidth - 4) break
+            if (getLineTextWidth(truncated + char + '...', cellFont, 10) > cellWidths[c] - 4) break
             truncated += char
           }
           displayTxt = truncated + '...'
         }
         const dtW = getLineTextWidth(displayTxt, cellFont, 10)
         page.drawText(displayTxt, {
-          x: currentX + (colWidth - dtW) / 2,
+          x: currentX + (cellWidths[c] - dtW) / 2,
           y: currentY - 10,
           size: 10,
           font: cellFont,
           color: rgb(0, 0, 0),
         })
-        currentX += colWidth
+        currentX += cellWidths[c]
       }
       currentY -= rowHeight
       continue

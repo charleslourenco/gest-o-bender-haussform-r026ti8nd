@@ -11,6 +11,11 @@ const corsHeaders = {
 
 async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint8Array | null) {
   let safeText = text
+
+  // Remove style and scripts before stripping tags
+  safeText = safeText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+  safeText = safeText.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+
   const unicodeMap: Record<string, string> = {
     '“': '"',
     '”': '"',
@@ -64,7 +69,33 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
   }
 
   // Remove ANY character that is not ASCII or Latin-1 Supplement (to avoid pdf-lib WinAnsi crash)
-  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
+  safeText = safeText.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t<>]/g, '')
+
+  // Convert tables to ||| format
+  safeText = safeText.replace(/<tr[^>]*>/gi, '\n')
+  safeText = safeText.replace(/<\/tr>/gi, '\n')
+  safeText = safeText.replace(/<th[^>]*>/gi, '')
+  safeText = safeText.replace(/<\/th>/gi, ' ||| ')
+  safeText = safeText.replace(/<td[^>]*>/gi, '')
+  safeText = safeText.replace(/<\/td>/gi, ' ||| ')
+
+  // Preserve page breaks
+  safeText = safeText.replace(
+    /<[^>]*class="[^"]*page-break[^"]*"[^>]*>/gi,
+    '\n---PAGE-BREAK---\n$&',
+  )
+
+  // Newlines for blocks
+  safeText = safeText.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li)>/gi, '\n')
+  safeText = safeText.replace(/<(br|hr)\s*\/?>/gi, '\n')
+
+  // Strip remaining tags
+  safeText = safeText
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\n\s*\n/g, '\n')
+    .trim()
 
   const pdfDoc = await PDFDocument.create()
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -205,14 +236,32 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       continue
     }
 
+    if (rawLine === '---PAGE-BREAK---') {
+      page = pdfDoc.addPage([pageWidth, pageHeight])
+      currentY = pageHeight - margin
+      isFirstPage = false
+      continue
+    }
+
     if (rawLine.includes(' ||| ')) {
-      const cells = rawLine.split(' ||| ')
-      const cellWidths = [maxWidth * 0.45, maxWidth * 0.15, maxWidth * 0.2, maxWidth * 0.2]
+      const cleanLine = rawLine.replace(/ \|\|\| \s*$/, '')
+      const cells = cleanLine.split(' ||| ')
+      if (cells.length === 0 || (cells.length === 1 && cells[0].trim() === '')) continue
+
+      // Tenta adaptar larguras de células. Se for uma tabela com mais colunas, usa largura igual.
+      let cellWidths: number[] = []
+      if (cells.length === 4) {
+        cellWidths = [maxWidth * 0.45, maxWidth * 0.15, maxWidth * 0.2, maxWidth * 0.2]
+      } else {
+        const cw = maxWidth / cells.length
+        cellWidths = Array(cells.length).fill(cw)
+      }
+
       const rowHeight = 20
       checkPageBreak(rowHeight)
 
       let currentX = margin
-      for (let c = 0; c < Math.min(cells.length, 4); c++) {
+      for (let c = 0; c < Math.min(cells.length, cellWidths.length); c++) {
         const text = cells[c].trim()
         const cellFont =
           i === 0 || text.toUpperCase() === 'TOTAL' || rawLine.startsWith('PRODUTO')
