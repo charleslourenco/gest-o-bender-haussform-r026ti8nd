@@ -106,33 +106,57 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     currentY -= logoOffset
   }
 
+  const wordWidthCache = new Map<string, number>()
+  const getWordW = (w: string, f: any, s: number) => {
+    const k = `${w}_${s}_${f === fontBold ? 'b' : 'r'}`
+    if (wordWidthCache.has(k)) return wordWidthCache.get(k)!
+    const wd = f.widthOfTextAtSize(w, s)
+    wordWidthCache.set(k, wd)
+    return wd
+  }
+  const spaceW = (f: any, s: number) => getWordW(' ', f, s)
+
   const wrapText = (textStr: string, font: any, size: number) => {
     const words = textStr.split(' ')
-    let lines = []
+    const lines = []
     let currentLine = ''
+    let curWidth = 0
+    const sw = spaceW(font, size)
+
     for (const word of words) {
       if (!word) continue
-      const testLine = currentLine ? `${currentLine} ${word}` : word
-      const width = font.widthOfTextAtSize(testLine, size)
-      if (width > maxWidth) {
-        if (currentLine) lines.push(currentLine)
+      const ww = getWordW(word, font, size)
 
-        if (font.widthOfTextAtSize(word, size) > maxWidth) {
+      if (!currentLine) {
+        if (ww > maxWidth) {
           let brokenWord = ''
+          let bwW = 0
           for (const char of word) {
-            if (font.widthOfTextAtSize(brokenWord + char + '-', size) > maxWidth) {
+            const cw = getWordW(char, font, size)
+            if (bwW + cw + getWordW('-', font, size) > maxWidth) {
               lines.push(brokenWord + '-')
               brokenWord = char
+              bwW = cw
             } else {
               brokenWord += char
+              bwW += cw
             }
           }
           currentLine = brokenWord
+          curWidth = bwW
         } else {
           currentLine = word
+          curWidth = ww
         }
       } else {
-        currentLine = testLine
+        if (curWidth + sw + ww > maxWidth) {
+          lines.push(currentLine)
+          currentLine = word
+          curWidth = ww
+        } else {
+          currentLine += ' ' + word
+          curWidth += sw + ww
+        }
       }
     }
     if (currentLine) lines.push(currentLine)
@@ -152,10 +176,10 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       p.drawText(text, { x: margin, y, size, font, color })
       return
     }
-    const textWidth = font.widthOfTextAtSize(text.replace(/\s+/g, ''), size)
+    const textWidth = getWordW(text.replace(/\s+/g, ''), font, size)
     const spaceWidth = (maxWidth - textWidth) / (words.length - 1)
 
-    if (spaceWidth > font.widthOfTextAtSize(' ', size) * 3) {
+    if (spaceWidth > spaceW(font, size) * 3) {
       p.drawText(text, { x: margin, y, size, font, color })
       return
     }
@@ -163,7 +187,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
     let currentX = margin
     for (const word of words) {
       p.drawText(word, { x: currentX, y, size, font, color })
-      currentX += font.widthOfTextAtSize(word, size) + spaceWidth
+      currentX += getWordW(word, font, size) + spaceWidth
     }
   }
 
@@ -197,18 +221,18 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
           borderWidth: 0.5,
           color: rgb(1, 1, 1),
         })
-        const textW = cellFont.widthOfTextAtSize(text, 10)
+        const textW = getWordW(text, cellFont, 10)
 
         let displayTxt = text
         if (textW > cellWidths[c] - 4) {
           let truncated = ''
           for (const char of text) {
-            if (cellFont.widthOfTextAtSize(truncated + char + '...', 10) > cellWidths[c] - 4) break
+            if (getWordW(truncated + char + '...', cellFont, 10) > cellWidths[c] - 4) break
             truncated += char
           }
           displayTxt = truncated + '...'
         }
-        const dtW = cellFont.widthOfTextAtSize(displayTxt, 10)
+        const dtW = getWordW(displayTxt, cellFont, 10)
         page.drawText(displayTxt, {
           x: currentX + (cellWidths[c] - dtW) / 2,
           y: currentY - 10,
@@ -263,7 +287,7 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
       const wl = wrappedLines[j]
       checkPageBreak(lineHeight)
 
-      const width = font.widthOfTextAtSize(wl, size)
+      const width = getWordW(wl, font, size)
       let x = margin
 
       if (align === 'center') {

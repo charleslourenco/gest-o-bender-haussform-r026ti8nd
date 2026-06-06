@@ -81,32 +81,77 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
     }
   }
 
+  // Cache optimization for text widths
+  const wordWidthCache = new Map<string, number>()
+  const getWordWidth = (word: string, font: any, size: number) => {
+    const fontId = font === fontBold ? 'b' : 'r'
+    const key = `${word}_${size}_${fontId}`
+    if (wordWidthCache.has(key)) return wordWidthCache.get(key)!
+    const w = font.widthOfTextAtSize(word, size)
+    wordWidthCache.set(key, w)
+    return w
+  }
+
+  const spaceWidthCache = new Map<string, number>()
+  const getSpaceWidth = (font: any, size: number) => {
+    const fontId = font === fontBold ? 'b' : 'r'
+    const key = `${size}_${fontId}`
+    if (spaceWidthCache.has(key)) return spaceWidthCache.get(key)!
+    const w = font.widthOfTextAtSize(' ', size)
+    spaceWidthCache.set(key, w)
+    return w
+  }
+
+  const getLineTextWidth = (line: string, font: any, size: number) => {
+    const fontId = font === fontBold ? 'b' : 'r'
+    const key = `L_${line}_${size}_${fontId}`
+    if (wordWidthCache.has(key)) return wordWidthCache.get(key)!
+    const w = font.widthOfTextAtSize(line, size)
+    wordWidthCache.set(key, w)
+    return w
+  }
+
   const wrapText = (textStr: string, font: any, size: number) => {
     const words = textStr.split(' ')
-    let lines = []
+    const lines = []
     let currentLine = ''
+    let currentLineWidth = 0
+    const spaceW = getSpaceWidth(font, size)
+
     for (const word of words) {
       if (!word) continue
-      const testLine = currentLine ? `${currentLine} ${word}` : word
-      const width = font.widthOfTextAtSize(testLine, size)
-      if (width > maxWidth) {
-        if (currentLine) lines.push(currentLine)
-        if (font.widthOfTextAtSize(word, size) > maxWidth) {
+      const wordW = getWordWidth(word, font, size)
+
+      if (currentLine === '') {
+        if (wordW > maxWidth) {
           let brokenWord = ''
+          let bwWidth = 0
           for (const char of word) {
-            if (font.widthOfTextAtSize(brokenWord + char + '-', size) > maxWidth) {
+            const charW = getWordWidth(char, font, size)
+            if (bwWidth + charW + getWordWidth('-', font, size) > maxWidth) {
               lines.push(brokenWord + '-')
               brokenWord = char
+              bwWidth = charW
             } else {
               brokenWord += char
+              bwWidth += charW
             }
           }
           currentLine = brokenWord
+          currentLineWidth = bwWidth
         } else {
           currentLine = word
+          currentLineWidth = wordW
         }
       } else {
-        currentLine = testLine
+        if (currentLineWidth + spaceW + wordW > maxWidth) {
+          lines.push(currentLine)
+          currentLine = word
+          currentLineWidth = wordW
+        } else {
+          currentLine += ' ' + word
+          currentLineWidth += spaceW + wordW
+        }
       }
     }
     if (currentLine) lines.push(currentLine)
@@ -145,15 +190,15 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
         })
 
         let displayTxt = cellText
-        if (cellFont.widthOfTextAtSize(displayTxt, 10) > colWidth - 4) {
+        if (getLineTextWidth(displayTxt, cellFont, 10) > colWidth - 4) {
           let truncated = ''
           for (const char of cellText) {
-            if (cellFont.widthOfTextAtSize(truncated + char + '...', 10) > colWidth - 4) break
+            if (getLineTextWidth(truncated + char + '...', cellFont, 10) > colWidth - 4) break
             truncated += char
           }
           displayTxt = truncated + '...'
         }
-        const dtW = cellFont.widthOfTextAtSize(displayTxt, 10)
+        const dtW = getLineTextWidth(displayTxt, cellFont, 10)
         page.drawText(displayTxt, {
           x: currentX + (colWidth - dtW) / 2,
           y: currentY - 10,
@@ -196,7 +241,7 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
       const wl = wrappedLines[j]
       checkPageBreak(lineHeight)
 
-      const width = font.widthOfTextAtSize(wl, size)
+      const width = getLineTextWidth(wl, font, size)
       let x = margin
 
       if (align === 'center') {
@@ -205,13 +250,13 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
       } else if (align === 'justify' && j < wrappedLines.length - 1 && width > maxWidth * 0.7) {
         const words = wl.split(' ')
         if (words.length > 1) {
-          const textWidth = font.widthOfTextAtSize(wl.replace(/\s+/g, ''), size)
+          const textWidth = getLineTextWidth(wl.replace(/\s+/g, ''), font, size)
           const spaceWidth = (maxWidth - textWidth) / (words.length - 1)
-          if (spaceWidth < font.widthOfTextAtSize(' ', size) * 3) {
+          if (spaceWidth < getSpaceWidth(font, size) * 3) {
             let cx = margin
             for (const word of words) {
               page.drawText(word, { x: cx, y: currentY, size, font, color: rgb(0, 0, 0) })
-              cx += font.widthOfTextAtSize(word, size) + spaceWidth
+              cx += getWordWidth(word, font, size) + spaceWidth
             }
           } else {
             page.drawText(wl, { x, y: currentY, size, font, color: rgb(0, 0, 0) })
@@ -232,7 +277,7 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
     const p = pages[i]
     const footerY = margin / 2
     const pageText = `Página ${i + 1} de ${pages.length}`
-    const tw = fontRegular.widthOfTextAtSize(pageText, 8)
+    const tw = getLineTextWidth(pageText, fontRegular, 8)
     p.drawText(pageText, { x: pageWidth - margin - tw, y: footerY, size: 8, font: fontRegular })
   }
 
@@ -243,6 +288,9 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
   const apiKey = Deno.env.get('HTML2PDF_API_KEY') || Deno.env.get('PDF_API_KEY') || ''
 
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 6000) // 6 seconds timeout to leave time for fallback
+
     const response = await fetch('https://api.html2pdf.app/v1/generate', {
       method: 'POST',
       headers: {
@@ -250,7 +298,10 @@ async function convertHtmlToPdf(html: string): Promise<Uint8Array> {
         ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify({ html, apiKey }),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer()
