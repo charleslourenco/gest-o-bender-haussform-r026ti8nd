@@ -279,7 +279,11 @@ Deno.serve(async (req: Request) => {
         pdfMonkeyApiKey,
       )
 
-      const fileName = `contratos/${cliente_id}/${template_nome}_${Date.now()}.pdf`
+      const safeTemplateNome = template_nome
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+      const fileName = `contratos/${cliente_id}/${safeTemplateNome}_${Date.now()}.pdf`
 
       const { error: uploadError } = await supabaseClient.storage
         .from('bender_clientes')
@@ -314,24 +318,24 @@ Deno.serve(async (req: Request) => {
     console.error(error)
 
     if (supabaseClient) {
-      if (payloadReq?.documento_id) {
-        await supabaseClient
-          .from('documentos_cliente')
-          .update({
-            status: 'erro_geracao',
-            conteudo_preenchido: `Erro na geração: ${error.message}`,
-          })
-          .eq('id', payloadReq.documento_id)
-          .catch(() => {})
-      }
+      try {
+        if (payloadReq?.documento_id) {
+          await supabaseClient
+            .from('documentos_cliente')
+            .update({
+              status: 'erro_geracao',
+              conteudo_preenchido: `Erro na geração: ${error.message}`,
+            })
+            .eq('id', payloadReq.documento_id)
+        }
 
-      await supabaseClient
-        .from('logs_ia')
-        .insert({
+        await supabaseClient.from('logs_ia').insert({
           acao: 'gerar_documento_cliente_error',
           detalhes: { error: error.message },
         })
-        .catch(() => {})
+      } catch (e) {
+        console.error(e)
+      }
     }
 
     return new Response(JSON.stringify({ success: false, error: error.message }), {
