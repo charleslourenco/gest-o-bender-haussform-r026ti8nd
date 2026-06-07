@@ -70,7 +70,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     try {
       const { data, error } = await supabase
         .from('templates')
-        .select('id, nome')
+        .select('id, nome, tipo')
         .eq('status', 'ativo')
 
       if (error) throw error
@@ -159,14 +159,18 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     setGenerating(true)
     toast.loading(`Gerando ${template.nome}...`, { id: 'gerar-doc' })
     try {
+      const isContrato =
+        template.tipo === 'contrato' || template.nome.toLowerCase().includes('contrato')
+      const docName = isContrato ? 'Contrato Unificado de Soluções para Interiores' : template.nome
+
       const { data: newDoc, error: insertError } = await supabase
         .from('documentos_cliente')
         .insert({
           cliente_id: dossie.cliente_id,
           projeto_id: dossie.formulario_comercial_id,
           template_id: template.id,
-          tipo: template.tipo,
-          template_nome: template.nome,
+          tipo: template.tipo || 'documento',
+          template_nome: docName,
           status: 'processando',
           conteudo_preenchido: 'Aguardando geração PDFMonkey...',
         })
