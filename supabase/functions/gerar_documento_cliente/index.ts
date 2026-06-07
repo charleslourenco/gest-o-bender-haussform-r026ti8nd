@@ -60,8 +60,9 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      const clienteNome = form.cliente?.nome || ''
-      const cpf = form.cliente?.cpf || form.cpf || ''
+      const clienteNome = form.nome_cliente || form.cliente?.nome || ''
+      const cpf = form.cpf || form.cliente?.cpf || ''
+      const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || ''
       const email = form.cliente?.email || ''
       const telefone = form.cliente?.telefone || ''
       const profissao = form.profissao || ''
@@ -69,6 +70,7 @@ Deno.serve(async (req: Request) => {
       const end_cep = form.cep || form.cliente?.cep || ''
       const end_rua = form.rua || form.cliente?.endereco_obra || ''
       const end_numero = form.numero || form.cliente?.numero || ''
+      const end_bairro = form.bairro || form.cliente?.bairro || ''
       const end_complemento = form.complemento || form.cliente?.complemento || ''
       const end_cidade = form.municipio || form.cliente?.cidade || ''
       const end_estado = form.estado || form.cliente?.estado || ''
@@ -76,6 +78,7 @@ Deno.serve(async (req: Request) => {
       const obra_cep = form.obra_cep || ''
       const obra_rua = form.obra_rua || ''
       const obra_numero = form.obra_numero || ''
+      const obra_bairro = form.obra_bairro || ''
       const obra_complemento = form.obra_complemento || ''
       const obra_cidade = form.obra_municipio || ''
       const obra_estado = form.obra_estado || ''
@@ -84,6 +87,7 @@ Deno.serve(async (req: Request) => {
       const data_acesso_movel = datas.medida || ''
       const data_assinatura_contrato = new Date().toISOString().split('T')[0]
       const data_venda = datas.data_venda || data_assinatura_contrato
+      const data_prevista_entrega = form.data_prevista_entrega || ''
 
       const produtos = (form.produtos_servicos as any[]) || []
       const valorTotal = Array.isArray(produtos)
@@ -101,8 +105,9 @@ Deno.serve(async (req: Request) => {
         new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
       const formatDate = (dateStr: string) => {
         if (!dateStr) return ''
-        const [y, m, d] = dateStr.split('-')
-        return `${d}/${m}/${y}`
+        const parts = dateStr.split('T')[0].split('-')
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
+        return dateStr
       }
 
       let vendedorNome = ''
@@ -118,6 +123,7 @@ Deno.serve(async (req: Request) => {
       const placeholders: any = {
         CLIENTE_NOME: clienteNome,
         CLIENTE_CPF_CNPJ: cpf,
+        CLIENTE_DATA_NASCIMENTO: formatDate(data_nascimento),
         CLIENTE_PROFISSAO: profissao,
         CLIENTE_ESTADO_CIVIL: estado_civil,
         CLIENTE_TELEFONE: telefone,
@@ -125,20 +131,25 @@ Deno.serve(async (req: Request) => {
         CLIENTE_CEP: end_cep,
         CLIENTE_RUA: end_rua,
         CLIENTE_NUMERO: end_numero,
+        CLIENTE_BAIRRO: end_bairro,
         CLIENTE_COMPLEMENTO: end_complemento,
         CLIENTE_CIDADE: end_cidade,
         CLIENTE_ESTADO: end_estado,
         OBRA_CEP: obra_cep,
         OBRA_RUA: obra_rua,
         OBRA_NUMERO: obra_numero,
+        OBRA_BAIRRO: obra_bairro,
         OBRA_COMPLEMENTO: obra_complemento,
         OBRA_CIDADE: obra_cidade,
         OBRA_ESTADO: obra_estado,
         DATA_ACESSO_MOVEL: formatDate(data_acesso_movel),
         DATA_ASSINATURA_CONTRATO: formatDate(data_assinatura_contrato),
         DATA_VENDA: formatDate(data_venda),
+        DATA_PREVISTA_ENTREGA: formatDate(data_prevista_entrega),
         VALOR_TOTAL: formatCurrency(valorTotal),
+        DESCONTO: formatCurrency(Number(form.desconto) || 0),
         FORMA_PAGAMENTO: forma_pagamento,
+        METODO_PAGAMENTO: form.metodo_pagamento || '',
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
         EMPRESA_NOME: 'Bender Haussform',
@@ -158,6 +169,7 @@ Deno.serve(async (req: Request) => {
           valor: formatCurrency(p.valor),
           meio: p.meio,
         })),
+        pagamentos: pagamentos,
         is_assinado: false,
         assinaturas: [],
       }

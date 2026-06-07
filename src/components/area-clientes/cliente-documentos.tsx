@@ -159,25 +159,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
-  const handleGerarTemplate = async (templateNome: string) => {
+  const handleGerarTemplate = async (template: any) => {
     setGenerating(true)
-    toast.info(`Preparando ${templateNome} para revisão...`, { id: 'gerar-doc' })
+    toast.info(`Preparando ${template.nome} para revisão...`, { id: 'gerar-doc' })
     try {
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: { action: 'pre_gerar', cliente_id: dossie.cliente_id, template_nome: templateNome },
+        body: { action: 'pre_gerar', cliente_id: dossie.cliente_id, template_nome: template.nome },
       })
-
-      console.log('ERRO DETALHADO (pre_gerar):', JSON.stringify(data), JSON.stringify(error))
 
       if (error) throw error
       if (!data.success) throw new Error(data.error)
 
-      setEditingDoc({ isNew: true, template_nome: templateNome })
+      setEditingDoc({ isNew: true, template_nome: template.nome, template_id: template.id })
       setEditingContent(data.conteudo_preenchido)
       setEditModalOpen(true)
       toast.success('Documento pronto para revisão!')
     } catch (e: any) {
-      toast.error(`Falha ao preparar ${templateNome}: ${e.message}`)
+      toast.error(`Falha ao preparar ${template.nome}: ${e.message}`)
     } finally {
       toast.dismiss('gerar-doc')
       setGenerating(false)
@@ -292,6 +290,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           .from('documentos_cliente')
           .insert({
             cliente_id: dossie.cliente_id,
+            projeto_id: dossie.formulario_comercial_id,
+            template_id: editingDoc.template_id,
             tipo: editingDoc.template_nome,
             template_nome: `${editingDoc.template_nome}.pdf`,
             status: 'processando',
@@ -358,7 +358,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
-  const handleDownloadSigned = async (url: string) => {
+  const handleDownloadFile = async (url: string, filename: string) => {
     try {
       let bucket = 'bender_clientes'
       let path = url
@@ -378,15 +378,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         const objectUrl = URL.createObjectURL(data)
         const a = document.createElement('a')
         a.href = objectUrl
-        a.download = 'Documento_Assinado.pdf'
+        a.download = filename
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
       }
     } catch (e: any) {
-      console.error('Erro ao baixar arquivo assinado:', e)
-      toast.error('Não foi possível baixar o arquivo assinado.')
+      console.error('Erro ao baixar arquivo:', e)
+      toast.error('Não foi possível baixar o arquivo.')
     }
   }
 
@@ -416,7 +416,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               templates.map((t) => (
                 <DropdownMenuItem
                   key={t.id}
-                  onClick={() => handleGerarTemplate(t.nome)}
+                  onClick={() => handleGerarTemplate(t)}
                   className="cursor-pointer font-medium"
                 >
                   {t.nome.toUpperCase()}
@@ -538,14 +538,32 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    {doc.conteudo_preenchido && doc.status !== 'processando' && (
+                    {doc.conteudo_preenchido &&
+                      doc.conteudo_preenchido !== 'PDF Gerado via PDFMonkey' &&
+                      doc.status !== 'processando' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditClick(doc)}
+                          className="hover:bg-slate-100"
+                        >
+                          <Eye className="w-4 h-4 mr-1" /> Visualizar / Editar
+                        </Button>
+                      )}
+
+                    {doc.status !== 'processando' && doc.arquivo_url && !allAssinados && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEditClick(doc)}
+                        onClick={() =>
+                          handleDownloadFile(
+                            doc.arquivo_url,
+                            `Rascunho_${doc.template_nome || 'Documento'}.pdf`,
+                          )
+                        }
                         className="hover:bg-slate-100"
                       >
-                        <Eye className="w-4 h-4 mr-1" /> Visualizar / Editar
+                        <Download className="w-4 h-4 mr-1" /> PDF (Rascunho)
                       </Button>
                     )}
 
@@ -564,7 +582,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       <Button
                         variant="default"
                         size="sm"
-                        onClick={() => handleDownloadSigned(doc.arquivo_assinado_url)}
+                        onClick={() =>
+                          handleDownloadFile(
+                            doc.arquivo_assinado_url,
+                            `Assinado_${doc.template_nome || 'Documento'}.pdf`,
+                          )
+                        }
                         className="bg-green-600 hover:bg-green-700 shadow text-white font-medium"
                       >
                         <Download className="w-4 h-4 mr-1" /> 📥 PDF Assinado

@@ -171,10 +171,12 @@ Deno.serve(async (req: Request) => {
               })
               .eq('id', docCliente.id)
           } catch (e: any) {
-            await supabase.from('logs_ia').insert({
-              acao: 'finalize_signature_pdfmonkey_error',
-              detalhes: { error: e.message },
-            })
+            await supabase
+              .from('logs_ia')
+              .insert({
+                acao: 'finalize_signature_pdfmonkey_error',
+                detalhes: { error: e.message },
+              })
             throw e
           }
         }
@@ -197,6 +199,29 @@ Deno.serve(async (req: Request) => {
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (RESEND_API_KEY) {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(uploadBucket)
+        .download(finalFilePath)
+      let attachments = []
+
+      if (!downloadError && fileData) {
+        const arrayBuffer = await fileData.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+        let binaryString = ''
+        for (let i = 0; i < uint8Array.length; i++) {
+          binaryString += String.fromCharCode(uint8Array[i])
+        }
+        const base64Content = btoa(binaryString)
+
+        const fileNameParts = finalFilePath.split('/')
+        const name = fileNameParts[fileNameParts.length - 1]
+
+        attachments.push({
+          filename: name,
+          content: base64Content,
+        })
+      }
+
       const { data: urlData } = await supabase.storage
         .from(uploadBucket)
         .createSignedUrl(finalFilePath, 315360000)
@@ -218,12 +243,13 @@ Deno.serve(async (req: Request) => {
                 html: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
                     <h2 style="color: #333;">Olá, ${sig.signatario_nome}</h2>
-                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso.</p>
+                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso. O documento final está anexado a este e-mail.</p>
                     <div style="text-align: center; margin: 30px 0;">
                       <a href="${signedUrl}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
                     </div>
                   </div>
                 `,
+                attachments: attachments.length > 0 ? attachments : undefined,
               }),
             })
           } catch (emailErr) {}
