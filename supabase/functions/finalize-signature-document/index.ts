@@ -143,9 +143,16 @@ Deno.serve(async (req: Request) => {
           const pagamentos = (form.pagamentos as any) || {}
           const parcelas = pagamentos.parcelado || []
 
+          const dataExtensoFormatter = new Intl.DateTimeFormat('pt-BR', {
+            dateStyle: 'long',
+            timeZone: 'America/Sao_Paulo',
+          })
           const placeholders: any = {
             CLIENTE_NOME: form.cliente?.nome || '',
             CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
+            CLI_NOME: form.cliente?.nome || '',
+            CLI_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
+            DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
             CLIENTE_PROFISSAO: form.profissao || '',
             CLIENTE_ESTADO_CIVIL: form.estado_civil || '',
             CLIENTE_TELEFONE: form.cliente?.telefone || '',
@@ -183,18 +190,28 @@ Deno.serve(async (req: Request) => {
               meio: p.meio,
             })),
             is_assinado: true,
-            assinaturas: assinaturas.map((sig) => ({
-              nome: sig.signatario_nome,
-              tipo: sig.signatario_tipo,
-              cpf: sig.signatario_cpf || 'N/A',
-              email: sig.signatario_email || 'N/A',
-              data: sig.data_assinatura
-                ? new Date(sig.data_assinatura).toLocaleString('pt-BR')
-                : 'N/A',
-              ip: sig.ip_assinatura || 'N/A',
-              codigo: sig.codigo_confirmacao,
-              assinatura_imagem: sig.assinatura_imagem,
-            })),
+            assinaturas: assinaturas.map((sig) => {
+              let dataFormatada = 'N/A'
+              if (sig.data_assinatura) {
+                const d = new Date(sig.data_assinatura)
+                const pad = (n: number) => n.toString().padStart(2, '0')
+                dataFormatada = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+              }
+              return {
+                nome: sig.signatario_nome,
+                signatario_nome: sig.signatario_nome,
+                tipo: sig.signatario_tipo,
+                cpf: sig.signatario_cpf || 'N/A',
+                signatario_cpf: sig.signatario_cpf || 'N/A',
+                email: sig.signatario_email || 'N/A',
+                data: dataFormatada,
+                data_assinatura: dataFormatada,
+                ip: sig.ip_assinatura || 'N/A',
+                codigo: sig.codigo_confirmacao,
+                codigo_confirmacao: sig.codigo_confirmacao,
+                assinatura_imagem: sig.assinatura_imagem,
+              }
+            }),
           }
 
           const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
