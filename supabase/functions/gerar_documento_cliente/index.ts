@@ -193,7 +193,8 @@ Deno.serve(async (req: Request) => {
 
       const pagamentos = (form.pagamentos as any) || {}
       const forma_pagamento = pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado'
-      const parcelas = pagamentos.parcelado || []
+      const parcelas = form.parcelas || pagamentos.parcelado || []
+      const clausula_pagamento = pagamentos.narrativa || form.especificacoes || 'Não informado'
 
       const formatCurrency = (val: number) => {
         if (!val && val !== 0) return 'R$ 0,00'
@@ -204,6 +205,26 @@ Deno.serve(async (req: Request) => {
         const parts = dateStr.split('T')[0].split('-')
         if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
         return dateStr
+      }
+
+      const buildAddress = (
+        rua: string,
+        num: string,
+        comp: string,
+        bairro: string,
+        cidade: string,
+        estado: string,
+        cep: string,
+      ) => {
+        let str = ''
+        if (rua) str += rua
+        if (num) str += `, ${num}`
+        if (comp) str += ` - ${comp}`
+        if (bairro) str += `, ${bairro}`
+        if (cidade) str += `, ${cidade}`
+        if (estado) str += ` - ${estado}`
+        if (cep) str += `, ${cep}`
+        return str.replace(/^, /, '').trim() || 'Não informado'
       }
 
       let vendedorNome = 'Não informado'
@@ -231,6 +252,32 @@ Deno.serve(async (req: Request) => {
         CLIENTE_COMPLEMENTO: end_complemento,
         CLIENTE_CIDADE: end_cidade,
         CLIENTE_ESTADO: end_estado,
+        CLI_NOME: clienteNome,
+        CLI_NOME_COMPLETO: clienteNome,
+        CLI_CPF_CNPJ: cpf,
+        CLI_CPF: cpf,
+        CLI_ENDERECO_COMPLETO: buildAddress(
+          end_rua,
+          end_numero,
+          end_complemento,
+          end_bairro,
+          end_cidade,
+          end_estado,
+          end_cep,
+        ),
+        CLI_PROFISSAO: profissao,
+        CLI_ESTADO_CIVIL: estado_civil,
+        CLI_EMAIL: email,
+        CLI_TELEFONE: telefone,
+        CLI_ENDERECO_OBRA: buildAddress(
+          obra_rua,
+          obra_numero,
+          obra_complemento,
+          obra_bairro,
+          obra_cidade,
+          obra_estado,
+          obra_cep,
+        ),
         OBRA_CEP: obra_cep,
         OBRA_RUA: obra_rua,
         OBRA_NUMERO: obra_numero,
@@ -245,6 +292,7 @@ Deno.serve(async (req: Request) => {
         VALOR_TOTAL: formatCurrency(valorTotal),
         DESCONTO: formatCurrency(Number(form.desconto) || 0),
         FORMA_PAGAMENTO: forma_pagamento,
+        CLAUSULA_PAGAMENTO_NARRATIVA: clausula_pagamento,
         METODO_PAGAMENTO: form.metodo_pagamento || 'Não informado',
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
@@ -254,16 +302,17 @@ Deno.serve(async (req: Request) => {
         EMPRESA_TELEFONE: '(00) 0000-0000',
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
         produtos: produtos.map((p: any) => ({
-          nome: p.nome || p.nome_produto || 'Produto sem nome',
-          descricao: p.descricao || 'Sem descrição',
-          valor: formatCurrency(p.valor_unitario || 0),
+          descricao: p.nome || p.nome_produto || p.descricao || 'Produto sem descrição',
+          valor: formatCurrency(
+            p.valor_total || p.valor_unitario * (p.qtd || p.quantidade || 1) || 0,
+          ),
           qtd: p.qtd || p.quantidade || 1,
         })),
         parcelas: parcelas.map((p: any, i: number) => ({
           numero: i + 1,
           data: formatDate(p.data),
-          valor: formatCurrency(p.valor),
-          meio: p.meio || 'Não informado',
+          valor: formatCurrency(p.valor || p.valor_parcela || 0),
+          meio: p.meio || form.metodo_pagamento || 'Não informado',
         })),
         pagamentos: pagamentos,
         is_assinado: false,

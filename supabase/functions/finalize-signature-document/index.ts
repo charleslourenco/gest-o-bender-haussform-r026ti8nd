@@ -216,6 +216,8 @@ Deno.serve(async (req: Request) => {
                 ? formatCurrency(parcelas[0].valor || parcelas[0].valor_parcela || 0)
                 : formatCurrency(valorTotal),
             FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+            CLAUSULA_PAGAMENTO_NARRATIVA:
+              pagamentos.narrativa || form.especificacoes || 'Não informado',
             DATA_PREVISTA_ENTREGA_IMOVEL: formatDate(form.data_prevista_entrega || ''),
             DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
             DATA_ACESSO_MOVEL: formatDate((form.datas as any)?.medida || ''),
@@ -225,16 +227,17 @@ Deno.serve(async (req: Request) => {
             ),
             NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
             produtos: produtos.map((p: any) => ({
-              nome: p.nome || p.nome_produto,
-              descricao: p.descricao || '',
-              valor: formatCurrency(p.valor_unitario || 0),
+              descricao: p.nome || p.nome_produto || p.descricao || 'Produto sem descrição',
+              valor: formatCurrency(
+                p.valor_total || p.valor_unitario * (p.qtd || p.quantidade || 1) || 0,
+              ),
               qtd: p.qtd || p.quantidade || 1,
             })),
             parcelas: parcelas.map((p: any, i: number) => ({
               numero: i + 1,
               data: formatDate(p.data),
               valor: formatCurrency(p.valor || p.valor_parcela || 0),
-              meio: p.meio || form.metodo_pagamento,
+              meio: p.meio || form.metodo_pagamento || 'Não informado',
             })),
             is_assinado: true,
             assinaturas: assinaturas.map((sig) => {

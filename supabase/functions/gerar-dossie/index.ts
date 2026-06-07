@@ -132,7 +132,27 @@ Deno.serve(async (req) => {
         ) - (Number(form.desconto) || 0)
       : 0
     const pagamentos = (form.pagamentos as any) || {}
-    const parcelas = pagamentos.parcelado || []
+    const parcelas = form.parcelas || pagamentos.parcelado || []
+
+    const buildAddress = (
+      rua: string,
+      num: string,
+      comp: string,
+      bairro: string,
+      cidade: string,
+      estado: string,
+      cep: string,
+    ) => {
+      let str = ''
+      if (rua) str += rua
+      if (num) str += `, ${num}`
+      if (comp) str += ` - ${comp}`
+      if (bairro) str += `, ${bairro}`
+      if (cidade) str += `, ${cidade}`
+      if (estado) str += ` - ${estado}`
+      if (cep) str += `, ${cep}`
+      return str.replace(/^, /, '').trim() || 'Não informado'
+    }
 
     const placeholders: any = {
       CLIENTE_NOME: form.cliente?.nome || '',
@@ -147,6 +167,32 @@ Deno.serve(async (req) => {
       CLIENTE_COMPLEMENTO: form.complemento || form.cliente?.complemento || '',
       CLIENTE_CIDADE: form.municipio || form.cliente?.cidade || '',
       CLIENTE_ESTADO: form.estado || form.cliente?.estado || '',
+      CLI_NOME: form.cliente?.nome || '',
+      CLI_NOME_COMPLETO: form.cliente?.nome || '',
+      CLI_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
+      CLI_CPF: form.cliente?.cpf || form.cpf || '',
+      CLI_ENDERECO_COMPLETO: buildAddress(
+        form.rua || form.cliente?.endereco_obra,
+        form.numero || form.cliente?.numero,
+        form.complemento || form.cliente?.complemento,
+        form.bairro || form.cliente?.bairro,
+        form.municipio || form.cliente?.cidade,
+        form.estado || form.cliente?.estado,
+        form.cep || form.cliente?.cep,
+      ),
+      CLI_PROFISSAO: form.profissao || form.cliente?.profissao || '',
+      CLI_ESTADO_CIVIL: form.estado_civil || '',
+      CLI_EMAIL: form.cliente?.email || '',
+      CLI_TELEFONE: form.cliente?.telefone || '',
+      CLI_ENDERECO_OBRA: buildAddress(
+        form.obra_rua,
+        form.obra_numero,
+        form.obra_complemento,
+        form.obra_bairro,
+        form.obra_municipio,
+        form.obra_estado,
+        form.obra_cep,
+      ),
       OBRA_CEP: form.obra_cep || '',
       OBRA_RUA: form.obra_rua || '',
       OBRA_NUMERO: form.obra_numero || '',
@@ -158,6 +204,7 @@ Deno.serve(async (req) => {
       DATA_VENDA: formatDate(datas.data_venda || new Date().toISOString().split('T')[0]),
       VALOR_TOTAL: formatCurrency(valorTotal),
       FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+      CLAUSULA_PAGAMENTO_NARRATIVA: pagamentos.narrativa || form.especificacoes || 'Não informado',
       VENDEDOR_NOME: vendedorNomeEtapa,
       NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
       EMPRESA_NOME: 'Bender Haussform',
@@ -166,16 +213,17 @@ Deno.serve(async (req) => {
       EMPRESA_TELEFONE: '(00) 0000-0000',
       EMPRESA_EMAIL: 'projetos@benderhaussform.com',
       produtos: produtos.map((p: any) => ({
-        nome: p.nome || p.nome_produto,
-        descricao: p.descricao || '',
-        valor: formatCurrency(p.valor_unitario || 0),
+        descricao: p.nome || p.nome_produto || p.descricao || 'Produto sem descrição',
+        valor: formatCurrency(
+          p.valor_total || p.valor_unitario * (p.qtd || p.quantidade || 1) || 0,
+        ),
         qtd: p.qtd || p.quantidade || 1,
       })),
       parcelas: parcelas.map((p: any, i: number) => ({
         numero: i + 1,
         data: formatDate(p.data),
-        valor: formatCurrency(p.valor),
-        meio: p.meio,
+        valor: formatCurrency(p.valor || p.valor_parcela || 0),
+        meio: p.meio || form.metodo_pagamento || 'Não informado',
       })),
       is_assinado: false,
       assinaturas: [],
