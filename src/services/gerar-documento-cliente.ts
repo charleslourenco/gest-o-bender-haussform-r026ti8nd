@@ -1,13 +1,9 @@
 import { supabase } from '@/lib/supabase/client'
 
 export const gerarDocumentoCliente = async (params: any) => {
-  // Pre-processamento: Garantir que se houver conteúdo editado, ele não vá com tags vazias que quebram o layout
-  if (params.conteudo_editado) {
-    params.conteudo_editado = params.conteudo_editado.replace(/<p><br><\/p>/g, '').trim()
-    params.conteudo_editado = params.conteudo_editado.replace(/_{2,}CELL_{2,}/gi, '')
-    params.conteudo_editado = params.conteudo_editado.replace(/______CELL_____/gi, '')
-    params.conteudo_editado = params.conteudo_editado.replace(/__CELL__/gi, '')
-  }
+  // O pré-processamento, sanitização (remoção de markers CELL) e
+  // conversão de tabelas legadas para CSS Flex/Grid são agora responsabilidade
+  // da Edge Function, garantindo consistência, segurança e codificação UTF-8 globais.
 
   const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
     body: params,
