@@ -29,24 +29,46 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
-      const { data: docInfo } = await supabaseClient
+      const { data: docInfo, error: docError } = await supabaseClient
         .from('documentos_cliente')
         .select('projeto_id')
         .eq('id', documento_id)
         .single()
-      const formulario_comercial_id = docInfo?.projeto_id
 
-      if (!formulario_comercial_id || !cliente_id) {
-        throw new Error('Faltam referências de projeto ou cliente no documento.')
+      if (docError && !docInfo) {
+        throw new Error('Documento não encontrado na base de dados.')
       }
 
-      const { data: form } = await supabaseClient
-        .from('formulario_comercial')
-        .select('*, cliente:clientes(*)')
-        .eq('id', formulario_comercial_id)
-        .single()
+      const formulario_comercial_id = docInfo?.projeto_id
 
-      if (!form) throw new Error('Formulário não encontrado')
+      if (!cliente_id) {
+        throw new Error('Falta a referência do cliente (cliente_id) no documento.')
+      }
+
+      let form: any = {}
+
+      if (formulario_comercial_id) {
+        const { data: formData } = await supabaseClient
+          .from('formulario_comercial')
+          .select('*, cliente:clientes(*)')
+          .eq('id', formulario_comercial_id)
+          .single()
+
+        if (formData) {
+          form = formData
+        }
+      }
+
+      if (!form.cliente) {
+        const { data: clientData } = await supabaseClient
+          .from('clientes')
+          .select('*')
+          .eq('id', cliente_id)
+          .single()
+        if (clientData) {
+          form.cliente = clientData
+        }
+      }
 
       const { data: template } = await supabaseClient
         .from('templates')
@@ -56,11 +78,11 @@ Deno.serve(async (req: Request) => {
 
       if (!template?.external_template_id) {
         throw new Error(
-          `Template ${template_nome} não possui um PDFMonkey Template ID configurado.`,
+          `Template "${template_nome}" não possui um PDFMonkey Template ID configurado.`,
         )
       }
 
-      const clienteNome = form.nome_cliente || form.cliente?.nome || '-'
+      const clienteNome = form.nome_cliente || form.cliente?.nome || 'Cliente não informado'
       const cpf = form.cpf || form.cliente?.cpf || '-'
       const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || null
       const email = form.cliente?.email || '-'
@@ -214,17 +236,33 @@ Deno.serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ success: false, error: 'Ação inválida' }), {
       status: 400,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
     console.error(error)
-    await supabaseClient.from('logs_ia').insert({
-      acao: 'gerar_documento_cliente_error',
-      detalhes: { error: error.message },
-    })
+
+    if (payloadReq?.documento_id) {
+      await supabaseClient
+        .from('documentos_cliente')
+        .update({
+          status: 'erro_geracao',
+          conteudo_preenchido: `Erro na geração: ${error.message}`,
+        })
+        .eq('id', payloadReq.documento_id)
+        .catch(() => {})
+    }
+
+    await supabaseClient
+      .from('logs_ia')
+      .insert({
+        acao: 'gerar_documento_cliente_error',
+        detalhes: { error: error.message },
+      })
+      .catch(() => {})
+
     return new Response(JSON.stringify({ success: false, error: error.message }), {
-      status: 500,
-      headers: corsHeaders,
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })

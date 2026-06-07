@@ -522,15 +522,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    {doc.status !== 'processando' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteDoc(doc.id, doc.template_nome || doc.tipo)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               )
