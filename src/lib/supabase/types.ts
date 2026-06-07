@@ -466,30 +466,6 @@ export type Database = {
           },
         ]
       }
-      document_templates: {
-        Row: {
-          ativo: boolean | null
-          atualizado_em: string | null
-          conteudo: string
-          id: string
-          nome: string
-        }
-        Insert: {
-          ativo?: boolean | null
-          atualizado_em?: string | null
-          conteudo: string
-          id?: string
-          nome: string
-        }
-        Update: {
-          ativo?: boolean | null
-          atualizado_em?: string | null
-          conteudo?: string
-          id?: string
-          nome?: string
-        }
-        Relationships: []
-      }
       documentos_cliente: {
         Row: {
           arquivo_assinado_url: string | null
@@ -2498,12 +2474,6 @@ export const Constants = {
 //   comprovante_url: text (nullable)
 //   descricao: text (nullable)
 //   categoria: text (nullable)
-// Table: document_templates
-//   id: uuid (not null, default: gen_random_uuid())
-//   nome: text (not null)
-//   conteudo: text (not null)
-//   ativo: boolean (nullable, default: true)
-//   atualizado_em: timestamp without time zone (nullable, default: now())
 // Table: documentos_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
@@ -2954,9 +2924,6 @@ export const Constants = {
 //   FOREIGN KEY contas_receber_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY contas_receber_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY contas_receber_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: document_templates
-//   UNIQUE document_templates_nome_key: UNIQUE (nome)
-//   PRIMARY KEY document_templates_pkey: PRIMARY KEY (id)
 // Table: documentos_cliente
 //   FOREIGN KEY documentos_cliente_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   PRIMARY KEY documentos_cliente_pkey: PRIMARY KEY (id)
@@ -3154,11 +3121,6 @@ export const Constants = {
 //   Policy "contas_receber_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
-// Table: document_templates
-//   Policy "document_templates_select" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "permissao_leitura_edge_function" (SELECT, PERMISSIVE) roles={public}
-//     USING: true
 // Table: documentos_cliente
 //   Policy "documentos_cliente_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3391,24 +3353,15 @@ export const Constants = {
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //     WITH CHECK: true
 // Table: templates
-//   Policy "templates_delete_all" (DELETE, PERMISSIVE) roles={authenticated}
+//   Policy "templates_delete" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//   Policy "templates_insert" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: is_admin(auth.uid())
+//   Policy "templates_select" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
-//   Policy "templates_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "templates_insert_all" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: true
-//   Policy "templates_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "templates_select_all" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: true
-//   Policy "templates_select_own" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "templates_update_all" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: true
-//     WITH CHECK: true
-//   Policy "templates_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
+//   Policy "templates_update" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: is_admin(auth.uid())
+//     WITH CHECK: is_admin(auth.uid())
 // Table: timeline_eventos
 //   Policy "Acesso total timeline" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3742,8 +3695,6 @@ export const Constants = {
 //   CREATE UNIQUE INDEX assinantes_token_acesso_key ON public.assinantes USING btree (token_acesso)
 // Table: clientes
 //   CREATE UNIQUE INDEX clientes_cpf_key ON public.clientes USING btree (cpf)
-// Table: document_templates
-//   CREATE UNIQUE INDEX document_templates_nome_key ON public.document_templates USING btree (nome)
 // Table: formulario_comercial
 //   CREATE UNIQUE INDEX formulario_comercial_lead_id_key ON public.formulario_comercial USING btree (lead_id)
 //   CREATE INDEX idx_formulario_user_id ON public.formulario_comercial USING btree (user_id)

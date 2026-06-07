@@ -8,13 +8,22 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-  )
+  let payloadReq: any = {}
+  let supabaseClient: any = null
 
   try {
-    const payloadReq = await req.json()
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(
+        'Erro de configuração: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurados nas variáveis de ambiente.',
+      )
+    }
+
+    supabaseClient = createClient(supabaseUrl, supabaseKey)
+
+    payloadReq = await req.json()
     const { action, cliente_id, template_nome, documento_id } = payloadReq
 
     if (action === 'pre_gerar') {
@@ -245,24 +254,26 @@ Deno.serve(async (req: Request) => {
   } catch (error: any) {
     console.error(error)
 
-    if (payloadReq?.documento_id) {
+    if (supabaseClient) {
+      if (payloadReq?.documento_id) {
+        await supabaseClient
+          .from('documentos_cliente')
+          .update({
+            status: 'erro_geracao',
+            conteudo_preenchido: `Erro na geração: ${error.message}`,
+          })
+          .eq('id', payloadReq.documento_id)
+          .catch(() => {})
+      }
+
       await supabaseClient
-        .from('documentos_cliente')
-        .update({
-          status: 'erro_geracao',
-          conteudo_preenchido: `Erro na geração: ${error.message}`,
+        .from('logs_ia')
+        .insert({
+          acao: 'gerar_documento_cliente_error',
+          detalhes: { error: error.message },
         })
-        .eq('id', payloadReq.documento_id)
         .catch(() => {})
     }
-
-    await supabaseClient
-      .from('logs_ia')
-      .insert({
-        acao: 'gerar_documento_cliente_error',
-        detalhes: { error: error.message },
-      })
-      .catch(() => {})
 
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 400,
