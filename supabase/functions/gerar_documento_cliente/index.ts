@@ -184,6 +184,9 @@ Deno.serve(async (req: Request) => {
       const data_prevista_entrega = form.data_prevista_entrega || null
 
       let produtos = (form.produtos_servicos as any[]) || []
+      if (!produtos || produtos.length === 0) {
+        produtos = (form.itens as any[]) || []
+      }
       if (formulario_comercial_id) {
         const { data: dbProdutos } = await supabaseClient
           .from('produtos_servicos_projeto')
@@ -313,11 +316,17 @@ Deno.serve(async (req: Request) => {
         DATA_VENDA: formatDate(data_venda),
         DATA_PREVISTA_ENTREGA: formatDate(data_prevista_entrega),
         DATA_ENTREGA: formatDate(data_prevista_entrega),
-        SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
-        VALOR_DESCONTO: formatCurrency(descontoProdutos),
-        TOTAL_GERAL: formatCurrency(valorTotal),
-        VALOR_TOTAL: formatCurrency(valorTotal),
-        DESCONTO: formatCurrency(descontoProdutos),
+        SUBTOTAL_PRODUTOS: subtotalProdutos,
+        SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalProdutos),
+        VALOR_DESCONTO: descontoProdutos,
+        VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
+        TOTAL_GERAL: valorTotal,
+        TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
+        VALOR_TOTAL: valorTotal,
+        VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
+        VALOR_TOTAL_CONTRATO: valorTotal,
+        DESCONTO: descontoProdutos,
+        DESCONTO_MOEDA: formatCurrency(descontoProdutos),
         FORMA_PAGAMENTO: forma_pagamento,
         CLAUSULA_PAGAMENTO_NARRATIVA: clausula_pagamento,
         METODO_PAGAMENTO: form.metodo_pagamento || 'Não informado',
@@ -329,15 +338,15 @@ Deno.serve(async (req: Request) => {
         EMPRESA_TELEFONE: '(00) 0000-0000',
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
         produtos: produtos.map((p: any) => {
-          const quantidade = p.qtd || p.quantidade || 1
+          const quantidade = Number(p.qtd || p.quantidade) || 1
           const valorUnitario = Number(p.valor_unitario) || 0
           const vTotal = Number(p.valor_total) || valorUnitario * quantidade
           return {
-            ambiente: p.ambiente || p.nome_produto || p.nome || 'Geral',
-            descricao: p.descricao || p.nome_produto || p.nome || 'Produto sem descrição',
+            ambiente: p.ambiente || p.nome_produto || p.nome || '',
+            descricao: p.descricao || p.nome_produto || p.nome || '',
             quantidade: quantidade,
-            valor_unitario: formatNumber(valorUnitario),
-            valor_total: formatNumber(vTotal),
+            valor_unitario: valorUnitario,
+            valor_total: vTotal,
             valor_unitario_moeda: formatCurrency(valorUnitario),
             valor_total_moeda: formatCurrency(vTotal),
             // Backward compatibility just in case
@@ -348,7 +357,8 @@ Deno.serve(async (req: Request) => {
         parcelas: parcelas.map((p: any, i: number) => ({
           numero: i + 1,
           data: formatDate(p.data),
-          valor: formatCurrency(p.valor || p.valor_parcela || 0),
+          valor: Number(p.valor || p.valor_parcela) || 0,
+          valor_moeda: formatCurrency(Number(p.valor || p.valor_parcela) || 0),
           meio: p.meio || form.metodo_pagamento || 'Não informado',
         })),
         pagamentos: pagamentos,
