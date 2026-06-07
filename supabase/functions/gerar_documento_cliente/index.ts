@@ -29,6 +29,10 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
+      if (!documento_id) {
+        throw new Error('ID do documento não fornecido.')
+      }
+
       const { data: docInfo, error: docError } = await supabaseClient
         .from('documentos_cliente')
         .select('projeto_id')
@@ -83,27 +87,27 @@ Deno.serve(async (req: Request) => {
       }
 
       const clienteNome = form.nome_cliente || form.cliente?.nome || 'Cliente não informado'
-      const cpf = form.cpf || form.cliente?.cpf || '-'
+      const cpf = form.cpf || form.cliente?.cpf || 'Não informado'
       const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || null
-      const email = form.cliente?.email || '-'
-      const telefone = form.cliente?.telefone || '-'
-      const profissao = form.profissao || '-'
-      const estado_civil = form.estado_civil || '-'
-      const end_cep = form.cep || form.cliente?.cep || '-'
-      const end_rua = form.rua || form.cliente?.endereco_obra || '-'
-      const end_numero = form.numero || form.cliente?.numero || '-'
-      const end_bairro = form.bairro || form.cliente?.bairro || '-'
-      const end_complemento = form.complemento || form.cliente?.complemento || '-'
-      const end_cidade = form.municipio || form.cliente?.cidade || '-'
-      const end_estado = form.estado || form.cliente?.estado || '-'
+      const email = form.cliente?.email || 'Não informado'
+      const telefone = form.cliente?.telefone || 'Não informado'
+      const profissao = form.profissao || 'Não informado'
+      const estado_civil = form.estado_civil || 'Não informado'
+      const end_cep = form.cep || form.cliente?.cep || 'Não informado'
+      const end_rua = form.rua || form.cliente?.endereco_obra || 'Não informado'
+      const end_numero = form.numero || form.cliente?.numero || 'S/N'
+      const end_bairro = form.bairro || form.cliente?.bairro || 'Não informado'
+      const end_complemento = form.complemento || form.cliente?.complemento || ''
+      const end_cidade = form.municipio || form.cliente?.cidade || 'Não informado'
+      const end_estado = form.estado || form.cliente?.estado || 'Não informado'
 
-      const obra_cep = form.obra_cep || '-'
-      const obra_rua = form.obra_rua || '-'
-      const obra_numero = form.obra_numero || '-'
-      const obra_bairro = form.obra_bairro || '-'
-      const obra_complemento = form.obra_complemento || '-'
-      const obra_cidade = form.obra_municipio || '-'
-      const obra_estado = form.obra_estado || '-'
+      const obra_cep = form.obra_cep || 'Não informado'
+      const obra_rua = form.obra_rua || 'Não informado'
+      const obra_numero = form.obra_numero || 'S/N'
+      const obra_bairro = form.obra_bairro || 'Não informado'
+      const obra_complemento = form.obra_complemento || ''
+      const obra_cidade = form.obra_municipio || 'Não informado'
+      const obra_estado = form.obra_estado || 'Não informado'
 
       const datas = (form.datas as any) || {}
       const data_acesso_movel = datas.medida || null
@@ -124,17 +128,17 @@ Deno.serve(async (req: Request) => {
       const parcelas = pagamentos.parcelado || []
 
       const formatCurrency = (val: number) => {
-        if (!val && val !== 0) return '-'
+        if (!val && val !== 0) return 'R$ 0,00'
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
       }
       const formatDate = (dateStr: string | null) => {
-        if (!dateStr) return '-'
+        if (!dateStr) return 'Não informado'
         const parts = dateStr.split('T')[0].split('-')
         if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
         return dateStr
       }
 
-      let vendedorNome = '-'
+      let vendedorNome = 'Não informado'
       if (form.user_id) {
         const { data: user } = await supabaseClient
           .from('users')
@@ -173,7 +177,7 @@ Deno.serve(async (req: Request) => {
         VALOR_TOTAL: formatCurrency(valorTotal),
         DESCONTO: formatCurrency(Number(form.desconto) || 0),
         FORMA_PAGAMENTO: forma_pagamento,
-        METODO_PAGAMENTO: form.metodo_pagamento || '-',
+        METODO_PAGAMENTO: form.metodo_pagamento || 'Não informado',
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
         EMPRESA_NOME: 'Bender Haussform',
@@ -182,8 +186,8 @@ Deno.serve(async (req: Request) => {
         EMPRESA_TELEFONE: '(00) 0000-0000',
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
         produtos: produtos.map((p: any) => ({
-          nome: p.nome || p.nome_produto || '-',
-          descricao: p.descricao || '-',
+          nome: p.nome || p.nome_produto || 'Produto sem nome',
+          descricao: p.descricao || 'Sem descrição',
           valor: formatCurrency(p.valor_unitario || 0),
           qtd: p.qtd || p.quantidade || 1,
         })),
@@ -191,7 +195,7 @@ Deno.serve(async (req: Request) => {
           numero: i + 1,
           data: formatDate(p.data),
           valor: formatCurrency(p.valor),
-          meio: p.meio || '-',
+          meio: p.meio || 'Não informado',
         })),
         pagamentos: pagamentos,
         is_assinado: false,

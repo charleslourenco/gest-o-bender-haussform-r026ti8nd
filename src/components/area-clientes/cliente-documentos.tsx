@@ -76,8 +76,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       if (error) throw error
       if (data) setTemplates(data)
     } catch (err: any) {
-      console.error(err)
-      toast.error(err.message)
+      console.error('Erro ao carregar templates:', err)
+      toast.error('Erro ao carregar templates de documento: ' + err.message)
     }
   }
 
@@ -188,8 +188,10 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
 
-      if (error) throw error
-      if (data && !data.success) throw new Error(data.error)
+      if (error)
+        throw new Error(error.message || 'Falha na comunicação com o servidor ao gerar documento')
+      if (data && !data.success)
+        throw new Error(data.error || 'Erro desconhecido retornado pelo servidor')
 
       const { data: authData } = await supabase.auth.getUser()
       const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
@@ -201,10 +203,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       setLocalStartTimes((prev) => ({ ...prev, [newDoc.id]: Date.now() }))
 
-      toast.success('Documento em processamento. Ele será atualizado na lista em breve.', {
-        id: 'gerar-doc',
-        duration: 8000,
-      })
+      toast.success(
+        'Geração iniciada com sucesso. O PDF será disponibilizado em breve na lista abaixo.',
+        {
+          id: 'gerar-doc',
+          duration: 8000,
+        },
+      )
       loadDocs()
       onReload()
     } catch (e: any) {
@@ -287,8 +292,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
 
-      if (error) throw error
-      if (data && !data.success) throw new Error(data.error)
+      if (error)
+        throw new Error(
+          error.message || 'Falha na comunicação com o servidor ao reprocessar documento',
+        )
+      if (data && !data.success)
+        throw new Error(data.error || 'Erro desconhecido retornado pelo servidor')
 
       setLocalStartTimes((prev) => ({ ...prev, [doc.id]: Date.now() }))
 
@@ -397,7 +406,10 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       <div className="bg-off-white border-2 border-steel-blue rounded-lg p-6">
         <h3 className="font-bold text-lg mb-4 text-midnight-navy">Documentos Gerados</h3>
         {docs.length === 0 ? (
-          <p className="text-steel-blue italic">Nenhum documento encontrado para este cliente.</p>
+          <p className="text-steel-blue italic text-sm">
+            Nenhum documento encontrado para este cliente. Utilize o botão acima para gerar um novo
+            documento a partir de um template.
+          </p>
         ) : (
           <div className="space-y-3">
             {docs.map((doc) => {

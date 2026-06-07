@@ -517,7 +517,7 @@ export type Database = {
           status?: string
           template_id?: string | null
           template_nome?: string | null
-          tipo: string
+          tipo?: string
         }
         Update: {
           arquivo_assinado_url?: string | null
@@ -2507,7 +2507,7 @@ export const Constants = {
 // Table: documentos_cliente
 //   id: uuid (not null, default: gen_random_uuid())
 //   cliente_id: uuid (nullable)
-//   tipo: text (not null)
+//   tipo: text (not null, default: 'documento'::text)
 //   template_id: uuid (nullable)
 //   status: text (not null, default: 'Pendente'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
