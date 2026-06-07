@@ -171,12 +171,10 @@ Deno.serve(async (req: Request) => {
               })
               .eq('id', docCliente.id)
           } catch (e: any) {
-            await supabase
-              .from('logs_ia')
-              .insert({
-                acao: 'finalize_signature_pdfmonkey_error',
-                detalhes: { error: e.message },
-              })
+            await supabase.from('logs_ia').insert({
+              acao: 'finalize_signature_pdfmonkey_error',
+              detalhes: { error: e.message },
+            })
             throw e
           }
         }
