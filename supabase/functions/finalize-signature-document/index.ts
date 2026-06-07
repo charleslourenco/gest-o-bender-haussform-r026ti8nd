@@ -222,7 +222,9 @@ Deno.serve(async (req: Request) => {
             OBRA_CIDADE: form.obra_municipio || '',
             OBRA_ESTADO: form.obra_estado || '',
             SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
+            VALOR_DESCONTO: formatCurrency(descontoProdutos),
             DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
+            TOTAL_GERAL: formatCurrency(valorTotal),
             TOTAL_PRODUTOS: formatCurrency(valorTotal),
             VALOR_TOTAL: formatCurrency(valorTotal),
             METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || '',
@@ -253,6 +255,8 @@ Deno.serve(async (req: Request) => {
                 quantidade: quantidade,
                 valor_unitario: formatNumber(valorUnitario),
                 valor_total: formatNumber(vTotal),
+                valor_unitario_moeda: formatCurrency(valorUnitario),
+                valor_total_moeda: formatCurrency(vTotal),
                 valor: formatCurrency(vTotal),
                 qtd: quantidade,
               }

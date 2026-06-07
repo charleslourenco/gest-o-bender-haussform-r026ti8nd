@@ -139,15 +139,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    const valorTotal = Array.isArray(produtos)
+    const subtotalProdutos = Array.isArray(produtos)
       ? produtos.reduce(
           (acc: number, p: any) =>
             acc +
             (Number(p.valor_total) ||
               (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
           0,
-        ) - (Number(form.desconto) || 0)
+        )
       : 0
+    const descontoProdutos = Number(form.desconto) || 0
+    const valorTotal = subtotalProdutos - descontoProdutos
 
     const pagamentos = (form.pagamentos as any) || {}
     const parcelas = form.parcelas || pagamentos.parcelado || []
@@ -222,6 +224,9 @@ Deno.serve(async (req) => {
       DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
       DATA_VENDA: formatDate(datas.data_venda || new Date().toISOString().split('T')[0]),
       DATA_ENTREGA: formatDate(form.data_prevista_entrega || ''),
+      SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
+      VALOR_DESCONTO: formatCurrency(descontoProdutos),
+      TOTAL_GERAL: formatCurrency(valorTotal),
       VALOR_TOTAL: formatCurrency(valorTotal),
       FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
       CLAUSULA_PAGAMENTO_NARRATIVA: pagamentos.narrativa || form.especificacoes || 'Não informado',
@@ -242,6 +247,8 @@ Deno.serve(async (req) => {
           quantidade: quantidade,
           valor_unitario: formatNumber(valorUnitario),
           valor_total: formatNumber(vTotal),
+          valor_unitario_moeda: formatCurrency(valorUnitario),
+          valor_total_moeda: formatCurrency(vTotal),
           valor: formatCurrency(vTotal),
           qtd: quantidade,
         }

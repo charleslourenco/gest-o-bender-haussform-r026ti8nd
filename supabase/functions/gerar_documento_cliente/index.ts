@@ -194,15 +194,17 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      const valorTotal = Array.isArray(produtos)
+      const subtotalProdutos = Array.isArray(produtos)
         ? produtos.reduce(
             (acc: number, p: any) =>
               acc +
               (Number(p.valor_total) ||
                 (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
             0,
-          ) - (Number(form.desconto) || 0)
+          )
         : 0
+      const descontoProdutos = Number(form.desconto) || 0
+      const valorTotal = subtotalProdutos - descontoProdutos
 
       const pagamentos = (form.pagamentos as any) || {}
       const forma_pagamento = pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado'
@@ -311,8 +313,11 @@ Deno.serve(async (req: Request) => {
         DATA_VENDA: formatDate(data_venda),
         DATA_PREVISTA_ENTREGA: formatDate(data_prevista_entrega),
         DATA_ENTREGA: formatDate(data_prevista_entrega),
+        SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
+        VALOR_DESCONTO: formatCurrency(descontoProdutos),
+        TOTAL_GERAL: formatCurrency(valorTotal),
         VALOR_TOTAL: formatCurrency(valorTotal),
-        DESCONTO: formatCurrency(Number(form.desconto) || 0),
+        DESCONTO: formatCurrency(descontoProdutos),
         FORMA_PAGAMENTO: forma_pagamento,
         CLAUSULA_PAGAMENTO_NARRATIVA: clausula_pagamento,
         METODO_PAGAMENTO: form.metodo_pagamento || 'Não informado',
@@ -333,6 +338,8 @@ Deno.serve(async (req: Request) => {
             quantidade: quantidade,
             valor_unitario: formatNumber(valorUnitario),
             valor_total: formatNumber(vTotal),
+            valor_unitario_moeda: formatCurrency(valorUnitario),
+            valor_total_moeda: formatCurrency(vTotal),
             // Backward compatibility just in case
             valor: formatCurrency(vTotal),
             qtd: quantidade,
