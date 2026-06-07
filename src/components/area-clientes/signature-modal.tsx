@@ -20,14 +20,7 @@ import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Copy, Plus, Trash2, CheckCircle, Clock, Send, Users } from 'lucide-react'
 
-const ROLES = [
-  'Representante da Empresa',
-  'Cliente',
-  'Testemunha',
-  'Analista',
-  'Representante do Cliente',
-  'Consultor(a)',
-]
+const ROLES = ['Cliente', 'Representante da Empresa', 'Testemunha', 'Analista', 'Consultor(a)']
 
 export function SignatureModal({ doc, clienteId, onClose }: any) {
   const [signatures, setSignatures] = useState<any[]>([])

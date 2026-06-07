@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { SignatureModal } from './signature-modal'
-import { RichTextEditor } from '@/components/ui/rich-text-editor'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,9 +25,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [generating, setGenerating] = useState(false)
   const [signatureDoc, setSignatureDoc] = useState<any>(null)
 
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingDoc, setEditingDoc] = useState<any>(null)
-  const [editingContent, setEditingContent] = useState('')
   const [uploadTipo, setUploadTipo] = useState('upload_manual')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -161,23 +157,55 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
   const handleGerarTemplate = async (template: any) => {
     setGenerating(true)
-    toast.info(`Preparando ${template.nome} para revisão...`, { id: 'gerar-doc' })
+    toast.loading(`Gerando ${template.nome}...`, { id: 'gerar-doc' })
     try {
-      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-        body: { action: 'pre_gerar', cliente_id: dossie.cliente_id, template_nome: template.nome },
-      })
+      const { data: newDoc, error: insertError } = await supabase
+        .from('documentos_cliente')
+        .insert({
+          cliente_id: dossie.cliente_id,
+          projeto_id: dossie.formulario_comercial_id,
+          template_id: template.id,
+          tipo: template.tipo,
+          template_nome: template.nome,
+          status: 'processando',
+          conteudo_preenchido: 'Aguardando geração PDFMonkey...',
+        })
+        .select()
+        .single()
+
+      if (insertError) throw insertError
+
+      const body = {
+        action: 'salvar_novo_async',
+        documento_id: newDoc.id,
+        cliente_id: dossie.cliente_id,
+        template_nome: template.nome,
+      }
+
+      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
 
       if (error) throw error
-      if (!data.success) throw new Error(data.error)
+      if (data && !data.success) throw new Error(data.error)
 
-      setEditingDoc({ isNew: true, template_nome: template.nome, template_id: template.id })
-      setEditingContent(data.conteudo_preenchido)
-      setEditModalOpen(true)
-      toast.success('Documento pronto para revisão!')
+      const { data: authData } = await supabase.auth.getUser()
+      const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+      await supabase.from('timeline_eventos').insert({
+        cliente_id: dossie.cliente_id,
+        usuario_nome: userName,
+        acao: `Geração do documento ${template.nome} iniciada`,
+      })
+
+      setLocalStartTimes((prev) => ({ ...prev, [newDoc.id]: Date.now() }))
+
+      toast.success('Documento em processamento. Ele será atualizado na lista em breve.', {
+        id: 'gerar-doc',
+        duration: 8000,
+      })
+      loadDocs()
+      onReload()
     } catch (e: any) {
-      toast.error(`Falha ao preparar ${template.nome}: ${e.message}`)
+      toast.error(`Falha ao gerar ${template.nome}: ${e.message}`, { id: 'gerar-doc' })
     } finally {
-      toast.dismiss('gerar-doc')
       setGenerating(false)
     }
   }
@@ -238,14 +266,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
-  const handleEditClick = (doc: any) => {
-    setEditingDoc(doc)
-    setEditingContent(
-      doc.conteudo_preenchido || 'Não editável (somente documentos gerados via template)',
-    )
-    setEditModalOpen(true)
-  }
-
   const handleRetryProcessing = async (doc: any) => {
     toast.loading('Reiniciando geração do PDF...', { id: 'retry-doc' })
     try {
@@ -272,89 +292,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       loadDocs()
     } catch (e: any) {
       toast.error(`Falha: ${e.message}`, { id: 'retry-doc' })
-    }
-  }
-
-  const handleSaveEdit = async () => {
-    toast.loading(
-      editingDoc.isNew ? 'Preparando dados do documento...' : 'Salvando alterações...',
-      {
-        id: 'save-edit',
-      },
-    )
-    try {
-      let docId = editingDoc.id
-
-      if (editingDoc.isNew) {
-        const { data: newDoc, error: insertError } = await supabase
-          .from('documentos_cliente')
-          .insert({
-            cliente_id: dossie.cliente_id,
-            projeto_id: dossie.formulario_comercial_id,
-            template_id: editingDoc.template_id,
-            tipo: editingDoc.template_nome,
-            template_nome: `${editingDoc.template_nome}.pdf`,
-            status: 'processando',
-            conteudo_preenchido: editingContent,
-          })
-          .select()
-          .single()
-
-        if (insertError) throw insertError
-        docId = newDoc.id
-      } else {
-        const { error: updateError } = await supabase
-          .from('documentos_cliente')
-          .update({
-            conteudo_preenchido: editingContent,
-            status: 'processando',
-          })
-          .eq('id', docId)
-
-        if (updateError) throw updateError
-      }
-
-      toast.loading('Iniciando geração do PDF em segundo plano...', {
-        id: 'save-edit',
-      })
-
-      const action = editingDoc.isNew ? 'salvar_novo_async' : 'atualizar_pdf_async'
-      const body = {
-        action,
-        documento_id: docId,
-        cliente_id: dossie.cliente_id,
-        template_nome: editingDoc.template_nome,
-        conteudo_editado: editingContent,
-      }
-
-      const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', { body })
-
-      console.log(`ERRO DETALHADO (${action}):`, JSON.stringify(data), JSON.stringify(error))
-
-      if (error) throw error
-      if (data && !data.success) throw new Error(data.error)
-
-      if (editingDoc.isNew) {
-        const { data: authData } = await supabase.auth.getUser()
-        const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
-        await supabase.from('timeline_eventos').insert({
-          cliente_id: dossie.cliente_id,
-          usuario_nome: userName,
-          acao: `Geração do documento ${editingDoc.template_nome} iniciada`,
-        })
-      }
-
-      setLocalStartTimes((prev) => ({ ...prev, [docId]: Date.now() }))
-
-      toast.success('Documento em processamento. Ele será atualizado na lista em breve.', {
-        id: 'save-edit',
-        duration: 8000,
-      })
-      setEditModalOpen(false)
-      loadDocs()
-      if (editingDoc.isNew) onReload()
-    } catch (e: any) {
-      toast.error(`Falha ao salvar: ${e.message}`, { id: 'save-edit' })
     }
   }
 
@@ -538,19 +475,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    {doc.conteudo_preenchido &&
-                      doc.conteudo_preenchido !== 'PDF Gerado via PDFMonkey' &&
-                      doc.status !== 'processando' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditClick(doc)}
-                          className="hover:bg-slate-100"
-                        >
-                          <Eye className="w-4 h-4 mr-1" /> Visualizar / Editar
-                        </Button>
-                      )}
-
                     {doc.status !== 'processando' && doc.arquivo_url && !allAssinados && (
                       <Button
                         variant="outline"
@@ -610,34 +534,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           </div>
         )}
       </div>
-
-      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-[95vw] h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              {editingDoc?.isNew ? 'Revisar e Gerar Documento' : 'Editar Documento'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 py-2 flex flex-col">
-            <RichTextEditor
-              value={editingContent}
-              onChange={setEditingContent}
-              className="flex-1 h-full min-h-[300px]"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              className="bg-dark-denim text-white hover:bg-dark-denim/90"
-            >
-              {editingDoc?.isNew ? 'Aprovar e Gerar PDF' : 'Salvar e Atualizar PDF'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {signatureDoc && (
         <SignatureModal

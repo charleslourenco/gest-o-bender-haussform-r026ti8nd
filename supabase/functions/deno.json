@@ -1,14 +1,14 @@
 {
   "_versions": {
-    "check-permission": 5,
-    "admin-users": 8,
-    "gerar-dossie": 25,
-    "gerar_documento_cliente": 63,
-    "send-signature-email": 6,
-    "finalize-signature-document": 15,
-    "whatsapp-webhook": 29,
-    "assistant-intelligence": 11,
-    "financeiro-ai": 10,
-    "material-normalization": 2
+    "check-permission": 6,
+    "admin-users": 9,
+    "gerar-dossie": 26,
+    "gerar_documento_cliente": 64,
+    "send-signature-email": 7,
+    "finalize-signature-document": 16,
+    "whatsapp-webhook": 30,
+    "assistant-intelligence": 12,
+    "financeiro-ai": 11,
+    "material-normalization": 3
   }
 }

@@ -3391,12 +3391,21 @@ export const Constants = {
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
 //     WITH CHECK: true
 // Table: templates
+//   Policy "templates_delete_all" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "templates_delete_own" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
+//   Policy "templates_insert_all" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
 //   Policy "templates_insert_own" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: (auth.uid() = user_id)
+//   Policy "templates_select_all" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "templates_select_own" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
+//   Policy "templates_update_all" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "templates_update_own" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)

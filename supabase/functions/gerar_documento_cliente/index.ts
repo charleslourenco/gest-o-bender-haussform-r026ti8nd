@@ -60,34 +60,34 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      const clienteNome = form.nome_cliente || form.cliente?.nome || ''
-      const cpf = form.cpf || form.cliente?.cpf || ''
-      const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || ''
-      const email = form.cliente?.email || ''
-      const telefone = form.cliente?.telefone || ''
-      const profissao = form.profissao || ''
-      const estado_civil = form.estado_civil || ''
-      const end_cep = form.cep || form.cliente?.cep || ''
-      const end_rua = form.rua || form.cliente?.endereco_obra || ''
-      const end_numero = form.numero || form.cliente?.numero || ''
-      const end_bairro = form.bairro || form.cliente?.bairro || ''
-      const end_complemento = form.complemento || form.cliente?.complemento || ''
-      const end_cidade = form.municipio || form.cliente?.cidade || ''
-      const end_estado = form.estado || form.cliente?.estado || ''
+      const clienteNome = form.nome_cliente || form.cliente?.nome || '-'
+      const cpf = form.cpf || form.cliente?.cpf || '-'
+      const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || null
+      const email = form.cliente?.email || '-'
+      const telefone = form.cliente?.telefone || '-'
+      const profissao = form.profissao || '-'
+      const estado_civil = form.estado_civil || '-'
+      const end_cep = form.cep || form.cliente?.cep || '-'
+      const end_rua = form.rua || form.cliente?.endereco_obra || '-'
+      const end_numero = form.numero || form.cliente?.numero || '-'
+      const end_bairro = form.bairro || form.cliente?.bairro || '-'
+      const end_complemento = form.complemento || form.cliente?.complemento || '-'
+      const end_cidade = form.municipio || form.cliente?.cidade || '-'
+      const end_estado = form.estado || form.cliente?.estado || '-'
 
-      const obra_cep = form.obra_cep || ''
-      const obra_rua = form.obra_rua || ''
-      const obra_numero = form.obra_numero || ''
-      const obra_bairro = form.obra_bairro || ''
-      const obra_complemento = form.obra_complemento || ''
-      const obra_cidade = form.obra_municipio || ''
-      const obra_estado = form.obra_estado || ''
+      const obra_cep = form.obra_cep || '-'
+      const obra_rua = form.obra_rua || '-'
+      const obra_numero = form.obra_numero || '-'
+      const obra_bairro = form.obra_bairro || '-'
+      const obra_complemento = form.obra_complemento || '-'
+      const obra_cidade = form.obra_municipio || '-'
+      const obra_estado = form.obra_estado || '-'
 
       const datas = (form.datas as any) || {}
-      const data_acesso_movel = datas.medida || ''
+      const data_acesso_movel = datas.medida || null
       const data_assinatura_contrato = new Date().toISOString().split('T')[0]
       const data_venda = datas.data_venda || data_assinatura_contrato
-      const data_prevista_entrega = form.data_prevista_entrega || ''
+      const data_prevista_entrega = form.data_prevista_entrega || null
 
       const produtos = (form.produtos_servicos as any[]) || []
       const valorTotal = Array.isArray(produtos)
@@ -101,23 +101,25 @@ Deno.serve(async (req: Request) => {
       const forma_pagamento = pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado'
       const parcelas = pagamentos.parcelado || []
 
-      const formatCurrency = (val: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-      const formatDate = (dateStr: string) => {
-        if (!dateStr) return ''
+      const formatCurrency = (val: number) => {
+        if (!val && val !== 0) return '-'
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+      }
+      const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '-'
         const parts = dateStr.split('T')[0].split('-')
         if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
         return dateStr
       }
 
-      let vendedorNome = ''
+      let vendedorNome = '-'
       if (form.user_id) {
         const { data: user } = await supabaseClient
           .from('users')
           .select('nome')
           .eq('id', form.user_id)
           .single()
-        if (user) vendedorNome = user.nome
+        if (user && user.nome) vendedorNome = user.nome
       }
 
       const placeholders: any = {
@@ -149,7 +151,7 @@ Deno.serve(async (req: Request) => {
         VALOR_TOTAL: formatCurrency(valorTotal),
         DESCONTO: formatCurrency(Number(form.desconto) || 0),
         FORMA_PAGAMENTO: forma_pagamento,
-        METODO_PAGAMENTO: form.metodo_pagamento || '',
+        METODO_PAGAMENTO: form.metodo_pagamento || '-',
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
         EMPRESA_NOME: 'Bender Haussform',
@@ -158,8 +160,8 @@ Deno.serve(async (req: Request) => {
         EMPRESA_TELEFONE: '(00) 0000-0000',
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
         produtos: produtos.map((p: any) => ({
-          nome: p.nome || p.nome_produto,
-          descricao: p.descricao || '',
+          nome: p.nome || p.nome_produto || '-',
+          descricao: p.descricao || '-',
           valor: formatCurrency(p.valor_unitario || 0),
           qtd: p.qtd || p.quantidade || 1,
         })),
@@ -167,7 +169,7 @@ Deno.serve(async (req: Request) => {
           numero: i + 1,
           data: formatDate(p.data),
           valor: formatCurrency(p.valor),
-          meio: p.meio,
+          meio: p.meio || '-',
         })),
         pagamentos: pagamentos,
         is_assinado: false,
