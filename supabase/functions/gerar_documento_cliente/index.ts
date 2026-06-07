@@ -183,10 +183,23 @@ Deno.serve(async (req: Request) => {
       const data_venda = datas.data_venda || data_assinatura_contrato
       const data_prevista_entrega = form.data_prevista_entrega || null
 
-      const produtos = (form.produtos_servicos as any[]) || []
+      let produtos = (form.produtos_servicos as any[]) || []
+      if (formulario_comercial_id) {
+        const { data: dbProdutos } = await supabaseClient
+          .from('produtos_servicos_projeto')
+          .select('*')
+          .eq('formulario_comercial_id', formulario_comercial_id)
+        if (dbProdutos && dbProdutos.length > 0) {
+          produtos = dbProdutos
+        }
+      }
+
       const valorTotal = Array.isArray(produtos)
         ? produtos.reduce(
-            (acc: number, p: any) => acc + (Number(p.valor_unitario) || 0) * (Number(p.qtd) || 1),
+            (acc: number, p: any) =>
+              acc +
+              (Number(p.valor_total) ||
+                (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
             0,
           ) - (Number(form.desconto) || 0)
         : 0
@@ -199,6 +212,13 @@ Deno.serve(async (req: Request) => {
       const formatCurrency = (val: number) => {
         if (!val && val !== 0) return 'R$ 0,00'
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+      }
+      const formatNumber = (val: number) => {
+        if (!val && val !== 0) return '0,00'
+        return new Intl.NumberFormat('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(val)
       }
       const formatDate = (dateStr: string | null) => {
         if (!dateStr) return 'Não informado'
@@ -240,6 +260,7 @@ Deno.serve(async (req: Request) => {
       const placeholders: any = {
         CLIENTE_NOME: clienteNome,
         CLIENTE_CPF_CNPJ: cpf,
+        CPF_CLIENTE: cpf,
         CLIENTE_DATA_NASCIMENTO: formatDate(data_nascimento),
         CLIENTE_PROFISSAO: profissao,
         CLIENTE_ESTADO_CIVIL: estado_civil,
@@ -289,6 +310,7 @@ Deno.serve(async (req: Request) => {
         DATA_ASSINATURA_CONTRATO: formatDate(data_assinatura_contrato),
         DATA_VENDA: formatDate(data_venda),
         DATA_PREVISTA_ENTREGA: formatDate(data_prevista_entrega),
+        DATA_ENTREGA: formatDate(data_prevista_entrega),
         VALOR_TOTAL: formatCurrency(valorTotal),
         DESCONTO: formatCurrency(Number(form.desconto) || 0),
         FORMA_PAGAMENTO: forma_pagamento,
@@ -301,13 +323,21 @@ Deno.serve(async (req: Request) => {
         EMPRESA_ENDERECO: 'Balneário Piçarras - SC',
         EMPRESA_TELEFONE: '(00) 0000-0000',
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
-        produtos: produtos.map((p: any) => ({
-          descricao: p.nome || p.nome_produto || p.descricao || 'Produto sem descrição',
-          valor: formatCurrency(
-            p.valor_total || p.valor_unitario * (p.qtd || p.quantidade || 1) || 0,
-          ),
-          qtd: p.qtd || p.quantidade || 1,
-        })),
+        produtos: produtos.map((p: any) => {
+          const quantidade = p.qtd || p.quantidade || 1
+          const valorUnitario = Number(p.valor_unitario) || 0
+          const vTotal = Number(p.valor_total) || valorUnitario * quantidade
+          return {
+            ambiente: p.ambiente || p.nome_produto || p.nome || 'Geral',
+            descricao: p.descricao || p.nome_produto || p.nome || 'Produto sem descrição',
+            quantidade: quantidade,
+            valor_unitario: formatNumber(valorUnitario),
+            valor_total: formatNumber(vTotal),
+            // Backward compatibility just in case
+            valor: formatCurrency(vTotal),
+            qtd: quantidade,
+          }
+        }),
         parcelas: parcelas.map((p: any, i: number) => ({
           numero: i + 1,
           data: formatDate(p.data),

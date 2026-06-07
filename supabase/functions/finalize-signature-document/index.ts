@@ -126,17 +126,32 @@ Deno.serve(async (req: Request) => {
         if (form) {
           const formatCurrency = (val: number) =>
             new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+          const formatNumber = (val: number) =>
+            new Intl.NumberFormat('pt-BR', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(val)
           const formatDate = (dateStr: string) => {
             if (!dateStr) return ''
             const [y, m, d] = dateStr.split('-')
             return `${d}/${m}/${y}`
           }
 
-          const produtos = (form.produtos_servicos as any[]) || []
+          let produtos = (form.produtos_servicos as any[]) || []
+          const { data: dbProdutos } = await supabase
+            .from('produtos_servicos_projeto')
+            .select('*')
+            .eq('formulario_comercial_id', docCliente.projeto_id)
+          if (dbProdutos && dbProdutos.length > 0) {
+            produtos = dbProdutos
+          }
+
           const subtotalProdutos = Array.isArray(produtos)
             ? produtos.reduce(
                 (acc: number, p: any) =>
-                  acc + (Number(p.valor_unitario) || 0) * (Number(p.qtd) || 1),
+                  acc +
+                  (Number(p.valor_total) ||
+                    (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
                 0,
               )
             : 0
@@ -173,6 +188,7 @@ Deno.serve(async (req: Request) => {
           const placeholders: any = {
             CLIENTE_NOME: form.cliente?.nome || '',
             CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
+            CPF_CLIENTE: form.cliente?.cpf || form.cpf || '',
             CLI_NOME: form.cliente?.nome || '',
             CLI_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
             CLI_NOME_COMPLETO: form.cliente?.nome || '',
@@ -219,6 +235,7 @@ Deno.serve(async (req: Request) => {
             CLAUSULA_PAGAMENTO_NARRATIVA:
               pagamentos.narrativa || form.especificacoes || 'Não informado',
             DATA_PREVISTA_ENTREGA_IMOVEL: formatDate(form.data_prevista_entrega || ''),
+            DATA_ENTREGA: formatDate(form.data_prevista_entrega || ''),
             DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
             DATA_ACESSO_MOVEL: formatDate((form.datas as any)?.medida || ''),
             DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
@@ -226,13 +243,20 @@ Deno.serve(async (req: Request) => {
               (form.datas as any)?.data_venda || new Date().toISOString().split('T')[0],
             ),
             NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
-            produtos: produtos.map((p: any) => ({
-              descricao: p.nome || p.nome_produto || p.descricao || 'Produto sem descrição',
-              valor: formatCurrency(
-                p.valor_total || p.valor_unitario * (p.qtd || p.quantidade || 1) || 0,
-              ),
-              qtd: p.qtd || p.quantidade || 1,
-            })),
+            produtos: produtos.map((p: any) => {
+              const quantidade = p.qtd || p.quantidade || 1
+              const valorUnitario = Number(p.valor_unitario) || 0
+              const vTotal = Number(p.valor_total) || valorUnitario * quantidade
+              return {
+                ambiente: p.ambiente || p.nome_produto || p.nome || 'Geral',
+                descricao: p.descricao || p.nome_produto || p.nome || 'Produto sem descrição',
+                quantidade: quantidade,
+                valor_unitario: formatNumber(valorUnitario),
+                valor_total: formatNumber(vTotal),
+                valor: formatCurrency(vTotal),
+                qtd: quantidade,
+              }
+            }),
             parcelas: parcelas.map((p: any, i: number) => ({
               numero: i + 1,
               data: formatDate(p.data),
