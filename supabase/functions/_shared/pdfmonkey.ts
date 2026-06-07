@@ -1,57 +1,60 @@
-export async function generatePdfMonkeyDocument(templateId: string, payload: any, apiKey: string) {
-  const reqBody = {
-    document: {
-      document_template_id: templateId,
-      payload: payload,
-      status: 'pending',
-    },
-  }
-
-  const res = await fetch('https://api.pdfmonkey.io/api/v1/documents', {
+export const generatePdfMonkeyDocument = async (
+  templateId: string,
+  payload: any,
+  apiKey: string,
+): Promise<ArrayBuffer> => {
+  const response = await fetch('https://api.pdfmonkey.io/api/v1/documents', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(reqBody),
+    body: JSON.stringify({
+      document: {
+        document_template_id: templateId,
+        payload: payload,
+        status: 'pending',
+      },
+    }),
   })
 
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(
-      `Falha ao conectar com PDFMonkey (${res.status}): Verifique o template ID. ${errorText}`,
-    )
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`PDFMonkey error: ${response.status} - ${errorText}`)
   }
 
-  const data = await res.json()
-  const docId = data.document.id
+  const data = await response.json()
+  const documentId = data.document.id
 
   let downloadUrl = null
+  // Poll until the document generation is success or failure
   for (let i = 0; i < 15; i++) {
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    const checkRes = await fetch(`https://api.pdfmonkey.io/api/v1/documents/${docId}`, {
+    const checkResponse = await fetch(`https://api.pdfmonkey.io/api/v1/documents/${documentId}`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
     })
-    if (!checkRes.ok) continue
-    const checkData = await checkRes.json()
+
+    if (!checkResponse.ok) continue
+
+    const checkData = await checkResponse.json()
     if (checkData.document.status === 'success') {
       downloadUrl = checkData.document.download_url
       break
     } else if (checkData.document.status === 'failure') {
-      throw new Error(`PDFMonkey generation failed for document ${docId}`)
+      throw new Error(`PDFMonkey document generation failed.`)
     }
   }
 
   if (!downloadUrl) {
-    throw new Error('Timeout waiting for PDFMonkey document generation')
+    throw new Error(`PDFMonkey document generation timed out.`)
   }
 
-  const pdfRes = await fetch(downloadUrl)
-  if (!pdfRes.ok) {
-    throw new Error('Failed to download generated PDF from PDFMonkey')
+  const pdfResponse = await fetch(downloadUrl)
+  if (!pdfResponse.ok) {
+    throw new Error(`Failed to download PDF from PDFMonkey.`)
   }
 
-  return await pdfRes.arrayBuffer()
+  return await pdfResponse.arrayBuffer()
 }
