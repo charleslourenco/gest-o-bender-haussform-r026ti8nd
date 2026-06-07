@@ -1,44 +1,52 @@
-export async function generatePdfMonkeyDocument(templateId: string, payload: any, apiKey: string) {
-  const reqBody = {
-    document: {
-      document_template_id: templateId,
-      payload: payload,
-      status: 'pending',
-    },
-  }
-
-  const res = await fetch('https://api.pdfmonkey.io/api/v1/documents', {
+export async function generatePdfMonkeyDocument(
+  templateId: string,
+  payload: any,
+  apiKey: string,
+): Promise<ArrayBuffer> {
+  const response = await fetch('https://api.pdfmonkey.io/api/v1/document_cards', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(reqBody),
+    body: JSON.stringify({
+      document_card: {
+        document_template_id: templateId,
+        payload: payload,
+      },
+    }),
   })
 
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`PDFMonkey API error: ${res.status} - ${errorText}`)
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`PDFMonkey generation failed: ${response.status} ${errorText}`)
   }
 
-  const data = await res.json()
-  const docId = data.document.id
+  const data = await response.json()
+  const documentCard = data.document_card
 
-  let downloadUrl = null
-  for (let i = 0; i < 15; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const checkRes = await fetch(`https://api.pdfmonkey.io/api/v1/documents/${docId}`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    })
-    if (!checkRes.ok) continue
-    const checkData = await checkRes.json()
-    if (checkData.document.status === 'success') {
-      downloadUrl = checkData.document.download_url
-      break
-    } else if (checkData.document.status === 'failure') {
-      throw new Error(`PDFMonkey generation failed for document ${docId}`)
+  let downloadUrl = documentCard.download_url
+
+  if (!downloadUrl) {
+    for (let i = 0; i < 15; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const statusRes = await fetch(
+        `https://api.pdfmonkey.io/api/v1/document_cards/${documentCard.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      )
+      if (statusRes.ok) {
+        const statusData = await statusRes.json()
+        if (statusData.document_card.download_url) {
+          downloadUrl = statusData.document_card.download_url
+          break
+        } else if (statusData.document_card.status === 'failure') {
+          throw new Error('PDFMonkey document generation failed (status: failure)')
+        }
+      }
     }
   }
 
