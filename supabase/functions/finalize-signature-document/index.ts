@@ -1,13 +1,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts'
+import { generatePdfMonkeyDocument } from '../_shared/pdfmonkey.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -49,117 +43,144 @@ Deno.serve(async (req: Request) => {
       .eq('arquivo_url', documento_id)
       .single()
 
-    const mergedPdf = await PDFDocument.create()
-    const filePath = documento_id
-
-    const bucket =
-      filePath.includes('/') && !filePath.startsWith('contratos/')
-        ? 'documentos_equipe'
-        : 'bender_clientes'
-
-    const { data: fileData, error: fileError } = await supabase.storage
-      .from(bucket)
-      .download(filePath)
-
-    if (fileError || !fileData) {
-      throw new Error(`Erro ao baixar documento original: ${fileError?.message}`)
-    }
-
-    const originalPdfBytes = await fileData.arrayBuffer()
-    const originalPdf = await PDFDocument.load(originalPdfBytes)
-    const copiedPages = await mergedPdf.copyPages(originalPdf, originalPdf.getPageIndices())
-    copiedPages.forEach((page) => mergedPdf.addPage(page))
-
-    let certPage = mergedPdf.addPage([595.28, 841.89])
-    const font = await mergedPdf.embedFont(StandardFonts.Helvetica)
-    const boldFont = await mergedPdf.embedFont(StandardFonts.HelveticaBold)
-
-    certPage.drawText('MANIFESTO DE ASSINATURA ELETRÔNICA', {
-      x: 85,
-      y: 760,
-      size: 15,
-      font: boldFont,
-    })
-    certPage.drawText(`Data de Conclusão: ${new Date().toLocaleString('pt-BR')}`, {
-      x: 85,
-      y: 740,
-      size: 10,
-      font,
-    })
-
-    const sanitizeText = (text: string) => {
-      if (!text) return 'N/A'
-      return text.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, '')
-    }
-
-    let y = 700
-    for (const sig of assinaturas || []) {
-      if (y < 250) {
-        certPage = mergedPdf.addPage([595.28, 841.89])
-        y = 760
-      }
-
-      certPage.drawText(
-        sanitizeText(`Signatário: ${sig.signatario_nome} (${sig.signatario_tipo})`),
-        { x: 85, y, size: 10, font: boldFont },
-      )
-      y -= 15
-      certPage.drawText(
-        sanitizeText(
-          `CPF/CNPJ: ${sig.signatario_cpf || 'N/A'} | E-mail: ${sig.signatario_email || 'N/A'}`,
-        ),
-        { x: 85, y, size: 10, font },
-      )
-      y -= 15
-      certPage.drawText(
-        sanitizeText(
-          `Data da Assinatura: ${sig.data_assinatura ? new Date(sig.data_assinatura).toLocaleString('pt-BR') : 'N/A'}`,
-        ),
-        { x: 85, y, size: 10, font },
-      )
-      y -= 15
-      certPage.drawText(
-        sanitizeText(
-          `IP: ${sig.ip_assinatura || 'N/A'} | Código de Confirmação: ${sig.codigo_confirmacao}`,
-        ),
-        { x: 85, y, size: 10, font },
-      )
-
-      if (sig.assinatura_imagem && sig.assinatura_imagem.startsWith('data:image/png;base64,')) {
-        try {
-          const base64Data = sig.assinatura_imagem.split(',')[1]
-          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
-          const image = await mergedPdf.embedPng(imageBytes)
-          certPage.drawImage(image, { x: 350, y: y - 10, width: 120, height: 60 })
-        } catch (e) {
-          console.error('Falha ao embutir imagem da assinatura', e)
-        }
-      }
-
-      y -= 25
-
-      certPage.drawLine({
-        start: { x: 85, y: y + 10 },
-        end: { x: 510, y: y + 10 },
-        thickness: 0.5,
-        color: rgb(0.5, 0.5, 0.5),
-      })
-      y -= 15
-    }
-
-    const pdfBytes = await mergedPdf.save()
+    let finalFilePath = documento_id
+    let uploadBucket = 'bender_clientes'
 
     let nomeCliente = 'Cliente'
     let cltOrPjId = null
     let cltOrPjType = ''
 
-    if (cliente_id) {
-      const { data: clienteData } = await supabase
-        .from('clientes')
-        .select('nome')
-        .eq('id', cliente_id)
+    if (docCliente && docCliente.template_id) {
+      const { data: template } = await supabase
+        .from('templates')
+        .select('*')
+        .eq('id', docCliente.template_id)
         .single()
-      if (clienteData?.nome) nomeCliente = clienteData.nome
+
+      if (template?.external_template_id) {
+        const { data: form } = await supabase
+          .from('formulario_comercial')
+          .select('*, cliente:clientes(*)')
+          .eq('id', docCliente.projeto_id)
+          .single()
+
+        if (form) {
+          const formatCurrency = (val: number) =>
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+          const formatDate = (dateStr: string) => {
+            if (!dateStr) return ''
+            const [y, m, d] = dateStr.split('-')
+            return `${d}/${m}/${y}`
+          }
+
+          const produtos = (form.produtos_servicos as any[]) || []
+          const valorTotal = Array.isArray(produtos)
+            ? produtos.reduce(
+                (acc: number, p: any) =>
+                  acc + (Number(p.valor_unitario) || 0) * (Number(p.qtd) || 1),
+                0,
+              ) - (Number(form.desconto) || 0)
+            : 0
+          const pagamentos = (form.pagamentos as any) || {}
+          const parcelas = pagamentos.parcelado || []
+
+          const placeholders: any = {
+            CLIENTE_NOME: form.cliente?.nome || '',
+            CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
+            CLIENTE_PROFISSAO: form.profissao || '',
+            CLIENTE_ESTADO_CIVIL: form.estado_civil || '',
+            CLIENTE_TELEFONE: form.cliente?.telefone || '',
+            CLIENTE_EMAIL: form.cliente?.email || '',
+            CLIENTE_CEP: form.cep || form.cliente?.cep || '',
+            CLIENTE_RUA: form.rua || form.cliente?.endereco_obra || '',
+            CLIENTE_NUMERO: form.numero || form.cliente?.numero || '',
+            CLIENTE_COMPLEMENTO: form.complemento || form.cliente?.complemento || '',
+            CLIENTE_CIDADE: form.municipio || form.cliente?.cidade || '',
+            CLIENTE_ESTADO: form.estado || form.cliente?.estado || '',
+            OBRA_CEP: form.obra_cep || '',
+            OBRA_RUA: form.obra_rua || '',
+            OBRA_NUMERO: form.obra_numero || '',
+            OBRA_COMPLEMENTO: form.obra_complemento || '',
+            OBRA_CIDADE: form.obra_municipio || '',
+            OBRA_ESTADO: form.obra_estado || '',
+            DATA_ACESSO_MOVEL: formatDate((form.datas as any)?.medida || ''),
+            DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
+            DATA_VENDA: formatDate(
+              (form.datas as any)?.data_venda || new Date().toISOString().split('T')[0],
+            ),
+            VALOR_TOTAL: formatCurrency(valorTotal),
+            FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+            NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
+            produtos: produtos.map((p: any) => ({
+              nome: p.nome || p.nome_produto,
+              descricao: p.descricao || '',
+              valor: formatCurrency(p.valor_unitario || 0),
+              qtd: p.qtd || p.quantidade || 1,
+            })),
+            parcelas: parcelas.map((p: any, i: number) => ({
+              numero: i + 1,
+              data: formatDate(p.data),
+              valor: formatCurrency(p.valor),
+              meio: p.meio,
+            })),
+            is_assinado: true,
+            assinaturas: assinaturas.map((sig) => ({
+              nome: sig.signatario_nome,
+              tipo: sig.signatario_tipo,
+              cpf: sig.signatario_cpf || 'N/A',
+              email: sig.signatario_email || 'N/A',
+              data: sig.data_assinatura
+                ? new Date(sig.data_assinatura).toLocaleString('pt-BR')
+                : 'N/A',
+              ip: sig.ip_assinatura || 'N/A',
+              codigo: sig.codigo_confirmacao,
+              assinatura_imagem: sig.assinatura_imagem,
+            })),
+          }
+
+          const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
+          if (!pdfMonkeyApiKey) throw new Error('PDFMONKEY_API_KEY secret is missing')
+
+          try {
+            const pdfBytes = await generatePdfMonkeyDocument(
+              template.external_template_id,
+              placeholders,
+              pdfMonkeyApiKey,
+            )
+
+            nomeCliente = form.cliente?.nome || 'Cliente'
+            const safeNome = nomeCliente
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-zA-Z0-9]/g, '_')
+            const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
+
+            finalFilePath = `contratos/${cliente_id}/${fileName}`
+
+            const { error: uploadError } = await supabase.storage
+              .from(uploadBucket)
+              .upload(finalFilePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
+
+            if (uploadError) throw uploadError
+
+            await supabase
+              .from('documentos_cliente')
+              .update({
+                arquivo_assinado_url: finalFilePath,
+                status: 'Assinado',
+              })
+              .eq('id', docCliente.id)
+          } catch (e: any) {
+            await supabase
+              .from('logs_ia')
+              .insert({
+                acao: 'finalize_signature_pdfmonkey_error',
+                detalhes: { error: e.message },
+              })
+            throw e
+          }
+        }
+      }
     } else {
       const firstSig = assinaturas?.[0]
       if (firstSig?.clt_id) {
@@ -171,43 +192,9 @@ Deno.serve(async (req: Request) => {
         cltOrPjType = 'pj'
         nomeCliente = 'Parceiro'
       }
-    }
-
-    const safeNome = nomeCliente
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]/g, '_')
-    const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
-
-    let finalFilePath = `contratos/${cliente_id}/${fileName}`
-    let uploadBucket = 'bender_clientes'
-
-    if (cltOrPjId) {
-      finalFilePath = `${cltOrPjId}/${fileName}`
-      uploadBucket = 'documentos_equipe'
-    }
-
-    const { error: uploadError } = await supabase.storage
-      .from(uploadBucket)
-      .upload(finalFilePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
-
-    if (uploadError) throw uploadError
-
-    if (docCliente) {
-      await supabase
-        .from('documentos_cliente')
-        .update({
-          arquivo_assinado_url: finalFilePath,
-          status: 'Assinado',
-        })
-        .eq('id', docCliente.id)
-    } else if (cltOrPjId) {
-      await supabase.from('documentos_equipe').insert({
-        [cltOrPjType === 'clt' ? 'clt_id' : 'pj_id']: cltOrPjId,
-        nome: `[ASSINADO] ${assinaturas?.[0]?.documento_nome || 'Documento'}.pdf`,
-        arquivo_url: finalFilePath,
-        tipo: 'application/pdf',
-      })
+      throw new Error(
+        'Apenas documentos gerados via PDFMonkey suportam esse fluxo final no momento.',
+      )
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')

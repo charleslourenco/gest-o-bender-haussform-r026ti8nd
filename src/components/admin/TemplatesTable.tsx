@@ -24,7 +24,11 @@ export function TemplatesTable({ templates, onEdit, onRefresh }: TemplatesTableP
   const handleDelete = async (tpl: any) => {
     if (!window.confirm('Tem certeza que deseja deletar este template?')) return
     try {
-      if (tpl.arquivo_url && !tpl.arquivo_url.startsWith('http')) {
+      if (
+        tpl.arquivo_url &&
+        !tpl.arquivo_url.startsWith('http') &&
+        tpl.arquivo_url !== 'pdfmonkey'
+      ) {
         await supabase.storage.from('bender_templates').remove([tpl.arquivo_url])
       }
       const { error } = await supabase.from('templates').delete().eq('id', tpl.id)

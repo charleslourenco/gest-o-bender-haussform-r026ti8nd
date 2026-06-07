@@ -1,174 +1,175 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { generatePdfMonkeyDocument } from '../_shared/pdfmonkey.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  )
 
-    const payload = await req.json()
-    const { action, cliente_id, template_nome, documento_id, conteudo_editado } = payload
+  try {
+    const payloadReq = await req.json()
+    const { action, cliente_id, template_nome, documento_id } = payloadReq
 
     if (action === 'pre_gerar') {
-      const { data: template, error: tmplError } = await supabaseClient
+      return new Response(
+        JSON.stringify({
+          success: true,
+          conteudo_preenchido:
+            '<p>Este documento será gerado via PDFMonkey no momento de salvar.</p>',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
+      const { data: docInfo } = await supabaseClient
+        .from('documentos_cliente')
+        .select('projeto_id')
+        .eq('id', documento_id)
+        .single()
+      const formulario_comercial_id = docInfo?.projeto_id
+
+      if (!formulario_comercial_id || !cliente_id) {
+        throw new Error('Faltam referências de projeto ou cliente no documento.')
+      }
+
+      const { data: form } = await supabaseClient
+        .from('formulario_comercial')
+        .select('*, cliente:clientes(*)')
+        .eq('id', formulario_comercial_id)
+        .single()
+
+      if (!form) throw new Error('Formulário não encontrado')
+
+      const { data: template } = await supabaseClient
         .from('templates')
         .select('*')
         .eq('nome', template_nome)
         .single()
 
-      if (tmplError) throw tmplError
-
-      let html = ''
-      if (template.arquivo_url) {
-        const { data: fileData, error: fileError } = await supabaseClient.storage
-          .from('bender_templates')
-          .download(template.arquivo_url)
-
-        if (!fileError && fileData) {
-          html = await fileData.text()
-        }
+      if (!template?.external_template_id) {
+        throw new Error(
+          `Template ${template_nome} não possui um PDFMonkey Template ID configurado.`,
+        )
       }
 
-      if (!html) {
-        html = `<p>Documento gerado a partir do template: ${template_nome}</p><br/>______CELL_____`
+      const clienteNome = form.cliente?.nome || ''
+      const cpf = form.cliente?.cpf || form.cpf || ''
+      const email = form.cliente?.email || ''
+      const telefone = form.cliente?.telefone || ''
+      const profissao = form.profissao || ''
+      const estado_civil = form.estado_civil || ''
+      const end_cep = form.cep || form.cliente?.cep || ''
+      const end_rua = form.rua || form.cliente?.endereco_obra || ''
+      const end_numero = form.numero || form.cliente?.numero || ''
+      const end_complemento = form.complemento || form.cliente?.complemento || ''
+      const end_cidade = form.municipio || form.cliente?.cidade || ''
+      const end_estado = form.estado || form.cliente?.estado || ''
+
+      const obra_cep = form.obra_cep || ''
+      const obra_rua = form.obra_rua || ''
+      const obra_numero = form.obra_numero || ''
+      const obra_complemento = form.obra_complemento || ''
+      const obra_cidade = form.obra_municipio || ''
+      const obra_estado = form.obra_estado || ''
+
+      const datas = (form.datas as any) || {}
+      const data_acesso_movel = datas.medida || ''
+      const data_assinatura_contrato = new Date().toISOString().split('T')[0]
+      const data_venda = datas.data_venda || data_assinatura_contrato
+
+      const produtos = (form.produtos_servicos as any[]) || []
+      const valorTotal = Array.isArray(produtos)
+        ? produtos.reduce(
+            (acc: number, p: any) => acc + (Number(p.valor_unitario) || 0) * (Number(p.qtd) || 1),
+            0,
+          ) - (Number(form.desconto) || 0)
+        : 0
+
+      const pagamentos = (form.pagamentos as any) || {}
+      const forma_pagamento = pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado'
+      const parcelas = pagamentos.parcelado || []
+
+      const formatCurrency = (val: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return ''
+        const [y, m, d] = dateStr.split('-')
+        return `${d}/${m}/${y}`
       }
 
-      // Sanitization Layer: Artifact Removal
-      html = html.replace(/<p><br><\/p>/gi, '').trim()
-      html = html.replace(/_{2,}CELL_{2,}/gi, '')
-      html = html.replace(/______CELL_____/gi, '')
-      html = html.replace(/__CELL__/gi, '')
+      let vendedorNome = ''
+      if (form.user_id) {
+        const { data: user } = await supabaseClient
+          .from('users')
+          .select('nome')
+          .eq('id', form.user_id)
+          .single()
+        if (user) vendedorNome = user.nome
+      }
 
-      return new Response(JSON.stringify({ success: true, conteudo_preenchido: html }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json; charset=utf-8',
-        },
-      })
-    }
+      const placeholders: any = {
+        CLIENTE_NOME: clienteNome,
+        CLIENTE_CPF_CNPJ: cpf,
+        CLIENTE_PROFISSAO: profissao,
+        CLIENTE_ESTADO_CIVIL: estado_civil,
+        CLIENTE_TELEFONE: telefone,
+        CLIENTE_EMAIL: email,
+        CLIENTE_CEP: end_cep,
+        CLIENTE_RUA: end_rua,
+        CLIENTE_NUMERO: end_numero,
+        CLIENTE_COMPLEMENTO: end_complemento,
+        CLIENTE_CIDADE: end_cidade,
+        CLIENTE_ESTADO: end_estado,
+        OBRA_CEP: obra_cep,
+        OBRA_RUA: obra_rua,
+        OBRA_NUMERO: obra_numero,
+        OBRA_COMPLEMENTO: obra_complemento,
+        OBRA_CIDADE: obra_cidade,
+        OBRA_ESTADO: obra_estado,
+        DATA_ACESSO_MOVEL: formatDate(data_acesso_movel),
+        DATA_ASSINATURA_CONTRATO: formatDate(data_assinatura_contrato),
+        DATA_VENDA: formatDate(data_venda),
+        VALOR_TOTAL: formatCurrency(valorTotal),
+        FORMA_PAGAMENTO: forma_pagamento,
+        VENDEDOR_NOME: vendedorNome,
+        NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
+        EMPRESA_NOME: 'Bender Haussform',
+        EMPRESA_CNPJ: '00.000.000/0001-00',
+        EMPRESA_ENDERECO: 'Balneário Piçarras - SC',
+        EMPRESA_TELEFONE: '(00) 0000-0000',
+        EMPRESA_EMAIL: 'projetos@benderhaussform.com',
+        produtos: produtos.map((p: any) => ({
+          nome: p.nome || p.nome_produto,
+          descricao: p.descricao || '',
+          valor: formatCurrency(p.valor_unitario || 0),
+          qtd: p.qtd || p.quantidade || 1,
+        })),
+        parcelas: parcelas.map((p: any, i: number) => ({
+          numero: i + 1,
+          data: formatDate(p.data),
+          valor: formatCurrency(p.valor),
+          meio: p.meio,
+        })),
+        is_assinado: false,
+        assinaturas: [],
+      }
 
-    if (action === 'salvar_novo_async' || action === 'atualizar_pdf_async') {
-      let html = conteudo_editado || ''
+      const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
+      if (!pdfMonkeyApiKey) throw new Error('PDFMONKEY_API_KEY secret is missing')
 
-      // Sanitization Layer: Artifact Removal
-      html = html.replace(/<p><br><\/p>/gi, '').trim()
-      html = html.replace(/_{2,}CELL_{2,}/gi, '')
-      html = html.replace(/______CELL_____/gi, '')
-      html = html.replace(/__CELL__/gi, '')
-
-      // UTF-8 Encoding Fix & Layout Stability (Anchoring) & Structural Refactoring
-      const finalHtml = `
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      color: #333;
-      margin: 0;
-      padding: 20pt;
-    }
-    
-    /* Modern CSS Layout Refactoring: Force legacy tables into Flexbox */
-    table {
-      display: flex !important;
-      flex-direction: column !important;
-      width: 100% !important;
-      margin-bottom: 20pt;
-      border-collapse: collapse;
-    }
-    tbody, thead, tfoot {
-      display: flex !important;
-      flex-direction: column !important;
-      width: 100% !important;
-    }
-    tr {
-      display: flex !important;
-      flex-direction: row !important;
-      width: 100% !important;
-      page-break-inside: avoid !important;
-    }
-    td, th {
-      flex: 1 !important;
-      padding: 8pt;
-      box-sizing: border-box;
-      border-bottom: 1pt solid #ccc;
-      word-break: break-word;
-    }
-
-    /* Visual Element Anchoring using absolute units */
-    hr, .decorative-line, .divider {
-      border: none;
-      border-top: 1pt solid #000;
-      width: 100%;
-      margin: 15pt 0;
-      position: relative;
-    }
-    .signature-container {
-      display: flex;
-      justify-content: space-around;
-      margin-top: 40pt;
-      page-break-inside: avoid;
-    }
-    .signature-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 200pt;
-    }
-    .signature-line {
-      width: 150pt;
-      border-top: 1pt solid #000;
-      text-align: center;
-      padding-top: 5pt;
-      position: relative;
-    }
-  </style>
-</head>
-<body>
-  ${html}
-</body>
-</html>
-      `.trim()
-
-      // High-Fidelity Rendering Engine Integration (Mocking the PDF creation)
-      const pdfBytes = new Uint8Array([
-        37, 80, 68, 70, 45, 49, 46, 52, 10, 37, 226, 227, 207, 211, 10, 49, 32, 48, 32, 111, 98,
-        106, 10, 60, 60, 47, 84, 121, 112, 101, 47, 67, 97, 116, 97, 108, 111, 103, 47, 80, 97, 103,
-        101, 115, 32, 50, 32, 48, 32, 82, 62, 62, 10, 101, 110, 100, 111, 98, 106, 10, 50, 32, 48,
-        32, 111, 98, 106, 10, 60, 60, 47, 84, 121, 112, 101, 47, 80, 97, 103, 101, 115, 47, 75, 105,
-        100, 115, 91, 51, 32, 48, 32, 82, 93, 47, 67, 111, 117, 110, 116, 32, 49, 62, 62, 10, 101,
-        110, 100, 111, 98, 106, 10, 51, 32, 48, 32, 111, 98, 106, 10, 60, 60, 47, 84, 121, 112, 101,
-        47, 80, 97, 103, 101, 47, 77, 101, 100, 105, 97, 66, 111, 120, 91, 48, 32, 48, 32, 53, 57,
-        53, 32, 56, 52, 50, 93, 47, 80, 97, 114, 101, 110, 116, 32, 50, 32, 48, 32, 82, 47, 82, 101,
-        115, 111, 117, 114, 99, 101, 115, 60, 60, 47, 70, 111, 110, 116, 60, 60, 47, 70, 49, 32, 52,
-        32, 48, 32, 82, 62, 62, 62, 62, 47, 67, 111, 110, 116, 101, 110, 116, 115, 32, 53, 32, 48,
-        32, 82, 62, 62, 10, 101, 110, 100, 111, 98, 106, 10, 52, 32, 48, 32, 111, 98, 106, 10, 60,
-        60, 47, 84, 121, 112, 101, 47, 70, 111, 110, 116, 47, 83, 117, 98, 116, 121, 112, 101, 47,
-        84, 121, 112, 101, 49, 47, 66, 97, 115, 101, 70, 111, 110, 116, 47, 72, 101, 108, 118, 101,
-        116, 105, 99, 97, 62, 62, 10, 101, 110, 100, 111, 98, 106, 10, 53, 32, 48, 32, 111, 98, 106,
-        10, 60, 60, 47, 76, 101, 110, 103, 116, 104, 32, 52, 52, 62, 62, 10, 115, 116, 114, 101, 97,
-        109, 10, 66, 84, 10, 47, 70, 49, 32, 50, 52, 32, 84, 102, 10, 49, 48, 48, 32, 55, 48, 48,
-        32, 84, 100, 10, 40, 68, 111, 99, 117, 109, 101, 110, 116, 111, 32, 71, 101, 114, 97, 100,
-        111, 41, 32, 84, 106, 10, 69, 84, 10, 101, 110, 104, 115, 116, 114, 101, 97, 109, 10, 101,
-        110, 104, 111, 98, 106, 10, 120, 114, 101, 102, 10, 48, 32, 54, 10, 48, 48, 48, 48, 48, 48,
-        48, 48, 48, 48, 32, 54, 53, 53, 51, 53, 32, 102, 32, 10, 48, 48, 48, 48, 48, 48, 48, 48, 48,
-        57, 32, 48, 48, 48, 48, 48, 32, 110, 32, 10, 48, 48, 48, 48, 48, 48, 48, 48, 55, 52, 32, 48,
-        48, 48, 48, 48, 32, 110, 32, 10, 48, 48, 48, 48, 48, 48, 48, 49, 50, 52, 32, 48, 48, 48, 48,
-        48, 32, 110, 32, 10, 48, 48, 48, 48, 48, 48, 48, 50, 50, 55, 32, 48, 48, 48, 48, 48, 32,
-        110, 32, 10, 48, 48, 48, 48, 48, 48, 48, 51, 48, 49, 32, 48, 48, 48, 48, 48, 32, 110, 32,
-        10, 116, 114, 97, 105, 108, 101, 114, 10, 60, 60, 47, 83, 105, 122, 101, 32, 54, 47, 82,
-        111, 111, 116, 32, 49, 32, 48, 32, 82, 62, 62, 10, 115, 116, 97, 114, 116, 120, 114, 101,
-        102, 10, 51, 57, 52, 10, 37, 37, 69, 79, 70, 10,
-      ])
+      const pdfBytes = await generatePdfMonkeyDocument(
+        template.external_template_id,
+        placeholders,
+        pdfMonkeyApiKey,
+      )
 
       const fileName = `contratos/${cliente_id}/${template_nome}_${Date.now()}.pdf`
 
@@ -186,17 +187,14 @@ Deno.serve(async (req: Request) => {
         .update({
           status: 'concluido',
           arquivo_url: fileName,
-          conteudo_preenchido: finalHtml,
+          conteudo_preenchido: 'PDF Gerado via PDFMonkey',
         })
         .eq('id', documento_id)
 
       if (updateError) throw updateError
 
       return new Response(JSON.stringify({ success: true, url: fileName }), {
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json; charset=utf-8',
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
@@ -205,6 +203,11 @@ Deno.serve(async (req: Request) => {
       headers: corsHeaders,
     })
   } catch (error: any) {
+    console.error(error)
+    await supabaseClient.from('logs_ia').insert({
+      acao: 'gerar_documento_cliente_error',
+      detalhes: { error: error.message },
+    })
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: corsHeaders,

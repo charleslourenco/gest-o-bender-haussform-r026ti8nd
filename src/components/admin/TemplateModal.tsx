@@ -26,66 +26,38 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const [descricao, setDescricao] = useState('')
-  const [arquivoUrl, setArquivoUrl] = useState('')
+  const [externalTemplateId, setExternalTemplateId] = useState('')
   const [status, setStatus] = useState('ativo')
-  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (isOpen) {
       setNome(template?.nome || '')
       setTipo(template?.tipo || '')
       setDescricao(template?.descricao || '')
-      setArquivoUrl(template?.arquivo_url || '')
+      setExternalTemplateId(template?.external_template_id || '')
       setStatus(template?.status || 'ativo')
     }
   }, [isOpen, template])
 
-  const isFormValid = nome && tipo && arquivoUrl
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const fileExt = file.name.split('.').pop()?.toLowerCase()
-    if (!['html', 'txt', 'md'].includes(fileExt || '')) {
-      toast({
-        title: 'Formato inválido',
-        description: 'Por favor, envie um arquivo .html, .txt ou .md',
-        variant: 'destructive',
-      })
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
-
-    setUploading(true)
-    try {
-      const safeName = nome ? nome.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'template'
-      const fileName = `${safeName}_${Date.now()}.${fileExt}`
-      const { error } = await supabase.storage
-        .from('bender_templates')
-        .upload(fileName, file, { upsert: true })
-      if (error) throw error
-      setArquivoUrl(fileName)
-      toast({ title: 'Upload concluído', className: 'bg-dark-denim text-off-white border-none' })
-    } catch (err: any) {
-      toast({ title: 'Erro no upload', description: err.message, variant: 'destructive' })
-    } finally {
-      setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
-  }
+  const isFormValid = nome && tipo && externalTemplateId
 
   const handleSave = async () => {
     if (!isFormValid)
       return toast({
-        title: 'Preencha os campos obrigatórios e envie um arquivo',
+        title: 'Preencha os campos obrigatórios',
         variant: 'destructive',
       })
     setSaving(true)
     try {
-      const payload = { nome, tipo, descricao, arquivo_url: arquivoUrl, status }
+      const payload = {
+        nome,
+        tipo,
+        descricao,
+        external_template_id: externalTemplateId,
+        arquivo_url: 'pdfmonkey',
+        status,
+      }
       if (template) {
         const { error } = await supabase.from('templates').update(payload).eq('id', template.id)
         if (error) throw error
@@ -111,7 +83,7 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
             {template ? 'Editar Template' : 'Novo Template'}
           </DialogTitle>
           <DialogDescription className="text-midnight-navy/70">
-            Preencha os dados e anexe o modelo (ex: .txt).
+            Preencha os dados e informe o ID do Template no PDFMonkey.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -147,35 +119,13 @@ export function TemplateModal({ isOpen, onClose, template, onSuccess }: any) {
             />
           </div>
           <div className="grid gap-2">
-            <Label className="text-midnight-navy font-semibold">Arquivo *</Label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFile}
-                className="hidden"
-                accept=".txt,.html,.md"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="border-steel-blue/50 text-midnight-navy hover:bg-pale-cornflower"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-2" />
-                )}{' '}
-                Selecionar
-              </Button>
-              {arquivoUrl && (
-                <span className="text-sm truncate max-w-[200px] font-medium text-emerald-600">
-                  {arquivoUrl}
-                </span>
-              )}
-            </div>
+            <Label className="text-midnight-navy font-semibold">PDFMonkey Template ID *</Label>
+            <Input
+              value={externalTemplateId}
+              onChange={(e) => setExternalTemplateId(e.target.value)}
+              placeholder="ex: 12345678-1234-1234-1234-123456789012"
+              className="bg-pale-cornflower border-steel-blue/40"
+            />
           </div>
           <div className="grid gap-2">
             <Label className="text-midnight-navy font-semibold">Status</Label>
