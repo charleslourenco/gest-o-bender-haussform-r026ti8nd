@@ -5,18 +5,23 @@ export const gerarDocumentoCliente = async (params: any) => {
   // conversão de tabelas legadas para CSS Flex/Grid são agora responsabilidade
   // da Edge Function, garantindo consistência, segurança e codificação UTF-8 globais.
 
-  const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
-    body: params,
-  })
+  try {
+    const { data, error } = await supabase.functions.invoke('gerar_documento_cliente', {
+      body: params,
+    })
 
-  if (error) {
-    console.error('ERRO DETALHADO DA EDGE FUNCTION:', error)
+    if (error) {
+      console.error('Erro detalhado da Edge Function:', error)
+      throw error
+    }
+
+    if (data && data.success === false) {
+      throw new Error(data.error || 'Falha ao gerar documento')
+    }
+
+    return data
+  } catch (error) {
+    console.error('Erro detalhado da Edge Function:', error)
     throw error
   }
-
-  if (data && data.success === false) {
-    throw new Error(data.error || 'Falha ao gerar documento')
-  }
-
-  return data
 }
