@@ -9,12 +9,95 @@ const corsHeaders = {
     'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
 }
 
+const HTMLEntities: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&apos;': "'",
+  '&cent;': '¢',
+  '&pound;': '£',
+  '&yen;': '¥',
+  '&euro;': '€',
+  '&copy;': '©',
+  '&reg;': '®',
+  '&aacute;': 'á',
+  '&Aacute;': 'Á',
+  '&acirc;': 'â',
+  '&Acirc;': 'Â',
+  '&agrave;': 'à',
+  '&Agrave;': 'À',
+  '&aring;': 'å',
+  '&Aring;': 'Å',
+  '&atilde;': 'ã',
+  '&Atilde;': 'Ã',
+  '&auml;': 'ä',
+  '&Auml;': 'Ä',
+  '&aelig;': 'æ',
+  '&AElig;': 'Æ',
+  '&ccedil;': 'ç',
+  '&Ccedil;': 'Ç',
+  '&eacute;': 'é',
+  '&Eacute;': 'É',
+  '&ecirc;': 'ê',
+  '&Ecirc;': 'Ê',
+  '&egrave;': 'è',
+  '&Egrave;': 'È',
+  '&euml;': 'ë',
+  '&Euml;': 'Ë',
+  '&iacute;': 'í',
+  '&Iacute;': 'Í',
+  '&icirc;': 'î',
+  '&Icirc;': 'Î',
+  '&igrave;': 'ì',
+  '&Igrave;': 'Ì',
+  '&iuml;': 'ï',
+  '&Iuml;': 'Ï',
+  '&ntilde;': 'ñ',
+  '&Ntilde;': 'Ñ',
+  '&oacute;': 'ó',
+  '&Oacute;': 'Ó',
+  '&ocirc;': 'ô',
+  '&Ocirc;': 'Ô',
+  '&ograve;': 'ò',
+  '&Ograve;': 'Ò',
+  '&oslash;': 'ø',
+  '&Oslash;': 'Ø',
+  '&otilde;': 'õ',
+  '&Otilde;': 'Õ',
+  '&ouml;': 'ö',
+  '&Ouml;': 'Ö',
+  '&uacute;': 'ú',
+  '&Uacute;': 'Ú',
+  '&ucirc;': 'û',
+  '&Ucirc;': 'Û',
+  '&ugrave;': 'ù',
+  '&Ugrave;': 'Ù',
+  '&uuml;': 'ü',
+  '&Uuml;': 'Ü',
+  '&yacute;': 'ý',
+  '&Yacute;': 'Ý',
+  '&yuml;': 'ÿ',
+  '&Yuml;': 'Ÿ',
+  '&#39;': "'",
+}
+
+function decodeHTMLEntities(text: string): string {
+  if (!text) return ''
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => HTMLEntities[match] || match)
+}
+
 async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint8Array | null) {
   let safeText = text
+
+  // Decode HTML entities
+  safeText = decodeHTMLEntities(safeText)
 
   // Remove any template artifacts
   safeText = safeText.replace(/_{2,}CELL_{2,}/gi, '')
   safeText = safeText.replace(/______CELL_____/gi, '')
+  safeText = safeText.replace(/__CELL__/gi, '')
 
   // Remove style and scripts before stripping tags
   safeText = safeText.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -96,8 +179,6 @@ async function generatePdfFromText(text: string, cidade: string, logoBytes: Uint
   // Strip remaining tags
   safeText = safeText
     .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
     .replace(/\n\s*\n/g, '\n')
     .trim()
 

@@ -9,6 +9,85 @@ export const corsHeaders = {
     'authorization, x-client-info, x-supabase-client-platform, apikey, content-type',
 }
 
+const HTMLEntities: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&apos;': "'",
+  '&cent;': '¢',
+  '&pound;': '£',
+  '&yen;': '¥',
+  '&euro;': '€',
+  '&copy;': '©',
+  '&reg;': '®',
+  '&aacute;': 'á',
+  '&Aacute;': 'Á',
+  '&acirc;': 'â',
+  '&Acirc;': 'Â',
+  '&agrave;': 'à',
+  '&Agrave;': 'À',
+  '&aring;': 'å',
+  '&Aring;': 'Å',
+  '&atilde;': 'ã',
+  '&Atilde;': 'Ã',
+  '&auml;': 'ä',
+  '&Auml;': 'Ä',
+  '&aelig;': 'æ',
+  '&AElig;': 'Æ',
+  '&ccedil;': 'ç',
+  '&Ccedil;': 'Ç',
+  '&eacute;': 'é',
+  '&Eacute;': 'É',
+  '&ecirc;': 'ê',
+  '&Ecirc;': 'Ê',
+  '&egrave;': 'è',
+  '&Egrave;': 'È',
+  '&euml;': 'ë',
+  '&Euml;': 'Ë',
+  '&iacute;': 'í',
+  '&Iacute;': 'Í',
+  '&icirc;': 'î',
+  '&Icirc;': 'Î',
+  '&igrave;': 'ì',
+  '&Igrave;': 'Ì',
+  '&iuml;': 'ï',
+  '&Iuml;': 'Ï',
+  '&ntilde;': 'ñ',
+  '&Ntilde;': 'Ñ',
+  '&oacute;': 'ó',
+  '&Oacute;': 'Ó',
+  '&ocirc;': 'ô',
+  '&Ocirc;': 'Ô',
+  '&ograve;': 'ò',
+  '&Ograve;': 'Ò',
+  '&oslash;': 'ø',
+  '&Oslash;': 'Ø',
+  '&otilde;': 'õ',
+  '&Otilde;': 'Õ',
+  '&ouml;': 'ö',
+  '&Ouml;': 'Ö',
+  '&uacute;': 'ú',
+  '&Uacute;': 'Ú',
+  '&ucirc;': 'û',
+  '&Ucirc;': 'Û',
+  '&ugrave;': 'ù',
+  '&Ugrave;': 'Ù',
+  '&uuml;': 'ü',
+  '&Uuml;': 'Ü',
+  '&yacute;': 'ý',
+  '&Yacute;': 'Ý',
+  '&yuml;': 'ÿ',
+  '&Yuml;': 'Ÿ',
+  '&#39;': "'",
+}
+
+function decodeHTMLEntities(text: string): string {
+  if (!text) return ''
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (match) => HTMLEntities[match] || match)
+}
+
 function formatCurrency(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
@@ -27,6 +106,8 @@ function sanitizeHtmlForPdf(html: string): string {
   clean = clean.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
   clean = clean.replace(/_{2,}CELL_{2,}/gi, '')
   clean = clean.replace(/______CELL_____/gi, '')
+  clean = clean.replace(/__CELL__/gi, '')
+  clean = decodeHTMLEntities(clean)
   // Removed the <style> stripping so CSS is preserved in PDF
   clean = clean.replace(
     /src="data:image\/[^;]+;base64,[^"]+"/gi,
@@ -129,9 +210,11 @@ function wrapHtmlWithStyles(html: string): string {
   li { margin-bottom: 0.5em; text-align: justify; max-width: 100%; word-wrap: break-word; box-sizing: border-box; }
 
   hr, .linha-decorativa {
+    display: block;
     max-width: 100%;
     width: 100%;
     box-sizing: border-box;
+    overflow: hidden;
     border: 0;
     border-top: 1px solid #000;
     margin: 1em 0;
@@ -249,13 +332,13 @@ async function generatePdfFromHtmlFallback(html: string): Promise<Uint8Array> {
   safeHtml = safeHtml.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li)>/gi, '\n')
   safeHtml = safeHtml.replace(/<(br|hr)\s*\/?>/gi, '\n')
 
-  // Strip remaining tags
-  const text = safeHtml
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/\n\s*\n/g, '\n')
-    .trim()
+  // Strip remaining tags and decode entities
+  const text = decodeHTMLEntities(
+    safeHtml
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n\s*\n/g, '\n')
+      .trim(),
+  )
 
   const checkPageBreak = (needed: number) => {
     if (currentY - needed < margin) {
