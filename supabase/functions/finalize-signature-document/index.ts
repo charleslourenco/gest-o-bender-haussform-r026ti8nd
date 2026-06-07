@@ -133,49 +133,96 @@ Deno.serve(async (req: Request) => {
           }
 
           const produtos = (form.produtos_servicos as any[]) || []
-          const valorTotal = Array.isArray(produtos)
+          const subtotalProdutos = Array.isArray(produtos)
             ? produtos.reduce(
                 (acc: number, p: any) =>
                   acc + (Number(p.valor_unitario) || 0) * (Number(p.qtd) || 1),
                 0,
-              ) - (Number(form.desconto) || 0)
+              )
             : 0
+          const descontoProdutos = Number(form.desconto) || 0
+          const valorTotal = subtotalProdutos - descontoProdutos
           const pagamentos = (form.pagamentos as any) || {}
-          const parcelas = pagamentos.parcelado || []
+          const parcelas = form.parcelas || pagamentos.parcelado || []
 
           const dataExtensoFormatter = new Intl.DateTimeFormat('pt-BR', {
             dateStyle: 'long',
             timeZone: 'America/Sao_Paulo',
           })
+
+          const buildAddress = (
+            rua: string,
+            num: string,
+            comp: string,
+            bairro: string,
+            cidade: string,
+            estado: string,
+            cep: string,
+          ) => {
+            let str = ''
+            if (rua) str += rua
+            if (num) str += `, ${num}`
+            if (comp) str += ` - ${comp}`
+            if (bairro) str += `, ${bairro}`
+            if (cidade) str += `, ${cidade}`
+            if (estado) str += ` - ${estado}`
+            if (cep) str += `, ${cep}`
+            return str.replace(/^, /, '').trim()
+          }
+
           const placeholders: any = {
             CLIENTE_NOME: form.cliente?.nome || '',
             CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
             CLI_NOME: form.cliente?.nome || '',
             CLI_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
-            DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
-            CLIENTE_PROFISSAO: form.profissao || '',
-            CLIENTE_ESTADO_CIVIL: form.estado_civil || '',
-            CLIENTE_TELEFONE: form.cliente?.telefone || '',
-            CLIENTE_EMAIL: form.cliente?.email || '',
-            CLIENTE_CEP: form.cep || form.cliente?.cep || '',
-            CLIENTE_RUA: form.rua || form.cliente?.endereco_obra || '',
-            CLIENTE_NUMERO: form.numero || form.cliente?.numero || '',
-            CLIENTE_COMPLEMENTO: form.complemento || form.cliente?.complemento || '',
-            CLIENTE_CIDADE: form.municipio || form.cliente?.cidade || '',
-            CLIENTE_ESTADO: form.estado || form.cliente?.estado || '',
+            CLI_NOME_COMPLETO: form.cliente?.nome || '',
+            CLI_CPF: form.cliente?.cpf || form.cpf || '',
+            CLI_ENDERECO_COMPLETO: buildAddress(
+              form.cliente?.rua || form.rua || '',
+              form.cliente?.numero || form.numero || '',
+              form.cliente?.complemento || form.complemento || '',
+              form.cliente?.bairro || form.bairro || '',
+              form.cliente?.cidade || form.municipio || '',
+              form.cliente?.estado || form.estado || '',
+              form.cliente?.cep || form.cep || '',
+            ),
+            CLI_PROFISSAO: form.cliente?.profissao || form.profissao || '',
+            CLI_ESTADO_CIVIL: form.estado_civil || '',
+            CLI_EMAIL: form.cliente?.email || '',
+            CLI_TELEFONE: form.cliente?.telefone || '',
+            CLI_ENDERECO_OBRA: buildAddress(
+              form.obra_rua || '',
+              form.obra_numero || '',
+              form.obra_complemento || '',
+              form.obra_bairro || '',
+              form.obra_municipio || '',
+              form.obra_estado || '',
+              form.obra_cep || '',
+            ),
             OBRA_CEP: form.obra_cep || '',
             OBRA_RUA: form.obra_rua || '',
             OBRA_NUMERO: form.obra_numero || '',
             OBRA_COMPLEMENTO: form.obra_complemento || '',
             OBRA_CIDADE: form.obra_municipio || '',
             OBRA_ESTADO: form.obra_estado || '',
+            SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
+            DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
+            TOTAL_PRODUTOS: formatCurrency(valorTotal),
+            VALOR_TOTAL: formatCurrency(valorTotal),
+            METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || '',
+            NUMERO_PARCELAS: parcelas.length || 1,
+            VALOR_PARCELA:
+              parcelas.length > 0
+                ? formatCurrency(parcelas[0].valor || parcelas[0].valor_parcela || 0)
+                : formatCurrency(valorTotal),
+            FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
+            DATA_PREVISTA_ENTREGA_IMOVEL: formatDate(form.data_prevista_entrega || ''),
+            DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
             DATA_ACESSO_MOVEL: formatDate((form.datas as any)?.medida || ''),
             DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
             DATA_VENDA: formatDate(
               (form.datas as any)?.data_venda || new Date().toISOString().split('T')[0],
             ),
-            VALOR_TOTAL: formatCurrency(valorTotal),
-            FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
             NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
             produtos: produtos.map((p: any) => ({
               nome: p.nome || p.nome_produto,
@@ -186,8 +233,8 @@ Deno.serve(async (req: Request) => {
             parcelas: parcelas.map((p: any, i: number) => ({
               numero: i + 1,
               data: formatDate(p.data),
-              valor: formatCurrency(p.valor),
-              meio: p.meio,
+              valor: formatCurrency(p.valor || p.valor_parcela || 0),
+              meio: p.meio || form.metodo_pagamento,
             })),
             is_assinado: true,
             assinaturas: assinaturas.map((sig) => {
