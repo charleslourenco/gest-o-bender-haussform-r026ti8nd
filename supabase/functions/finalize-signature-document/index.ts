@@ -195,6 +195,7 @@ Deno.serve(async (req: Request) => {
           }
 
           const placeholders: any = {
+            NOME_CLIENTE: form.cliente?.nome || '',
             CLIENTE_NOME: form.cliente?.nome || '',
             CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
             CPF_CLIENTE: form.cliente?.cpf || form.cpf || '',
