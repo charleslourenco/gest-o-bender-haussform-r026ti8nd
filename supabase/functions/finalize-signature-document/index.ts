@@ -246,7 +246,7 @@ Deno.serve(async (req: Request) => {
             NUMERO_PARCELAS: parcelas.length || 1,
             VALOR_PARCELA:
               parcelas.length > 0
-                ? formatCurrency(parcelas[0].valor || parcelas[0].valor_parcela || 0)
+                ? formatCurrency(Number(parcelas[0].valor || parcelas[0].valor_parcela) || 0)
                 : formatCurrency(valorTotal),
             FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
             CLAUSULA_PAGAMENTO_NARRATIVA:

@@ -322,14 +322,21 @@ Deno.serve(async (req: Request) => {
         VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
         TOTAL_GERAL: formatCurrency(valorTotal),
         TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
+        TOTAL_PRODUTOS: formatCurrency(valorTotal),
         VALOR_TOTAL: formatCurrency(valorTotal),
         VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
         VALOR_TOTAL_CONTRATO: formatCurrency(valorTotal),
         DESCONTO: formatCurrency(descontoProdutos),
+        DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
         DESCONTO_MOEDA: formatCurrency(descontoProdutos),
         FORMA_PAGAMENTO: forma_pagamento,
+        NUMERO_PARCELAS: parcelas.length || 1,
+        VALOR_PARCELA:
+          parcelas.length > 0
+            ? formatCurrency(Number(parcelas[0].valor || parcelas[0].valor_parcela) || 0)
+            : formatCurrency(valorTotal),
         CLAUSULA_PAGAMENTO_NARRATIVA: clausula_pagamento,
-        METODO_PAGAMENTO: form.metodo_pagamento || 'Não informado',
+        METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || 'Não informado',
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
         EMPRESA_NOME: 'Bender Haussform',
