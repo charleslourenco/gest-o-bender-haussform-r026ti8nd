@@ -117,7 +117,7 @@ Deno.serve(async (req: Request) => {
         throw new Error('Falta a referência do cliente (cliente_id) no documento.')
       }
 
-      let form: any = {}
+      let form: any = null
 
       if (formulario_comercial_id) {
         const { data: formData } = await supabaseClient
@@ -129,6 +129,26 @@ Deno.serve(async (req: Request) => {
         if (formData) {
           form = formData
         }
+      }
+
+      if (!form && cliente_id) {
+        const { data: formData } = await supabaseClient
+          .from('formulario_comercial')
+          .select('*, cliente:clientes(*)')
+          .eq('cliente_id', cliente_id)
+          .order('atualizado_em', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (formData) {
+          form = formData
+        }
+      }
+
+      if (!form) {
+        throw new Error(
+          'Formulário comercial não encontrado para este cliente. Preencha o formulário comercial primeiro.',
+        )
       }
 
       if (!form.cliente) {
@@ -187,15 +207,6 @@ Deno.serve(async (req: Request) => {
       let produtos = (form.produtos_servicos as any[]) || []
       if (!produtos || produtos.length === 0) {
         produtos = (form.itens as any[]) || []
-      }
-      if (formulario_comercial_id) {
-        const { data: dbProdutos } = await supabaseClient
-          .from('produtos_servicos_projeto')
-          .select('*')
-          .eq('formulario_comercial_id', formulario_comercial_id)
-        if (dbProdutos && dbProdutos.length > 0) {
-          produtos = dbProdutos
-        }
       }
 
       if (!produtos || produtos.length === 0) {
@@ -358,6 +369,11 @@ Deno.serve(async (req: Request) => {
           const valorUnitario = Number(p.valor_unitario) || 0
           const vTotal = Number(p.valor_total) || valorUnitario * quantidade
           return {
+            environment: p.ambiente || p.nome_produto || p.nome || '',
+            description: p.descricao || p.nome_produto || p.nome || '',
+            quantity: quantidade,
+            unit_value: formatCurrency(valorUnitario),
+            total_value: formatCurrency(vTotal),
             ambiente: p.ambiente || p.nome_produto || p.nome || '',
             descricao: p.descricao || p.nome_produto || p.nome || '',
             quantidade: quantidade,

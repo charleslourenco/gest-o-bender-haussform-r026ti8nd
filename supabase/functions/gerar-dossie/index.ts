@@ -137,16 +137,6 @@ Deno.serve(async (req) => {
     if (!produtos || produtos.length === 0) {
       produtos = (form.itens as any[]) || []
     }
-    if (formulario_comercial_id) {
-      const { data: dbProdutos } = await supabaseAdmin
-        .from('produtos_servicos_projeto')
-        .select('*')
-        .eq('formulario_comercial_id', formulario_comercial_id)
-      if (dbProdutos && dbProdutos.length > 0) {
-        produtos = dbProdutos
-      }
-    }
-
     const subtotalProdutos = Array.isArray(produtos)
       ? produtos.reduce(
           (acc: number, p: any) =>
@@ -266,6 +256,11 @@ Deno.serve(async (req) => {
         const valorUnitario = Number(p.valor_unitario) || 0
         const vTotal = Number(p.valor_total) || valorUnitario * quantidade
         return {
+          environment: p.ambiente || p.nome_produto || p.nome || '',
+          description: p.descricao || p.nome_produto || p.nome || '',
+          quantity: quantidade,
+          unit_value: formatCurrency(valorUnitario),
+          total_value: formatCurrency(vTotal),
           ambiente: p.ambiente || p.nome_produto || p.nome || '',
           descricao: p.descricao || p.nome_produto || p.nome || '',
           quantidade: quantidade,
