@@ -208,6 +208,9 @@ Deno.serve(async (req: Request) => {
       if (!produtos || produtos.length === 0) {
         produtos = (form.itens as any[]) || []
       }
+      if (!produtos || produtos.length === 0) {
+        produtos = (form.ambientes as any[]) || []
+      }
 
       if (!produtos || produtos.length === 0) {
         throw new Error('Nenhum produto ou serviço encontrado para gerar o documento.')
@@ -372,13 +375,13 @@ Deno.serve(async (req: Request) => {
             environment: p.ambiente || p.nome_produto || p.nome || '',
             description: p.descricao || p.nome_produto || p.nome || '',
             quantity: quantidade,
-            unit_value: formatCurrency(valorUnitario),
-            total_value: formatCurrency(vTotal),
+            unit_value: formatNumber(valorUnitario),
+            total_value: formatNumber(vTotal),
             ambiente: p.ambiente || p.nome_produto || p.nome || '',
             descricao: p.descricao || p.nome_produto || p.nome || '',
-            quantidade: quantidade,
-            valor_unitario: formatCurrency(valorUnitario),
-            valor_total: formatCurrency(vTotal),
+            quantidade: String(quantidade),
+            valor_unitario: formatNumber(valorUnitario),
+            valor_total: formatNumber(vTotal),
           }
         }),
         parcelas: parcelas.map((p: any, i: number) => ({
