@@ -124,13 +124,19 @@ Deno.serve(async (req: Request) => {
           .single()
 
         if (form) {
-          const formatCurrency = (val: number) =>
-            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-          const formatNumber = (val: number) =>
-            new Intl.NumberFormat('pt-BR', {
+          const formatCurrency = (val: number) => {
+            if (!val && val !== 0) return 'R$ 0,00'
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+              val,
+            )
+          }
+          const formatNumber = (val: number) => {
+            if (!val && val !== 0) return '0,00'
+            return new Intl.NumberFormat('pt-BR', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             }).format(val)
+          }
           const formatDate = (dateStr: string) => {
             if (!dateStr) return ''
             const [y, m, d] = dateStr.split('-')
@@ -224,18 +230,18 @@ Deno.serve(async (req: Request) => {
             OBRA_COMPLEMENTO: form.obra_complemento || '',
             OBRA_CIDADE: form.obra_municipio || '',
             OBRA_ESTADO: form.obra_estado || '',
-            SUBTOTAL_PRODUTOS: subtotalProdutos,
+            SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
             SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalProdutos),
-            VALOR_DESCONTO: descontoProdutos,
+            VALOR_DESCONTO: formatCurrency(descontoProdutos),
             VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
             DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
-            DESCONTO: descontoProdutos,
-            TOTAL_GERAL: valorTotal,
+            DESCONTO: formatCurrency(descontoProdutos),
+            TOTAL_GERAL: formatCurrency(valorTotal),
             TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
             TOTAL_PRODUTOS: formatCurrency(valorTotal),
-            VALOR_TOTAL: valorTotal,
+            VALOR_TOTAL: formatCurrency(valorTotal),
             VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
-            VALOR_TOTAL_CONTRATO: valorTotal,
+            VALOR_TOTAL_CONTRATO: formatCurrency(valorTotal),
             METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || '',
             NUMERO_PARCELAS: parcelas.length || 1,
             VALOR_PARCELA:
@@ -262,12 +268,8 @@ Deno.serve(async (req: Request) => {
                 ambiente: p.ambiente || p.nome_produto || p.nome || '',
                 descricao: p.descricao || p.nome_produto || p.nome || '',
                 quantidade: quantidade,
-                valor_unitario: valorUnitario,
-                valor_total: vTotal,
-                valor_unitario_moeda: formatCurrency(valorUnitario),
-                valor_total_moeda: formatCurrency(vTotal),
-                valor: formatCurrency(vTotal),
-                qtd: quantidade,
+                valor_unitario: formatCurrency(valorUnitario),
+                valor_total: formatCurrency(vTotal),
               }
             }),
             parcelas: parcelas.map((p: any, i: number) => ({

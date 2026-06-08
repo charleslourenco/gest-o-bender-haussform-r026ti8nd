@@ -115,12 +115,17 @@ Deno.serve(async (req) => {
       throw new Error('Nenhum template encontrado.')
     }
 
-    const formatCurrency = (val: number) =>
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-    const formatNumber = (val: number) =>
-      new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
-        val,
-      )
+    const formatCurrency = (val: number) => {
+      if (!val && val !== 0) return 'R$ 0,00'
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+    }
+    const formatNumber = (val: number) => {
+      if (!val && val !== 0) return '0,00'
+      return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(val)
+    }
     const formatDate = (dateStr: string) => {
       if (!dateStr) return ''
       const [y, m, d] = dateStr.split('-')
@@ -227,16 +232,16 @@ Deno.serve(async (req) => {
       DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
       DATA_VENDA: formatDate(datas.data_venda || new Date().toISOString().split('T')[0]),
       DATA_ENTREGA: formatDate(form.data_prevista_entrega || ''),
-      SUBTOTAL_PRODUTOS: subtotalProdutos,
+      SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
       SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalProdutos),
-      VALOR_DESCONTO: descontoProdutos,
+      VALOR_DESCONTO: formatCurrency(descontoProdutos),
       VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
-      TOTAL_GERAL: valorTotal,
+      TOTAL_GERAL: formatCurrency(valorTotal),
       TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
-      VALOR_TOTAL: valorTotal,
+      VALOR_TOTAL: formatCurrency(valorTotal),
       VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
-      VALOR_TOTAL_CONTRATO: valorTotal,
-      DESCONTO: descontoProdutos,
+      VALOR_TOTAL_CONTRATO: formatCurrency(valorTotal),
+      DESCONTO: formatCurrency(descontoProdutos),
       DESCONTO_MOEDA: formatCurrency(descontoProdutos),
       FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
       CLAUSULA_PAGAMENTO_NARRATIVA: pagamentos.narrativa || form.especificacoes || 'Não informado',
@@ -255,12 +260,8 @@ Deno.serve(async (req) => {
           ambiente: p.ambiente || p.nome_produto || p.nome || '',
           descricao: p.descricao || p.nome_produto || p.nome || '',
           quantidade: quantidade,
-          valor_unitario: valorUnitario,
-          valor_total: vTotal,
-          valor_unitario_moeda: formatCurrency(valorUnitario),
-          valor_total_moeda: formatCurrency(vTotal),
-          valor: formatCurrency(vTotal),
-          qtd: quantidade,
+          valor_unitario: formatCurrency(valorUnitario),
+          valor_total: formatCurrency(vTotal),
         }
       }),
       parcelas: parcelas.map((p: any, i: number) => ({
