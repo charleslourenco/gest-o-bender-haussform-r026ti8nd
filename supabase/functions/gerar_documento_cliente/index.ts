@@ -146,6 +146,7 @@ Deno.serve(async (req: Request) => {
         .from('templates')
         .select('*')
         .eq('nome', template_nome)
+        .eq('status', 'ativo')
         .single()
 
       if (!template?.external_template_id) {
@@ -195,6 +196,10 @@ Deno.serve(async (req: Request) => {
         if (dbProdutos && dbProdutos.length > 0) {
           produtos = dbProdutos
         }
+      }
+
+      if (!produtos || produtos.length === 0) {
+        throw new Error('Nenhum produto ou serviço encontrado para gerar o documento.')
       }
 
       const subtotalProdutos = Array.isArray(produtos)
@@ -330,6 +335,9 @@ Deno.serve(async (req: Request) => {
         DESCONTO: formatCurrency(descontoProdutos),
         DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
         DESCONTO_MOEDA: formatCurrency(descontoProdutos),
+        total_geral: formatCurrency(subtotalProdutos),
+        valor_desconto: formatCurrency(descontoProdutos),
+        valor_final: formatCurrency(valorTotal),
         FORMA_PAGAMENTO: forma_pagamento,
         NUMERO_PARCELAS: parcelas.length || 1,
         VALOR_PARCELA:
@@ -371,6 +379,8 @@ Deno.serve(async (req: Request) => {
 
       const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
       if (!pdfMonkeyApiKey) throw new Error('PDFMONKEY_API_KEY secret is missing')
+
+      console.log('Payload enviado para o PDFMonkey:', JSON.stringify(placeholders, null, 2))
 
       const pdfBytes = await generatePdfMonkeyDocument(
         template.external_template_id,
