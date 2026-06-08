@@ -158,7 +158,21 @@ Deno.serve(async (req: Request) => {
             return `${d}/${m}/${y}`
           }
 
-          let produtos = (form.produtos_servicos as any[]) || []
+          let produtos = []
+          if (form.id) {
+            const { data: projProdutos } = await supabase
+              .from('produtos_servicos_projeto')
+              .select('*')
+              .eq('formulario_comercial_id', form.id)
+
+            if (projProdutos && projProdutos.length > 0) {
+              produtos = projProdutos
+            }
+          }
+
+          if (!produtos || produtos.length === 0) {
+            produtos = (form.produtos_servicos as any[]) || []
+          }
           if (!produtos || produtos.length === 0) {
             produtos = (form.itens as any[]) || []
           }
@@ -280,13 +294,13 @@ Deno.serve(async (req: Request) => {
                 environment: p.ambiente || p.nome_produto || p.nome || '',
                 description: p.descricao || p.nome_produto || p.nome || '',
                 quantity: quantidade,
-                unit_value: formatNumber(valorUnitario),
-                total_value: formatNumber(vTotal),
+                unit_value: formatCurrency(valorUnitario),
+                total_value: formatCurrency(vTotal),
                 ambiente: p.ambiente || p.nome_produto || p.nome || '',
                 descricao: p.descricao || p.nome_produto || p.nome || '',
                 quantidade: String(quantidade),
-                valor_unitario: formatNumber(valorUnitario),
-                valor_total: formatNumber(vTotal),
+                valor_unitario: formatCurrency(valorUnitario),
+                valor_total: formatCurrency(vTotal),
               }
             }),
             parcelas: parcelas.map((p: any, i: number) => ({
