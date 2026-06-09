@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { SignatureModal } from './signature-modal'
+import { DocsModeloModal } from './docs-modelo-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +22,7 @@ import {
 
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
+  const [showDocsModelo, setShowDocsModelo] = useState(false)
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [signatureDoc, setSignatureDoc] = useState<any>(null)
@@ -401,7 +403,17 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          variant="outline"
+          className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
+          onClick={() => setShowDocsModelo(true)}
+        >
+          <FileText className="w-4 h-4 mr-2" /> Docs Modelo
+        </Button>
       </div>
+
+      <DocsModeloModal open={showDocsModelo} onOpenChange={setShowDocsModelo} />
 
       <div className="bg-off-white border-2 border-steel-blue rounded-lg p-6">
         <h3 className="font-bold text-lg mb-4 text-midnight-navy">Documentos Gerados</h3>
