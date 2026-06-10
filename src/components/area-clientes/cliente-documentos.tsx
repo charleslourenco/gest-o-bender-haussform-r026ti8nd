@@ -20,12 +20,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+import { Progress } from '@/components/ui/progress'
+
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
   const [showDocsModelo, setShowDocsModelo] = useState(false)
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
   const [signatureDoc, setSignatureDoc] = useState<any>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   const [uploadTipo, setUploadTipo] = useState('upload_manual')
 
@@ -230,6 +233,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     const file = e.target.files?.[0]
     if (!file) return
 
+    setUploadProgress(0)
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev === null) return null
+        if (prev >= 90) return prev
+        return prev + (100 - prev) * 0.1
+      })
+    }, 500)
+
     toast.info('Fazendo upload...', { id: 'upload-doc' })
     try {
       const {
@@ -237,18 +249,24 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       } = await supabase.auth.getSession()
       if (!session) throw new Error('Usuário não autenticado.')
 
-      const filePath = `contratos/${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
+      const filePath = `${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       const { error: uploadError } = await supabase.storage
         .from('bender_clientes')
-        .upload(filePath, file, { upsert: true })
+        .upload(filePath, file, {
+          upsert: true,
+          // @ts-expect-error: using undocumented flag or explicit resumable config
+          resumable: true,
+        })
 
       if (uploadError) throw uploadError
+
+      setUploadProgress(100)
 
       await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
         tipo: uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'upload_manual',
         template_nome: file.name,
-        status: 'enviado',
+        status: 'Concluído',
         arquivo_url: filePath,
       })
 
@@ -267,12 +285,13 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         acao: `Arquivo ${file.name} enviado (${uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'Manual'})`,
       })
 
-      toast.success('Arquivo enviado com sucesso!')
+      toast.success('Arquivo enviado com sucesso!', { id: 'upload-doc' })
       loadDocs()
     } catch (err: any) {
-      toast.error('Erro no upload: ' + err.message)
+      toast.error('Erro no upload: ' + err.message, { id: 'upload-doc' })
     } finally {
-      toast.dismiss('upload-doc')
+      clearInterval(interval)
+      setTimeout(() => setUploadProgress(null), 1000)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -344,7 +363,23 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
   return (
     <div className="space-y-6">
-      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        onChange={handleFileChange}
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.skp,.promob,.dwg,.dxf,.rvt"
+      />
+
+      {uploadProgress !== null && (
+        <div className="bg-white p-4 rounded-lg border border-steel-blue shadow-sm mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-semibold text-midnight-navy">Enviando arquivo...</span>
+            <span className="text-sm font-bold text-steel-blue">{Math.round(uploadProgress)}%</span>
+          </div>
+          <Progress value={uploadProgress} className="h-2" />
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-4 items-center mb-6">
         <DropdownMenu

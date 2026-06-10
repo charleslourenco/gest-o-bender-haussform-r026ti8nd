@@ -1472,6 +1472,27 @@ export type Database = {
           },
         ]
       }
+      modelos_arquivos_estaticos: {
+        Row: {
+          arquivo_url: string
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          arquivo_url: string
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          arquivo_url?: string
+          criado_em?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       montadores: {
         Row: {
           atualizado_em: string
@@ -2716,6 +2737,11 @@ export const Constants = {
 //   modulo: text (not null)
 //   nivel_acesso: text (not null)
 //   criado_em: timestamp with time zone (not null, default: now())
+// Table: modelos_arquivos_estaticos
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   arquivo_url: text (not null)
+//   criado_em: timestamp with time zone (not null, default: now())
 // Table: montadores
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome_completo: text (not null)
@@ -2995,6 +3021,8 @@ export const Constants = {
 // Table: matriz_permissoes
 //   PRIMARY KEY matriz_permissoes_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY matriz_permissoes_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
+// Table: modelos_arquivos_estaticos
+//   PRIMARY KEY modelos_arquivos_estaticos_pkey: PRIMARY KEY (id)
 // Table: montadores
 //   PRIMARY KEY montadores_pkey: PRIMARY KEY (id)
 // Table: notas_fiscais
@@ -3266,6 +3294,10 @@ export const Constants = {
 //     USING: is_admin(auth.uid())
 //   Policy "Ver próprias permissões ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+// Table: modelos_arquivos_estaticos
+//   Policy "modelos_arquivos_estaticos_all" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: montadores
 //   Policy "montadores_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
