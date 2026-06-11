@@ -23,6 +23,11 @@ export function AnaliseKanbanBoard({
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState({
+    cliente: '',
+    consultor: '',
+    dateRange: { from: undefined, to: undefined } as any,
+  })
 
   const [checkModalCard, setCheckModalCard] = useState<any | null>(null)
   const [avulsoModalOpen, setAvulsoModalOpen] = useState(false)
@@ -39,7 +44,7 @@ export function AnaliseKanbanBoard({
   const loadCards = async () => {
     let query = supabase
       .from('produtos_servicos_projeto')
-      .select('*, clientes(nome), project_item_names')
+      .select('*, clientes(nome), users(nome), project_item_names')
       .eq('is_outsourced', false)
 
     if (formularioComercialId) {
@@ -76,17 +81,20 @@ export function AnaliseKanbanBoard({
       .subscribe()
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
+    const handleFilters = (e: any) => setFilters(e.detail)
     const handleOpenAvulso = () => {
       setAvulsoCardToUpdate(null)
       setAvulsoModalOpen(true)
     }
 
     window.addEventListener('kanban_search_change', handleSearch)
+    window.addEventListener('analise_detalhe_filters', handleFilters)
     window.addEventListener('open_criar_card_avulso', handleOpenAvulso)
 
     return () => {
       supabase.removeChannel(sub)
       window.removeEventListener('kanban_search_change', handleSearch)
+      window.removeEventListener('analise_detalhe_filters', handleFilters)
       window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
     }
   }, [formularioComercialId])
@@ -233,12 +241,38 @@ export function AnaliseKanbanBoard({
   }, [toast])
 
   const filteredCards = cards.filter((c) => {
-    if (!searchQuery) return true
-    return (
-      c.nome_produto?.toLowerCase().includes(searchQuery) ||
-      c.project_item_names?.toLowerCase().includes(searchQuery) ||
-      c.clientes?.nome?.toLowerCase().includes(searchQuery)
-    )
+    let matches = true
+
+    if (filters.cliente || searchQuery) {
+      const q = (filters.cliente || searchQuery).toLowerCase()
+      const clientMatch =
+        c.clientes?.nome?.toLowerCase().includes(q) ||
+        c.nome_produto?.toLowerCase().includes(q) ||
+        c.project_item_names?.toLowerCase().includes(q)
+      matches = matches && !!clientMatch
+    }
+
+    if (filters.consultor) {
+      const consultorName = c.users?.nome || ''
+      matches = matches && consultorName.toLowerCase().includes(filters.consultor.toLowerCase())
+    }
+
+    if (filters.dateRange?.from) {
+      const cardDate = new Date(c.criado_em)
+      cardDate.setHours(0, 0, 0, 0)
+      const fromDate = new Date(filters.dateRange.from)
+      fromDate.setHours(0, 0, 0, 0)
+
+      if (filters.dateRange.to) {
+        const toDate = new Date(filters.dateRange.to)
+        toDate.setHours(23, 59, 59, 999)
+        matches = matches && new Date(c.criado_em) >= fromDate && new Date(c.criado_em) <= toDate
+      } else {
+        matches = matches && cardDate.getTime() === fromDate.getTime()
+      }
+    }
+
+    return matches
   })
 
   if (loading) return <div className="p-8 text-slate-400">Carregando...</div>
@@ -287,6 +321,7 @@ export function AnaliseKanbanBoard({
               onDragEnd={() => setDraggingId(null)}
               draggingId={draggingId}
               onCheckOutsourced={(card: any) => setCheckModalCard(card)}
+              onDelete={(id: string) => setCards((prev) => prev.filter((c) => c.id !== id))}
             />
           ))}
         </div>

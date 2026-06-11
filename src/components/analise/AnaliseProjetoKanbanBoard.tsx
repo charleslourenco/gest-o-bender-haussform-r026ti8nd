@@ -229,19 +229,19 @@ export function AnaliseProjetoKanbanBoard() {
                           <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">
                             Itens do Projeto ({productNames.length})
                           </div>
-                          <div className="flex flex-wrap gap-1">
-                            {productNames.slice(0, 3).map((name: string, idx: number) => (
-                              <span
+                          <div className="flex flex-col gap-1 w-full">
+                            {productNames.slice(0, 5).map((name: string, idx: number) => (
+                              <div
                                 key={idx}
-                                className="bg-white/10 text-slate-200 text-[10px] px-1.5 py-0.5 rounded truncate max-w-[120px]"
+                                className="bg-white/5 text-slate-200 text-xs px-2 py-1 rounded w-full break-words leading-tight"
                               >
-                                {name}
-                              </span>
+                                • {name}
+                              </div>
                             ))}
-                            {productNames.length > 3 && (
-                              <span className="bg-white/10 text-slate-300 text-[10px] px-1.5 py-0.5 rounded">
-                                +{productNames.length - 3}
-                              </span>
+                            {productNames.length > 5 && (
+                              <div className="text-slate-400 text-xs pl-2 italic">
+                                + {productNames.length - 5} item(ns)...
+                              </div>
                             )}
                           </div>
                         </div>

@@ -11,6 +11,7 @@ export function AnaliseKanbanColumn({
   onDragEnd,
   draggingId,
   onCheckOutsourced,
+  onDelete,
 }: any) {
   return (
     <div
@@ -34,6 +35,7 @@ export function AnaliseKanbanColumn({
             onDragStart={(e: any) => onDragStart(e, card.id)}
             onDragEnd={onDragEnd}
             onCheckOutsourced={() => onCheckOutsourced(card)}
+            onDelete={onDelete}
           />
         ))}
       </div>

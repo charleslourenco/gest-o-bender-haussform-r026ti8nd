@@ -2262,6 +2262,12 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
+      project_item_names: {
+        Args: {
+          psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -3693,6 +3699,30 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION project_item_names(produtos_servicos_projeto)
+//   CREATE OR REPLACE FUNCTION public.project_item_names(psp produtos_servicos_projeto)
+//    RETURNS text
+//    LANGUAGE plpgsql
+//    STABLE
+//   AS $function$
+//   DECLARE
+//     v_names TEXT;
+//   BEGIN
+//     IF psp.formulario_comercial_id IS NULL THEN
+//       RETURN '';
+//     END IF;
+//
+//     SELECT string_agg(nome_produto, ', ' ORDER BY criado_em ASC)
+//     INTO v_names
+//     FROM public.produtos_servicos_projeto
+//     WHERE formulario_comercial_id = psp.formulario_comercial_id
+//       AND id != psp.id
+//       AND nome_produto !~* '^\d+\s*(item|itens|items|produto|produtos)';
+//
+//     RETURN COALESCE(v_names, '');
+//   END;
+//   $function$
+//
 // FUNCTION rls_auto_enable()
 //   CREATE OR REPLACE FUNCTION public.rls_auto_enable()
 //    RETURNS event_trigger
@@ -3922,6 +3952,8 @@ export const Constants = {
 //   CREATE UNIQUE INDEX fornecedores_cnpj_key ON public.fornecedores USING btree (cnpj)
 // Table: placeholders
 //   CREATE UNIQUE INDEX placeholders_placeholder_user_id_key ON public.placeholders USING btree (placeholder, user_id)
+// Table: produtos_servicos_projeto
+//   CREATE INDEX idx_produtos_servicos_projeto_formulario_comercial_id ON public.produtos_servicos_projeto USING btree (formulario_comercial_id)
 // Table: templates
 //   CREATE INDEX idx_templates_user_id_tipo ON public.templates USING btree (user_id, tipo)
 // Table: users

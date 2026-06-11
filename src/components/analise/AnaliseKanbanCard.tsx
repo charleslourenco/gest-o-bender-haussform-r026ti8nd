@@ -7,7 +7,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserCircle2 } from 'lucide-react'
+import { UserCircle2, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { useToast } from '@/hooks/use-toast'
 
 export function AnaliseKanbanCard({
@@ -16,6 +27,7 @@ export function AnaliseKanbanCard({
   onDragStart,
   onDragEnd,
   onCheckOutsourced,
+  onDelete,
 }: any) {
   const needsCheck = card.outsourced_checked === false || card.outsourced_checked === null
   const [users, setUsers] = useState<any[]>([])
@@ -33,6 +45,18 @@ export function AnaliseKanbanCard({
     }
     fetchUsers()
   }, [])
+
+  const handleDelete = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card.id)
+
+    if (error) {
+      toast({ title: 'Erro ao excluir card', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Card excluído com sucesso!' })
+      if (onDelete) onDelete(card.id)
+    }
+  }
 
   const handleAssign = async (userId: string) => {
     setAnalistaId(userId)
@@ -60,44 +84,89 @@ export function AnaliseKanbanCard({
       onDragEnd={onDragEnd}
       className={`flex flex-col gap-1.5 p-2 w-full h-fit bg-[#1A3D63] text-white rounded-md shadow-sm cursor-grab hover:shadow-md hover:border-blue-400/50 transition-all border border-transparent ${card.is_outsourced ? 'border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
     >
-      <div className="flex flex-row items-center justify-between gap-1 w-full text-[10px] mb-0.5">
+      <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card.codigo_rastreio ? (
           <span className="font-bold text-blue-200 truncate">{card.codigo_rastreio}</span>
         ) : (
           <span className="text-transparent">N/A</span>
         )}
-        {needsCheck && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onCheckOutsourced()
-            }}
-            title="Possui Terceirizado?"
-            className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"
-          >
-            ⚠️
-          </button>
-        )}
+        <div className="ml-auto flex items-center gap-1">
+          {needsCheck && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onCheckOutsourced()
+              }}
+              title="Possui Terceirizado?"
+              className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"
+            >
+              ⚠️
+            </button>
+          )}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-500/10 shrink-0"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                title="Excluir Card"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent
+              className="bg-[#1A3D63] text-white border-slate-700"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Card?</AlertDialogTitle>
+                <AlertDialogDescription className="text-slate-300">
+                  Tem certeza que deseja excluir este card? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white">
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-red-600 hover:bg-red-700 text-white border-none"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       {card.clientes?.nome && (
-        <span className="truncate text-slate-300 text-[10px] leading-none">
+        <span className="truncate text-slate-300 text-[10px] leading-none mb-1">
           {card.clientes.nome}
         </span>
       )}
 
-      <h4
-        className="font-medium text-xs leading-snug line-clamp-2 w-full break-words"
-        title={
-          card.is_parent_card && card.project_item_names
-            ? card.project_item_names
-            : card.nome_produto
-        }
-      >
-        {card.is_parent_card && card.project_item_names
-          ? card.project_item_names
-          : card.nome_produto}
-      </h4>
+      <div className="flex flex-col gap-1 w-full my-1">
+        {card.is_parent_card && card.project_item_names ? (
+          card.project_item_names
+            .split(',')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .map((item: string, i: number) => (
+              <div
+                key={i}
+                className="text-xs text-slate-200 bg-white/5 px-2 py-1 rounded w-full break-words leading-tight"
+              >
+                • {item}
+              </div>
+            ))
+        ) : (
+          <div className="text-xs text-slate-200 bg-white/5 px-2 py-1 rounded w-full break-words leading-tight">
+            • {card.nome_produto}
+          </div>
+        )}
+      </div>
 
       <div
         className="mt-1 flex items-center gap-1 border-t border-slate-700/50 pt-1.5"
