@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import {
   Select,
@@ -29,6 +30,7 @@ export function AnaliseKanbanCard({
   onCheckOutsourced,
   onDelete,
 }: any) {
+  const navigate = useNavigate()
   const needsCheck =
     !card.is_outsourced &&
     !card.has_outsourced_dependency &&
@@ -176,7 +178,13 @@ export function AnaliseKanbanCard({
 
       {card.clientes?.nome && (
         <span
-          className={`truncate font-medium text-xs leading-none mb-1 ${card.is_outsourced ? 'text-orange-950 font-bold dark:text-orange-300' : 'text-foreground/80'}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (card.cliente_id) {
+              navigate(`/clientes/${card.cliente_id}?tab=documentos`)
+            }
+          }}
+          className={`truncate font-medium text-xs leading-none mb-1 cursor-pointer hover:underline ${card.is_outsourced ? 'text-orange-950 font-bold dark:text-orange-300' : 'text-foreground/80'}`}
         >
           {card.clientes.nome}
         </span>

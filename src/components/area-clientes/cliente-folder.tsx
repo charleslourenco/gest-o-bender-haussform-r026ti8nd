@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -8,8 +9,17 @@ import { ClienteDocumentos } from './cliente-documentos'
 import { Timeline } from './timeline'
 
 export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'dados'
   const [dossie, setDossie] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  const handleTabChange = (value: string) => {
+    setSearchParams((prev) => {
+      prev.set('tab', value)
+      return prev
+    })
+  }
 
   const load = async () => {
     setLoading(true)
@@ -21,8 +31,10 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           cliente:clientes(*),
           formulario:formulario_comercial(*)
         `)
-        .eq('id', dossieId)
-        .single()
+        .or(`id.eq.${dossieId},cliente_id.eq.${dossieId}`)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
       if (data) {
         let vendedor = '-'
@@ -84,7 +96,11 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
         </div>
       </div>
 
-      <Tabs defaultValue="dados" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex-1 flex flex-col overflow-hidden"
+      >
         <TabsList className="shrink-0 w-full justify-start border-b rounded-none h-12 bg-transparent p-0 gap-6">
           <TabsTrigger
             value="dados"
