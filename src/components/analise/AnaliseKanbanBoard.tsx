@@ -151,15 +151,6 @@ export function AnaliseKanbanBoard({
     const card = cards.find((c) => c.id === draggingId)
     if (!card || card.status_analise === status) return
 
-    if (card.outsourced_checked === false || card.outsourced_checked === null) {
-      toast({
-        description: 'Verifique os itens terceirizados primeiro clicando no alerta vermelho.',
-        variant: 'destructive',
-        className: 'bg-red-500 text-white border-none',
-      })
-      return
-    }
-
     setCards((prev) =>
       prev.map((c) => (c.id === draggingId ? { ...c, status_analise: status } : c)),
     )
@@ -391,7 +382,7 @@ export function AnaliseKanbanBoard({
                 const clienteId = listaMateriaisAlert?.cliente_id
                 setListaMateriaisAlert(null)
                 if (clienteId) {
-                  navigate(`/clientes/${clienteId}`)
+                  navigate(`/clientes/${clienteId}?tab=documentos`)
                 }
               }}
             >
