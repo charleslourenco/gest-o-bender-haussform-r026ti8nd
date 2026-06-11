@@ -8,7 +8,15 @@ import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 
-export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: string }) {
+export function AnaliseKanbanBoard({
+  columns,
+  title,
+  formularioComercialId,
+}: {
+  columns: any[]
+  title: string
+  formularioComercialId?: string
+}) {
   const [cards, setCards] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
@@ -29,10 +37,16 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
   const isSyncingBottom = useRef(false)
 
   const loadCards = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from('produtos_servicos_projeto')
       .select('*, clientes(nome)')
       .eq('is_outsourced', false)
+
+    if (formularioComercialId) {
+      query = query.eq('formulario_comercial_id', formularioComercialId)
+    }
+
+    const { data } = await query
     if (data) setCards(data)
     setLoading(false)
   }
@@ -44,7 +58,20 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'produtos_servicos_projeto' },
-        loadCards,
+        (payload) => {
+          if (formularioComercialId) {
+            const newRecord = payload.new as any
+            const oldRecord = payload.old as any
+            if (
+              (newRecord && newRecord.formulario_comercial_id === formularioComercialId) ||
+              (oldRecord && oldRecord.formulario_comercial_id === formularioComercialId)
+            ) {
+              loadCards()
+            }
+          } else {
+            loadCards()
+          }
+        },
       )
       .subscribe()
 
@@ -62,7 +89,7 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
       window.removeEventListener('kanban_search_change', handleSearch)
       window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
     }
-  }, [])
+  }, [formularioComercialId])
 
   useEffect(() => {
     if (!contentRef.current) return
