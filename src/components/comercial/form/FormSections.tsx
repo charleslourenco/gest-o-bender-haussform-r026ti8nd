@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   FormState,
   maskCPF,
@@ -402,8 +403,11 @@ export function SectionProdutos({ data, update }: Props) {
 }
 
 export function SectionTotais({ data, update }: Props) {
-  const subtotal = data.produtos.reduce((acc, p) => acc + p.qtd * p.valor_unitario, 0)
-  const total = Math.max(0, subtotal - data.desconto)
+  const subtotal = data.produtos.reduce(
+    (acc, p) => acc + (Number(p.qtd) || 0) * (Number(p.valor_unitario) || 0),
+    0,
+  )
+  const total = Math.max(0, subtotal - (Number(data.desconto) || 0))
 
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
@@ -432,13 +436,17 @@ export function SectionTotais({ data, update }: Props) {
 }
 
 export function SectionPagamento({ data, update }: Props) {
-  const subtotal = data.produtos.reduce((acc, p) => acc + p.qtd * p.valor_unitario, 0)
-  const total = Math.max(0, subtotal - data.desconto)
+  const subtotal = data.produtos.reduce(
+    (acc, p) => acc + (Number(p.qtd) || 0) * (Number(p.valor_unitario) || 0),
+    0,
+  )
+  const total = Math.max(0, subtotal - (Number(data.desconto) || 0))
   const metodos = ['PIX', 'Boleto', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência']
 
-  const applyParcels = (length: number) => {
-    const val = Number((total / length).toFixed(2))
-    const rem = total - val * length
+  const applyParcels = (length: number, forceTotal?: number) => {
+    const calcTotal = forceTotal !== undefined ? forceTotal : total
+    const val = Number((calcTotal / length).toFixed(2))
+    const rem = calcTotal - val * length
     const baseDate = data.data_venda ? new Date(data.data_venda + 'T12:00:00Z') : new Date()
 
     const arr = Array.from({ length }).map((_, i) => {
@@ -446,10 +454,10 @@ export function SectionPagamento({ data, update }: Props) {
       pDate.setDate(pDate.getDate() + 30 * (i + 1))
 
       return {
-        id: Math.random().toString(36).substring(2),
-        data: pDate.toISOString().split('T')[0],
+        id: data.pagamento_parcelado[i]?.id || Math.random().toString(36).substring(2),
+        data: data.pagamento_parcelado[i]?.data || pDate.toISOString().split('T')[0],
         valor: i === 0 ? val + rem : val,
-        meio: 'PIX',
+        meio: data.pagamento_parcelado[i]?.meio || 'PIX',
       }
     })
     update('pagamento_parcelado', arr)
@@ -459,6 +467,17 @@ export function SectionPagamento({ data, update }: Props) {
     const count = Math.max(1, parseInt(e.target.value) || 1)
     applyParcels(count)
   }
+
+  const prevTotalRef = React.useRef(total)
+
+  React.useEffect(() => {
+    if (prevTotalRef.current !== total) {
+      if (data.forma_pagamento === 'Parcelado' && data.pagamento_parcelado.length > 0) {
+        applyParcels(data.pagamento_parcelado.length, total)
+      }
+      prevTotalRef.current = total
+    }
+  }, [total])
 
   const upParc = (id: string, f: string, v: any) =>
     update(
@@ -512,17 +531,33 @@ export function SectionPagamento({ data, update }: Props) {
             <label className="text-[14px] font-semibold whitespace-nowrap">
               Número de parcelas:
             </label>
-            <input
-              type="number"
-              min="1"
-              className={inputClass + ' w-20'}
-              value={data.pagamento_parcelado.length}
-              onChange={updateParcelaCount}
-            />
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={() => applyParcels(Math.max(1, data.pagamento_parcelado.length - 1))}
+                className="w-10 h-10 flex items-center justify-center bg-off-white border-2 border-r-0 border-steel-blue rounded-l-[4px] text-midnight-navy hover:bg-steel-blue hover:text-off-white transition-colors text-lg font-bold"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min="1"
+                className="w-16 h-10 text-center bg-off-white border-2 border-steel-blue text-midnight-navy focus:outline-none focus:border-dark-denim transition-colors m-0"
+                value={data.pagamento_parcelado.length}
+                onChange={updateParcelaCount}
+              />
+              <button
+                type="button"
+                onClick={() => applyParcels(data.pagamento_parcelado.length + 1)}
+                className="w-10 h-10 flex items-center justify-center bg-off-white border-2 border-l-0 border-steel-blue rounded-r-[4px] text-midnight-navy hover:bg-steel-blue hover:text-off-white transition-colors text-lg font-bold"
+              >
+                +
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => applyParcels(data.pagamento_parcelado.length)}
-              className="bg-steel-blue text-off-white px-4 py-2 rounded text-sm whitespace-nowrap"
+              className="bg-steel-blue text-off-white px-4 py-2 rounded text-sm whitespace-nowrap hover:bg-dark-denim transition-colors h-10 font-medium"
             >
               Recalcular Valores
             </button>
