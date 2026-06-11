@@ -29,7 +29,7 @@ export default function AnaliseTecnica() {
   }, [])
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+    <div className="h-full flex flex-col bg-[#0B1B2E] animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
       <AnaliseProjetoKanbanBoard />
     </div>
   )

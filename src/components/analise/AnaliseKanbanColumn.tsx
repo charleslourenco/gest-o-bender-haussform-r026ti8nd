@@ -14,18 +14,18 @@ export function AnaliseKanbanColumn({
 }: any) {
   return (
     <div
-      className={`flex flex-col w-[240px] bg-slate-100/90 border border-slate-200 rounded-md p-2 transition-colors h-full shrink-0 ${isDragOver ? 'ring-2 ring-primary/50 bg-slate-200' : ''}`}
+      className={`flex flex-col w-[240px] bg-[#0F243B] border border-[#1A3D63] rounded-md p-2 transition-colors h-full shrink-0 ${isDragOver ? 'ring-2 ring-blue-500/50 bg-[#132A46]' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <h3 className="font-semibold text-slate-700 mb-2.5 px-1 flex items-center justify-between text-[13px] shrink-0">
+      <h3 className="font-semibold text-white mb-2.5 px-1 flex items-center justify-between text-[13px] shrink-0">
         {column.title}
-        <span className="bg-white text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-sm border border-slate-200">
+        <span className="bg-white/10 text-slate-300 text-[10px] px-1.5 py-0.5 rounded-full font-medium shadow-sm border border-white/5">
           {cards.length}
         </span>
       </h3>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pb-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pb-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
         {cards.map((card: any) => (
           <AnaliseKanbanCard
             key={card.id}

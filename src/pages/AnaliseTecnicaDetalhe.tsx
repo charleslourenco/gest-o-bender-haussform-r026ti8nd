@@ -38,17 +38,17 @@ export default function AnaliseTecnicaDetalhe() {
   }, [id])
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
-      <div className="px-4 py-3 bg-white border-b flex items-center shadow-sm z-10 shrink-0 gap-3">
+    <div className="h-full flex flex-col bg-[#0B1B2E] animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+      <div className="px-4 py-3 bg-[#132A46] border-b border-slate-800 flex items-center shadow-sm z-10 shrink-0 gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate('/analise-tecnica')}
-          className="h-8 w-8 text-slate-500 hover:text-slate-800"
+          className="h-8 w-8 text-slate-300 hover:text-white hover:bg-white/10"
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <h2 className="font-bold text-lg text-slate-800">
+        <h2 className="font-bold text-lg text-white">
           Projeto {clientName ? `- ${clientName}` : ''}
         </h2>
       </div>

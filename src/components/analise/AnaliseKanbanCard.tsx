@@ -12,7 +12,7 @@ export function AnaliseKanbanCard({
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`flex flex-col gap-0 p-1.5 w-full h-fit bg-[#1A3D63] text-white rounded shadow-sm cursor-grab hover:shadow-md transition-all ${card.is_outsourced ? 'border border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
+      className={`flex flex-col gap-0 p-1.5 w-full h-fit bg-[#1A3D63] text-white rounded shadow-sm cursor-grab hover:shadow-md hover:border-blue-400/50 transition-all border border-transparent ${card.is_outsourced ? 'border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
     >
       <div className="flex flex-row items-center justify-between gap-1 w-full text-[9px] mb-0.5">
         {card.codigo_rastreio ? (

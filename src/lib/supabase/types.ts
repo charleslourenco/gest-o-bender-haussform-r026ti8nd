@@ -1156,6 +1156,7 @@ export type Database = {
           produtos_servicos: Json | null
           profissao: string | null
           rua: string | null
+          status_analise_projeto: string | null
           user_id: string
           valor_total: number | null
         }
@@ -1196,6 +1197,7 @@ export type Database = {
           produtos_servicos?: Json | null
           profissao?: string | null
           rua?: string | null
+          status_analise_projeto?: string | null
           user_id?: string
           valor_total?: number | null
         }
@@ -1236,6 +1238,7 @@ export type Database = {
           produtos_servicos?: Json | null
           profissao?: string | null
           rua?: string | null
+          status_analise_projeto?: string | null
           user_id?: string
           valor_total?: number | null
         }
@@ -2699,6 +2702,7 @@ export const Constants = {
 //   ambientes: jsonb (nullable, default: '[]'::jsonb)
 //   itens: jsonb (nullable, default: '[]'::jsonb)
 //   especificacoes: text (nullable)
+//   status_analise_projeto: text (nullable, default: 'iniciar'::text)
 // Table: fornecedores
 //   id: uuid (not null, default: gen_random_uuid())
 //   razao_social: text (not null)
@@ -3289,6 +3293,11 @@ export const Constants = {
 //   Policy "Users can update own formulario_comercial" (UPDATE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+//   Policy "analise_tecnica_select_formulario" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//   Policy "analise_tecnica_update_formulario" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//     WITH CHECK: has_module_access(auth.uid(), 'Análise Técnica'::text)
 // Table: fornecedores
 //   Policy "fornecedores_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3382,6 +3391,11 @@ export const Constants = {
 //   Policy "produtos_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: produtos_servicos_projeto
+//   Policy "analise_tecnica_select_psp" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//   Policy "analise_tecnica_update_psp" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//     WITH CHECK: has_module_access(auth.uid(), 'Análise Técnica'::text)
 //   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "produtos_servicos_projeto_delete_admin" (DELETE, PERMISSIVE) roles={authenticated}
