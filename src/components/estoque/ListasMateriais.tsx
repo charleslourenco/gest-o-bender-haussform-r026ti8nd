@@ -108,23 +108,27 @@ export function ListasMateriais() {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500">Carregando listas de materiais...</div>
+    return (
+      <div className="p-8 text-center text-slate-500 dark:text-slate-400">
+        Carregando listas de materiais...
+      </div>
+    )
   }
 
   if (listas.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500 bg-white rounded-lg border shadow-sm flex flex-col items-center">
-        <FileText className="w-12 h-12 text-slate-300 mb-3" />
+      <div className="p-8 text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-950 rounded-lg border dark:border-slate-800 shadow-sm flex flex-col items-center">
+        <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
         <p>Nenhuma lista de materiais encontrada no sistema.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-950 rounded-lg border dark:border-slate-800 shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+          <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-800">
             <tr>
               <th className="px-6 py-3 font-semibold">Documento</th>
               <th className="px-6 py-3 font-semibold">Cliente</th>
@@ -133,21 +137,26 @@ export function ListasMateriais() {
               <th className="px-6 py-3 font-semibold text-right">Ação</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {listas.map((doc) => {
               const isUnread = doc.status === 'pendente' || !doc.status || doc.status === 'novo'
 
               return (
-                <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
+                <tr
+                  key={doc.id}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                >
+                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                     <FileText
-                      className={`w-4 h-4 ${isUnread ? 'text-orange-500' : 'text-blue-500'}`}
+                      className={`w-4 h-4 ${isUnread ? 'text-orange-500 dark:text-orange-400' : 'text-blue-500 dark:text-blue-400'}`}
                     />
                     {doc.template_nome || 'Lista de Materiais'}
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{doc.clientes?.nome || 'N/A'}</td>
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                    {doc.clientes?.nome || 'N/A'}
+                  </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-slate-500">
+                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
                       <Clock className="w-3.5 h-3.5" />
                       {format(new Date(doc.criado_em), 'dd/MM/yyyy HH:mm')}
                     </div>
@@ -156,8 +165,8 @@ export function ListasMateriais() {
                     <span
                       className={`px-2.5 py-1 rounded-full text-[10px] font-medium tracking-wide ${
                         isUnread
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                       }`}
                     >
                       {isUnread ? 'Pendente de Revisão' : 'Revisado'}
@@ -175,7 +184,7 @@ export function ListasMateriais() {
                               doc.template_nome || 'Lista_de_Materiais',
                             )
                           }
-                          className="h-8 gap-1.5 bg-white"
+                          className="h-8 gap-1.5 bg-white dark:bg-slate-950"
                         >
                           <Download className="w-3.5 h-3.5" />
                           Baixar
@@ -186,7 +195,7 @@ export function ListasMateriais() {
                           variant="ghost"
                           size="sm"
                           onClick={() => markAsReviewed(doc.id)}
-                          className="h-8 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          className="h-8 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:text-emerald-300 dark:hover:bg-emerald-950"
                         >
                           <CheckCircle className="w-3.5 h-3.5" />
                           Revisado

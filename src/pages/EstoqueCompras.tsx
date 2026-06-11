@@ -50,13 +50,15 @@ export default function EstoqueCompras() {
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 w-full mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] dark:bg-slate-900 text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <PackageSearch className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Estoque & Compras</h2>
+              <PackageSearch className="w-5 h-5 text-emerald-400 dark:text-emerald-500" />
+              <h2 className="text-lg font-bold text-white dark:text-slate-100">
+                Estoque & Compras
+              </h2>
             </div>
-            <TabsList className="bg-white/10 border-none h-9">
+            <TabsList className="bg-white/10 dark:bg-slate-800/50 border-none h-9">
               <TabsTrigger
                 value="overview"
                 className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
@@ -130,13 +132,13 @@ export default function EstoqueCompras() {
           </TabsContent>
           <TabsContent value="documentos" className="m-0 border-none outline-none space-y-8">
             <section>
-              <h2 className="text-xl font-bold text-midnight-navy mb-4">
+              <h2 className="text-xl font-bold text-midnight-navy dark:text-slate-100 mb-4">
                 Entrada de Mercadorias (NF/OCR)
               </h2>
               <ComprasOCR />
             </section>
             <section>
-              <h2 className="text-xl font-bold text-midnight-navy mb-4">
+              <h2 className="text-xl font-bold text-midnight-navy dark:text-slate-100 mb-4">
                 Lista de Materiais por projeto
               </h2>
               <ConciliacaoListas />

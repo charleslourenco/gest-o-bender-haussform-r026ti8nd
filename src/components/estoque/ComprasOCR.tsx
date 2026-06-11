@@ -259,7 +259,9 @@ export function ComprasOCR() {
           <CardContent className="pt-6">
             <div
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+                isDragging
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20'
+                  : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-900/50'
               }`}
               onDragOver={(e) => {
                 e.preventDefault()
@@ -275,12 +277,16 @@ export function ComprasOCR() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
-                  <UploadCloud className="h-10 w-10 text-gray-400 mb-4" />
-                  <h3 className="font-semibold mb-1">Upload de Nota Fiscal / Fatura</h3>
-                  <p className="text-sm text-gray-500 mb-4">Arraste o PDF ou Imagem (JPG/PNG)</p>
+                  <UploadCloud className="h-10 w-10 text-gray-400 dark:text-slate-500 mb-4" />
+                  <h3 className="font-semibold mb-1 dark:text-slate-200">
+                    Upload de Nota Fiscal / Fatura
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                    Arraste o PDF ou Imagem (JPG/PNG)
+                  </p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className="bg-midnight-navy hover:bg-dark-denim"
+                    className="bg-midnight-navy hover:bg-dark-denim dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                   >
                     Selecionar Arquivo
                   </Button>
@@ -298,11 +304,11 @@ export function ComprasOCR() {
               )}
             </div>
 
-            <div className="mt-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-              <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800">
+            <div className="mt-6 bg-blue-50/50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-100 dark:border-blue-900/50">
+              <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800 dark:text-blue-300">
                 <AlertCircle className="w-4 h-4" /> Inteligência da Zenaide
               </h4>
-              <p className="text-xs text-blue-700/80 leading-relaxed">
+              <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
                 Nossa IA utiliza OCR avançado para extrair automaticamente Fornecedor, Valor e Itens
                 da sua nota fiscal. Os documentos são enviados para conciliação automática com
                 Pedidos de Compra (POs).
@@ -315,27 +321,28 @@ export function ComprasOCR() {
       <div className="lg:col-span-2">
         <Card className="h-full">
           <CardContent className="pt-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-gray-500" /> Notas Fiscais Processadas
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-slate-100">
+              <FileText className="w-5 h-5 text-gray-500 dark:text-slate-400" /> Notas Fiscais
+              Processadas
             </h3>
             <div className="space-y-3">
               {notas.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
+                <div className="text-center py-8 text-gray-500 dark:text-slate-400 text-sm">
                   Nenhuma nota processada recentemente.
                 </div>
               ) : (
                 notas.map((nota) => (
                   <div
                     key={nota.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between p-4 border dark:border-slate-800 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="bg-emerald-100 p-2 rounded-full">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <div className="bg-emerald-100 dark:bg-emerald-950 p-2 rounded-full">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{nota.fornecedor}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-medium text-sm dark:text-slate-200">{nota.fornecedor}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           Nota: {nota.numero_nota} | Emissão:{' '}
                           {nota.data_emissao
                             ? new Date(nota.data_emissao).toLocaleDateString('pt-BR')
@@ -350,8 +357,8 @@ export function ComprasOCR() {
                           variant="outline"
                           className={
                             nota.status_reconciliacao === 'pendente'
-                              ? 'bg-amber-50 text-amber-600 border-amber-200'
-                              : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                              ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900'
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900'
                           }
                         >
                           {nota.status_reconciliacao === 'pendente'
@@ -363,7 +370,7 @@ export function ComprasOCR() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(nota.id)}
-                            className="text-red-500 h-6 px-2 hover:bg-red-50"
+                            className="text-red-500 h-6 px-2 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
                           >
                             <Trash2 className="w-4 h-4 mr-1" /> Apagar
                           </Button>

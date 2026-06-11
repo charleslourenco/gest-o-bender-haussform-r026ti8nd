@@ -74,8 +74,12 @@ export function GestaoSobras() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-midnight-navy">Banco de Retalhos (MDF)</h2>
-          <p className="text-gray-500">Gerencie e imprima etiquetas térmicas de sobras.</p>
+          <h2 className="text-2xl font-bold text-midnight-navy dark:text-slate-100">
+            Banco de Retalhos (MDF)
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400">
+            Gerencie e imprima etiquetas térmicas de sobras.
+          </p>
         </div>
       </div>
 
@@ -94,7 +98,7 @@ export function GestaoSobras() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-gray-50">
+              <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Nome do MDF</TableHead>
@@ -116,19 +120,22 @@ export function GestaoSobras() {
                       {sobra.altura} x {sobra.largura}
                     </TableCell>
                     <TableCell className="text-center">{sobra.espessura}</TableCell>
-                    <TableCell className="text-center font-bold text-steel-blue">
+                    <TableCell className="text-center font-bold text-steel-blue dark:text-blue-400">
                       {sobra.area.toFixed(2)} m²
                     </TableCell>
                     <TableCell className="text-center">
                       {sobra.status === 'disponivel' ? (
                         <Badge
                           variant="outline"
-                          className="bg-emerald-50 text-emerald-600 border-emerald-200"
+                          className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
                         >
                           Disponível
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="bg-gray-100 text-gray-500">
+                        <Badge
+                          variant="secondary"
+                          className="bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                        >
                           Usado
                         </Badge>
                       )}
@@ -139,7 +146,7 @@ export function GestaoSobras() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-blue-600 hover:bg-blue-50 mr-1"
+                            className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50 mr-1"
                             onClick={() => printScrapLabel(sobra)}
                             title="Imprimir Etiqueta"
                           >
@@ -148,7 +155,7 @@ export function GestaoSobras() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-emerald-600 hover:bg-emerald-50 mr-1"
+                            className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 mr-1"
                             onClick={() => handleUsar(sobra.id)}
                             title="Marcar Uso"
                           >
@@ -157,7 +164,7 @@ export function GestaoSobras() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-amber-500 hover:bg-amber-50 h-8 w-8 mr-1"
+                            className="text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50 h-8 w-8 mr-1"
                             onClick={() => openEditModal(sobra)}
                             title="Editar"
                           >
@@ -168,7 +175,7 @@ export function GestaoSobras() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-red-500 hover:bg-red-50 h-8 w-8"
+                        className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
                         onClick={() => handleDeletar(sobra.id)}
                         title="Deletar"
                       >
@@ -179,7 +186,10 @@ export function GestaoSobras() {
                 ))}
                 {filteredSobras.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center py-8 text-gray-500 dark:text-slate-400"
+                    >
                       Nenhum retalho encontrado.
                     </TableCell>
                   </TableRow>

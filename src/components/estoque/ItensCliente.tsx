@@ -289,7 +289,7 @@ export function ItensCliente() {
                         {item.entregue_em && (
                           <Badge
                             variant="secondary"
-                            className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                            className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900"
                           >
                             <Check className="h-3 w-3 mr-1" />
                             Entregue
@@ -300,7 +300,7 @@ export function ItensCliente() {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDelete(item.id)}
-                            className="ml-2 text-red-500 hover:bg-red-50 h-8 w-8"
+                            className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
                             title="Apagar"
                           >
                             <Trash2 className="w-4 h-4" />

@@ -278,12 +278,14 @@ export function EstoqueLista() {
   const itemsSemMetadados = items.filter((i) => !i.metadados_normalizados).length
 
   return (
-    <div className="space-y-4 bg-white p-6 rounded-xl border">
+    <div className="space-y-4 bg-white dark:bg-slate-950 p-6 rounded-xl border dark:border-slate-800">
       {itemsSemMetadados > 0 && isAdmin && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between mb-4">
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4 flex items-center justify-between mb-4">
           <div>
-            <h4 className="font-semibold text-blue-800">Normalização Inteligente Pendente</h4>
-            <p className="text-sm text-blue-700">
+            <h4 className="font-semibold text-blue-800 dark:text-blue-300">
+              Normalização Inteligente Pendente
+            </h4>
+            <p className="text-sm text-blue-700 dark:text-blue-200">
               Há {itemsSemMetadados} itens no estoque sem os metadados normalizados. Normalize para
               ativar a conciliação automática completa.
             </p>
@@ -300,22 +302,25 @@ export function EstoqueLista() {
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
           <Input
             placeholder="Buscar item, marca ou categoria..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 dark:bg-slate-900 dark:border-slate-800"
           />
         </div>
-        <Button className="bg-steel-blue hover:bg-dark-denim" onClick={() => setIsModalOpen(true)}>
+        <Button
+          className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
+          onClick={() => setIsModalOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" /> Novo Item
         </Button>
       </div>
 
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border dark:border-slate-800 overflow-hidden">
         <Table>
-          <TableHeader className="bg-gray-50">
+          <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
             <TableRow>
               <TableHead>Item</TableHead>
               <TableHead>Marca</TableHead>
@@ -337,7 +342,7 @@ export function EstoqueLista() {
                 </TableCell>
                 <TableCell>{item.marca || '-'}</TableCell>
                 <TableCell>
-                  <div className="text-xs text-gray-500 space-y-0.5 whitespace-nowrap">
+                  <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
                     {item.cor && (
                       <div>
                         <span className="font-medium">Cor:</span> {item.cor}
@@ -370,7 +375,7 @@ export function EstoqueLista() {
                   {item.terceirizado && (
                     <Badge
                       variant="secondary"
-                      className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px]"
+                      className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
                     >
                       Terceirizado
                     </Badge>
@@ -378,7 +383,8 @@ export function EstoqueLista() {
                 </TableCell>
                 <TableCell>{item.fornecedor || '-'}</TableCell>
                 <TableCell className="text-right">
-                  {item.quantidade} <span className="text-xs text-gray-500">{item.unidade}</span>
+                  {item.quantidade}{' '}
+                  <span className="text-xs text-gray-500 dark:text-slate-400">{item.unidade}</span>
                 </TableCell>
                 <TableCell className="text-right">{formatCurrency(item.valor_unitario)}</TableCell>
                 <TableCell className="text-right">
@@ -388,14 +394,14 @@ export function EstoqueLista() {
                   {item.quantidade <= item.estoque_minimo ? (
                     <Badge
                       variant="destructive"
-                      className="bg-amber-500/10 text-amber-600 border-amber-200"
+                      className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
                     >
                       Estoque Baixo
                     </Badge>
                   ) : (
                     <Badge
                       variant="outline"
-                      className="bg-emerald-50 text-emerald-600 border-emerald-200"
+                      className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
                     >
                       Normal
                     </Badge>
@@ -407,7 +413,7 @@ export function EstoqueLista() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:bg-red-50 h-8 w-8"
+                      className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
                       title="Apagar"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -418,7 +424,10 @@ export function EstoqueLista() {
             ))}
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                <TableCell
+                  colSpan={10}
+                  className="text-center py-8 text-gray-500 dark:text-slate-400"
+                >
                   Nenhum item encontrado no estoque.
                 </TableCell>
               </TableRow>
@@ -461,8 +470,10 @@ export function EstoqueLista() {
               </div>
             </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-4 border border-gray-100">
-              <h4 className="font-medium text-sm text-gray-700">Atributos Técnicos (Opcional)</h4>
+            <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg space-y-4 border border-gray-100 dark:border-slate-800">
+              <h4 className="font-medium text-sm text-gray-700 dark:text-slate-300">
+                Atributos Técnicos (Opcional)
+              </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Marca</Label>

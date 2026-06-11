@@ -249,13 +249,13 @@ export function ConciliacaoListas() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg p-4 flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
         <div>
-          <h4 className="font-semibold text-amber-800">
+          <h4 className="font-semibold text-amber-800 dark:text-amber-300">
             Atenção: Compras Externas & Terceirizados
           </h4>
-          <p className="text-sm text-amber-700 mt-1">
+          <p className="text-sm text-amber-700 dark:text-amber-400/90 mt-1">
             Fique atento aos itens com o badge "Terceirizado" e demandas que faltam no estoque. Eles
             possuem tempo de lead time maior e precisam ser encomendados com prioridade. Use o botão
             "Copiar Pedido" para agilizar a comunicação com o fornecedor.
@@ -269,7 +269,9 @@ export function ConciliacaoListas() {
             <CardContent className="pt-6">
               <div
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                  isDragging ? 'border-steel-blue bg-steel-blue/5' : 'border-gray-200 bg-gray-50'
+                  isDragging
+                    ? 'border-steel-blue bg-steel-blue/5 dark:border-blue-500 dark:bg-blue-900/20'
+                    : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-900/50'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault()
@@ -280,17 +282,21 @@ export function ConciliacaoListas() {
               >
                 {isProcessingUpload ? (
                   <div className="flex flex-col items-center">
-                    <Loader2 className="h-10 w-10 text-steel-blue animate-spin mb-4" />
+                    <Loader2 className="h-10 w-10 text-steel-blue dark:text-blue-400 animate-spin mb-4" />
                     <p className="text-sm font-medium">Fazendo upload...</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
-                    <UploadCloud className="h-10 w-10 text-gray-400 mb-4" />
-                    <h3 className="font-semibold mb-1">Upload de Lista (PDF)</h3>
-                    <p className="text-sm text-gray-500 mb-4">Arraste a lista de materiais aqui</p>
+                    <UploadCloud className="h-10 w-10 text-gray-400 dark:text-slate-500 mb-4" />
+                    <h3 className="font-semibold mb-1 dark:text-slate-200">
+                      Upload de Lista (PDF)
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+                      Arraste a lista de materiais aqui
+                    </p>
                     <Button
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-midnight-navy hover:bg-dark-denim"
+                      className="bg-midnight-navy hover:bg-dark-denim dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
                     >
                       Selecionar Arquivo
                     </Button>
@@ -308,11 +314,11 @@ export function ConciliacaoListas() {
                 )}
               </div>
 
-              <div className="mt-6 bg-blue-50/50 p-4 rounded-lg border border-blue-100">
-                <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800">
+              <div className="mt-6 bg-blue-50/50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800 dark:text-blue-300">
                   <AlertCircle className="w-4 h-4" /> Inteligência da Zenaide
                 </h4>
-                <p className="text-xs text-blue-700/80 leading-relaxed">
+                <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
                   Envie a lista de materiais em PDF. A Zenaide lerá todos os itens e fará a
                   conciliação cruzando os dados com o inventário atual, apontando exatamente o que
                   precisa ser comprado.
@@ -328,20 +334,20 @@ export function ConciliacaoListas() {
             return (
               <Card
                 key={lista.id}
-                className="overflow-hidden border-2 hover:border-steel-blue/50 transition-colors"
+                className="overflow-hidden border-2 dark:border-slate-800 hover:border-steel-blue/50 dark:hover:border-blue-500/50 transition-colors"
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                     <div className="flex items-center gap-3">
-                      <div className="bg-steel-blue/10 p-3 rounded-full">
-                        <FileText className="w-6 h-6 text-steel-blue" />
+                      <div className="bg-steel-blue/10 dark:bg-blue-900/30 p-3 rounded-full">
+                        <FileText className="w-6 h-6 text-steel-blue dark:text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg text-midnight-navy">
+                        <h3 className="font-bold text-lg text-midnight-navy dark:text-slate-100">
                           Lista de Materiais{' '}
                           {lista.clientes?.nome ? `- ${lista.clientes.nome}` : '(Avulsa)'}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-slate-400">
                           Enviada em {new Date(lista.criado_em).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
@@ -351,7 +357,7 @@ export function ConciliacaoListas() {
                         <Button
                           onClick={() => handleProcessarZenaide(lista)}
                           disabled={processingId === lista.id}
-                          className="bg-midnight-navy hover:bg-dark-denim text-white font-bold shadow"
+                          className="bg-midnight-navy hover:bg-dark-denim dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 text-white font-bold shadow"
                         >
                           {processingId === lista.id ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -363,7 +369,7 @@ export function ConciliacaoListas() {
                       ) : (
                         <Badge
                           variant="outline"
-                          className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-1 text-sm font-bold"
+                          className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900 px-3 py-1 text-sm font-bold"
                         >
                           <CheckCircle2 className="w-4 h-4 mr-1 inline" /> Processado / Conciliado
                         </Badge>
@@ -373,7 +379,7 @@ export function ConciliacaoListas() {
                           variant="outline"
                           size="icon"
                           onClick={() => handleDelete(lista.id)}
-                          className="text-red-500 hover:bg-red-50 border-red-200"
+                          className="text-red-500 hover:bg-red-50 border-red-200 dark:text-red-400 dark:border-red-900 dark:hover:bg-red-950/50"
                           title="Apagar Lista"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -383,26 +389,26 @@ export function ConciliacaoListas() {
                   </div>
 
                   {isConciliado && lista.itens && lista.itens.length > 0 && (
-                    <div className="mt-6 border rounded-lg overflow-hidden shadow-sm">
+                    <div className="mt-6 border dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
                       <Table>
-                        <TableHeader className="bg-slate-50">
+                        <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
                           <TableRow>
-                            <TableHead className="font-bold text-slate-700">
+                            <TableHead className="font-bold text-slate-700 dark:text-slate-300">
                               Item (Projeto)
                             </TableHead>
-                            <TableHead className="font-bold text-slate-700">
+                            <TableHead className="font-bold text-slate-700 dark:text-slate-300">
                               Fornecedor / Tipo
                             </TableHead>
-                            <TableHead className="text-right font-bold text-slate-700">
+                            <TableHead className="text-right font-bold text-slate-700 dark:text-slate-300">
                               Qtd Necessária
                             </TableHead>
-                            <TableHead className="text-right font-bold text-slate-700">
+                            <TableHead className="text-right font-bold text-slate-700 dark:text-slate-300">
                               Em Estoque
                             </TableHead>
-                            <TableHead className="text-right font-bold text-slate-700">
+                            <TableHead className="text-right font-bold text-slate-700 dark:text-slate-300">
                               Falta Comprar
                             </TableHead>
-                            <TableHead className="text-center font-bold text-slate-700">
+                            <TableHead className="text-center font-bold text-slate-700 dark:text-slate-300">
                               Ação
                             </TableHead>
                           </TableRow>
@@ -435,8 +441,11 @@ export function ConciliacaoListas() {
                               item.nome.toLowerCase().includes('terceirizado')
 
                             return (
-                              <TableRow key={idx} className={falta > 0 ? 'bg-red-50/20' : ''}>
-                                <TableCell className="font-medium text-midnight-navy">
+                              <TableRow
+                                key={idx}
+                                className={falta > 0 ? 'bg-red-50/20 dark:bg-red-950/20' : ''}
+                              >
+                                <TableCell className="font-medium text-midnight-navy dark:text-slate-100">
                                   <div className="flex flex-col gap-1">
                                     <span>{item.nome}</span>
                                     {matchResult && (
@@ -445,16 +454,16 @@ export function ConciliacaoListas() {
                                           variant="outline"
                                           className={
                                             matchResult.status === 'EQUIVALENTE'
-                                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]'
+                                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900 text-[10px]'
                                               : matchResult.status === 'INCERTO'
-                                                ? 'bg-amber-50 text-amber-700 border-amber-200 text-[10px]'
-                                                : 'bg-red-50 text-red-700 border-red-200 text-[10px]'
+                                                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900 text-[10px]'
+                                                : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900 text-[10px]'
                                           }
                                         >
                                           {matchResult.status} ({matchResult.confianca})
                                         </Badge>
                                         <span
-                                          className="text-[10px] text-slate-500 max-w-[180px] truncate"
+                                          className="text-[10px] text-slate-500 dark:text-slate-400 max-w-[180px] truncate"
                                           title={`${matchResult.justificativa} ${matchResult.recomendacao}`}
                                         >
                                           {matchResult.justificativa}
@@ -465,32 +474,32 @@ export function ConciliacaoListas() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex flex-col items-start gap-1">
-                                    <span className="text-sm font-medium text-slate-600">
+                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                                       {itemEstoque?.fornecedor || 'Não cadastrado no sistema'}
                                     </span>
                                     {isTerceirizado && (
                                       <Badge
                                         variant="secondary"
-                                        className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-xs border-purple-200"
+                                        className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-xs border-purple-200 dark:border-purple-900"
                                       >
                                         Terceirizado
                                       </Badge>
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-right font-bold text-slate-700">
+                                <TableCell className="text-right font-bold text-slate-700 dark:text-slate-300">
                                   {item.quantidade}
                                 </TableCell>
-                                <TableCell className="text-right font-medium text-slate-500">
+                                <TableCell className="text-right font-medium text-slate-500 dark:text-slate-400">
                                   {estoqueQtd}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   {falta > 0 ? (
-                                    <span className="text-red-600 font-bold bg-red-100 px-2 py-1 rounded-md">
+                                    <span className="text-red-600 font-bold bg-red-100 dark:text-red-400 dark:bg-red-950/50 px-2 py-1 rounded-md">
                                       {falta}
                                     </span>
                                   ) : (
-                                    <span className="text-emerald-600 font-bold bg-emerald-100 px-2 py-1 rounded-md">
+                                    <span className="text-emerald-600 font-bold bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-950/50 px-2 py-1 rounded-md">
                                       OK
                                     </span>
                                   )}
@@ -501,7 +510,7 @@ export function ConciliacaoListas() {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleCopiarPedido(item, itemEstoque)}
-                                      className="border-steel-blue text-steel-blue hover:bg-steel-blue hover:text-white font-medium"
+                                      className="border-steel-blue text-steel-blue hover:bg-steel-blue hover:text-white dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-600 font-medium"
                                     >
                                       <Copy className="w-4 h-4 mr-1" /> Copiar Pedido
                                     </Button>
@@ -519,12 +528,14 @@ export function ConciliacaoListas() {
             )
           })}
           {listas.length === 0 && (
-            <div className="text-center py-16 bg-white border-2 border-dashed rounded-xl h-full flex flex-col justify-center items-center">
-              <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mb-4">
-                <FileText className="w-10 h-10 text-slate-300" />
+            <div className="text-center py-16 bg-white dark:bg-slate-950 border-2 border-dashed dark:border-slate-800 rounded-xl h-full flex flex-col justify-center items-center">
+              <div className="bg-slate-50 dark:bg-slate-900 w-20 h-20 rounded-full flex items-center justify-center mb-4">
+                <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600" />
               </div>
-              <h3 className="text-lg font-bold text-slate-700">Nenhuma lista pendente</h3>
-              <p className="text-sm mt-1 text-slate-500 max-w-md">
+              <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">
+                Nenhuma lista pendente
+              </h3>
+              <p className="text-sm mt-1 text-slate-500 dark:text-slate-400 max-w-md">
                 Faça o upload de uma lista ao lado ou importe através do perfil do cliente. As
                 listas aparecerão aqui para serem conciliadas.
               </p>

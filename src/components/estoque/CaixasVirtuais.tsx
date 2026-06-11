@@ -166,14 +166,16 @@ export function CaixasVirtuais() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-midnight-navy">Caixas Virtuais</h2>
-          <p className="text-gray-500">
+          <h2 className="text-2xl font-bold text-midnight-navy dark:text-slate-100">
+            Caixas Virtuais
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400">
             Separe os materiais para cada projeto e dê baixa na entrega.
           </p>
         </div>
         <Button
           onClick={() => setIsModalOpen(true)}
-          className="bg-steel-blue hover:bg-dark-denim w-full sm:w-auto"
+          className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white w-full sm:w-auto"
         >
           <PackageOpen className="w-4 h-4 mr-2" />
           Nova Caixa
@@ -184,26 +186,28 @@ export function CaixasVirtuais() {
         {caixas.map((caixa) => (
           <Card
             key={caixa.id}
-            className={`border-2 ${caixa.status === 'entregue' ? 'border-emerald-200 bg-emerald-50/30' : 'border-steel-blue/20'}`}
+            className={`border-2 ${caixa.status === 'entregue' ? 'border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-steel-blue/20 dark:border-blue-800/30'}`}
           >
-            <CardHeader className="pb-3 border-b border-gray-100 bg-gray-50/50">
+            <CardHeader className="pb-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Box
-                      className={`w-5 h-5 ${caixa.status === 'entregue' ? 'text-emerald-500' : 'text-steel-blue'}`}
+                      className={`w-5 h-5 ${caixa.status === 'entregue' ? 'text-emerald-500 dark:text-emerald-400' : 'text-steel-blue dark:text-blue-400'}`}
                     />
                     {caixa.nome}
                   </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">Cliente: {caixa.cliente?.nome}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    Cliente: {caixa.cliente?.nome}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge
                     variant={caixa.status === 'entregue' ? 'outline' : 'secondary'}
                     className={
                       caixa.status === 'entregue'
-                        ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
-                        : 'bg-steel-blue/10 text-steel-blue'
+                        ? 'text-emerald-600 border-emerald-200 bg-emerald-50 dark:text-emerald-400 dark:border-emerald-900 dark:bg-emerald-950'
+                        : 'bg-steel-blue/10 text-steel-blue dark:bg-blue-950/50 dark:text-blue-400'
                     }
                   >
                     {caixa.status.toUpperCase()}
@@ -211,7 +215,7 @@ export function CaixasVirtuais() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 -mr-2"
+                    className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/50 -mr-2"
                     onClick={() => handleDeletarCaixa(caixa.id)}
                     title="Apagar caixa e retornar itens livres ao estoque"
                   >
@@ -222,13 +226,13 @@ export function CaixasVirtuais() {
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-gray-700 flex justify-between items-center">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-300 flex justify-between items-center">
                   Itens Separados
                   {caixa.status !== 'entregue' && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 text-xs px-2 text-steel-blue"
+                      className="h-6 text-xs px-2 text-steel-blue dark:text-blue-400"
                       onClick={() => {
                         setSelectedCaixa(caixa)
                         setIsItemModalOpen(true)
@@ -239,23 +243,26 @@ export function CaixasVirtuais() {
                   )}
                 </h4>
                 {caixa.itens.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">Caixa vazia.</p>
+                  <p className="text-sm text-gray-400 dark:text-slate-500 italic">Caixa vazia.</p>
                 ) : (
                   <ul className="space-y-2">
                     {caixa.itens.map((item: any) => (
                       <li
                         key={item.id}
-                        className="flex justify-between items-center text-sm p-2 rounded-md bg-white border border-gray-100 shadow-sm"
+                        className="flex justify-between items-center text-sm p-2 rounded-md bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm"
                       >
-                        <span className="truncate pr-2 font-medium text-gray-700">
+                        <span className="truncate pr-2 font-medium text-gray-700 dark:text-slate-300">
                           {item.item?.nome}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge variant="outline" className="font-mono bg-gray-50">
+                          <Badge
+                            variant="outline"
+                            className="font-mono bg-gray-50 dark:bg-slate-800"
+                          >
                             {item.quantidade} {item.item?.unidade}
                           </Badge>
                           {item.status === 'entregue' && (
-                            <Check className="w-4 h-4 text-emerald-500" />
+                            <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                           )}
                         </div>
                       </li>
@@ -277,8 +284,8 @@ export function CaixasVirtuais() {
           </Card>
         ))}
         {caixas.length === 0 && (
-          <div className="col-span-full py-12 text-center text-gray-500 border-2 border-dashed rounded-xl">
-            <PackageOpen className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+          <div className="col-span-full py-12 text-center text-gray-500 dark:text-slate-400 border-2 border-dashed dark:border-slate-800 rounded-xl">
+            <PackageOpen className="w-12 h-12 mx-auto text-gray-300 dark:text-slate-600 mb-3" />
             <p>Nenhuma caixa criada. Crie uma para começar a separar materiais.</p>
           </div>
         )}

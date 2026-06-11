@@ -253,7 +253,7 @@ export function SolicitacoesCompra() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(s.id)}
-                          className="ml-2 text-red-500 hover:bg-red-50 h-8 w-8 inline-flex align-middle"
+                          className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8 inline-flex align-middle"
                           title="Apagar"
                         >
                           <Trash2 className="w-4 h-4" />
