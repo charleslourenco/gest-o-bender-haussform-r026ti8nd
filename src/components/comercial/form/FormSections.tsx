@@ -7,6 +7,7 @@ import {
   addBusinessDays,
 } from './FormUtils'
 import { Plus, Trash2, Copy } from 'lucide-react'
+import { toast } from 'sonner'
 
 const inputClass =
   'w-full bg-off-white border-2 border-steel-blue rounded-[4px] px-[12px] py-[8px] text-midnight-navy focus:outline-none focus:border-dark-denim transition-colors'
@@ -278,6 +279,7 @@ export function SectionProdutos({ data, update }: Props) {
         qtd: 1,
         descricao: '',
         valor_unitario: 0,
+        is_outsourced: false,
       },
     ])
   const remProd = (id: string) => {
@@ -287,11 +289,17 @@ export function SectionProdutos({ data, update }: Props) {
         data.produtos.filter((p) => p.id !== id),
       )
   }
-  const upProd = (id: string, f: string, v: any) =>
+  const upProd = (id: string, f: string, v: any) => {
+    if (f === 'is_outsourced' && v === true) {
+      toast('Item direcionado para o fluxo de Compras/Estoque', {
+        style: { background: '#102A43', color: '#fff', border: 'none' },
+      })
+    }
     update(
       'produtos',
       data.produtos.map((p) => (p.id === id ? { ...p, [f]: v } : p)),
     )
+  }
 
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
@@ -304,14 +312,15 @@ export function SectionProdutos({ data, update }: Props) {
         <Plus className="w-4 h-4" /> Adicionar Produto
       </button>
       <div className="overflow-x-auto mb-[16px]">
-        <table className="w-full text-left border-collapse min-w-[700px]">
+        <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-dark-denim text-off-white font-[600]">
-              <th className="p-[12px] border border-steel-blue">Produto/Serviço</th>
+              <th className="p-[12px] border border-steel-blue min-w-[200px]">Produto/Serviço</th>
               <th className="p-[12px] border border-steel-blue w-[80px]">Qtd</th>
-              <th className="p-[12px] border border-steel-blue">Descrição</th>
-              <th className="p-[12px] border border-steel-blue w-[150px]">Valor Unit.</th>
+              <th className="p-[12px] border border-steel-blue min-w-[200px]">Descrição</th>
+              <th className="p-[12px] border border-steel-blue w-[150px]">Valor Unitário</th>
               <th className="p-[12px] border border-steel-blue w-[150px]">Valor Total</th>
+              <th className="p-[12px] border border-steel-blue w-[180px]">Solicitar Compra</th>
               <th className="p-[12px] border border-steel-blue w-[50px]"></th>
             </tr>
           </thead>
@@ -359,6 +368,21 @@ export function SectionProdutos({ data, update }: Props) {
                 </td>
                 <td className="p-[8px] border border-steel-blue font-bold">
                   {formatCurrencyInput(p.qtd * p.valor_unitario * 100)}
+                </td>
+                <td className="p-[8px] border border-steel-blue text-center">
+                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer justify-center">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-dark-denim"
+                      checked={p.is_outsourced || false}
+                      onChange={(e) => upProd(p.id, 'is_outsourced', e.target.checked)}
+                    />
+                    <span className="leading-tight text-left">
+                      Solicitar Compra
+                      <br />
+                      <span className="text-[10px] font-normal">(Item Solto/Terceiro)</span>
+                    </span>
+                  </label>
                 </td>
                 <td className="p-[8px] border border-steel-blue text-center">
                   <button
