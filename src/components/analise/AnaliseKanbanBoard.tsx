@@ -7,6 +7,15 @@ import { CriarCardAvulsoModal } from './CriarCardAvulsoModal'
 import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export function AnaliseKanbanBoard({
   columns,
@@ -32,6 +41,8 @@ export function AnaliseKanbanBoard({
   const [checkModalCard, setCheckModalCard] = useState<any | null>(null)
   const [avulsoModalOpen, setAvulsoModalOpen] = useState(false)
   const [avulsoCardToUpdate, setAvulsoCardToUpdate] = useState<any | null>(null)
+  const [listaMateriaisAlert, setListaMateriaisAlert] = useState<any | null>(null)
+  const navigate = useNavigate()
 
   const topScrollRef = useRef<HTMLDivElement>(null)
   const bottomScrollRef = useRef<HTMLDivElement>(null)
@@ -156,6 +167,10 @@ export function AnaliseKanbanBoard({
       .from('produtos_servicos_projeto')
       .update({ status_analise: status })
       .eq('id', draggingId)
+
+    if (status === 'lista_materiais' && card.cliente_id) {
+      setListaMateriaisAlert(card)
+    }
   }
 
   const handleCheckOutsourced = async (hasOutsourced: boolean) => {
@@ -357,6 +372,34 @@ export function AnaliseKanbanBoard({
           baseCard={avulsoCardToUpdate}
         />
       )}
+
+      <Dialog
+        open={!!listaMateriaisAlert}
+        onOpenChange={(open) => !open && setListaMateriaisAlert(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lista de Materiais</DialogTitle>
+            <DialogDescription className="text-base text-foreground mt-2">
+              Para finalizar essa etapa faça o upload da lista de materiais no módulo de clientes
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={() => {
+                const clienteId = listaMateriaisAlert?.cliente_id
+                setListaMateriaisAlert(null)
+                if (clienteId) {
+                  navigate(`/clientes/${clienteId}`)
+                }
+              }}
+            >
+              [ir para aba de clientes]
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
