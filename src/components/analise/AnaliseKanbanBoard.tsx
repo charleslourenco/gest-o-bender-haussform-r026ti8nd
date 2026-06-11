@@ -29,7 +29,10 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
   const isSyncingBottom = useRef(false)
 
   const loadCards = async () => {
-    const { data } = await supabase.from('produtos_servicos_projeto').select('*, clientes(nome)')
+    const { data } = await supabase
+      .from('produtos_servicos_projeto')
+      .select('*, clientes(nome)')
+      .eq('is_outsourced', false)
     if (data) setCards(data)
     setLoading(false)
   }

@@ -206,10 +206,12 @@ Deno.serve(async (req: Request) => {
 
       let produtos = []
       if (form.id) {
+        // Garantir que todos os itens, incluindo terceirizados, sejam puxados
         const { data: projProdutos } = await supabaseClient
           .from('produtos_servicos_projeto')
           .select('*')
           .eq('formulario_comercial_id', form.id)
+          .order('criado_em', { ascending: true })
 
         if (projProdutos && projProdutos.length > 0) {
           produtos = projProdutos

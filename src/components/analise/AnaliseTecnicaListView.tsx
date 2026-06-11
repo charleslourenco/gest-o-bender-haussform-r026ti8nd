@@ -43,6 +43,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
           analista:users!produtos_servicos_projeto_analista_id_fkey(id, nome)
         `)
         .in('status_analise', columnIds)
+        .eq('is_outsourced', false)
         .order('atualizado_em', { ascending: false })
 
       const { data, error } = await query
