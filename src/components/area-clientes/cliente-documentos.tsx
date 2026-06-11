@@ -264,19 +264,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
-        tipo: uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'upload_manual',
+        tipo: uploadTipo === 'lista_materiais' ? 'lista_materiais' : 'upload_manual',
         template_nome: file.name,
-        status: 'Concluído',
+        status: uploadTipo === 'lista_materiais' ? 'pendente' : 'Concluído',
         arquivo_url: filePath,
       })
-
-      if (uploadTipo === 'lista_materiais') {
-        await supabase.from('listas_materiais').insert({
-          cliente_id: dossie.cliente_id,
-          arquivo_url: filePath,
-          status: 'pendente',
-        })
-      }
 
       const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({

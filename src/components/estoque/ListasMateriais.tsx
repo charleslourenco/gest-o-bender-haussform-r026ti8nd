@@ -24,7 +24,7 @@ export function ListasMateriais() {
           nome
         )
       `)
-      .eq('tipo', 'lista de materiais')
+      .eq('tipo', 'lista_materiais')
       .order('criado_em', { ascending: false })
 
     if (error) {
@@ -48,7 +48,7 @@ export function ListasMateriais() {
           event: '*',
           schema: 'public',
           table: 'documentos_cliente',
-          filter: "tipo=eq.'lista de materiais'",
+          filter: 'tipo=eq.lista_materiais',
         },
         () => {
           fetchListas()
@@ -72,6 +72,38 @@ export function ListasMateriais() {
     } else {
       toast({ title: 'Documento marcado como revisado' })
       setListas((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'revisado' } : l)))
+    }
+  }
+
+  const handleDownloadFile = async (url: string, filename: string) => {
+    try {
+      let bucket = 'bender_clientes'
+      let path = url
+
+      if (url.startsWith('http')) {
+        const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/)
+        if (match) {
+          bucket = match[1]
+          path = decodeURIComponent(match[2])
+        }
+      }
+
+      const { data, error } = await supabase.storage.from(bucket).download(path)
+      if (error) throw error
+
+      if (data) {
+        const objectUrl = URL.createObjectURL(data)
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = filename || 'Lista_de_Materiais'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+      }
+    } catch (e: any) {
+      console.error('Erro ao baixar arquivo:', e)
+      toast({ title: 'Não foi possível baixar o arquivo.', variant: 'destructive' })
     }
   }
 
@@ -137,7 +169,12 @@ export function ListasMateriais() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => window.open(doc.arquivo_url, '_blank')}
+                          onClick={() =>
+                            handleDownloadFile(
+                              doc.arquivo_url,
+                              doc.template_nome || 'Lista_de_Materiais',
+                            )
+                          }
                           className="h-8 gap-1.5 bg-white"
                         >
                           <Download className="w-3.5 h-3.5" />
