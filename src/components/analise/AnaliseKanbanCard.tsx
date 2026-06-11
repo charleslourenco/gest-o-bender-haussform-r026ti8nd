@@ -48,13 +48,32 @@ export function AnaliseKanbanCard({
 
   const handleDelete = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card.id)
 
-    if (error) {
-      toast({ title: 'Erro ao excluir card', description: error.message, variant: 'destructive' })
+    if (card.is_parent_card && card.formulario_comercial_id) {
+      const { error } = await supabase
+        .from('formulario_comercial')
+        .delete()
+        .eq('id', card.formulario_comercial_id)
+
+      if (error) {
+        toast({
+          title: 'Erro ao excluir projeto',
+          description: error.message,
+          variant: 'destructive',
+        })
+      } else {
+        toast({ title: 'Projeto excluído com sucesso!' })
+        if (onDelete) onDelete(card.id)
+      }
     } else {
-      toast({ title: 'Card excluído com sucesso!' })
-      if (onDelete) onDelete(card.id)
+      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card.id)
+
+      if (error) {
+        toast({ title: 'Erro ao excluir card', description: error.message, variant: 'destructive' })
+      } else {
+        toast({ title: 'Card excluído com sucesso!' })
+        if (onDelete) onDelete(card.id)
+      }
     }
   }
 
@@ -109,7 +128,7 @@ export function AnaliseKanbanCard({
                 className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-500/10 shrink-0"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
-                title="Excluir Card"
+                title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -120,9 +139,13 @@ export function AnaliseKanbanCard({
               onPointerDown={(e) => e.stopPropagation()}
             >
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Card?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Card?'}
+                </AlertDialogTitle>
                 <AlertDialogDescription className="text-slate-300">
-                  Tem certeza que deseja excluir este card? Esta ação não pode ser desfeita.
+                  {card.is_parent_card
+                    ? 'Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.'
+                    : 'Tem certeza que deseja excluir este card? Esta ação não pode ser desfeita.'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
