@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ShoppingBag } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface Props {
@@ -30,6 +31,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const fetchData = async () => {
     try {
@@ -130,6 +132,52 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
       toast({ title: 'Item excluído' })
       window.dispatchEvent(new CustomEvent('kanban_refresh'))
     } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleSolicitarCompra = async (item: any) => {
+    if (
+      !confirm(
+        `Deseja solicitar a compra do item "${item.nome_produto}" e removê-lo da análise técnica?`,
+      )
+    )
+      return
+
+    if (!user) {
+      toast({ title: 'Erro', description: 'Usuário não autenticado', variant: 'destructive' })
+      return
+    }
+
+    setItems((prev) => prev.filter((i) => i.id !== item.id))
+
+    try {
+      const [resCompra, resProj] = await Promise.all([
+        supabase.from('solicitacoes_compra').insert({
+          usuario_id: user.id,
+          cliente_id: item.cliente_id,
+          nome_item: item.nome_produto,
+          quantidade: item.qtd || 1,
+          unidade: 'un',
+          urgencia: 'Média',
+          status: 'Pendente',
+          motivo: 'Solicitado via Análise Técnica',
+        }),
+        supabase
+          .from('produtos_servicos_projeto')
+          .update({
+            is_outsourced: true,
+          })
+          .eq('id', item.id),
+      ])
+
+      if (resCompra.error) throw resCompra.error
+      if (resProj.error) throw resProj.error
+
+      toast({ title: 'Compra solicitada com sucesso!' })
+      window.dispatchEvent(new CustomEvent('kanban_refresh'))
+    } catch (err: any) {
+      fetchData()
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
   }
@@ -236,15 +284,26 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                     </Select>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => handleDelete(item.id)}
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-center items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => handleSolicitarCompra(item)}
+                        title="Solicitar Compra"
+                      >
+                        <ShoppingBag className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => handleDelete(item.id)}
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

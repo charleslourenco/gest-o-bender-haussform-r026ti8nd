@@ -154,6 +154,57 @@ export function AnaliseKanbanBoard({ columns, title }: { columns: any[]; title: 
     loadCards()
   }
 
+  useEffect(() => {
+    const handleSolicitarCompraCard = async (e: any) => {
+      const item = e.detail
+      if (!item) return
+
+      setCards((prev) => prev.filter((c) => c.id !== item.id))
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user) throw new Error('Usuário não autenticado')
+
+        const [resCompra, resProj] = await Promise.all([
+          supabase.from('solicitacoes_compra').insert({
+            usuario_id: user.id,
+            cliente_id: item.cliente_id,
+            nome_item: item.nome_produto,
+            quantidade: item.qtd || 1,
+            unidade: 'un',
+            urgencia: 'Média',
+            status: 'Pendente',
+            motivo: 'Solicitado via Análise Técnica',
+          }),
+          supabase
+            .from('produtos_servicos_projeto')
+            .update({
+              is_outsourced: true,
+            })
+            .eq('id', item.id),
+        ])
+
+        if (resCompra.error) throw resCompra.error
+        if (resProj.error) throw resProj.error
+
+        toast({ title: 'Compra solicitada com sucesso!' })
+      } catch (err: any) {
+        loadCards()
+        toast({
+          title: 'Erro ao solicitar compra',
+          description: err.message,
+          variant: 'destructive',
+          className: 'bg-red-500 text-white',
+        })
+      }
+    }
+
+    window.addEventListener('solicitar_compra_card', handleSolicitarCompraCard)
+    return () => window.removeEventListener('solicitar_compra_card', handleSolicitarCompraCard)
+  }, [toast])
+
   const filteredCards = cards.filter((c) => {
     if (!searchQuery) return true
     return (

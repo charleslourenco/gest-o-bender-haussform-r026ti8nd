@@ -3802,7 +3802,8 @@ export const Constants = {
 //                   quantidade,
 //                   unidade,
 //                   urgencia,
-//                   status
+//                   status,
+//                   motivo
 //                 ) VALUES (
 //                   NEW.user_id,
 //                   NEW.cliente_id,
@@ -3810,7 +3811,8 @@ export const Constants = {
 //                   v_qtd,
 //                   'un',
 //                   'Média',
-//                   'Pendente'
+//                   'Pendente',
+//                   'Gerado automaticamente via formulário comercial (Compra Direta)'
 //                 );
 //               END IF;
 //             END;
