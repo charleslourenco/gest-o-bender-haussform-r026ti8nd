@@ -51,9 +51,9 @@ const categoryConfig = {
   },
   Equipe: {
     icon: HardHat,
-    color: 'text-amber-400',
-    bg: 'bg-amber-400/10',
-    border: 'border-amber-400/20',
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/20',
   },
 }
 
@@ -115,7 +115,9 @@ export function KanbanCard({
       }}
       className={cn(
         'bg-[#1A3D63] border border-[#2A5282] rounded-lg p-3 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.3)] transition-all duration-200 cursor-pointer group hover:shadow-[0_4px_12px_rgba(10,25,49,0.4)] hover:scale-[1.02] hover:border-[#3B6BA5]',
-        isAguardando ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]' : '',
+        isAguardando
+          ? 'border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)] bg-orange-500/5'
+          : '',
         isDragging && 'opacity-50 border-[#4B8BDB] border-[2px]',
       )}
     >
@@ -124,7 +126,7 @@ export function KanbanCard({
           {isAguardando && (
             <span className="flex h-2.5 w-2.5 relative shrink-0" title="Aguardando Consultor">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
             </span>
           )}
           <span className="line-clamp-2">{lead.nome}</span>

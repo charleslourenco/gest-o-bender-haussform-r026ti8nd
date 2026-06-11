@@ -49,7 +49,7 @@ export function AnaliseTab({ data }: { data: DashboardData }) {
             <CardTitle className="text-sm font-bold text-midnight-navy">
               Projetos em Análise
             </CardTitle>
-            <FileSearch className="h-5 w-5 text-amber-500" />
+            <FileSearch className="h-5 w-5 text-orange-600 dark:text-orange-400" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-dark-denim">{total}</div>
@@ -71,7 +71,12 @@ export function AnaliseTab({ data }: { data: DashboardData }) {
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="value" name="Projetos" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="value"
+                    name="Projetos"
+                    fill="var(--color-orange-500, #ea580c)"
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>

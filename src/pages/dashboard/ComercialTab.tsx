@@ -107,7 +107,7 @@ export function ComercialTab({ data }: { data: DashboardData }) {
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-emerald-600">{formatCurrency(c.valor)}</p>
-                    <p className="text-xs font-semibold text-amber-500">
+                    <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">
                       Conv: {c.taxa.toFixed(1)}%
                     </p>
                   </div>

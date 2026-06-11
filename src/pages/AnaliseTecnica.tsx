@@ -75,7 +75,10 @@ export default function AnaliseTecnica() {
         }
 
         if (count !== null && count > 0) {
-          toast.warning(`Atenção: Existem ${count} solicitações de compra pendentes.`)
+          toast.warning(`Atenção: Existem ${count} solicitações de compra pendentes.`, {
+            className:
+              'bg-orange-50 border-orange-400 text-orange-700 dark:bg-orange-950/50 dark:border-orange-500 dark:text-orange-400',
+          })
         }
       } catch (err) {
         console.error('Erro no processamento das solicitações de compra:', err)

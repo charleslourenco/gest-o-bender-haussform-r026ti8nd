@@ -84,7 +84,7 @@ export function KanbanCard({
           ? cn(
               'bg-[#1A3D63] text-white p-1.5 gap-1',
               card.is_outsourced
-                ? 'border border-orange-500'
+                ? 'border-2 border-orange-500 bg-orange-500/10'
                 : 'border border-white/10 hover:border-white/30',
             )
           : !isMontagem && isProducao
@@ -163,7 +163,7 @@ export function KanbanCard({
               type="button"
               onClick={(e) => e.stopPropagation()}
               title="Terceirizado Pendente"
-              className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors"
+              className="bg-orange-600 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-orange-700 transition-colors border border-orange-500/50"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
             </button>
