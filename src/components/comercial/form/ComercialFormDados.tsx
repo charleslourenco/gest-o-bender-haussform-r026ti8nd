@@ -212,35 +212,40 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
       if (formId && data.produtos && data.produtos.length > 0) {
         const compraDiretaItems = data.produtos.filter((p: any) => p.is_outsourced)
+        const manufaturaItems = data.produtos.filter((p: any) => !p.is_outsourced)
 
-        // Ensure ALL items go to produtos_servicos_projeto to keep the data structure consistent
-        const { data: existingCards } = await supabase
-          .from('produtos_servicos_projeto')
-          .select('nome_produto')
-          .eq('formulario_comercial_id', formId)
+        if (manufaturaItems.length > 0) {
+          const { data: existingCards } = await supabase
+            .from('produtos_servicos_projeto')
+            .select('nome_produto')
+            .eq('formulario_comercial_id', formId)
 
-        const existingNames = existingCards?.map((c) => c.nome_produto) || []
+          const existingNames = existingCards?.map((c) => c.nome_produto) || []
 
-        const newCards = data.produtos
-          .filter(
-            (p: any) =>
-              !existingNames.includes(p.nome || p.descricao || p.nome_produto || 'Produto'),
-          )
-          .map((p: any) => ({
-            formulario_comercial_id: formId,
-            cliente_id: dossie.cliente_id,
-            nome_produto: p.nome || p.nome_produto || 'Produto',
-            qtd: p.qtd || 1,
-            descricao: p.descricao || '',
-            valor_unitario: p.valor_unitario || 0,
-            valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
-            status_analise: 'iniciar',
-            is_outsourced: p.is_outsourced || false,
-            codigo_rastreio: null,
-          }))
+          const newCards = manufaturaItems
+            .filter((p: any) => {
+              const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
+              return !existingNames.includes(productName)
+            })
+            .map((p: any) => {
+              const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
+              return {
+                formulario_comercial_id: formId,
+                cliente_id: dossie.cliente_id,
+                nome_produto: productName,
+                qtd: p.qtd || 1,
+                descricao: p.descricao || '',
+                valor_unitario: p.valor_unitario || 0,
+                valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
+                status_analise: 'iniciar',
+                is_outsourced: false,
+                codigo_rastreio: null,
+              }
+            })
 
-        if (newCards.length > 0) {
-          await supabase.from('produtos_servicos_projeto').insert(newCards)
+          if (newCards.length > 0) {
+            await supabase.from('produtos_servicos_projeto').insert(newCards)
+          }
         }
 
         if (compraDiretaItems.length > 0) {
@@ -252,22 +257,25 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           const existingReqNames = existingSolicitacoes?.map((s) => s.nome_item) || []
 
           const newRequests = compraDiretaItems
-            .filter(
-              (p: any) =>
-                !existingReqNames.includes(p.nome || p.descricao || p.nome_produto || 'Item'),
-            )
-            .map((p: any) => ({
-              nome_item: p.nome || p.nome_produto || p.descricao || 'Item de Compra',
-              quantidade: p.qtd || 1,
-              unidade: 'un',
-              urgencia: 'Média',
-              status: 'Pendente',
-              usuario_id: authData.user?.id,
-              cliente_id: dossie.cliente_id,
-              fornecedor: null,
-              data_entrega_prevista: data.data_entrega_maxima || null,
-              motivo: 'Gerado automaticamente via formulário comercial (Compra Direta)',
-            }))
+            .filter((p: any) => {
+              const itemName = p.nome || p.nome_produto || p.descricao || 'Item de Compra'
+              return !existingReqNames.includes(itemName)
+            })
+            .map((p: any) => {
+              const itemName = p.nome || p.nome_produto || p.descricao || 'Item de Compra'
+              return {
+                nome_item: itemName,
+                quantidade: p.qtd || 1,
+                unidade: 'un',
+                urgencia: 'Média',
+                status: 'Pendente',
+                usuario_id: authData.user?.id,
+                cliente_id: dossie.cliente_id,
+                fornecedor: null,
+                data_entrega_prevista: data.data_entrega_maxima || null,
+                motivo: 'Gerado automaticamente via formulário comercial (Compra Direta)',
+              }
+            })
 
           if (newRequests.length > 0) {
             await supabase.from('solicitacoes_compra').insert(newRequests)
