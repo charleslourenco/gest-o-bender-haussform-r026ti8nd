@@ -140,7 +140,7 @@ export function DocsModeloModal({
               <Button variant="ghost" size="icon" onClick={() => setIsAdding(false)}>
                 <ArrowLeft className="w-4 h-4" />
               </Button>
-              <h3 className="font-semibold text-midnight-navy">Adicionar Novo Modelo</h3>
+              <h3 className="font-semibold text-foreground">Adicionar Novo Modelo</h3>
             </div>
 
             <div className="space-y-4">
@@ -175,10 +175,7 @@ export function DocsModeloModal({
         ) : (
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button
-                onClick={() => setIsAdding(true)}
-                className="bg-steel-blue hover:bg-steel-blue/90 text-white shadow"
-              >
+              <Button onClick={() => setIsAdding(true)} className="shadow">
                 <Plus className="w-4 h-4 mr-2" /> Adicionar Novo Modelo
               </Button>
             </div>
@@ -196,11 +193,11 @@ export function DocsModeloModal({
                 {modelos.map((m) => (
                   <div
                     key={m.id}
-                    className="flex items-center justify-between p-4 bg-white shadow-sm border border-slate-200 rounded-lg hover:border-steel-blue transition-colors"
+                    className="flex items-center justify-between p-4 bg-card shadow-sm border border-border rounded-lg hover:border-primary/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FileText className="w-6 h-6 text-midnight-navy shrink-0" />
-                      <span className="font-bold text-midnight-navy">{m.nome}</span>
+                      <FileText className="w-6 h-6 text-foreground shrink-0" />
+                      <span className="font-bold text-foreground">{m.nome}</span>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -208,7 +205,7 @@ export function DocsModeloModal({
                         size="sm"
                         onClick={() => handleDownload(m.arquivo_url, m.nome)}
                         title="Download"
-                        className="hover:bg-slate-100"
+                        className="hover:bg-accent hover:text-accent-foreground"
                       >
                         <Download className="w-4 h-4 mr-1" /> Baixar
                       </Button>

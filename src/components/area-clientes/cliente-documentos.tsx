@@ -372,10 +372,10 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       />
 
       {uploadProgress !== null && (
-        <div className="bg-white p-4 rounded-lg border border-steel-blue shadow-sm mb-4">
+        <div className="bg-card p-4 rounded-lg border border-border shadow-sm mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-midnight-navy">Enviando arquivo...</span>
-            <span className="text-sm font-bold text-steel-blue">{Math.round(uploadProgress)}%</span>
+            <span className="text-sm font-semibold text-foreground">Enviando arquivo...</span>
+            <span className="text-sm font-bold text-primary">{Math.round(uploadProgress)}%</span>
           </div>
           <Progress value={uploadProgress} className="h-2" />
         </div>
@@ -388,11 +388,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           }}
         >
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="default"
-              className="font-bold bg-dark-denim hover:bg-dark-denim/90 text-white shadow"
-              disabled={generating}
-            >
+            <Button variant="default" className="font-bold shadow" disabled={generating}>
               <Plus className="w-4 h-4 mr-2" /> Gerar Novo Documento ▼
             </Button>
           </DropdownMenuTrigger>
@@ -417,7 +413,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
+              className="font-bold border-border text-foreground hover:bg-primary hover:text-primary-foreground"
               disabled={generating}
             >
               <Upload className="w-4 h-4 mr-2" /> Upload Documento ▼
@@ -441,7 +437,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
         <Button
           variant="outline"
-          className="font-bold border-2 border-steel-blue text-midnight-navy hover:bg-steel-blue hover:text-white"
+          className="font-bold border-border text-foreground hover:bg-primary hover:text-primary-foreground"
           onClick={() => setShowDocsModelo(true)}
         >
           <FileText className="w-4 h-4 mr-2" /> Docs Modelo
@@ -450,10 +446,10 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       <DocsModeloModal open={showDocsModelo} onOpenChange={setShowDocsModelo} />
 
-      <div className="bg-off-white border-2 border-steel-blue rounded-lg p-6">
-        <h3 className="font-bold text-lg mb-4 text-midnight-navy">Documentos Gerados</h3>
+      <div className="bg-muted/30 border border-border rounded-lg p-6">
+        <h3 className="font-bold text-lg mb-4 text-foreground">Documentos Gerados</h3>
         {docs.length === 0 ? (
-          <p className="text-steel-blue italic text-sm">
+          <p className="text-muted-foreground italic text-sm">
             Nenhum documento encontrado para este cliente. Utilize o botão acima para gerar um novo
             documento a partir de um template.
           </p>
@@ -479,12 +475,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
               return (
                 <div
                   key={doc.id}
-                  className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-lg border shadow-sm gap-4 hover:border-steel-blue transition-colors"
+                  className="flex flex-col md:flex-row md:items-center justify-between bg-card p-4 rounded-lg border border-border shadow-sm gap-4 hover:border-primary/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="w-6 h-6 text-steel-blue shrink-0" />
+                    <FileText className="w-6 h-6 text-primary shrink-0" />
                     <div className="min-w-0">
-                      <p className="font-bold text-midnight-navy truncate">
+                      <p className="font-bold text-foreground truncate">
                         📄 {doc.template_nome || doc.tipo} - {doc.clientes?.nome || 'Cliente'} -{' '}
                         {new Date(doc.criado_em).toLocaleDateString('pt-BR')}
                       </p>
@@ -548,7 +544,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                             `Rascunho_${doc.template_nome || 'Documento'}.pdf`,
                           )
                         }
-                        className="hover:bg-slate-100"
+                        className="hover:bg-accent hover:text-accent-foreground"
                       >
                         <Download className="w-4 h-4 mr-1" /> PDF (Rascunho)
                       </Button>
@@ -559,7 +555,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                         variant="outline"
                         size="sm"
                         onClick={() => setSignatureDoc(doc)}
-                        className="hover:bg-slate-100"
+                        className="hover:bg-accent hover:text-accent-foreground"
                       >
                         <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
                       </Button>

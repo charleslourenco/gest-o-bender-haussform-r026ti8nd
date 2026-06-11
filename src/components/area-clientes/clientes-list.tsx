@@ -71,14 +71,14 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   })
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/50">
-      <div className="bg-slate-900 rounded-xl m-6 p-6 flex flex-col md:flex-row items-start md:items-center gap-4 text-white shadow-sm shrink-0">
-        <div className="bg-green-500/20 p-3 rounded-lg">
-          <Users className="w-6 h-6 text-green-500" />
+    <div className="flex flex-col h-full bg-background/50">
+      <div className="bg-card border border-border rounded-xl m-6 p-6 flex flex-col md:flex-row items-start md:items-center gap-4 text-card-foreground shadow-sm shrink-0">
+        <div className="bg-primary/20 p-3 rounded-lg">
+          <Users className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Clientes</h1>
-          <p className="text-slate-300">Gerencie o histórico e dossiês dos clientes</p>
+          <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
+          <p className="text-muted-foreground">Gerencie o histórico e dossiês dos clientes</p>
         </div>
       </div>
 
@@ -90,14 +90,14 @@ export function ClientesList({ onSelect }: ClientesListProps) {
               placeholder="Buscar cliente por nome, email ou telefone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-white"
+              className="pl-9 bg-background border-border"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-white rounded-xl border shadow-sm">
+        <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
           <Table>
-            <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+            <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm border-b border-border">
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
@@ -126,22 +126,24 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                 filtered.map((dossie) => (
                   <TableRow
                     key={dossie.id}
-                    className="cursor-pointer hover:bg-slate-50 transition-colors group"
+                    className="cursor-pointer hover:bg-muted/50 transition-colors group"
                     onClick={() => onSelect(dossie.id)}
                   >
-                    <TableCell className="font-medium group-hover:text-green-600 transition-colors">
+                    <TableCell className="font-medium group-hover:text-primary transition-colors">
                       {dossie.cliente?.nome || 'Sem nome'}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-sm">{dossie.cliente?.email || '-'}</span>
+                        <span className="text-sm text-foreground">
+                          {dossie.cliente?.email || '-'}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {dossie.cliente?.telefone || '-'}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 capitalize">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground capitalize">
                         {dossie.status.replace(/_/g, ' ')}
                       </span>
                     </TableCell>
@@ -152,7 +154,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="group-hover:text-green-600 group-hover:bg-green-50"
+                        className="group-hover:text-primary group-hover:bg-primary/10"
                       >
                         <ChevronRight className="w-4 h-4" />
                       </Button>
