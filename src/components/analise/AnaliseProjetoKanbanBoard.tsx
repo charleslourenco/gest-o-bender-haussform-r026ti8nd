@@ -215,14 +215,16 @@ export function AnaliseProjetoKanbanBoard() {
                       onDragEnd={() => setDraggingId(null)}
                       onClick={() => navigate(`/analise-tecnica/${project.id}`)}
                       className={cn(
-                        'bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative',
-                        draggingId === project.id && 'opacity-50 ring-2 ring-blue-500',
+                        'bg-[#1A3D63] text-[#F6FAFD] p-4 rounded-lg shadow-sm border cursor-pointer hover:border-[#4B7BB0] hover:shadow-md transition-all group relative',
+                        draggingId === project.id
+                          ? 'opacity-50 ring-2 ring-blue-500 border-[#2A5282]'
+                          : 'border-[#2A5282]',
                       )}
                     >
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button
-                            className="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                            className="absolute top-3 right-3 text-[#F6FAFD]/60 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100"
                             onClick={(e) => e.stopPropagation()}
                             title="Excluir Projeto"
                           >
@@ -252,13 +254,13 @@ export function AnaliseProjetoKanbanBoard() {
                         </AlertDialogContent>
                       </AlertDialog>
 
-                      <h4 className="font-semibold text-sm text-slate-900 mb-3 pr-6 line-clamp-2">
+                      <h4 className="font-semibold text-sm text-[#F6FAFD] mb-3 pr-6 line-clamp-2">
                         {clientName}
                       </h4>
 
                       <div className="space-y-2 mb-3">
-                        <div className="flex items-center text-xs text-slate-600">
-                          <DollarSign className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                        <div className="flex items-center text-xs text-[#F6FAFD]/80">
+                          <DollarSign className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
                           <span className="font-medium">
                             {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
@@ -266,34 +268,34 @@ export function AnaliseProjetoKanbanBoard() {
                             }).format(project.valor_total || 0)}
                           </span>
                         </div>
-                        <div className="flex items-center text-xs text-slate-600">
-                          <User className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                        <div className="flex items-center text-xs text-[#F6FAFD]/80">
+                          <User className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
                           <span className="truncate">{consultantName}</span>
                         </div>
                         {project.data_prevista_entrega && (
-                          <div className="flex items-center text-xs text-slate-600">
-                            <Calendar className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                          <div className="flex items-center text-xs text-[#F6FAFD]/80">
+                            <Calendar className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
                             {format(new Date(project.data_prevista_entrega), 'dd/MM/yyyy')}
                           </div>
                         )}
                       </div>
 
                       {productNames.length > 0 && (
-                        <div className="pt-3 border-t border-slate-100">
-                          <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1.5 tracking-wider">
+                        <div className="pt-3 border-t border-[#2A5282]">
+                          <div className="text-[10px] font-semibold text-[#F6FAFD]/60 uppercase mb-1.5 tracking-wider">
                             Itens do Projeto ({productNames.length})
                           </div>
                           <div className="flex flex-col gap-1 w-full">
                             {productNames.slice(0, 5).map((name: string, idx: number) => (
                               <div
                                 key={idx}
-                                className="bg-slate-50 text-slate-700 text-xs px-2 py-1 rounded w-full break-words leading-tight"
+                                className="bg-[#0F294A] border border-[#2A5282] text-[#F6FAFD] text-xs px-2 py-1 rounded w-full break-words leading-tight"
                               >
                                 • {name}
                               </div>
                             ))}
                             {productNames.length > 5 && (
-                              <div className="text-slate-500 text-xs pl-2 italic">
+                              <div className="text-[#F6FAFD]/60 text-xs pl-2 italic">
                                 + {productNames.length - 5} item(ns)...
                               </div>
                             )}
