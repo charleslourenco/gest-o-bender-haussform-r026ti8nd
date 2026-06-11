@@ -83,7 +83,7 @@ function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
             </button>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pr-6">
               <div className="md:col-span-5">
-                <label className="block text-[14px] font-semibold mb-[4px]">Nome / Descrição</label>
+                <label className="block text-[14px] font-semibold mb-[4px]">Produto/Serviço</label>
                 <input
                   className={inputClass}
                   value={p.nome || p.descricao || ''}
@@ -92,7 +92,7 @@ function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
                 />
               </div>
               <div className="md:col-span-3">
-                <label className="block text-[14px] font-semibold mb-[4px]">Ambiente</label>
+                <label className="block text-[14px] font-semibold mb-[4px]">Descrição</label>
                 <input
                   className={inputClass}
                   value={p.ambiente || ''}
