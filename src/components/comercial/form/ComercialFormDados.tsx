@@ -14,6 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Trash2 } from 'lucide-react'
 
+const inputClass =
+  'w-full bg-off-white border-2 border-steel-blue rounded-[4px] px-[12px] py-[8px] text-midnight-navy focus:outline-none focus:border-dark-denim transition-colors'
+
 function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
   const produtos = data.produtos || []
 
@@ -21,12 +24,12 @@ function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
     update('produtos', [
       ...produtos,
       {
+        id: Math.random().toString(36).substring(2),
         nome: '',
         quantidade: 1,
         valor_unitario: 0,
         ambiente: '',
         tipo_fluxo: 'Fabricação',
-        fornecedor: '',
       },
     ])
   }
@@ -39,87 +42,101 @@ function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
 
   const updateProduto = (index: number, field: string, value: any) => {
     const newArr = [...produtos]
-    newArr[index] = { ...newArr[index], [field]: value }
+    if (field === 'solicitar_compra') {
+      newArr[index] = { ...newArr[index], tipo_fluxo: value ? 'Compra Direta' : 'Fabricação' }
+    } else {
+      newArr[index] = { ...newArr[index], [field]: value }
+    }
     update('produtos', newArr)
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6">
-      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
-        Produtos e Serviços
-        <Button onClick={addProduto} variant="outline" size="sm">
-          <Plus className="w-4 h-4 mr-2" /> Adicionar Item
-        </Button>
-      </h3>
-      {produtos.length === 0 && <p className="text-sm text-gray-500">Nenhum produto adicionado.</p>}
+    <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-[12px] gap-[12px]">
+        <h2 className="font-bold text-[18px]">SEÇÃO 4 — PRODUTOS E SERVIÇOS</h2>
+        <button
+          type="button"
+          onClick={addProduto}
+          className="bg-dark-denim text-off-white px-[16px] py-[8px] rounded-[4px] font-semibold flex items-center gap-[8px] hover:opacity-90 transition-colors"
+        >
+          <Plus className="w-4 h-4" /> Adicionar Item
+        </button>
+      </div>
+
+      {produtos.length === 0 && (
+        <p className="text-[14px] text-midnight-navy/70 mb-4">Nenhum produto adicionado.</p>
+      )}
+
       <div className="space-y-4">
         {produtos.map((p: any, i: number) => (
-          <div key={i} className="flex flex-col gap-4 p-4 border rounded-md relative bg-gray-50/50">
+          <div
+            key={p.id || i}
+            className="flex flex-col gap-4 p-4 border-2 border-steel-blue/50 rounded-md relative bg-off-white/50"
+          >
             <button
               onClick={() => removeProduto(i)}
-              className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+              className="absolute top-2 right-2 text-steel-blue hover:text-red-500 transition-colors"
               title="Remover"
+              type="button"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-5 h-5" />
             </button>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pr-6">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Nome / Descrição</label>
-                <Input
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pr-6">
+              <div className="md:col-span-5">
+                <label className="block text-[14px] font-semibold mb-[4px]">Nome / Descrição</label>
+                <input
+                  className={inputClass}
                   value={p.nome || p.descricao || ''}
                   onChange={(e) => updateProduto(i, 'nome', e.target.value)}
                   placeholder="Ex: Armário Cozinha"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Ambiente</label>
-                <Input
+              <div className="md:col-span-3">
+                <label className="block text-[14px] font-semibold mb-[4px]">Ambiente</label>
+                <input
+                  className={inputClass}
                   value={p.ambiente || ''}
                   onChange={(e) => updateProduto(i, 'ambiente', e.target.value)}
                   placeholder="Ex: Cozinha"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Quantidade</label>
-                <Input
+              <div className="md:col-span-2">
+                <label className="block text-[14px] font-semibold mb-[4px]">Quantidade</label>
+                <input
                   type="number"
                   min="1"
+                  className={inputClass}
                   value={p.quantidade || p.qtd || 1}
-                  onChange={(e) => updateProduto(i, 'quantidade', Number(e.target.value))}
+                  onChange={(e) =>
+                    updateProduto(i, 'quantidade', Math.max(1, Number(e.target.value)))
+                  }
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Valor Unitário (R$)</label>
-                <Input
+              <div className="md:col-span-2">
+                <label className="block text-[14px] font-semibold mb-[4px]">Valor Unit. (R$)</label>
+                <input
                   type="number"
                   step="0.01"
+                  className={inputClass}
                   value={p.valor_unitario || ''}
                   onChange={(e) => updateProduto(i, 'valor_unitario', Number(e.target.value))}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-700">Tipo de Fluxo</label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  value={p.tipo_fluxo || 'Fabricação'}
-                  onChange={(e) => updateProduto(i, 'tipo_fluxo', e.target.value)}
-                >
-                  <option value="Fabricação">Fabricação (Projeto/Marcenaria)</option>
-                  <option value="Compra Direta">Compra Direta (Solto/Terceirizado)</option>
-                </select>
-              </div>
-              {p.tipo_fluxo === 'Compra Direta' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700">Fornecedor (Opcional)</label>
-                  <Input
-                    value={p.fornecedor || ''}
-                    onChange={(e) => updateProduto(i, 'fornecedor', e.target.value)}
-                    placeholder="Ex: Tok&Stok, MadeiraMadeira"
-                  />
-                </div>
-              )}
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="checkbox"
+                id={`solicitar-compra-${i}`}
+                checked={p.tipo_fluxo === 'Compra Direta'}
+                onChange={(e) => updateProduto(i, 'solicitar_compra', e.target.checked)}
+                className="w-4 h-4 text-dark-denim border-2 border-steel-blue rounded focus:ring-dark-denim cursor-pointer"
+              />
+              <label
+                htmlFor={`solicitar-compra-${i}`}
+                className="text-[14px] font-semibold cursor-pointer select-none text-midnight-navy"
+              >
+                Solicitar Compra (Item Solto/Terceiro)
+              </label>
             </div>
           </div>
         ))}
@@ -371,7 +388,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
               status: 'Pendente',
               usuario_id: authData.user?.id,
               cliente_id: dossie.cliente_id,
-              fornecedor: p.fornecedor || null,
+              fornecedor: null,
               data_entrega_prevista: data.data_entrega_maxima || null,
               motivo: 'Gerado automaticamente via formulário comercial (Compra Direta)',
             }))

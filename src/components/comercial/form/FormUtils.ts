@@ -2,8 +2,11 @@ export interface ProdutoForm {
   id: string
   nome: string
   qtd: number
+  quantidade?: number
   descricao: string
   valor_unitario: number
+  ambiente?: string
+  tipo_fluxo?: string
 }
 export interface ParcelaForm {
   id: string
@@ -97,8 +100,11 @@ export const defaultState: FormState = {
       id: Math.random().toString(36).substring(2),
       nome: '',
       qtd: 1,
+      quantidade: 1,
       descricao: '',
       valor_unitario: 0,
+      ambiente: '',
+      tipo_fluxo: 'Fabricação',
     },
   ],
   desconto: 0,

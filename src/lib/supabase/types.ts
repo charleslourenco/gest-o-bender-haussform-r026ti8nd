@@ -2014,8 +2014,11 @@ export type Database = {
       solicitacoes_compra: {
         Row: {
           atualizado_em: string
+          cliente_id: string | null
           cor: string | null
           criado_em: string
+          data_entrega_prevista: string | null
+          fornecedor: string | null
           id: string
           link: string | null
           modelo: string | null
@@ -2030,8 +2033,11 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          cliente_id?: string | null
           cor?: string | null
           criado_em?: string
+          data_entrega_prevista?: string | null
+          fornecedor?: string | null
           id?: string
           link?: string | null
           modelo?: string | null
@@ -2046,8 +2052,11 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          cliente_id?: string | null
           cor?: string | null
           criado_em?: string
+          data_entrega_prevista?: string | null
+          fornecedor?: string | null
           id?: string
           link?: string | null
           modelo?: string | null
@@ -2061,6 +2070,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'solicitacoes_compra_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'solicitacoes_compra_usuario_id_fkey'
             columns: ['usuario_id']
@@ -2880,6 +2896,9 @@ export const Constants = {
 //   status: text (not null, default: 'Pendente'::text)
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
+//   cliente_id: uuid (nullable)
+//   data_entrega_prevista: date (nullable)
+//   fornecedor: text (nullable)
 // Table: templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   nome: text (not null)
@@ -3060,6 +3079,7 @@ export const Constants = {
 //   FOREIGN KEY produtos_servicos_projeto_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
 // Table: solicitacoes_compra
+//   FOREIGN KEY solicitacoes_compra_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
 //   PRIMARY KEY solicitacoes_compra_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY solicitacoes_compra_usuario_id_fkey: FOREIGN KEY (usuario_id) REFERENCES users(id) ON DELETE CASCADE
 // Table: templates
@@ -3383,6 +3403,15 @@ export const Constants = {
 //     USING: true
 //   Policy "Enable update for own or admin" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
+//     WITH CHECK: true
+//   Policy "authenticated_delete_solicitacoes" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_insert_solicitacoes" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "authenticated_select_solicitacoes" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_solicitacoes" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
 //     WITH CHECK: true
 // Table: templates
 //   Policy "templates_delete" (DELETE, PERMISSIVE) roles={authenticated}
