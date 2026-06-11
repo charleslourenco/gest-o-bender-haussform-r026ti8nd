@@ -291,7 +291,7 @@ export function SectionProdutos({ data, update }: Props) {
   }
   const upProd = (id: string, f: string, v: any) => {
     if (f === 'is_outsourced' && v === true) {
-      toast('Item direcionado para o fluxo de Compras/Estoque', {
+      toast.success('Item direcionado para o fluxo de Compras/Estoque', {
         style: { background: '#102A43', color: '#fff', border: 'none' },
       })
     }
@@ -482,7 +482,10 @@ export function SectionPagamento({ data, update }: Props) {
           <input
             type="radio"
             checked={data.forma_pagamento === 'Parcelado'}
-            onChange={() => update('forma_pagamento', 'Parcelado')}
+            onChange={() => {
+              update('forma_pagamento', 'Parcelado')
+              applyParcels(Math.max(1, data.pagamento_parcelado.length))
+            }}
           />{' '}
           Parcelado
         </label>

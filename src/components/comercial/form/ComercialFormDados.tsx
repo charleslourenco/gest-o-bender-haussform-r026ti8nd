@@ -9,141 +9,8 @@ import {
   SectionTotais,
   SectionPagamento,
   SectionDatas,
+  SectionProdutos,
 } from './FormSections'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Plus, Trash2 } from 'lucide-react'
-
-const inputClass =
-  'w-full bg-off-white border-2 border-steel-blue rounded-[4px] px-[12px] py-[8px] text-midnight-navy focus:outline-none focus:border-dark-denim transition-colors'
-
-function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
-  const produtos = data.produtos || []
-
-  const addProduto = () => {
-    update('produtos', [
-      ...produtos,
-      {
-        id: Math.random().toString(36).substring(2),
-        nome: '',
-        quantidade: 1,
-        valor_unitario: 0,
-        ambiente: '',
-        tipo_fluxo: 'Fabricação',
-      },
-    ])
-  }
-
-  const removeProduto = (index: number) => {
-    const newArr = [...produtos]
-    newArr.splice(index, 1)
-    update('produtos', newArr)
-  }
-
-  const updateProduto = (index: number, field: string, value: any) => {
-    const newArr = [...produtos]
-    if (field === 'solicitar_compra') {
-      newArr[index] = { ...newArr[index], tipo_fluxo: value ? 'Compra Direta' : 'Fabricação' }
-    } else {
-      newArr[index] = { ...newArr[index], [field]: value }
-    }
-    update('produtos', newArr)
-  }
-
-  return (
-    <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-[12px] gap-[12px]">
-        <h2 className="font-bold text-[18px]">SEÇÃO 4 — PRODUTOS E SERVIÇOS</h2>
-        <button
-          type="button"
-          onClick={addProduto}
-          className="bg-dark-denim text-off-white px-[16px] py-[8px] rounded-[4px] font-semibold flex items-center gap-[8px] hover:opacity-90 transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Adicionar Item
-        </button>
-      </div>
-
-      {produtos.length === 0 && (
-        <p className="text-[14px] text-midnight-navy/70 mb-4">Nenhum produto adicionado.</p>
-      )}
-
-      <div className="space-y-4">
-        {produtos.map((p: any, i: number) => (
-          <div
-            key={p.id || i}
-            className="flex flex-col gap-4 p-4 border-2 border-steel-blue/50 rounded-md relative bg-off-white/50"
-          >
-            <button
-              onClick={() => removeProduto(i)}
-              className="absolute top-2 right-2 text-steel-blue hover:text-red-500 transition-colors"
-              title="Remover"
-              type="button"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pr-6">
-              <div className="md:col-span-5">
-                <label className="block text-[14px] font-semibold mb-[4px]">Produto/Serviço</label>
-                <input
-                  className={inputClass}
-                  value={p.nome || p.descricao || ''}
-                  onChange={(e) => updateProduto(i, 'nome', e.target.value)}
-                  placeholder="Ex: Armário Cozinha"
-                />
-              </div>
-              <div className="md:col-span-3">
-                <label className="block text-[14px] font-semibold mb-[4px]">Descrição</label>
-                <input
-                  className={inputClass}
-                  value={p.ambiente || ''}
-                  onChange={(e) => updateProduto(i, 'ambiente', e.target.value)}
-                  placeholder="Ex: Cozinha"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-[14px] font-semibold mb-[4px]">Quantidade</label>
-                <input
-                  type="number"
-                  min="1"
-                  className={inputClass}
-                  value={p.quantidade || p.qtd || 1}
-                  onChange={(e) =>
-                    updateProduto(i, 'quantidade', Math.max(1, Number(e.target.value)))
-                  }
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-[14px] font-semibold mb-[4px]">Valor Unit. (R$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className={inputClass}
-                  value={p.valor_unitario || ''}
-                  onChange={(e) => updateProduto(i, 'valor_unitario', Number(e.target.value))}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                type="checkbox"
-                id={`solicitar-compra-${i}`}
-                checked={p.tipo_fluxo === 'Compra Direta'}
-                onChange={(e) => updateProduto(i, 'solicitar_compra', e.target.checked)}
-                className="w-4 h-4 text-dark-denim border-2 border-steel-blue rounded focus:ring-dark-denim cursor-pointer"
-              />
-              <label
-                htmlFor={`solicitar-compra-${i}`}
-                className="text-[14px] font-semibold cursor-pointer select-none text-midnight-navy"
-              >
-                Solicitar Compra (Item Solto/Terceiro)
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: () => void }) {
   const [data, setData] = useState<FormState>(defaultState)
@@ -202,12 +69,22 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         obra_bairro: form.obra_bairro || '',
         obra_municipio: form.obra_municipio || '',
         obra_estado: form.obra_estado || '',
-        produtos:
-          typeof form.produtos_servicos === 'string'
-            ? JSON.parse(form.produtos_servicos || '[]')
-            : form.produtos_servicos?.length > 0
-              ? form.produtos_servicos
-              : p.produtos,
+        produtos: (() => {
+          const raw =
+            typeof form.produtos_servicos === 'string'
+              ? JSON.parse(form.produtos_servicos || '[]')
+              : form.produtos_servicos?.length > 0
+                ? form.produtos_servicos
+                : p.produtos
+          return raw.map((item: any) => ({
+            id: item.id || Math.random().toString(36).substring(2),
+            nome: item.nome || item.descricao || '',
+            qtd: item.qtd || item.quantidade || 1,
+            descricao: item.descricao || item.ambiente || '',
+            valor_unitario: item.valor_unitario || 0,
+            is_outsourced: item.is_outsourced || item.tipo_fluxo === 'Compra Direta' || false,
+          }))
+        })(),
         desconto: Number(form.desconto) || 0,
         forma_pagamento: pagData.forma === 'Parcelado' ? 'Parcelado' : 'À vista',
         pagamento_a_vista_meio: pagData.meio || pagData.metodo || 'PIX',
@@ -268,12 +145,12 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
       const valorTotal =
         data.produtos.reduce(
-          (acc: number, p: any) =>
-            acc + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
+          (acc: number, p: any) => acc + Number(p.valor_unitario || 0) * Number(p.qtd || 1),
           0,
         ) - (data.desconto || 0)
+
       const ambientesUnicos = Array.from(
-        new Set(data.produtos.map((p: any) => p.ambiente || 'Geral')),
+        new Set(data.produtos.map((p: any) => p.descricao || 'Geral')),
       )
 
       const payload: any = {
@@ -334,8 +211,8 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
       const formId = formUpdateData?.[0]?.id
 
       if (formId && data.produtos && data.produtos.length > 0) {
-        const fabricacaoItems = data.produtos.filter((p: any) => p.tipo_fluxo !== 'Compra Direta')
-        const compraDiretaItems = data.produtos.filter((p: any) => p.tipo_fluxo === 'Compra Direta')
+        const fabricacaoItems = data.produtos.filter((p: any) => !p.is_outsourced)
+        const compraDiretaItems = data.produtos.filter((p: any) => p.is_outsourced)
 
         if (fabricacaoItems.length > 0) {
           const { data: existingCards } = await supabase
@@ -353,13 +230,14 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             .map((p: any) => ({
               formulario_comercial_id: formId,
               cliente_id: dossie.cliente_id,
-              nome_produto: p.nome || p.nome_produto || p.descricao || 'Produto',
-              qtd: p.quantidade || p.qtd || 1,
+              nome_produto: p.nome || p.nome_produto || 'Produto',
+              qtd: p.qtd || 1,
               descricao: p.descricao || '',
               valor_unitario: p.valor_unitario || 0,
-              valor_total: p.valor_total || (p.valor_unitario || 0) * (p.quantidade || p.qtd || 1),
+              valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
               status_analise: 'iniciar',
-              codigo_rastreio: null, // Sistema gerará via trigger automaticamente
+              is_outsourced: false,
+              codigo_rastreio: null,
             }))
 
           if (newCards.length > 0) {
@@ -382,7 +260,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             )
             .map((p: any) => ({
               nome_item: p.nome || p.nome_produto || p.descricao || 'Item de Compra',
-              quantidade: p.quantidade || p.qtd || 1,
+              quantidade: p.qtd || 1,
               unidade: 'un',
               urgencia: 'Média',
               status: 'Pendente',
@@ -430,7 +308,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
       <SectionPessoal data={data} update={update} />
       <SectionEndereco data={data} update={update} updateViaCep={updateViaCep} />
       <SectionObra data={data} update={update} updateViaCep={updateViaCep} />
-      <SectionProdutosEnhanced data={data} update={update} />
+      <SectionProdutos data={data} update={update} />
       <SectionTotais data={data} update={update} />
       <SectionPagamento data={data} update={update} />
       <SectionDatas data={data} update={update} />

@@ -4,7 +4,6 @@ export interface ProdutoForm {
   qtd: number
   descricao: string
   valor_unitario: number
-  ambiente?: string
   is_outsourced?: boolean
 }
 export interface ParcelaForm {
@@ -101,7 +100,6 @@ export const defaultState: FormState = {
       qtd: 1,
       descricao: '',
       valor_unitario: 0,
-      ambiente: '',
       is_outsourced: false,
     },
   ],
