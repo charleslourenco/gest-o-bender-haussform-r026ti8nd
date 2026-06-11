@@ -1,5 +1,4 @@
-import { Bell, Search, LogOut, User as UserIcon } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Bell, LogOut, User as UserIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -109,14 +108,6 @@ export function Header() {
             className="h-8 max-w-[140px] object-contain ml-2"
           />
         )}
-        <div className="hidden md:flex relative w-96">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar projetos, clientes ou itens..."
-            className="w-full bg-muted/30 pl-9 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-4">
