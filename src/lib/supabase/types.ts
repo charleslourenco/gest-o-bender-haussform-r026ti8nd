@@ -3284,6 +3284,9 @@ export const Constants = {
 //     WITH CHECK: is_admin(auth.uid())
 //   Policy "Allow delete for admins or owners" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: (((auth.uid())::text = (user_id)::text) OR is_admin(auth.uid()))
+//   Policy "Enable all access for authenticated users" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={public}
@@ -3311,6 +3314,9 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: kanban_historico
+//   Policy "Enable all access for authenticated users" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "kanban_history_access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
@@ -3399,6 +3405,9 @@ export const Constants = {
 //   Policy "produtos_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: produtos_servicos_projeto
+//   Policy "Enable all access for authenticated users" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "analise_tecnica_select_psp" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
 //   Policy "analise_tecnica_update_psp" (UPDATE, PERMISSIVE) roles={authenticated}

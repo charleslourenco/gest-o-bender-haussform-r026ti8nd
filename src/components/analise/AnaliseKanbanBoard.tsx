@@ -45,7 +45,6 @@ export function AnaliseKanbanBoard({
     let query = supabase
       .from('produtos_servicos_projeto')
       .select('*, clientes(nome), users(nome), project_item_names')
-      .eq('is_outsourced', false)
 
     if (formularioComercialId) {
       query = query.eq('formulario_comercial_id', formularioComercialId)
@@ -177,7 +176,7 @@ export function AnaliseKanbanBoard({
   }
 
   const handleAvulsoCreated = async () => {
-    if (avulsoCardToUpdate) {
+    if (avulsoCardToUpdate && !avulsoCardToUpdate.is_outsourced) {
       await supabase
         .from('produtos_servicos_projeto')
         .update({ outsourced_checked: true })
@@ -240,7 +239,22 @@ export function AnaliseKanbanBoard({
     return () => window.removeEventListener('solicitar_compra_card', handleSolicitarCompraCard)
   }, [toast])
 
-  const filteredCards = cards.filter((c) => {
+  const outsourcedNamesByForm = new Map()
+  cards.forEach((c) => {
+    if (c.is_outsourced && c.formulario_comercial_id) {
+      outsourcedNamesByForm.set(`${c.formulario_comercial_id}_${c.nome_produto}`, true)
+    }
+  })
+
+  const cardsWithDeps = cards.map((c) => ({
+    ...c,
+    has_outsourced_dependency:
+      !c.is_outsourced && c.formulario_comercial_id
+        ? outsourcedNamesByForm.has(`${c.formulario_comercial_id}_${c.nome_produto}`)
+        : false,
+  }))
+
+  const filteredCards = cardsWithDeps.filter((c) => {
     let matches = true
 
     if (filters.cliente || searchQuery) {
@@ -320,7 +334,10 @@ export function AnaliseKanbanBoard({
               }}
               onDragEnd={() => setDraggingId(null)}
               draggingId={draggingId}
-              onCheckOutsourced={(card: any) => setCheckModalCard(card)}
+              onCheckOutsourced={(card: any) => {
+                setAvulsoCardToUpdate(card)
+                setAvulsoModalOpen(true)
+              }}
               onDelete={(id: string) => setCards((prev) => prev.filter((c) => c.id !== id))}
             />
           ))}

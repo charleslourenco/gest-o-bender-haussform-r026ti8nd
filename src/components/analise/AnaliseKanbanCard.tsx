@@ -29,7 +29,10 @@ export function AnaliseKanbanCard({
   onCheckOutsourced,
   onDelete,
 }: any) {
-  const needsCheck = card.outsourced_checked === false || card.outsourced_checked === null
+  const needsCheck =
+    !card.is_outsourced &&
+    !card.has_outsourced_dependency &&
+    (card.outsourced_checked === false || card.outsourced_checked === null)
   const [users, setUsers] = useState<any[]>([])
   const [analistaId, setAnalistaId] = useState<string>(card.analista_id || '')
   const { toast } = useToast()
@@ -108,6 +111,7 @@ export function AnaliseKanbanCard({
       onDragEnd={onDragEnd}
       className={`flex flex-col gap-1.5 p-3 w-full h-fit rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all border 
         ${card.is_outsourced ? 'bg-orange-600 border-orange-500 text-white hover:border-orange-400' : 'bg-[#1A3D63] text-[#F6FAFD] border-[#2A5282] hover:border-[#4B7BB0]'} 
+        ${card.has_outsourced_dependency ? 'border-l-4 border-l-orange-500' : ''}
         ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
@@ -121,29 +125,11 @@ export function AnaliseKanbanCard({
         <div className="ml-auto flex items-center gap-1">
           {needsCheck && (
             <button
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.stopPropagation()
-                const { error } = await supabase
-                  .from('produtos_servicos_projeto')
-                  .update({
-                    is_outsourced: true,
-                    outsourced_checked: true,
-                    terceirizado_validado: true,
-                  })
-                  .eq('id', card.id)
-
-                if (error) {
-                  toast({
-                    title: 'Erro ao atualizar',
-                    description: error.message,
-                    variant: 'destructive',
-                  })
-                } else {
-                  toast({ title: 'Marcado como terceirizado válido!' })
-                  if (onCheckOutsourced) onCheckOutsourced()
-                }
+                if (onCheckOutsourced) onCheckOutsourced(card)
               }}
-              title="Possui Terceirizado?"
+              title="Criar Card Terceirizado"
               className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"
             >
               ⚠️

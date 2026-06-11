@@ -21,10 +21,10 @@ import {
 } from '@/components/ui/select'
 
 export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
-  const [nome, setNome] = useState('')
+  const [nome, setNome] = useState(baseCard?.nome_produto || '')
   const [clienteId, setClienteId] = useState(baseCard?.cliente_id || '')
-  const [qtd, setQtd] = useState<number | ''>(1)
-  const [valorUnitario, setValorUnitario] = useState<number | ''>('')
+  const [qtd, setQtd] = useState<number | ''>(baseCard?.qtd || 1)
+  const [valorUnitario, setValorUnitario] = useState<number | ''>(baseCard?.valor_unitario || '')
   const [descricao, setDescricao] = useState('')
 
   const [clientes, setClientes] = useState<any[]>([])
