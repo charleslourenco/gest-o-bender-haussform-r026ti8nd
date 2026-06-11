@@ -96,6 +96,11 @@ export function AnaliseKanbanCard({
     e.stopPropagation()
   }
 
+  // Filter out commercial direct outsourced cards from Kanban
+  if (card.is_outsourced && !card.terceirizado_validado) {
+    return null
+  }
+
   return (
     <div
       draggable
@@ -116,9 +121,27 @@ export function AnaliseKanbanCard({
         <div className="ml-auto flex items-center gap-1">
           {needsCheck && (
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation()
-                onCheckOutsourced()
+                const { error } = await supabase
+                  .from('produtos_servicos_projeto')
+                  .update({
+                    is_outsourced: true,
+                    outsourced_checked: true,
+                    terceirizado_validado: true,
+                  })
+                  .eq('id', card.id)
+
+                if (error) {
+                  toast({
+                    title: 'Erro ao atualizar',
+                    description: error.message,
+                    variant: 'destructive',
+                  })
+                } else {
+                  toast({ title: 'Marcado como terceirizado válido!' })
+                  if (onCheckOutsourced) onCheckOutsourced()
+                }
               }}
               title="Possui Terceirizado?"
               className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"

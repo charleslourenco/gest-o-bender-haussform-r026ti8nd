@@ -57,7 +57,13 @@ export default function AnaliseTecnicaDetalhe() {
 
   useEffect(() => {
     const event = new CustomEvent('analise_detalhe_filters', {
-      detail: { cliente: filtroCliente, consultor: filtroConsultor, dateRange },
+      detail: {
+        cliente: filtroCliente,
+        consultor: filtroConsultor,
+        dateRange,
+        customFilter:
+          'is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)',
+      },
     })
     window.dispatchEvent(event)
     window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: filtroCliente }))
@@ -160,7 +166,12 @@ export default function AnaliseTecnicaDetalhe() {
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
-        <AnaliseKanbanBoard title="Itens do Projeto" columns={COLUMNS} formularioComercialId={id} />
+        <AnaliseKanbanBoard
+          title="Itens do Projeto"
+          columns={COLUMNS}
+          formularioComercialId={id}
+          filterQuery="is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)"
+        />
       </div>
 
       {showCriarModal && (
