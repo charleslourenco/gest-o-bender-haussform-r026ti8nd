@@ -70,20 +70,20 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-[#1A3D63] text-white border-slate-700">
         <DialogHeader>
-          <DialogTitle>Criar Card Avulso</DialogTitle>
+          <DialogTitle className="text-white">Criar Card Avulso</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>
+            <Label className="text-slate-200">
               Cliente <span className="text-red-500">*</span>
             </Label>
             <Select value={clienteId} onValueChange={setClienteId} disabled={!!baseCard}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-[#0B1B2E] border-slate-700 text-white disabled:opacity-50">
                 <SelectValue placeholder="Selecione o cliente" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#0B1B2E] border-slate-700 text-white">
                 {clientes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
@@ -93,18 +93,19 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>
+            <Label className="text-slate-200">
               Nome do Produto/Serviço <span className="text-red-500">*</span>
             </Label>
             <Input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex: Vidro Canelado 8mm"
+              className="bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>
+              <Label className="text-slate-200">
                 Quantidade <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -112,10 +113,11 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
                 min="1"
                 value={qtd}
                 onChange={(e) => setQtd(e.target.value ? Number(e.target.value) : '')}
+                className="bg-[#0B1B2E] border-slate-700 text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label>
+              <Label className="text-slate-200">
                 Valor Unitário (R$) <span className="text-red-500">*</span>
               </Label>
               <Input
@@ -125,27 +127,34 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
                 value={valorUnitario}
                 onChange={(e) => setValorUnitario(e.target.value ? Number(e.target.value) : '')}
                 placeholder="0.00"
+                className="bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-500"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Descrição (Opcional)</Label>
+            <Label className="text-slate-200">Descrição (Opcional)</Label>
             <Textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Detalhes adicionais..."
-              className="resize-none"
+              className="resize-none bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-500"
               rows={3}
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <DialogFooter className="border-t border-slate-700 pt-4 mt-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white"
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleCreate}
             disabled={loading || !nome || !clienteId || qtd === '' || valorUnitario === ''}
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             Criar Card
           </Button>
