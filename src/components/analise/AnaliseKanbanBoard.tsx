@@ -39,7 +39,7 @@ export function AnaliseKanbanBoard({
   const loadCards = async () => {
     let query = supabase
       .from('produtos_servicos_projeto')
-      .select('*, clientes(nome)')
+      .select('*, clientes(nome), project_item_names')
       .eq('is_outsourced', false)
 
     if (formularioComercialId) {
@@ -236,6 +236,7 @@ export function AnaliseKanbanBoard({
     if (!searchQuery) return true
     return (
       c.nome_produto?.toLowerCase().includes(searchQuery) ||
+      c.project_item_names?.toLowerCase().includes(searchQuery) ||
       c.clientes?.nome?.toLowerCase().includes(searchQuery)
     )
   })
@@ -266,7 +267,12 @@ export function AnaliseKanbanBoard({
             <AnaliseKanbanColumn
               key={col.id}
               column={col}
-              cards={filteredCards.filter((c) => c.status_analise === col.id)}
+              cards={filteredCards
+                .filter((c) => c.status_analise === col.id)
+                .map((c) => ({
+                  ...c,
+                  is_parent_card: !formularioComercialId,
+                }))}
               onDragOver={(e: any) => {
                 e.preventDefault()
                 setDragOverCol(col.id)

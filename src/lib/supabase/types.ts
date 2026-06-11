@@ -3396,6 +3396,13 @@ export const Constants = {
 //   Policy "analise_tecnica_update_psp" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
 //     WITH CHECK: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//   Policy "authenticated_insert_produtos_servicos_projeto" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "authenticated_select_produtos_servicos_projeto" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_produtos_servicos_projeto" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 //   Policy "produtos_servicos_projeto_delete" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "produtos_servicos_projeto_delete_admin" (DELETE, PERMISSIVE) roles={authenticated}
@@ -3459,6 +3466,8 @@ export const Constants = {
 //     WITH CHECK: (auth.uid() = id)
 //   Policy "Usuário vê apenas seus dados ou admin" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
+//   Policy "authenticated_select_users" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 // Table: whatsapp_sessions
 //   Policy "whatsapp_sessions_all" (ALL, PERMISSIVE) roles={public}
 //     USING: true

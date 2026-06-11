@@ -86,8 +86,17 @@ export function AnaliseKanbanCard({
         </span>
       )}
 
-      <h4 className="font-medium text-xs leading-snug line-clamp-2 w-full break-words">
-        {card.nome_produto}
+      <h4
+        className="font-medium text-xs leading-snug line-clamp-2 w-full break-words"
+        title={
+          card.is_parent_card && card.project_item_names
+            ? card.project_item_names
+            : card.nome_produto
+        }
+      >
+        {card.is_parent_card && card.project_item_names
+          ? card.project_item_names
+          : card.nome_produto}
       </h4>
 
       <div
