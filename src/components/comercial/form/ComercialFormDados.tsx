@@ -212,9 +212,9 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
       if (formId && data.produtos && data.produtos.length > 0) {
         const compraDiretaItems = data.produtos.filter((p: any) => p.is_outsourced)
-        const manufaturaItems = data.produtos.filter((p: any) => !p.is_outsourced)
+        const allItems = data.produtos
 
-        if (manufaturaItems.length > 0) {
+        if (allItems.length > 0) {
           const { data: existingCards } = await supabase
             .from('produtos_servicos_projeto')
             .select('nome_produto')
@@ -222,7 +222,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
           const existingNames = existingCards?.map((c) => c.nome_produto) || []
 
-          const newCards = manufaturaItems
+          const newCards = allItems
             .filter((p: any) => {
               const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
               return !existingNames.includes(productName)
@@ -238,7 +238,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                 valor_unitario: p.valor_unitario || 0,
                 valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
                 status_analise: 'iniciar',
-                is_outsourced: false,
+                is_outsourced: p.is_outsourced || false,
                 codigo_rastreio: null,
               }
             })
