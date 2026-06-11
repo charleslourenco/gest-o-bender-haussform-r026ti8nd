@@ -6,11 +6,127 @@ import {
   SectionPessoal,
   SectionEndereco,
   SectionObra,
-  SectionProdutos,
   SectionTotais,
   SectionPagamento,
   SectionDatas,
 } from './FormSections'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Plus, Trash2 } from 'lucide-react'
+
+function SectionProdutosEnhanced({ data, update }: { data: any; update: any }) {
+  const produtos = data.produtos || []
+
+  const addProduto = () => {
+    update('produtos', [
+      ...produtos,
+      {
+        nome: '',
+        quantidade: 1,
+        valor_unitario: 0,
+        ambiente: '',
+        tipo_fluxo: 'Fabricação',
+        fornecedor: '',
+      },
+    ])
+  }
+
+  const removeProduto = (index: number) => {
+    const newArr = [...produtos]
+    newArr.splice(index, 1)
+    update('produtos', newArr)
+  }
+
+  const updateProduto = (index: number, field: string, value: any) => {
+    const newArr = [...produtos]
+    newArr[index] = { ...newArr[index], [field]: value }
+    update('produtos', newArr)
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-6">
+      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center justify-between">
+        Produtos e Serviços
+        <Button onClick={addProduto} variant="outline" size="sm">
+          <Plus className="w-4 h-4 mr-2" /> Adicionar Item
+        </Button>
+      </h3>
+      {produtos.length === 0 && <p className="text-sm text-gray-500">Nenhum produto adicionado.</p>}
+      <div className="space-y-4">
+        {produtos.map((p: any, i: number) => (
+          <div key={i} className="flex flex-col gap-4 p-4 border rounded-md relative bg-gray-50/50">
+            <button
+              onClick={() => removeProduto(i)}
+              className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+              title="Remover"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pr-6">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Nome / Descrição</label>
+                <Input
+                  value={p.nome || p.descricao || ''}
+                  onChange={(e) => updateProduto(i, 'nome', e.target.value)}
+                  placeholder="Ex: Armário Cozinha"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Ambiente</label>
+                <Input
+                  value={p.ambiente || ''}
+                  onChange={(e) => updateProduto(i, 'ambiente', e.target.value)}
+                  placeholder="Ex: Cozinha"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Quantidade</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={p.quantidade || p.qtd || 1}
+                  onChange={(e) => updateProduto(i, 'quantidade', Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Valor Unitário (R$)</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={p.valor_unitario || ''}
+                  onChange={(e) => updateProduto(i, 'valor_unitario', Number(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-700">Tipo de Fluxo</label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={p.tipo_fluxo || 'Fabricação'}
+                  onChange={(e) => updateProduto(i, 'tipo_fluxo', e.target.value)}
+                >
+                  <option value="Fabricação">Fabricação (Projeto/Marcenaria)</option>
+                  <option value="Compra Direta">Compra Direta (Solto/Terceirizado)</option>
+                </select>
+              </div>
+              {p.tipo_fluxo === 'Compra Direta' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700">Fornecedor (Opcional)</label>
+                  <Input
+                    value={p.fornecedor || ''}
+                    onChange={(e) => updateProduto(i, 'fornecedor', e.target.value)}
+                    placeholder="Ex: Tok&Stok, MadeiraMadeira"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: () => void }) {
   const [data, setData] = useState<FormState>(defaultState)
@@ -201,32 +317,68 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
       const formId = formUpdateData?.[0]?.id
 
       if (formId && data.produtos && data.produtos.length > 0) {
-        const { data: existingCards } = await supabase
-          .from('produtos_servicos_projeto')
-          .select('nome_produto')
-          .eq('formulario_comercial_id', formId)
+        const fabricacaoItems = data.produtos.filter((p: any) => p.tipo_fluxo !== 'Compra Direta')
+        const compraDiretaItems = data.produtos.filter((p: any) => p.tipo_fluxo === 'Compra Direta')
 
-        const existingNames = existingCards?.map((c) => c.nome_produto) || []
+        if (fabricacaoItems.length > 0) {
+          const { data: existingCards } = await supabase
+            .from('produtos_servicos_projeto')
+            .select('nome_produto')
+            .eq('formulario_comercial_id', formId)
 
-        const newCards = data.produtos
-          .filter(
-            (p: any) =>
-              !existingNames.includes(p.nome || p.descricao || p.nome_produto || 'Produto'),
-          )
-          .map((p: any) => ({
-            formulario_comercial_id: formId,
-            cliente_id: dossie.cliente_id,
-            nome_produto: p.nome || p.nome_produto || p.descricao || 'Produto',
-            qtd: p.quantidade || p.qtd || 1,
-            descricao: p.descricao || '',
-            valor_unitario: p.valor_unitario || 0,
-            valor_total: p.valor_total || (p.valor_unitario || 0) * (p.quantidade || p.qtd || 1),
-            status_analise: 'iniciar',
-            codigo_rastreio: null, // Sistema gerará via trigger automaticamente
-          }))
+          const existingNames = existingCards?.map((c) => c.nome_produto) || []
 
-        if (newCards.length > 0) {
-          await supabase.from('produtos_servicos_projeto').insert(newCards)
+          const newCards = fabricacaoItems
+            .filter(
+              (p: any) =>
+                !existingNames.includes(p.nome || p.descricao || p.nome_produto || 'Produto'),
+            )
+            .map((p: any) => ({
+              formulario_comercial_id: formId,
+              cliente_id: dossie.cliente_id,
+              nome_produto: p.nome || p.nome_produto || p.descricao || 'Produto',
+              qtd: p.quantidade || p.qtd || 1,
+              descricao: p.descricao || '',
+              valor_unitario: p.valor_unitario || 0,
+              valor_total: p.valor_total || (p.valor_unitario || 0) * (p.quantidade || p.qtd || 1),
+              status_analise: 'iniciar',
+              codigo_rastreio: null, // Sistema gerará via trigger automaticamente
+            }))
+
+          if (newCards.length > 0) {
+            await supabase.from('produtos_servicos_projeto').insert(newCards)
+          }
+        }
+
+        if (compraDiretaItems.length > 0) {
+          const { data: existingSolicitacoes } = await supabase
+            .from('solicitacoes_compra')
+            .select('nome_item')
+            .eq('cliente_id', dossie.cliente_id)
+
+          const existingReqNames = existingSolicitacoes?.map((s) => s.nome_item) || []
+
+          const newRequests = compraDiretaItems
+            .filter(
+              (p: any) =>
+                !existingReqNames.includes(p.nome || p.descricao || p.nome_produto || 'Item'),
+            )
+            .map((p: any) => ({
+              nome_item: p.nome || p.nome_produto || p.descricao || 'Item de Compra',
+              quantidade: p.quantidade || p.qtd || 1,
+              unidade: 'un',
+              urgencia: 'Média',
+              status: 'Pendente',
+              usuario_id: authData.user?.id,
+              cliente_id: dossie.cliente_id,
+              fornecedor: p.fornecedor || null,
+              data_entrega_prevista: data.data_entrega_maxima || null,
+              motivo: 'Gerado automaticamente via formulário comercial (Compra Direta)',
+            }))
+
+          if (newRequests.length > 0) {
+            await supabase.from('solicitacoes_compra').insert(newRequests)
+          }
         }
       }
 
@@ -261,7 +413,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
       <SectionPessoal data={data} update={update} />
       <SectionEndereco data={data} update={update} updateViaCep={updateViaCep} />
       <SectionObra data={data} update={update} updateViaCep={updateViaCep} />
-      <SectionProdutos data={data} update={update} />
+      <SectionProdutosEnhanced data={data} update={update} />
       <SectionTotais data={data} update={update} />
       <SectionPagamento data={data} update={update} />
       <SectionDatas data={data} update={update} />

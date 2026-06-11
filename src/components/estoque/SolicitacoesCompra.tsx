@@ -28,7 +28,11 @@ type Solicitacao = {
   urgencia: string
   status: string
   criado_em: string
+  cliente_id?: string | null
+  data_entrega_prevista?: string | null
+  fornecedor?: string | null
   usuario?: { nome: string }
+  cliente?: { nome: string }
 }
 
 export function SolicitacoesCompra() {
@@ -43,7 +47,8 @@ export function SolicitacoesCompra() {
       .from('solicitacoes_compra' as any)
       .select(`
         *,
-        usuario:users(nome)
+        usuario:users(nome),
+        cliente:clientes(nome)
       `)
       .order('criado_em', { ascending: false })
 
@@ -127,8 +132,11 @@ export function SolicitacoesCompra() {
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Solicitante</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Item / Detalhes</TableHead>
+                <TableHead>Fornecedor</TableHead>
                 <TableHead>Qtd</TableHead>
+                <TableHead>Previsão</TableHead>
                 <TableHead>Urgência</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -137,7 +145,7 @@ export function SolicitacoesCompra() {
             <TableBody>
               {solicitacoes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Nenhuma solicitação encontrada.
                   </TableCell>
                 </TableRow>
@@ -148,6 +156,7 @@ export function SolicitacoesCompra() {
                       {new Date(s.criado_em).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell>{s.usuario?.nome || 'Usuário Desconhecido'}</TableCell>
+                    <TableCell>{s.cliente?.nome || '-'}</TableCell>
                     <TableCell>
                       <p className="font-medium">{s.nome_item}</p>
                       <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
@@ -170,8 +179,16 @@ export function SolicitacoesCompra() {
                         </a>
                       )}
                     </TableCell>
+                    <TableCell>{s.fornecedor || '-'}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       {s.quantidade} {s.unidade}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {s.data_entrega_prevista
+                        ? new Date(s.data_entrega_prevista + 'T12:00:00Z').toLocaleDateString(
+                            'pt-BR',
+                          )
+                        : '-'}
                     </TableCell>
                     <TableCell>
                       <Badge
