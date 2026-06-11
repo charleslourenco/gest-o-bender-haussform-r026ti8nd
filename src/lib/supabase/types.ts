@@ -3413,6 +3413,8 @@ export const Constants = {
 //   Policy "analise_tecnica_update_psp" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: has_module_access(auth.uid(), 'Análise Técnica'::text)
 //     WITH CHECK: has_module_access(auth.uid(), 'Análise Técnica'::text)
+//   Policy "authenticated_delete_produtos_servicos_projeto" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "authenticated_insert_produtos_servicos_projeto" (INSERT, PERMISSIVE) roles={authenticated}
 //     WITH CHECK: true
 //   Policy "authenticated_select_produtos_servicos_projeto" (SELECT, PERMISSIVE) roles={authenticated}

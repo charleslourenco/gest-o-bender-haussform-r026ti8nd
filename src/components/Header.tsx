@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { UserProfileDialog } from './UserProfileDialog'
 import { SolicitarCompraDialog } from './SolicitarCompraDialog'
+import { ThemeToggle } from './theme-toggle'
 
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
@@ -120,6 +121,8 @@ export function Header() {
 
       <div className="flex items-center gap-4">
         <SolicitarCompraDialog />
+
+        <ThemeToggle />
 
         <Popover>
           <PopoverTrigger asChild>

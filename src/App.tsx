@@ -24,49 +24,52 @@ import Signup from './pages/Signup'
 import AssinaturaPage from './pages/AssinaturaPage'
 import BaixaRetalho from './pages/BaixaRetalho'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { ThemeProvider } from './components/theme-provider'
 
 const App = () => (
-  <AuthProvider>
-    <AppProvider>
-      <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner position="top-center" duration={5000} />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/assinatura/:id" element={<AssinaturaPage />} />
-            <Route path="/baixa-retalho/:id" element={<BaixaRetalho />} />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/comercial" element={<Comercial />} />
-              <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
-              <Route path="/usuarios" element={<Users />} />
-              <Route path="/clientes" element={<AreaClientes />} />
-              <Route path="/clientes/:id" element={<AreaClientes />} />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/analise-tecnica" element={<AnaliseTecnica />} />
-              <Route path="/analise-tecnica/:id" element={<AnaliseTecnicaDetalhe />} />
-              <Route path="/producao" element={<Producao />} />
-              <Route path="/montagem" element={<Montagem />} />
-              <Route path="/estoque-compras" element={<EstoqueCompras />} />
-              <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
-              <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />
-              <Route path="/admin" element={<AdminPage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </TooltipProvider>
-      </BrowserRouter>
-    </AppProvider>
-  </AuthProvider>
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <AuthProvider>
+      <AppProvider>
+        <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="top-center" duration={5000} />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/assinatura/:id" element={<AssinaturaPage />} />
+              <Route path="/baixa-retalho/:id" element={<BaixaRetalho />} />
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/comercial" element={<Comercial />} />
+                <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
+                <Route path="/usuarios" element={<Users />} />
+                <Route path="/clientes" element={<AreaClientes />} />
+                <Route path="/clientes/:id" element={<AreaClientes />} />
+                <Route path="/financeiro" element={<Financeiro />} />
+                <Route path="/analise-tecnica" element={<AnaliseTecnica />} />
+                <Route path="/analise-tecnica/:id" element={<AnaliseTecnicaDetalhe />} />
+                <Route path="/producao" element={<Producao />} />
+                <Route path="/montagem" element={<Montagem />} />
+                <Route path="/estoque-compras" element={<EstoqueCompras />} />
+                <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
+                <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />
+                <Route path="/admin" element={<AdminPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </BrowserRouter>
+      </AppProvider>
+    </AuthProvider>
+  </ThemeProvider>
 )
 
 export default App
