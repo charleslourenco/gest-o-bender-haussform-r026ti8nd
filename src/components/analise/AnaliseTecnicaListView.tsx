@@ -183,8 +183,8 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   }
 
   return (
-    <div className="p-4 sm:p-6 h-full max-w-full">
-      <div className="rounded-md border bg-white shadow-sm min-w-[900px] overflow-hidden">
+    <div className="p-6 h-full max-w-full overflow-y-auto">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm min-w-[900px] overflow-hidden">
         <Table>
           <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
             <TableRow>

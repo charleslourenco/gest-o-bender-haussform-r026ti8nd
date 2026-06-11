@@ -101,11 +101,13 @@ export function AnaliseKanbanCard({
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`flex flex-col gap-1.5 p-2 w-full h-fit bg-[#1A3D63] text-white rounded-md shadow-sm cursor-grab hover:shadow-md hover:border-blue-400/50 transition-all border border-transparent ${card.is_outsourced ? 'border-orange-500' : ''} ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
+      className={`flex flex-col gap-1.5 p-3 w-full h-fit bg-white text-slate-800 rounded-lg shadow-sm cursor-grab hover:shadow-md hover:border-blue-400/50 transition-all border ${card.is_outsourced ? 'border-orange-500' : 'border-slate-200'} ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card.codigo_rastreio ? (
-          <span className="font-bold text-blue-200 truncate">{card.codigo_rastreio}</span>
+          <span className="font-bold text-blue-600 truncate bg-blue-50 px-1.5 py-0.5 rounded">
+            {card.codigo_rastreio}
+          </span>
         ) : (
           <span className="text-transparent">N/A</span>
         )}
@@ -125,7 +127,7 @@ export function AnaliseKanbanCard({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button
-                className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded hover:bg-red-500/10 shrink-0"
+                className="text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded hover:bg-red-50 shrink-0"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
@@ -134,7 +136,6 @@ export function AnaliseKanbanCard({
               </button>
             </AlertDialogTrigger>
             <AlertDialogContent
-              className="bg-[#1A3D63] text-white border-slate-700"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
@@ -142,16 +143,14 @@ export function AnaliseKanbanCard({
                 <AlertDialogTitle>
                   {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Card?'}
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-slate-300">
+                <AlertDialogDescription>
                   {card.is_parent_card
                     ? 'Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.'
                     : 'Tem certeza que deseja excluir este card? Esta ação não pode ser desfeita.'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel className="bg-transparent border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white">
-                  Cancelar
-                </AlertDialogCancel>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className="bg-red-600 hover:bg-red-700 text-white border-none"
@@ -165,7 +164,7 @@ export function AnaliseKanbanCard({
       </div>
 
       {card.clientes?.nome && (
-        <span className="truncate text-slate-300 text-[10px] leading-none mb-1">
+        <span className="truncate text-slate-500 font-medium text-xs leading-none mb-1">
           {card.clientes.nome}
         </span>
       )}
@@ -179,38 +178,34 @@ export function AnaliseKanbanCard({
             .map((item: string, i: number) => (
               <div
                 key={i}
-                className="text-xs text-slate-200 bg-white/5 px-2 py-1 rounded w-full break-words leading-tight"
+                className="text-xs text-slate-700 bg-slate-50 border border-slate-100 px-2 py-1 rounded w-full break-words leading-tight"
               >
                 • {item}
               </div>
             ))
         ) : (
-          <div className="text-xs text-slate-200 bg-white/5 px-2 py-1 rounded w-full break-words leading-tight">
+          <div className="text-xs text-slate-700 bg-slate-50 border border-slate-100 px-2 py-1 rounded w-full break-words leading-tight">
             • {card.nome_produto}
           </div>
         )}
       </div>
 
       <div
-        className="mt-1 flex items-center gap-1 border-t border-slate-700/50 pt-1.5"
+        className="mt-2 flex items-center gap-1 border-t border-slate-100 pt-2"
         onMouseDown={stopPropagation}
         onTouchStart={stopPropagation}
         onClick={stopPropagation}
       >
         <Select value={analistaId} onValueChange={handleAssign}>
-          <SelectTrigger className="h-7 bg-[#0F243B] border-slate-700/50 text-[10px] px-2 text-slate-300 w-full focus:ring-0 focus:ring-offset-0">
+          <SelectTrigger className="h-8 bg-white border-slate-200 text-xs px-2 text-slate-700 w-full focus:ring-1 focus:ring-blue-500">
             <div className="flex items-center gap-1.5 truncate">
-              <UserCircle2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <UserCircle2 className="h-4 w-4 shrink-0 text-slate-400" />
               <SelectValue placeholder="Atribuir responsável" />
             </div>
           </SelectTrigger>
-          <SelectContent className="bg-[#132A46] border-slate-700">
+          <SelectContent>
             {users.map((u) => (
-              <SelectItem
-                key={u.id}
-                value={u.id}
-                className="text-xs text-slate-200 focus:bg-[#1A3D63] focus:text-white"
-              >
+              <SelectItem key={u.id} value={u.id} className="text-xs">
                 {u.nome}
               </SelectItem>
             ))}

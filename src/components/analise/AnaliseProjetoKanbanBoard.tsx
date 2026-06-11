@@ -2,9 +2,20 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, User, DollarSign } from 'lucide-react'
+import { Calendar, User, DollarSign, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 const PROJECT_COLUMNS = [
   { id: 'iniciar', title: 'INICIAR' },
@@ -99,6 +110,20 @@ export function AnaliseProjetoKanbanBoard() {
     }
   }
 
+  const handleDeleteProject = async (id: string) => {
+    const { error } = await supabase.from('formulario_comercial').delete().eq('id', id)
+    if (error) {
+      toast({
+        title: 'Erro ao excluir projeto',
+        description: error.message,
+        variant: 'destructive',
+      })
+    } else {
+      toast({ title: 'Projeto excluído com sucesso!' })
+      setProjects((prev) => prev.filter((p) => p.id !== id))
+    }
+  }
+
   const filteredProjects = projects.filter((p) => {
     if (!searchQuery) return true
     const clientName = p.clientes?.nome?.toLowerCase() || ''
@@ -113,19 +138,15 @@ export function AnaliseProjetoKanbanBoard() {
   if (loading) return <div className="p-8 text-slate-400">Carregando...</div>
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-[#0B1B2E]">
-      <div className="px-4 py-2.5 bg-[#132A46] border-b border-slate-800 flex justify-between items-center shadow-sm z-10 shrink-0">
-        <h2 className="font-bold text-base text-white">Projetos em Análise</h2>
-      </div>
-
-      <div className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-800">
-        <div className="flex gap-4 p-4 h-full w-max items-stretch">
+    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50/50">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-4 p-6 h-full w-max items-stretch">
           {columnsData.map((col) => (
             <div
               key={col.id}
               className={cn(
-                'flex flex-col w-[340px] bg-[#0F243B] rounded-lg border border-[#1A3D63] shrink-0 h-full',
-                dragOverCol === col.id && 'bg-[#132A46] border-primary/50',
+                'flex flex-col w-[340px] bg-slate-100/50 rounded-xl border border-slate-200 shrink-0 h-full',
+                dragOverCol === col.id && 'bg-slate-100 border-primary/50',
               )}
               onDragOver={(e) => {
                 e.preventDefault()
@@ -134,14 +155,14 @@ export function AnaliseProjetoKanbanBoard() {
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, col.id)}
             >
-              <div className="p-3 border-b border-[#1A3D63] flex items-center justify-between bg-[#132A46] rounded-t-lg">
-                <h3 className="font-semibold text-sm text-white">{col.title}</h3>
-                <span className="bg-white/10 text-slate-300 text-xs px-2 py-0.5 rounded-full font-medium">
+              <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-100 rounded-t-xl">
+                <h3 className="font-semibold text-sm text-slate-700">{col.title}</h3>
+                <span className="bg-white text-slate-600 text-xs px-2 py-0.5 rounded-full font-medium shadow-sm border border-slate-200">
                   {col.items.length}
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {col.items.map((project) => {
                   let consultantName = 'Consultor não encontrado'
                   if (
@@ -194,16 +215,49 @@ export function AnaliseProjetoKanbanBoard() {
                       onDragEnd={() => setDraggingId(null)}
                       onClick={() => navigate(`/analise-tecnica/${project.id}`)}
                       className={cn(
-                        'bg-[#1A3D63] p-4 rounded-lg shadow-sm border border-transparent cursor-pointer hover:border-blue-400/50 hover:shadow-md transition-all group',
+                        'bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group relative',
                         draggingId === project.id && 'opacity-50 ring-2 ring-blue-500',
                       )}
                     >
-                      <h4 className="font-semibold text-sm text-white mb-3 line-clamp-2">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors p-1.5 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Excluir Projeto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tem certeza que deseja excluir este projeto? Esta ação não pode ser
+                              desfeita.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteProject(project.id)
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white border-none"
+                            >
+                              Excluir
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <h4 className="font-semibold text-sm text-slate-900 mb-3 pr-6 line-clamp-2">
                         {clientName}
                       </h4>
 
                       <div className="space-y-2 mb-3">
-                        <div className="flex items-center text-xs text-slate-300">
+                        <div className="flex items-center text-xs text-slate-600">
                           <DollarSign className="w-3.5 h-3.5 mr-2 text-slate-400" />
                           <span className="font-medium">
                             {new Intl.NumberFormat('pt-BR', {
@@ -212,12 +266,12 @@ export function AnaliseProjetoKanbanBoard() {
                             }).format(project.valor_total || 0)}
                           </span>
                         </div>
-                        <div className="flex items-center text-xs text-slate-300">
+                        <div className="flex items-center text-xs text-slate-600">
                           <User className="w-3.5 h-3.5 mr-2 text-slate-400" />
                           <span className="truncate">{consultantName}</span>
                         </div>
                         {project.data_prevista_entrega && (
-                          <div className="flex items-center text-xs text-slate-300">
+                          <div className="flex items-center text-xs text-slate-600">
                             <Calendar className="w-3.5 h-3.5 mr-2 text-slate-400" />
                             {format(new Date(project.data_prevista_entrega), 'dd/MM/yyyy')}
                           </div>
@@ -225,21 +279,21 @@ export function AnaliseProjetoKanbanBoard() {
                       </div>
 
                       {productNames.length > 0 && (
-                        <div className="pt-3 border-t border-slate-600/50">
-                          <div className="text-[10px] font-semibold text-slate-400 uppercase mb-1.5 tracking-wider">
+                        <div className="pt-3 border-t border-slate-100">
+                          <div className="text-[10px] font-semibold text-slate-500 uppercase mb-1.5 tracking-wider">
                             Itens do Projeto ({productNames.length})
                           </div>
                           <div className="flex flex-col gap-1 w-full">
                             {productNames.slice(0, 5).map((name: string, idx: number) => (
                               <div
                                 key={idx}
-                                className="bg-white/5 text-slate-200 text-xs px-2 py-1 rounded w-full break-words leading-tight"
+                                className="bg-slate-50 text-slate-700 text-xs px-2 py-1 rounded w-full break-words leading-tight"
                               >
                                 • {name}
                               </div>
                             ))}
                             {productNames.length > 5 && (
-                              <div className="text-slate-400 text-xs pl-2 italic">
+                              <div className="text-slate-500 text-xs pl-2 italic">
                                 + {productNames.length - 5} item(ns)...
                               </div>
                             )}

@@ -3282,6 +3282,8 @@ export const Constants = {
 //   Policy "Admin can update all forms" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: is_admin(auth.uid())
 //     WITH CHECK: is_admin(auth.uid())
+//   Policy "Allow delete for admins or owners" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: (((auth.uid())::text = (user_id)::text) OR is_admin(auth.uid()))
 //   Policy "Enable delete for own forms" (DELETE, PERMISSIVE) roles={public}
 //     USING: (auth.uid() = user_id)
 //   Policy "Enable insert for own forms" (INSERT, PERMISSIVE) roles={public}
