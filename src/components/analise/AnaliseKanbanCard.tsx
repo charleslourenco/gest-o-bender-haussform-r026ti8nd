@@ -110,13 +110,13 @@ export function AnaliseKanbanCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={`flex flex-col gap-1.5 p-3 w-full h-fit rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all border 
-        ${card.is_outsourced ? 'bg-orange-600 dark:bg-orange-900/60 border-orange-500 dark:border-orange-800/80 text-white dark:text-orange-50 hover:border-orange-400 dark:hover:border-orange-700' : 'bg-[#1A3D63] dark:bg-slate-800/80 text-[#F6FAFD] dark:text-slate-100 border-[#2A5282] dark:border-slate-700 hover:border-[#4B7BB0] dark:hover:border-slate-600'} 
+        ${card.is_outsourced ? 'bg-orange-100 text-orange-900 border-orange-200 hover:border-orange-300 dark:bg-orange-950/40 dark:text-orange-100 dark:border-orange-900/60 dark:hover:border-orange-800' : 'bg-card text-card-foreground border-border hover:border-primary/50'} 
         ${card.has_outsourced_dependency ? 'border-l-4 border-l-orange-500 dark:border-l-orange-600' : ''}
-        ${isDragging ? 'opacity-50 ring-2 ring-blue-500 dark:ring-blue-600' : ''}`}
+        ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card.codigo_rastreio ? (
-          <span className="font-bold text-blue-600 dark:text-blue-400 truncate bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">
+          <span className="font-bold text-primary truncate bg-primary/10 px-1.5 py-0.5 rounded">
             {card.codigo_rastreio}
           </span>
         ) : (
@@ -130,7 +130,7 @@ export function AnaliseKanbanCard({
                 if (onCheckOutsourced) onCheckOutsourced(card)
               }}
               title="Criar Card Terceirizado"
-              className="bg-amber-500 dark:bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 dark:hover:bg-amber-700 cursor-pointer shrink-0"
+              className="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-amber-600 cursor-pointer shrink-0"
             >
               ⚠️
             </button>
@@ -138,7 +138,7 @@ export function AnaliseKanbanCard({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button
-                className={`transition-colors p-1.5 rounded hover:bg-red-500/20 dark:hover:bg-red-500/30 shrink-0 ${card.is_outsourced ? 'text-white/70 dark:text-orange-200/70 hover:text-white dark:hover:text-orange-100' : 'text-[#F6FAFD]/60 dark:text-slate-400 hover:text-red-400 dark:hover:text-red-400'}`}
+                className={`transition-colors p-1.5 rounded hover:bg-destructive/20 shrink-0 ${card.is_outsourced ? 'text-orange-600 dark:text-orange-400 hover:text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
@@ -164,7 +164,7 @@ export function AnaliseKanbanCard({
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
-                  className="bg-red-600 hover:bg-red-700 text-white border-none"
+                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
                 >
                   Excluir
                 </AlertDialogAction>
@@ -176,7 +176,7 @@ export function AnaliseKanbanCard({
 
       {card.clientes?.nome && (
         <span
-          className={`truncate font-medium text-xs leading-none mb-1 ${card.is_outsourced ? 'text-white/90 dark:text-orange-100' : 'text-[#F6FAFD]/70 dark:text-slate-300'}`}
+          className={`truncate font-medium text-xs leading-none mb-1 ${card.is_outsourced ? 'text-orange-950 dark:text-orange-100' : 'text-foreground/80'}`}
         >
           {card.clientes.nome}
         </span>
@@ -191,14 +191,14 @@ export function AnaliseKanbanCard({
             .map((item: string, i: number) => (
               <div
                 key={i}
-                className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-700 dark:bg-orange-950/80 border-orange-500 dark:border-orange-800 text-white dark:text-orange-100' : 'bg-[#0F294A] dark:bg-slate-900/80 border-[#2A5282] dark:border-slate-700 text-[#F6FAFD] dark:text-slate-200'}`}
+                className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800 text-orange-900 dark:text-orange-100' : 'bg-muted/50 border-border text-foreground'}`}
               >
                 • {item}
               </div>
             ))
         ) : (
           <div
-            className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-700 dark:bg-orange-950/80 border-orange-500 dark:border-orange-800 text-white dark:text-orange-100' : 'bg-[#0F294A] dark:bg-slate-900/80 border-[#2A5282] dark:border-slate-700 text-[#F6FAFD] dark:text-slate-200'}`}
+            className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-50 border-orange-200 dark:bg-orange-900/30 dark:border-orange-800 text-orange-900 dark:text-orange-100' : 'bg-muted/50 border-border text-foreground'}`}
           >
             • {card.nome_produto}
           </div>
@@ -206,18 +206,18 @@ export function AnaliseKanbanCard({
       </div>
 
       <div
-        className="mt-2 flex items-center gap-1 border-t border-[#2A5282] dark:border-slate-700 pt-2"
+        className="mt-2 flex items-center gap-1 border-t border-border/50 pt-2"
         onMouseDown={stopPropagation}
         onTouchStart={stopPropagation}
         onClick={stopPropagation}
       >
         <Select value={analistaId} onValueChange={handleAssign}>
           <SelectTrigger
-            className={`h-8 border text-xs px-2 w-full focus:ring-1 ${card.is_outsourced ? 'bg-orange-700 dark:bg-orange-950/80 border-orange-500 dark:border-orange-800 text-white dark:text-orange-100 focus:ring-orange-400 dark:focus:ring-orange-600' : 'bg-[#0F294A] dark:bg-slate-900/80 border-[#2A5282] dark:border-slate-700 text-[#F6FAFD] dark:text-slate-200 focus:ring-[#4B7BB0] dark:focus:ring-slate-500'}`}
+            className={`h-8 border text-xs px-2 w-full focus:ring-1 ${card.is_outsourced ? 'bg-orange-50 border-orange-200 text-orange-900 dark:bg-orange-900/30 dark:border-orange-800 dark:text-orange-100 focus:ring-orange-400' : 'bg-muted/30 border-border text-foreground focus:ring-primary'}`}
           >
             <div className="flex items-center gap-1.5 truncate">
               <UserCircle2
-                className={`h-4 w-4 shrink-0 ${card.is_outsourced ? 'text-white/80 dark:text-orange-200/80' : 'text-[#F6FAFD]/60 dark:text-slate-400'}`}
+                className={`h-4 w-4 shrink-0 ${card.is_outsourced ? 'text-orange-500 dark:text-orange-400' : 'text-muted-foreground'}`}
               />
               <SelectValue placeholder="Atribuir responsável" />
             </div>

@@ -289,17 +289,17 @@ export function AnaliseKanbanBoard({
     return matches
   })
 
-  if (loading) return <div className="p-8 text-slate-500">Carregando...</div>
+  if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50">
-      <div className="px-6 py-3 bg-white border-b border-slate-200 flex justify-between items-center shadow-sm z-10 shrink-0">
-        <h2 className="font-semibold text-lg text-slate-800">{title}</h2>
+    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-background">
+      <div className="px-6 py-3 bg-card border-b border-border flex justify-between items-center shadow-sm z-10 shrink-0">
+        <h2 className="font-semibold text-lg text-foreground">{title}</h2>
       </div>
 
       <div
         ref={topScrollRef}
-        className="overflow-x-auto overflow-y-hidden shrink-0 bg-white border-b border-slate-200 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100"
+        className="overflow-x-auto overflow-y-hidden shrink-0 bg-card border-b border-border [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/50"
         onScroll={handleTopScroll}
       >
         <div style={{ width: contentWidth > 0 ? `${contentWidth}px` : '100%', height: '1px' }} />
@@ -307,7 +307,7 @@ export function AnaliseKanbanBoard({
 
       <div
         ref={bottomScrollRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100"
+        className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/50"
         onScroll={handleBottomScroll}
       >
         <div ref={contentRef} className="flex gap-2.5 p-3 h-full w-max items-stretch">
