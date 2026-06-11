@@ -1,0 +1,168 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { FileText, Download, Clock, CheckCircle } from 'lucide-react'
+import { format } from 'date-fns'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/hooks/use-toast'
+
+export function ListasMateriais() {
+  const [listas, setListas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+
+  const fetchListas = async () => {
+    const { data, error } = await supabase
+      .from('documentos_cliente')
+      .select(`
+        id,
+        criado_em,
+        arquivo_url,
+        status,
+        tipo,
+        template_nome,
+        clientes (
+          nome
+        )
+      `)
+      .eq('tipo', 'lista de materiais')
+      .order('criado_em', { ascending: false })
+
+    if (error) {
+      console.error('Erro ao buscar listas de materiais:', error)
+    }
+
+    if (data) {
+      setListas(data)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchListas()
+
+    const channel = supabase
+      .channel('documentos_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documentos_cliente',
+          filter: "tipo=eq.'lista de materiais'",
+        },
+        () => {
+          fetchListas()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  const markAsReviewed = async (id: string) => {
+    const { error } = await supabase
+      .from('documentos_cliente')
+      .update({ status: 'revisado' })
+      .eq('id', id)
+
+    if (error) {
+      toast({ title: 'Erro ao atualizar status', variant: 'destructive' })
+    } else {
+      toast({ title: 'Documento marcado como revisado' })
+      setListas((prev) => prev.map((l) => (l.id === id ? { ...l, status: 'revisado' } : l)))
+    }
+  }
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Carregando listas de materiais...</div>
+  }
+
+  if (listas.length === 0) {
+    return (
+      <div className="p-8 text-center text-slate-500 bg-white rounded-lg border shadow-sm flex flex-col items-center">
+        <FileText className="w-12 h-12 text-slate-300 mb-3" />
+        <p>Nenhuma lista de materiais encontrada no sistema.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+            <tr>
+              <th className="px-6 py-3 font-semibold">Documento</th>
+              <th className="px-6 py-3 font-semibold">Cliente</th>
+              <th className="px-6 py-3 font-semibold">Data de Envio</th>
+              <th className="px-6 py-3 font-semibold">Status</th>
+              <th className="px-6 py-3 font-semibold text-right">Ação</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {listas.map((doc) => {
+              const isUnread = doc.status === 'pendente' || !doc.status || doc.status === 'novo'
+
+              return (
+                <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
+                    <FileText
+                      className={`w-4 h-4 ${isUnread ? 'text-orange-500' : 'text-blue-500'}`}
+                    />
+                    {doc.template_nome || 'Lista de Materiais'}
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">{doc.clientes?.nome || 'N/A'}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Clock className="w-3.5 h-3.5" />
+                      {format(new Date(doc.criado_em), 'dd/MM/yyyy HH:mm')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-medium tracking-wide ${
+                        isUnread
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {isUnread ? 'Pendente de Revisão' : 'Revisado'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {doc.arquivo_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(doc.arquivo_url, '_blank')}
+                          className="h-8 gap-1.5 bg-white"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Baixar
+                        </Button>
+                      )}
+                      {isUnread && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsReviewed(doc.id)}
+                          className="h-8 gap-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Revisado
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}

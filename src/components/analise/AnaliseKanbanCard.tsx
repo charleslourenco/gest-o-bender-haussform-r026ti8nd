@@ -101,7 +101,9 @@ export function AnaliseKanbanCard({
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`flex flex-col gap-1.5 p-3 w-full h-fit bg-[#1A3D63] text-[#F6FAFD] rounded-lg shadow-sm cursor-grab hover:shadow-md hover:border-[#4B7BB0] transition-all border ${card.is_outsourced ? 'border-orange-500' : 'border-[#2A5282]'} ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
+      className={`flex flex-col gap-1.5 p-3 w-full h-fit rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all border 
+        ${card.is_outsourced ? 'bg-orange-600 border-orange-500 text-white hover:border-orange-400' : 'bg-[#1A3D63] text-[#F6FAFD] border-[#2A5282] hover:border-[#4B7BB0]'} 
+        ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card.codigo_rastreio ? (
@@ -127,7 +129,7 @@ export function AnaliseKanbanCard({
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <button
-                className="text-[#F6FAFD]/60 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-red-500/20 shrink-0"
+                className={`transition-colors p-1.5 rounded hover:bg-red-500/20 shrink-0 ${card.is_outsourced ? 'text-white/70 hover:text-white' : 'text-[#F6FAFD]/60 hover:text-red-400'}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
@@ -164,7 +166,9 @@ export function AnaliseKanbanCard({
       </div>
 
       {card.clientes?.nome && (
-        <span className="truncate text-[#F6FAFD]/70 font-medium text-xs leading-none mb-1">
+        <span
+          className={`truncate font-medium text-xs leading-none mb-1 ${card.is_outsourced ? 'text-white/90' : 'text-[#F6FAFD]/70'}`}
+        >
           {card.clientes.nome}
         </span>
       )}
@@ -178,13 +182,15 @@ export function AnaliseKanbanCard({
             .map((item: string, i: number) => (
               <div
                 key={i}
-                className="text-xs text-[#F6FAFD] bg-[#0F294A] border border-[#2A5282] px-2 py-1 rounded w-full break-words leading-tight"
+                className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-700 border-orange-500 text-white' : 'bg-[#0F294A] border-[#2A5282] text-[#F6FAFD]'}`}
               >
                 • {item}
               </div>
             ))
         ) : (
-          <div className="text-xs text-[#F6FAFD] bg-[#0F294A] border border-[#2A5282] px-2 py-1 rounded w-full break-words leading-tight">
+          <div
+            className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${card.is_outsourced ? 'bg-orange-700 border-orange-500 text-white' : 'bg-[#0F294A] border-[#2A5282] text-[#F6FAFD]'}`}
+          >
             • {card.nome_produto}
           </div>
         )}
@@ -197,9 +203,13 @@ export function AnaliseKanbanCard({
         onClick={stopPropagation}
       >
         <Select value={analistaId} onValueChange={handleAssign}>
-          <SelectTrigger className="h-8 bg-[#0F294A] border-[#2A5282] text-xs px-2 text-[#F6FAFD] w-full focus:ring-1 focus:ring-[#4B7BB0]">
+          <SelectTrigger
+            className={`h-8 border text-xs px-2 w-full focus:ring-1 ${card.is_outsourced ? 'bg-orange-700 border-orange-500 text-white focus:ring-orange-400' : 'bg-[#0F294A] border-[#2A5282] text-[#F6FAFD] focus:ring-[#4B7BB0]'}`}
+          >
             <div className="flex items-center gap-1.5 truncate">
-              <UserCircle2 className="h-4 w-4 shrink-0 text-[#F6FAFD]/60" />
+              <UserCircle2
+                className={`h-4 w-4 shrink-0 ${card.is_outsourced ? 'text-white/80' : 'text-[#F6FAFD]/60'}`}
+              />
               <SelectValue placeholder="Atribuir responsável" />
             </div>
           </SelectTrigger>

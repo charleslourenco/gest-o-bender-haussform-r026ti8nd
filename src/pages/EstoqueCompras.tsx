@@ -8,8 +8,45 @@ import { SolicitacoesCompra } from '@/components/estoque/SolicitacoesCompra'
 import { ItensCliente } from '@/components/estoque/ItensCliente'
 import { CaixasVirtuais } from '@/components/estoque/CaixasVirtuais'
 import { GestaoSobras } from '@/components/estoque/GestaoSobras'
+import { ListasMateriais } from '@/components/estoque/ListasMateriais'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 export default function EstoqueCompras() {
+  const [unreadListas, setUnreadListas] = useState(0)
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      const { count } = await supabase
+        .from('documentos_cliente')
+        .select('*', { count: 'exact', head: true })
+        .eq('tipo', 'lista de materiais')
+        .or('status.eq.pendente,status.eq.novo,status.is.null')
+
+      setUnreadListas(count || 0)
+    }
+
+    fetchUnread()
+
+    const channel = supabase
+      .channel('documentos_changes_unread')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documentos_cliente',
+          filter: "tipo=eq.'lista de materiais'",
+        },
+        () => fetchUnread(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 w-full mt-0">
@@ -37,6 +74,17 @@ export default function EstoqueCompras() {
                 className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
               >
                 Inventário
+              </TabsTrigger>
+              <TabsTrigger
+                value="listas-materiais"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 relative"
+              >
+                Listas de Materiais
+                {unreadListas > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
+                    {unreadListas}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="documentos"
@@ -76,6 +124,9 @@ export default function EstoqueCompras() {
           </TabsContent>
           <TabsContent value="estoque" className="m-0 border-none outline-none">
             <EstoqueLista />
+          </TabsContent>
+          <TabsContent value="listas-materiais" className="m-0 border-none outline-none">
+            <ListasMateriais />
           </TabsContent>
           <TabsContent value="documentos" className="m-0 border-none outline-none space-y-8">
             <section>

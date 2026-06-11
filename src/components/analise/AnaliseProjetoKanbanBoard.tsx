@@ -49,7 +49,7 @@ export function AnaliseProjetoKanbanBoard() {
         leads (
           users (nome)
         ),
-        produtos_servicos_projeto (nome_produto)
+        produtos_servicos_projeto (nome_produto, is_outsourced)
       `)
 
     if (error) {
@@ -187,21 +187,24 @@ export function AnaliseProjetoKanbanBoard() {
 
                   const clientName = project.clientes?.nome || 'Cliente não encontrado'
 
-                  let productNames: string[] = []
+                  let productNames: { name: string; is_outsourced: boolean }[] = []
                   if (
                     project.produtos_servicos_projeto &&
                     project.produtos_servicos_projeto.length > 0
                   ) {
-                    productNames = project.produtos_servicos_projeto.map((p: any) => p.nome_produto)
+                    productNames = project.produtos_servicos_projeto.map((p: any) => ({
+                      name: p.nome_produto,
+                      is_outsourced: p.is_outsourced === true,
+                    }))
                   } else {
                     const ambientes = Array.isArray(project.ambientes) ? project.ambientes : []
                     const psp = Array.isArray(project.produtos_servicos)
                       ? project.produtos_servicos
                       : []
                     productNames = [
-                      ...ambientes.map((a: any) => a.nome),
-                      ...psp.map((p: any) => p.nome),
-                    ].filter(Boolean)
+                      ...ambientes.map((a: any) => ({ name: a.nome, is_outsourced: false })),
+                      ...psp.map((p: any) => ({ name: p.nome, is_outsourced: false })),
+                    ].filter((p) => Boolean(p.name))
                   }
 
                   return (
@@ -286,12 +289,16 @@ export function AnaliseProjetoKanbanBoard() {
                             Itens do Projeto ({productNames.length})
                           </div>
                           <div className="flex flex-col gap-1 w-full">
-                            {productNames.slice(0, 5).map((name: string, idx: number) => (
+                            {productNames.slice(0, 5).map((item, idx: number) => (
                               <div
                                 key={idx}
-                                className="bg-[#0F294A] border border-[#2A5282] text-[#F6FAFD] text-xs px-2 py-1 rounded w-full break-words leading-tight"
+                                className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${
+                                  item.is_outsourced
+                                    ? 'bg-orange-600 border-orange-500 text-white'
+                                    : 'bg-[#0F294A] border-[#2A5282] text-[#F6FAFD]'
+                                }`}
                               >
-                                • {name}
+                                • {item.name}
                               </div>
                             ))}
                             {productNames.length > 5 && (
