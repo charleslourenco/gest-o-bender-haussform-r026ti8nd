@@ -2205,6 +2205,53 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_messages: {
+        Row: {
+          content: string
+          created_at: string
+          direction: string | null
+          external_id: string | null
+          id: string
+          lead_id: string | null
+          metadata: Json | null
+          phone: string
+          sender_name: string | null
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          direction?: string | null
+          external_id?: string | null
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          phone: string
+          sender_name?: string | null
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          direction?: string | null
+          external_id?: string | null
+          id?: string
+          lead_id?: string | null
+          metadata?: Json | null
+          phone?: string
+          sender_name?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_messages_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       whatsapp_sessions: {
         Row: {
           created_at: string
@@ -2942,6 +2989,17 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   status: boolean (not null, default: true)
+// Table: whatsapp_messages
+//   id: uuid (not null, default: gen_random_uuid())
+//   lead_id: uuid (nullable)
+//   phone: text (not null)
+//   sender_type: text (not null)
+//   sender_name: text (nullable)
+//   content: text (not null)
+//   external_id: text (nullable)
+//   direction: text (nullable)
+//   metadata: jsonb (nullable, default: '{}'::jsonb)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: whatsapp_sessions
 //   id: uuid (not null, default: gen_random_uuid())
 //   phone: text (not null)
@@ -3106,6 +3164,9 @@ export const Constants = {
 //   UNIQUE users_email_key: UNIQUE (email)
 //   FOREIGN KEY users_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 //   PRIMARY KEY users_pkey: PRIMARY KEY (id)
+// Table: whatsapp_messages
+//   FOREIGN KEY whatsapp_messages_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+//   PRIMARY KEY whatsapp_messages_pkey: PRIMARY KEY (id)
 // Table: whatsapp_sessions
 //   FOREIGN KEY whatsapp_sessions_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   UNIQUE whatsapp_sessions_phone_key: UNIQUE (phone)
@@ -3505,6 +3566,16 @@ export const Constants = {
 //     USING: ((auth.uid() = id) OR is_admin(auth.uid()))
 //   Policy "authenticated_select_users" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
+// Table: whatsapp_messages
+//   Policy "authenticated_delete_whatsapp_messages" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_insert_whatsapp_messages" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "authenticated_select_whatsapp_messages" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_whatsapp_messages" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: whatsapp_sessions
 //   Policy "authenticated_select_whatsapp_sessions" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -4135,5 +4206,8 @@ export const Constants = {
 //   CREATE INDEX idx_templates_user_id_tipo ON public.templates USING btree (user_id, tipo)
 // Table: users
 //   CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+// Table: whatsapp_messages
+//   CREATE INDEX idx_whatsapp_messages_lead_id ON public.whatsapp_messages USING btree (lead_id)
+//   CREATE UNIQUE INDEX whatsapp_messages_external_id_idx ON public.whatsapp_messages USING btree (external_id) WHERE (external_id IS NOT NULL)
 // Table: whatsapp_sessions
 //   CREATE UNIQUE INDEX whatsapp_sessions_phone_key ON public.whatsapp_sessions USING btree (phone)

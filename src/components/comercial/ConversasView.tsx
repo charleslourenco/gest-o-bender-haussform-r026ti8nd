@@ -256,8 +256,31 @@ export function ConversasView() {
                   </div>
                 ) : messages.length > 0 ? (
                   messages.map((msg) => {
-                    const isClient = msg.sender_type === 'lead' || msg.direction === 'inbound'
+                    const isClient =
+                      msg.sender_type === 'lead' ||
+                      (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                    const isSystem = msg.sender_type === 'system'
                     const isAssistant = msg.sender_type === 'assistant'
+
+                    if (isSystem) {
+                      return (
+                        <div key={msg.id} className="flex justify-center my-4">
+                          <div className="bg-gray-100 text-gray-600 rounded-lg p-3 text-sm max-w-[90%] border border-gray-200 text-center">
+                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">
+                              {msg.sender_name || 'Sistema'}
+                            </span>
+                            <p className="whitespace-pre-wrap">
+                              {msg.content || msg.text || msg.body}
+                            </p>
+                            <span className="text-[10px] text-gray-400 mt-2 block">
+                              {msg.created_at
+                                ? new Date(msg.created_at).toLocaleString('pt-BR')
+                                : ''}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    }
 
                     return (
                       <div
@@ -274,12 +297,12 @@ export function ConversasView() {
                           }`}
                         >
                           {!isClient && (
-                            <span className="text-[10px] font-bold text-gray-500 mb-1 block">
+                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase tracking-wider">
                               {msg.sender_name || (isAssistant ? 'Catarina (IA)' : 'Você/Equipe')}
                             </span>
                           )}
                           {isClient && msg.sender_name && (
-                            <span className="text-[10px] font-bold text-gray-500 mb-1 block">
+                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase tracking-wider">
                               {msg.sender_name}
                             </span>
                           )}

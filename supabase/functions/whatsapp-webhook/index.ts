@@ -415,26 +415,7 @@ async function processResponse(
   isTransbordo: boolean,
   dados: any,
 ) {
-  let extraNotes = ''
-  if (dados.ambiente && dados.ambiente !== 'null')
-    extraNotes += `\n[Novo Dado - Ambiente]: ${dados.ambiente}`
-  if (dados.origem && dados.origem !== 'null')
-    extraNotes += `\n[Novo Dado - Origem]: ${dados.origem}`
-  if (dados.localizacao && dados.localizacao !== 'null')
-    extraNotes += `\n[Novo Dado - Localização]: ${dados.localizacao}`
-  if (dados.status_imovel && dados.status_imovel !== 'null')
-    extraNotes += `\n[Novo Dado - Status do Imóvel]: ${dados.status_imovel}`
-  if (dados.investimento && dados.investimento !== 'null')
-    extraNotes += `\n[Novo Dado - Investimento]: ${dados.investimento}`
-
   const readableText = responseText.replace(/\|\|\|/g, ' ')
-
-  const currentNotes = lead.notas ? lead.notas.trim() : ''
-  const addedNotes = extraNotes.trim()
-  let finalNotes = currentNotes
-  if (addedNotes) {
-    finalNotes = currentNotes ? `${currentNotes}\n${addedNotes}` : addedNotes
-  }
 
   await supabase.from('whatsapp_messages').insert({
     lead_id: lead.id,
@@ -471,7 +452,6 @@ async function processResponse(
     dados.categoria && validCategorias.includes(dados.categoria) ? dados.categoria : lead.categoria
 
   const updatePayload: any = {
-    notas: finalNotes,
     status: nextStatus,
     atualizado_em: new Date().toISOString(),
   }
