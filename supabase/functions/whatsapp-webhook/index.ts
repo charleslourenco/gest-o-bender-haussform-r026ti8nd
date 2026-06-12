@@ -81,17 +81,18 @@ Deno.serve(async (req) => {
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', currentLead.id)
-
-        await supabase.from('whatsapp_messages').insert({
-          lead_id: currentLead.id,
-          phone,
-          sender_type: 'user',
-          sender_name: 'Ana',
-          content: messageText,
-          external_id: msgExternalId,
-          direction: 'outbound',
-        })
       }
+
+      await supabase.from('whatsapp_messages').insert({
+        lead_id: currentLead?.id || null,
+        phone,
+        sender_type: 'ana',
+        sender_name: 'Ana',
+        content: messageText,
+        external_id: msgExternalId,
+        direction: 'outbound',
+      })
+
       return new Response('Ignored fromMe', { status: 200 })
     }
 
@@ -129,7 +130,7 @@ Deno.serve(async (req) => {
     await supabase.from('whatsapp_messages').insert({
       lead_id: lead.id,
       phone,
-      sender_type: 'lead',
+      sender_type: 'cliente',
       sender_name: senderName,
       content: messageText,
       external_id: msgExternalId,
@@ -163,7 +164,7 @@ Deno.serve(async (req) => {
       await supabase.from('whatsapp_messages').insert({
         lead_id: lead.id,
         phone,
-        sender_type: 'assistant',
+        sender_type: 'catarina',
         sender_name: 'Catarina',
         content: botMsg,
         direction: 'outbound',
@@ -212,12 +213,15 @@ Deno.serve(async (req) => {
 
       if (recentMsgs) {
         const lastStandbyMsg = recentMsgs.find(
-          (m: any) => m.sender_type === 'assistant' && m.created_at,
+          (m: any) =>
+            (m.sender_type === 'assistant' || m.sender_type === 'catarina') && m.created_at,
         )
         if (lastStandbyMsg) {
           lastStandbyTime = new Date(lastStandbyMsg.created_at).getTime()
         }
-        const lastAnaMsg = recentMsgs.find((m: any) => m.sender_type === 'user' && m.created_at)
+        const lastAnaMsg = recentMsgs.find(
+          (m: any) => (m.sender_type === 'user' || m.sender_type === 'ana') && m.created_at,
+        )
         if (lastAnaMsg) {
           lastAnaTime = Math.max(lastAnaTime, new Date(lastAnaMsg.created_at).getTime())
         }
@@ -231,7 +235,7 @@ Deno.serve(async (req) => {
           await supabase.from('whatsapp_messages').insert({
             lead_id: lead.id,
             phone,
-            sender_type: 'assistant',
+            sender_type: 'catarina',
             sender_name: 'Catarina',
             content: botMsg,
             direction: 'outbound',
@@ -353,7 +357,7 @@ ${lead.notas || 'Nenhuma nota adicional'}`
 
     if (pastMsgs) {
       for (const m of pastMsgs) {
-        if (m.sender_type === 'lead') {
+        if (m.sender_type === 'lead' || m.sender_type === 'cliente') {
           messages.push({ role: 'user', content: m.content })
         } else {
           messages.push({ role: 'assistant', content: m.content })
@@ -420,7 +424,7 @@ async function processResponse(
   await supabase.from('whatsapp_messages').insert({
     lead_id: lead.id,
     phone,
-    sender_type: 'assistant',
+    sender_type: 'catarina',
     sender_name: 'Catarina',
     content: readableText,
     direction: 'outbound',
