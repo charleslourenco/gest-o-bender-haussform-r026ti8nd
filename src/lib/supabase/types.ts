@@ -1372,6 +1372,7 @@ export type Database = {
           origem: string
           status: string
           telefone: string
+          tipo_conversa: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -1390,6 +1391,7 @@ export type Database = {
           origem: string
           status?: string
           telefone: string
+          tipo_conversa?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -1408,6 +1410,7 @@ export type Database = {
           origem?: string
           status?: string
           telefone?: string
+          tipo_conversa?: string | null
         }
         Relationships: [
           {
@@ -2751,6 +2754,7 @@ export const Constants = {
 //   data_venda: timestamp with time zone (nullable)
 //   categoria: text (not null, default: 'Comercial'::text)
 //   notas_pessoais: text (nullable)
+//   tipo_conversa: text (nullable)
 // Table: logs_ia
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (nullable)

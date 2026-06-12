@@ -3,7 +3,14 @@ import { KanbanBoard } from '@/components/comercial/KanbanBoard'
 import { ComercialList } from '@/components/comercial/ComercialList'
 import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { supabase } from '@/lib/supabase/client'
-import { TrendingUp, LayoutDashboard, List as ListIcon, BarChart3 } from 'lucide-react'
+import {
+  TrendingUp,
+  LayoutDashboard,
+  List as ListIcon,
+  BarChart3,
+  MessageCircle,
+} from 'lucide-react'
+import { ConversasView } from '@/components/comercial/ConversasView'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
@@ -215,6 +222,14 @@ export default function Comercial() {
               <BarChart3 className="w-4 h-4 mr-2" />
               Indicadores
             </TabsTrigger>
+            <TabsTrigger
+              value="conversas"
+              onClick={() => setActiveTab('conversas')}
+              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Conversas
+            </TabsTrigger>
           </TabsList>
         </div>
         <div
@@ -258,6 +273,15 @@ export default function Comercial() {
           className="flex-1 overflow-y-auto min-h-0 m-0 data-[state=active]:flex flex-col"
         >
           <ComercialIndicators />
+        </TabsContent>
+
+        <TabsContent
+          value="conversas"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <div className="flex-1 overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200">
+            <ConversasView />
+          </div>
         </TabsContent>
       </div>
     </Tabs>
