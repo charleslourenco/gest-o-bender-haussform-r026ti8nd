@@ -72,6 +72,15 @@ export function ConversasView() {
 
   useEffect(() => {
     loadData()
+    const channel = supabase
+      .channel('conversas_leads_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        loadData()
+      })
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const loadData = async () => {
@@ -79,6 +88,11 @@ export function ConversasView() {
       const [leadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
       setLeads(leadsData as any)
       setUsers(usersData)
+      setSelectedLead((current) => {
+        if (!current) return null
+        const updated = leadsData.find((l: any) => l.id === current.id)
+        return updated ? (updated as any) : current
+      })
     } catch (error) {
       console.error(error)
       toast.error('Erro ao carregar dados')
