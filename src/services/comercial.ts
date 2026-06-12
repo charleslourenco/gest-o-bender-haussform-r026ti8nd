@@ -67,8 +67,8 @@ export const fetchLeadMessages = async (leadId: string, phone: string) => {
       return [
         {
           id: sessionData.id,
-          sender: 'ai',
-          text: `Sessão do WhatsApp iniciada (Passo: ${sessionData.step}). Aguardando mensagens...`,
+          sender_type: 'assistant',
+          content: `Sessão do WhatsApp iniciada (Passo: ${sessionData.step}). Aguardando mensagens...`,
           created_at: sessionData.created_at,
         },
       ]

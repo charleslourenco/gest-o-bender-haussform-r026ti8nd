@@ -256,7 +256,9 @@ export function ConversasView() {
                   </div>
                 ) : messages.length > 0 ? (
                   messages.map((msg) => {
-                    const isClient = msg.sender === 'client' || msg.direction === 'inbound'
+                    const isClient = msg.sender_type === 'lead' || msg.direction === 'inbound'
+                    const isAssistant = msg.sender_type === 'assistant'
+
                     return (
                       <div
                         key={msg.id}
@@ -265,12 +267,24 @@ export function ConversasView() {
                         <div
                           className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${
                             isClient
-                              ? 'bg-white text-gray-800 rounded-tl-none'
-                              : 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
+                              ? 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
+                              : isAssistant
+                                ? 'bg-purple-50 text-gray-800 rounded-tr-none border border-purple-100'
+                                : 'bg-[#dcf8c6] text-gray-800 rounded-tr-none border border-[#c1e8a4]'
                           }`}
                         >
-                          <p className="text-sm leading-relaxed">
-                            {msg.text || msg.body || msg.content}
+                          {!isClient && (
+                            <span className="text-[10px] font-bold text-gray-500 mb-1 block">
+                              {msg.sender_name || (isAssistant ? 'Catarina (IA)' : 'Você/Equipe')}
+                            </span>
+                          )}
+                          {isClient && msg.sender_name && (
+                            <span className="text-[10px] font-bold text-gray-500 mb-1 block">
+                              {msg.sender_name}
+                            </span>
+                          )}
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                            {msg.content || msg.text || msg.body}
                           </p>
                           <span className="text-[10px] text-gray-500 block text-right mt-1 font-medium">
                             {msg.timestamp ||

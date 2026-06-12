@@ -13,10 +13,8 @@ Deno.serve(async (req) => {
     const rawPhone = payload.phone || payload.from || payload.sender || ''
     if (!rawPhone) return new Response('No phone', { status: 200 })
 
-    // 1. Extrair o número removendo tudo após o @
     let phone = rawPhone.split('@')[0].replace(/\D/g, '')
 
-    // 2, 3 e 4. Normalizar para 13 dígitos inserindo o 9 após o DDD se faltar
     if (phone.startsWith('55') && phone.length === 12) {
       phone = phone.substring(0, 4) + '9' + phone.substring(4)
     } else if (!phone.startsWith('55')) {
@@ -29,17 +27,30 @@ Deno.serve(async (req) => {
 
     const messageText = payload.text?.message || payload.message || payload.body || ''
     const senderName = payload.senderName || payload.contactName || 'Cliente'
+    const msgExternalId =
+      payload.messageId ||
+      payload.id ||
+      `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Ignorar mensagens de grupos
     if (payload.isGroup) {
       return new Response('Ignored', { status: 200 })
     }
 
-    // Se for mensagem enviada pelo próprio humano na mesma conta, a Ana assume a conversa
+    // Check if message already exists to avoid duplicate webhook processing
+    const { data: existingMsg } = await supabase
+      .from('whatsapp_messages')
+      .select('id')
+      .eq('external_id', msgExternalId)
+      .maybeSingle()
+
+    if (existingMsg) {
+      return new Response('Duplicate message ignored', { status: 200 })
+    }
+
     if (payload.fromMe) {
       let { data: leads } = await supabase
         .from('leads')
@@ -50,7 +61,6 @@ Deno.serve(async (req) => {
       let currentLead = leads && leads.length > 0 ? leads[0] : null
 
       if (currentLead) {
-        // Assume a conversa automaticamente
         await supabase
           .from('whatsapp_sessions')
           .update({
@@ -64,22 +74,27 @@ Deno.serve(async (req) => {
           newStatus = 'Aguardando Consultor'
         }
 
-        // Registra a mensagem do humano como Ana
-        const finalNotes = (currentLead.notas || '') + `\n[Ana]: ${messageText}`
         await supabase
           .from('leads')
           .update({
-            notas: finalNotes,
             status: newStatus,
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', currentLead.id)
-      }
 
+        await supabase.from('whatsapp_messages').insert({
+          lead_id: currentLead.id,
+          phone,
+          sender_type: 'user',
+          sender_name: 'Ana',
+          content: messageText,
+          external_id: msgExternalId,
+          direction: 'outbound',
+        })
+      }
       return new Response('Ignored fromMe', { status: 200 })
     }
 
-    // Buscar Lead Existente
     let { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -87,13 +102,10 @@ Deno.serve(async (req) => {
       .order('criado_em', { ascending: false })
       .limit(1)
 
-    if (leadsError) {
-      console.error('Erro ao buscar leads:', leadsError)
-    }
+    if (leadsError) console.error('Erro ao buscar leads:', leadsError)
 
     let lead = leads && leads.length > 0 ? leads[0] : null
     const nowStr = new Date().toISOString()
-    const previousUpdatedAt = lead ? new Date(lead.atualizado_em) : new Date()
 
     if (!lead) {
       const { data: newLead, error } = await supabase
@@ -104,7 +116,7 @@ Deno.serve(async (req) => {
           email: `${phone}@whatsapp.com`,
           origem: 'WhatsApp',
           status: 'Novo Lead',
-          notas: `[Cliente]: ${messageText}`,
+          notas: '',
           atualizado_em: nowStr,
         })
         .select('*')
@@ -114,7 +126,16 @@ Deno.serve(async (req) => {
       lead = newLead
     }
 
-    // Buscar ou criar a sessão do fluxo
+    await supabase.from('whatsapp_messages').insert({
+      lead_id: lead.id,
+      phone,
+      sender_type: 'lead',
+      sender_name: senderName,
+      content: messageText,
+      external_id: msgExternalId,
+      direction: 'inbound',
+    })
+
     let { data: session } = await supabase
       .from('whatsapp_sessions')
       .select('*')
@@ -134,17 +155,19 @@ Deno.serve(async (req) => {
       session = newSession
     }
 
-    // Comando oculto para o cliente poder resetar a sessão de testes que ficou presa
     if (messageText.trim().toUpperCase() === 'RESETAR') {
       if (session) await supabase.from('whatsapp_sessions').update({ step: 0 }).eq('id', session.id)
-      if (lead)
-        await supabase
-          .from('leads')
-          .update({
-            status: 'Novo Lead',
-            notas: (lead.notas || '') + '\n[Sessão reiniciada pelo usuário]',
-          })
-          .eq('id', lead.id)
+      if (lead) await supabase.from('leads').update({ status: 'Novo Lead' }).eq('id', lead.id)
+
+      const botMsg = 'Sessão reiniciada. A Catarina está pronta para conversar novamente.'
+      await supabase.from('whatsapp_messages').insert({
+        lead_id: lead.id,
+        phone,
+        sender_type: 'assistant',
+        sender_name: 'Catarina',
+        content: botMsg,
+        direction: 'outbound',
+      })
 
       const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
       const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -156,16 +179,12 @@ Deno.serve(async (req) => {
             'Client-Token':
               Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
           },
-          body: JSON.stringify({
-            phone,
-            message: 'Sessão reiniciada. A Catarina está pronta para conversar novamente.',
-          }),
+          body: JSON.stringify({ phone, message: botMsg }),
         }).catch(() => {})
       }
       return new Response('Reset OK', { status: 200 })
     }
 
-    // AI Interaction Guard (Catarina) - Blocking intervention if human is managing or lead is not 'Novo Lead'
     const isHumanManaged =
       session.step === 99 || lead.status !== 'Novo Lead' || lead.consultor_id !== null
 
@@ -180,23 +199,43 @@ Deno.serve(async (req) => {
         ? new Date(session.last_human_interaction_at)
         : new Date(0)
 
-      let finalNotes = lead.notas || ''
+      const { data: recentMsgs } = await supabase
+        .from('whatsapp_messages')
+        .select('created_at, sender_type')
+        .eq('lead_id', lead.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
 
-      const lastAnaIndex = finalNotes.lastIndexOf('[Ana]:')
-      const lastStandbyIndex = finalNotes.lastIndexOf(
-        '[Catarina]: Por favor, aguarde o retorno da Ana',
-      )
-      const alreadySentInThisBlock = lastStandbyIndex > lastAnaIndex
+      let alreadySentInThisBlock = false
+      let lastAnaTime = lastHumanAt.getTime()
+      let lastStandbyTime = 0
 
-      // Log the client's message first so the human has the full context
-      finalNotes += (finalNotes ? '\n' : '') + `[Cliente]: ${messageText}`
+      if (recentMsgs) {
+        const lastStandbyMsg = recentMsgs.find(
+          (m: any) => m.sender_type === 'assistant' && m.created_at,
+        )
+        if (lastStandbyMsg) {
+          lastStandbyTime = new Date(lastStandbyMsg.created_at).getTime()
+        }
+        const lastAnaMsg = recentMsgs.find((m: any) => m.sender_type === 'user' && m.created_at)
+        if (lastAnaMsg) {
+          lastAnaTime = Math.max(lastAnaTime, new Date(lastAnaMsg.created_at).getTime())
+        }
+        alreadySentInThisBlock = lastStandbyTime > lastAnaTime
+      }
 
-      // 60-Minute SLA Rule: if the last human interaction was BEFORE the previous customer message,
-      // and it's been >= 60 mins since that previous message, we send the sentinel message.
-      if (diffMins >= 60 && lastHumanAt.getTime() <= lastCustomerMsgAt.getTime()) {
+      if (diffMins >= 60 && lastAnaTime <= lastCustomerMsgAt.getTime()) {
         if (!alreadySentInThisBlock) {
           const botMsg = `Por favor, aguarde o retorno da Ana. Ela responderá em breve.`
-          finalNotes += `\n[Catarina]: ${botMsg}`
+
+          await supabase.from('whatsapp_messages').insert({
+            lead_id: lead.id,
+            phone,
+            sender_type: 'assistant',
+            sender_name: 'Catarina',
+            content: botMsg,
+            direction: 'outbound',
+          })
 
           const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
           const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -231,7 +270,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Update timestamps and notes. AI remains silent otherwise.
       await supabase
         .from('whatsapp_sessions')
         .update({
@@ -242,7 +280,6 @@ Deno.serve(async (req) => {
       await supabase
         .from('leads')
         .update({
-          notas: finalNotes,
           atualizado_em: nowStr,
         })
         .eq('id', lead.id)
@@ -250,7 +287,6 @@ Deno.serve(async (req) => {
       return new Response('Handed over', { status: 200 })
     }
 
-    // Atualiza o last customer message timestamp na sessão para manter controle
     await supabase
       .from('whatsapp_sessions')
       .update({
@@ -258,10 +294,12 @@ Deno.serve(async (req) => {
       })
       .eq('id', session.id)
 
-    // Se não é transbordo e lead já existia, atualizamos a nota em memória para a IA
-    if (lead.atualizado_em !== nowStr) {
-      lead.notas = (lead.notas ? lead.notas + '\n' : '') + `[Cliente]: ${messageText}`
-    }
+    const { data: pastMsgs } = await supabase
+      .from('whatsapp_messages')
+      .select('*')
+      .eq('lead_id', lead.id)
+      .order('created_at', { ascending: true })
+      .limit(100)
 
     const systemPrompt = `Você é a Catarina, SDR (Sales Development Representative) e consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
 Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível. Você atua como parceira da Ana, nossa especialista comercial.
@@ -306,19 +344,19 @@ Regras de Ouro:
     "categoria": "Comercial | Corretor(a) | Já é cliente | Fornecedor | Assistência | Currículos | Arquiteto Externo | Outros Assuntos (Tente adivinhar qual é com base no assunto. Se incerto, use 'Comercial')"
   }
 }
-IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem (com exceção de 'categoria', que você pode inferir do contexto). Para informações antigas ou ainda não fornecidas, use null.`
+IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem (com exceção de 'categoria', que você pode inferir do contexto). Para informações antigas ou ainda não fornecidas, use null.
+
+Notas da administração sobre o Lead (Leve em consideração para o contexto):
+${lead.notas || 'Nenhuma nota adicional'}`
 
     const messages: any[] = [{ role: 'system', content: systemPrompt }]
 
-    if (lead.notas) {
-      const lines = lead.notas.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('[Cliente]: ')) {
-          messages.push({ role: 'user', content: line.substring(11).trim() })
-        } else if (line.startsWith('[Catarina]: ')) {
-          messages.push({ role: 'assistant', content: line.substring(12).trim() })
-        } else if (line.startsWith('[Ana]: ')) {
-          messages.push({ role: 'assistant', content: line.substring(7).trim() })
+    if (pastMsgs) {
+      for (const m of pastMsgs) {
+        if (m.sender_type === 'lead') {
+          messages.push({ role: 'user', content: m.content })
+        } else {
+          messages.push({ role: 'assistant', content: m.content })
         }
       }
     }
@@ -390,7 +428,22 @@ async function processResponse(
     extraNotes += `\n[Novo Dado - Investimento]: ${dados.investimento}`
 
   const readableText = responseText.replace(/\|\|\|/g, ' ')
-  const finalNotes = (lead.notas || '') + extraNotes + `\n[Catarina]: ${readableText}`
+
+  const currentNotes = lead.notas ? lead.notas.trim() : ''
+  const addedNotes = extraNotes.trim()
+  let finalNotes = currentNotes
+  if (addedNotes) {
+    finalNotes = currentNotes ? `${currentNotes}\n${addedNotes}` : addedNotes
+  }
+
+  await supabase.from('whatsapp_messages').insert({
+    lead_id: lead.id,
+    phone,
+    sender_type: 'assistant',
+    sender_name: 'Catarina',
+    content: readableText,
+    direction: 'outbound',
+  })
 
   let nextStep = session.step
   let nextStatus = lead.status
