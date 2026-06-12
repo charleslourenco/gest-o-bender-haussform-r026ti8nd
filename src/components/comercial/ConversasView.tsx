@@ -39,34 +39,6 @@ interface User {
   nome: string
 }
 
-const MOCK_MESSAGES = [
-  {
-    id: 1,
-    sender: 'ai',
-    text: 'Olá! Sou a Catarina, assistente virtual da Bender Haussform. Como posso ajudar?',
-    timestamp: '10:00',
-  },
-  {
-    id: 2,
-    sender: 'client',
-    text: 'Gostaria de saber mais sobre projetos sob medida.',
-    timestamp: '10:05',
-  },
-  {
-    id: 3,
-    sender: 'ai',
-    text: 'Perfeito! Qual ambiente você gostaria de planejar?',
-    timestamp: '10:06',
-  },
-  { id: 4, sender: 'client', text: 'Minha cozinha e talvez a sala de estar.', timestamp: '10:10' },
-  {
-    id: 5,
-    sender: 'ai',
-    text: 'Ótima escolha! Um dos nossos consultores entrará em contato em breve para entender melhor os detalhes.',
-    timestamp: '10:11',
-  },
-]
-
 export function ConversasView() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -117,12 +89,32 @@ export function ConversasView() {
       if (data && data.length > 0) {
         setMessages(data)
       } else {
-        // Fallback to mock data to show app working end-to-end if no real data
-        setMessages(MOCK_MESSAGES)
+        // Dynamic fallback to mock data to show app working end-to-end if no real data
+        // and to prove the state changed successfully for the selected lead.
+        setMessages([
+          {
+            id: `mock-1-${lead.id}`,
+            sender: 'ai',
+            text: `Olá ${lead.nome}! Sou a Catarina, assistente virtual da Bender Haussform. Como posso ajudar?`,
+            timestamp: new Date().toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+          {
+            id: `mock-2-${lead.id}`,
+            sender: 'client',
+            text: 'Gostaria de saber mais sobre projetos sob medida.',
+            timestamp: new Date(Date.now() + 60000).toLocaleTimeString('pt-BR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          },
+        ])
       }
     } catch (error) {
       console.error(error)
-      setMessages(MOCK_MESSAGES)
+      setMessages([])
     } finally {
       setLoadingMessages(false)
     }

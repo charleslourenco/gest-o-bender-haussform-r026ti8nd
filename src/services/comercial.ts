@@ -51,8 +51,27 @@ export const fetchLeadMessages = async (leadId: string, phone: string) => {
       .eq('phone', phone)
       .order('created_at', { ascending: true })
 
-    if (!phoneError && phoneData) {
-      return phoneData
+    if (!phoneError && phoneData && phoneData.length > 0) {
+      data = phoneData
+    }
+  }
+
+  if (!data || data.length === 0) {
+    const { data: sessionData } = await supabase
+      .from('whatsapp_sessions')
+      .select('*')
+      .eq('lead_id', leadId)
+      .maybeSingle()
+
+    if (sessionData) {
+      return [
+        {
+          id: sessionData.id,
+          sender: 'ai',
+          text: `Sessão do WhatsApp iniciada (Passo: ${sessionData.step}). Aguardando mensagens...`,
+          created_at: sessionData.created_at,
+        },
+      ]
     }
   }
 
