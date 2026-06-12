@@ -255,73 +255,150 @@ export function ConversasView() {
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : messages.length > 0 ? (
-                  messages.map((msg) => {
-                    const isClient =
-                      msg.sender_type === 'lead' ||
-                      (msg.direction === 'inbound' && msg.sender_type !== 'system')
-                    const isSystem = msg.sender_type === 'system'
-                    const isAssistant = msg.sender_type === 'assistant'
+                  (() => {
+                    const parsedMessages: any[] = []
+                    messages.forEach((msg, index) => {
+                      const text = msg.content || msg.text || msg.body || ''
+                      const lines = text.split('\n')
+                      let currentMsg: any = null
 
-                    if (isSystem) {
+                      const pushCurrent = () => {
+                        if (currentMsg && currentMsg.content.trim()) {
+                          parsedMessages.push(currentMsg)
+                        }
+                      }
+
+                      lines.forEach((line: string, lineIndex: number) => {
+                        const trimmedLine = line.trim()
+                        if (trimmedLine.startsWith('[Cliente]:')) {
+                          pushCurrent()
+                          currentMsg = {
+                            id: `${msg.id}-${index}-${lineIndex}`,
+                            sender: 'Cliente',
+                            content: trimmedLine.substring(10).trim(),
+                            timestamp: msg.created_at,
+                            align: 'right',
+                            bgColor: 'bg-gray-800',
+                            textColor: 'text-white',
+                            isSystem: false,
+                          }
+                        } else if (trimmedLine.startsWith('[Catarina]:')) {
+                          pushCurrent()
+                          currentMsg = {
+                            id: `${msg.id}-${index}-${lineIndex}`,
+                            sender: 'Catarina',
+                            content: trimmedLine.substring(11).trim(),
+                            timestamp: msg.created_at,
+                            align: 'left',
+                            bgColor: 'bg-gray-200',
+                            textColor: 'text-gray-800',
+                            isSystem: false,
+                          }
+                        } else if (trimmedLine.startsWith('[Ana]:')) {
+                          pushCurrent()
+                          currentMsg = {
+                            id: `${msg.id}-${index}-${lineIndex}`,
+                            sender: 'Ana',
+                            content: trimmedLine.substring(6).trim(),
+                            timestamp: msg.created_at,
+                            align: 'left',
+                            bgColor: 'bg-gray-200',
+                            textColor: 'text-gray-800',
+                            isSystem: false,
+                          }
+                        } else {
+                          if (currentMsg) {
+                            currentMsg.content += '\n' + line
+                          } else {
+                            // Default parsing for messages without prefixes
+                            const isClient =
+                              msg.sender_type === 'lead' ||
+                              (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                            const isSystem = msg.sender_type === 'system'
+                            const isAssistant = msg.sender_type === 'assistant'
+
+                            currentMsg = {
+                              id: `${msg.id}-${index}-${lineIndex}`,
+                              sender:
+                                msg.sender_name ||
+                                (isAssistant ? 'Catarina' : isClient ? 'Cliente' : 'Equipe'),
+                              content: line,
+                              timestamp: msg.created_at,
+                              align: isSystem ? 'center' : isClient ? 'right' : 'left',
+                              bgColor: isSystem
+                                ? 'bg-gray-100'
+                                : isClient
+                                  ? 'bg-gray-800'
+                                  : 'bg-gray-200',
+                              textColor: isSystem
+                                ? 'text-gray-600'
+                                : isClient
+                                  ? 'text-white'
+                                  : 'text-gray-800',
+                              isSystem,
+                            }
+                          }
+                        }
+                      })
+                      pushCurrent()
+                    })
+
+                    return parsedMessages.map((msg) => {
+                      if (msg.isSystem || msg.align === 'center') {
+                        return (
+                          <div key={msg.id} className="flex justify-center my-4">
+                            <div className="bg-gray-100 text-gray-600 rounded-lg p-3 text-sm max-w-[90%] border border-gray-200 text-center">
+                              <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">
+                                {msg.sender || 'Sistema'}
+                              </span>
+                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                              <span className="text-[10px] text-gray-400 mt-2 block">
+                                {msg.timestamp
+                                  ? new Date(msg.timestamp).toLocaleString('pt-BR')
+                                  : ''}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      }
+
                       return (
-                        <div key={msg.id} className="flex justify-center my-4">
-                          <div className="bg-gray-100 text-gray-600 rounded-lg p-3 text-sm max-w-[90%] border border-gray-200 text-center">
-                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">
-                              {msg.sender_name || 'Sistema'}
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.align === 'right' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${msg.bgColor} ${msg.textColor} ${
+                              msg.align === 'right' ? 'rounded-tr-none' : 'rounded-tl-none'
+                            }`}
+                          >
+                            <span
+                              className={`text-[10px] font-bold mb-1 block uppercase tracking-wider ${
+                                msg.align === 'right' ? 'text-gray-300' : 'text-gray-500'
+                              }`}
+                            >
+                              {msg.sender}
                             </span>
-                            <p className="whitespace-pre-wrap">
-                              {msg.content || msg.text || msg.body}
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                              {msg.content}
                             </p>
-                            <span className="text-[10px] text-gray-400 mt-2 block">
-                              {msg.created_at
-                                ? new Date(msg.created_at).toLocaleString('pt-BR')
+                            <span
+                              className={`text-[10px] block text-right mt-1 font-medium ${
+                                msg.align === 'right' ? 'text-gray-400' : 'text-gray-500'
+                              }`}
+                            >
+                              {msg.timestamp
+                                ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
                                 : ''}
                             </span>
                           </div>
                         </div>
                       )
-                    }
-
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isClient ? 'justify-start' : 'justify-end'}`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${
-                            isClient
-                              ? 'bg-white text-gray-800 rounded-tl-none border border-gray-100'
-                              : isAssistant
-                                ? 'bg-purple-50 text-gray-800 rounded-tr-none border border-purple-100'
-                                : 'bg-[#dcf8c6] text-gray-800 rounded-tr-none border border-[#c1e8a4]'
-                          }`}
-                        >
-                          {!isClient && (
-                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase tracking-wider">
-                              {msg.sender_name || (isAssistant ? 'Catarina (IA)' : 'Você/Equipe')}
-                            </span>
-                          )}
-                          {isClient && msg.sender_name && (
-                            <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase tracking-wider">
-                              {msg.sender_name}
-                            </span>
-                          )}
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {msg.content || msg.text || msg.body}
-                          </p>
-                          <span className="text-[10px] text-gray-500 block text-right mt-1 font-medium">
-                            {msg.timestamp ||
-                              (msg.created_at
-                                ? new Date(msg.created_at).toLocaleTimeString('pt-BR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })
-                                : '')}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })
+                    })
+                  })()
                 ) : (
                   <div className="text-center p-4 text-gray-500 text-sm">
                     Nenhuma mensagem na conversa.
