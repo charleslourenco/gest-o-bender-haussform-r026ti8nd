@@ -3337,6 +3337,11 @@ export const Constants = {
 //   Policy "Leads all access" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+//   Policy "authenticated_select_leads" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_leads" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: logs_ia
 //   Policy "Acesso total logs_ia" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3501,6 +3506,8 @@ export const Constants = {
 //   Policy "authenticated_select_users" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 // Table: whatsapp_sessions
+//   Policy "authenticated_select_whatsapp_sessions" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
 //   Policy "whatsapp_sessions_all" (ALL, PERMISSIVE) roles={public}
 //     USING: true
 //     WITH CHECK: true
