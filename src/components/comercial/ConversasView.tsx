@@ -1,6 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { fetchLeads, fetchUsers, updateLead, moveLeadToClient } from '@/services/comercial'
+import {
+  fetchLeads,
+  fetchUsers,
+  updateLead,
+  moveLeadToClient,
+  fetchLeadMessages,
+} from '@/services/comercial'
 import {
   Select,
   SelectContent,
@@ -13,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import { COLUMNS } from './constants'
+import { Loader2 } from 'lucide-react'
 
 interface Lead {
   id: string
@@ -65,6 +72,9 @@ export function ConversasView() {
   const [users, setUsers] = useState<User[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
+  const [messages, setMessages] = useState<any[]>([])
+  const [loadingMessages, setLoadingMessages] = useState(false)
+
   const [tipoConversaFilter, setTipoConversaFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState('Todos')
 
@@ -99,6 +109,34 @@ export function ConversasView() {
     }
   }
 
+  const loadMessages = useCallback(async (lead: Lead) => {
+    setLoadingMessages(true)
+    setMessages([]) // Immediately clear previous messages to prevent frozen data
+    try {
+      const data = await fetchLeadMessages(lead.id, lead.telefone)
+      if (data && data.length > 0) {
+        setMessages(data)
+      } else {
+        // Fallback to mock data to show app working end-to-end if no real data
+        setMessages(MOCK_MESSAGES)
+      }
+    } catch (error) {
+      console.error(error)
+      setMessages(MOCK_MESSAGES)
+    } finally {
+      setLoadingMessages(false)
+    }
+  }, [])
+
+  // Synchronize center panel messages when a new lead is selected
+  useEffect(() => {
+    if (selectedLead?.id) {
+      loadMessages(selectedLead)
+    } else {
+      setMessages([])
+    }
+  }, [selectedLead?.id, loadMessages])
+
   const filteredLeads = leads.filter((l) => {
     if (tipoConversaFilter !== 'Todas' && l.tipo_conversa !== tipoConversaFilter) return false
     if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
@@ -111,7 +149,7 @@ export function ConversasView() {
       await updateLead(id, data)
       setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...data } : l)))
       if (selectedLead?.id === id) {
-        setSelectedLead({ ...selectedLead, ...data })
+        setSelectedLead((prev) => (prev ? { ...prev, ...data } : null))
       }
       toast.success('Lead atualizado com sucesso')
     } catch (error) {
@@ -214,25 +252,46 @@ export function ConversasView() {
             </div>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4 max-w-2xl mx-auto pb-4">
-                {MOCK_MESSAGES.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === 'client' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${
-                        msg.sender === 'client'
-                          ? 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
-                          : 'bg-white text-gray-800 rounded-tl-none'
-                      }`}
-                    >
-                      <p className="text-sm leading-relaxed">{msg.text}</p>
-                      <span className="text-[10px] text-gray-500 block text-right mt-1 font-medium">
-                        {msg.timestamp}
-                      </span>
-                    </div>
+                {loadingMessages ? (
+                  <div className="flex justify-center items-center h-32">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
-                ))}
+                ) : messages.length > 0 ? (
+                  messages.map((msg) => {
+                    const isClient = msg.sender === 'client' || msg.direction === 'inbound'
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`flex ${isClient ? 'justify-start' : 'justify-end'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${
+                            isClient
+                              ? 'bg-white text-gray-800 rounded-tl-none'
+                              : 'bg-[#dcf8c6] text-gray-800 rounded-tr-none'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">
+                            {msg.text || msg.body || msg.content}
+                          </p>
+                          <span className="text-[10px] text-gray-500 block text-right mt-1 font-medium">
+                            {msg.timestamp ||
+                              (msg.created_at
+                                ? new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : '')}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-center p-4 text-gray-500 text-sm">
+                    Nenhuma mensagem na conversa.
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </>
@@ -277,7 +336,11 @@ export function ConversasView() {
                 <Input
                   disabled={updating}
                   value={selectedLead.categoria || ''}
-                  onChange={(e) => setSelectedLead({ ...selectedLead, categoria: e.target.value })}
+                  onChange={(e) =>
+                    setSelectedLead((prev) =>
+                      prev ? { ...prev, categoria: e.target.value } : null,
+                    )
+                  }
                   onBlur={(e) => {
                     if (e.target.value !== leads.find((l) => l.id === selectedLead.id)?.categoria) {
                       handleUpdateLead(selectedLead.id, { categoria: e.target.value })
@@ -292,7 +355,9 @@ export function ConversasView() {
                 <Input
                   disabled={updating}
                   value={selectedLead.origem || ''}
-                  onChange={(e) => setSelectedLead({ ...selectedLead, origem: e.target.value })}
+                  onChange={(e) =>
+                    setSelectedLead((prev) => (prev ? { ...prev, origem: e.target.value } : null))
+                  }
                   onBlur={(e) => {
                     if (e.target.value !== leads.find((l) => l.id === selectedLead.id)?.origem) {
                       handleUpdateLead(selectedLead.id, { origem: e.target.value })

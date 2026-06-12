@@ -37,6 +37,28 @@ export const deleteLead = async (id: string) => {
   if (error) throw error
 }
 
+export const fetchLeadMessages = async (leadId: string, phone: string) => {
+  let { data, error } = await supabase
+    .from('whatsapp_messages' as any)
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: true })
+
+  if (error || !data || data.length === 0) {
+    const { data: phoneData, error: phoneError } = await supabase
+      .from('whatsapp_messages' as any)
+      .select('*')
+      .eq('phone', phone)
+      .order('created_at', { ascending: true })
+
+    if (!phoneError && phoneData) {
+      return phoneData
+    }
+  }
+
+  return data || []
+}
+
 export const moveLeadToClient = async (lead: any, userId: string) => {
   // Passo 1: Verificar se o cliente já existe (pelo email)
   const { data: existingClient } = await supabase
