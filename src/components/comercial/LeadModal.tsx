@@ -4,6 +4,13 @@ import { Lead } from '@/types'
 import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Props {
   lead: Lead | null
@@ -222,6 +229,24 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                   <option value="Parceiro">Parceiro</option>
                   <option value="Equipe">Equipe</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
+                  Tipo de Conversa
+                </label>
+                <Select name="tipo_conversa" defaultValue={lead?.tipo_conversa || undefined}>
+                  <SelectTrigger className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Lead Comercial">Lead Comercial</SelectItem>
+                    <SelectItem value="RH">RH</SelectItem>
+                    <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                    <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
+                    <SelectItem value="Atendimento">Atendimento</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
