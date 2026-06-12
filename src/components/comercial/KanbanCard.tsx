@@ -33,27 +33,27 @@ interface Props {
 const categoryConfig = {
   Comercial: {
     icon: Briefcase,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-400/10',
-    border: 'border-emerald-400/20',
+    color: 'text-emerald-600 dark:text-emerald-400',
+    bg: 'bg-emerald-100/50 dark:bg-emerald-400/10',
+    border: 'border-emerald-200 dark:border-emerald-400/20',
   },
   'Outros Assuntos': {
     icon: MessageSquare,
-    color: 'text-slate-300',
-    bg: 'bg-slate-300/10',
-    border: 'border-slate-300/20',
+    color: 'text-slate-600 dark:text-slate-300',
+    bg: 'bg-slate-100/50 dark:bg-slate-300/10',
+    border: 'border-slate-200 dark:border-slate-300/20',
   },
   Parceiro: {
     icon: Handshake,
-    color: 'text-indigo-300',
-    bg: 'bg-indigo-300/10',
-    border: 'border-indigo-300/20',
+    color: 'text-indigo-600 dark:text-indigo-300',
+    bg: 'bg-indigo-100/50 dark:bg-indigo-300/10',
+    border: 'border-indigo-200 dark:border-indigo-300/20',
   },
   Equipe: {
     icon: HardHat,
-    color: 'text-orange-400',
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/20',
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-100/50 dark:bg-orange-500/10',
+    border: 'border-orange-200 dark:border-orange-500/20',
   },
 }
 
@@ -114,19 +114,19 @@ export function KanbanCard({
         onEdit()
       }}
       className={cn(
-        'bg-[#1A3D63] border border-[#2A5282] rounded-lg p-3 mb-3 shadow-[0_2px_8px_rgba(10,25,49,0.3)] transition-all duration-200 cursor-pointer group hover:shadow-[0_4px_12px_rgba(10,25,49,0.4)] hover:scale-[1.02] hover:border-[#3B6BA5]',
+        'bg-card border border-border rounded-lg p-3 mb-3 shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:border-primary/50 relative',
         isAguardando
-          ? 'border-2 border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)] bg-orange-500/5'
+          ? 'border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.1)] dark:shadow-[0_0_10px_rgba(249,115,22,0.2)]'
           : '',
-        isDragging && 'opacity-50 border-[#4B8BDB] border-[2px]',
+        isDragging && 'opacity-50 ring-2 ring-primary border-primary',
       )}
     >
       <div className="flex justify-between items-start mb-2.5">
-        <h4 className="text-[#F6FAFD] font-semibold text-[15px] leading-tight flex items-center gap-2 pr-2">
+        <h4 className="text-foreground font-semibold text-[14px] leading-tight flex items-center gap-2 pr-2">
           {isAguardando && (
-            <span className="flex h-2.5 w-2.5 relative shrink-0" title="Aguardando Consultor">
+            <span className="flex h-2 w-2 relative shrink-0" title="Aguardando Consultor">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-500 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
             </span>
           )}
           <span className="line-clamp-2">{lead.nome}</span>
@@ -136,7 +136,7 @@ export function KanbanCard({
             e.stopPropagation()
             onDelete()
           }}
-          className="text-slate-400 hover:text-red-400 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
+          className="text-muted-foreground hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -144,16 +144,12 @@ export function KanbanCard({
 
       <div className="mb-2.5" onClick={(e) => e.stopPropagation()}>
         <Select value={lead.status} onValueChange={(val) => onStatusChange(lead.id, val)}>
-          <SelectTrigger className="h-7 text-xs bg-[#0A1931]/50 text-[#F6FAFD] border-[#2A5282] w-full font-medium shadow-none focus:ring-1 focus:ring-[#4B8BDB]">
+          <SelectTrigger className="h-7 text-xs bg-muted/30 text-foreground border-border w-full font-medium shadow-none focus:ring-1 focus:ring-primary">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-[#0A1931] border-[#2A5282] text-white">
+          <SelectContent>
             {columns.map((c) => (
-              <SelectItem
-                key={c}
-                value={c}
-                className="text-xs hover:bg-[#1A3D63] focus:bg-[#1A3D63] focus:text-white"
-              >
+              <SelectItem key={c} value={c} className="text-xs">
                 {c}
               </SelectItem>
             ))}
@@ -161,8 +157,8 @@ export function KanbanCard({
         </Select>
       </div>
 
-      <div className="flex items-end justify-between pt-2.5 border-t border-[#2A5282]">
-        <div className="flex flex-col gap-1.5 text-[11px] text-slate-300">
+      <div className="flex items-end justify-between pt-2.5 border-t border-border/50">
+        <div className="flex flex-col gap-1.5 text-[11px] text-muted-foreground">
           <div className="flex items-center gap-1.5" title="Data de contato">
             <Calendar className="w-3 h-3 shrink-0" />
             <span>
@@ -177,14 +173,14 @@ export function KanbanCard({
           </div>
           <div className="flex items-center gap-1.5" title="Tempo desde o primeiro contato">
             <Clock className="w-3 h-3 shrink-0" />
-            <span className="font-medium text-[#F6FAFD]">{elapsed}</span>
+            <span className="font-medium text-foreground">{elapsed}</span>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-1.5">
           {consultorNome && (
             <div
-              className="flex items-center gap-1 text-[10px] text-slate-200 font-medium bg-[#0A1931]/50 px-1.5 py-0.5 rounded w-fit border border-[#2A5282]/50"
+              className="flex items-center gap-1 text-[10px] text-foreground font-medium bg-secondary px-1.5 py-0.5 rounded w-fit border border-border"
               title={`Consultor: ${consultorNome}`}
             >
               <User className="w-2.5 h-2.5" />
@@ -200,7 +196,7 @@ export function KanbanCard({
             )}
             title={`Categoria: ${catName}`}
           >
-            <CatIcon className="w-2.5 h-2.5" />
+            <CatIcon className="w-2 h-2" />
             {catName}
           </div>
         </div>

@@ -19,7 +19,8 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import { COLUMNS } from './constants'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Sparkles, User as UserIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Lead {
   id: string
@@ -32,6 +33,7 @@ interface Lead {
   origem: string
   consultor_id: string | null
   consultor?: { nome: string }
+  notas?: string | null
 }
 
 interface User {
@@ -190,14 +192,14 @@ export function ConversasView() {
   }
 
   return (
-    <div className="flex h-full w-full bg-white">
+    <div className="flex h-full w-full bg-background">
       {/* LEFT PANEL - 30% */}
-      <div className="w-[30%] border-r border-gray-200 flex flex-col bg-slate-50/50">
-        <div className="p-4 border-b border-gray-200 bg-white">
-          <h2 className="font-bold text-sm text-gray-500 mb-4 tracking-wider">CONVERSAS</h2>
+      <div className="w-[30%] border-r border-border flex flex-col bg-muted/10">
+        <div className="p-4 border-b border-border bg-background">
+          <h2 className="font-bold text-sm text-muted-foreground mb-4 tracking-wider">CONVERSAS</h2>
           <div className="space-y-3">
             <Select value={tipoConversaFilter} onValueChange={setTipoConversaFilter}>
-              <SelectTrigger className="bg-white">
+              <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Tipo de Conversa" />
               </SelectTrigger>
               <SelectContent>
@@ -212,7 +214,7 @@ export function ConversasView() {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="bg-white">
+              <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -231,8 +233,8 @@ export function ConversasView() {
                 onClick={() => setSelectedLead(lead)}
                 className={`w-full text-left p-3 rounded-md transition-colors ${
                   selectedLead?.id === lead.id
-                    ? 'bg-blue-100 text-blue-900 shadow-sm border border-blue-200'
-                    : 'hover:bg-white text-gray-700 hover:shadow-sm border border-transparent'
+                    ? 'bg-secondary text-secondary-foreground shadow-sm border border-border'
+                    : 'hover:bg-muted text-foreground hover:shadow-sm border border-transparent'
                 }`}
               >
                 <div className="font-medium truncate">{lead.nome}</div>
@@ -242,20 +244,22 @@ export function ConversasView() {
               </button>
             ))}
             {filteredLeads.length === 0 && (
-              <div className="text-center p-4 text-gray-500 text-sm">Nenhum lead encontrado</div>
+              <div className="text-center p-4 text-muted-foreground text-sm">
+                Nenhum lead encontrado
+              </div>
             )}
           </div>
         </ScrollArea>
       </div>
 
       {/* CENTRAL PANEL - 50% */}
-      <div className="w-[50%] border-r border-gray-200 flex flex-col bg-[#e5ddd5]/30">
+      <div className="w-[50%] border-r border-border flex flex-col bg-muted/5 relative">
         {selectedLead ? (
           <>
-            <div className="p-4 bg-white border-b border-gray-200 shadow-sm z-10 flex items-center gap-3">
+            <div className="p-4 bg-background border-b border-border shadow-sm z-10 flex items-center gap-3 shrink-0">
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900">{selectedLead.nome}</h3>
-                <div className="text-xs text-gray-500 font-medium">
+                <h3 className="font-bold text-foreground">{selectedLead.nome}</h3>
+                <div className="text-xs text-muted-foreground font-medium">
                   Status: {selectedLead.status}
                 </div>
               </div>
@@ -264,7 +268,7 @@ export function ConversasView() {
               <div className="space-y-4 max-w-2xl mx-auto pb-4">
                 {loadingMessages ? (
                   <div className="flex justify-center items-center h-32">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : messages.length > 0 ? (
                   (() => {
@@ -292,32 +296,21 @@ export function ConversasView() {
                         content: msg.content || msg.text || msg.body || '',
                         timestamp: msg.created_at,
                         align: isSystem ? 'center' : isClient ? 'left' : 'right',
-                        bgColor: isSystem
-                          ? 'bg-gray-100'
-                          : isClient
-                            ? 'bg-white border border-gray-200'
-                            : isAna
-                              ? 'bg-blue-600'
-                              : 'bg-[#dcf8c6] border border-[#c3e6a6]',
-                        textColor: isSystem
-                          ? 'text-gray-600'
-                          : isClient
-                            ? 'text-gray-900'
-                            : isAna
-                              ? 'text-white'
-                              : 'text-gray-900',
                         isSystem,
+                        isClient,
+                        isAssistant,
+                        isAna,
                       }
 
                       if (parsedMsg.isSystem || parsedMsg.align === 'center') {
                         return (
                           <div key={parsedMsg.id} className="flex justify-center my-4">
-                            <div className="bg-gray-100 text-gray-600 rounded-lg p-3 text-sm max-w-[90%] border border-gray-200 text-center">
-                              <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">
+                            <div className="bg-muted text-muted-foreground rounded-lg p-3 text-sm max-w-[90%] border border-border text-center">
+                              <span className="text-[10px] font-bold mb-1 block uppercase opacity-70">
                                 {parsedMsg.sender || 'Sistema'}
                               </span>
                               <p className="whitespace-pre-wrap">{parsedMsg.content}</p>
-                              <span className="text-[10px] text-gray-400 mt-2 block">
+                              <span className="text-[10px] opacity-50 mt-2 block">
                                 {parsedMsg.timestamp
                                   ? new Date(parsedMsg.timestamp).toLocaleString('pt-BR')
                                   : ''}
@@ -333,28 +326,54 @@ export function ConversasView() {
                           className={`flex ${parsedMsg.align === 'right' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${parsedMsg.bgColor} ${parsedMsg.textColor} ${
-                              parsedMsg.align === 'right' ? 'rounded-tr-none' : 'rounded-tl-none'
-                            }`}
+                            className={cn(
+                              'max-w-[80%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
+                              parsedMsg.align === 'right'
+                                ? 'rounded-l-xl rounded-br-sm rounded-tr-xl'
+                                : 'rounded-r-xl rounded-bl-sm rounded-tl-xl',
+                              parsedMsg.isClient &&
+                                'bg-secondary text-secondary-foreground border border-border',
+                              parsedMsg.isAna && 'bg-primary text-primary-foreground',
+                              parsedMsg.isAssistant &&
+                                'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 border border-purple-200 dark:border-purple-800',
+                              !parsedMsg.isClient &&
+                                !parsedMsg.isAna &&
+                                !parsedMsg.isAssistant &&
+                                'bg-muted text-foreground border border-border',
+                            )}
                           >
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              {parsedMsg.isAssistant && (
+                                <Sparkles className="w-3.5 h-3.5 opacity-70" />
+                              )}
+                              {parsedMsg.isAna && <UserIcon className="w-3.5 h-3.5 opacity-70" />}
+                              <span
+                                className={cn(
+                                  'text-[10px] font-bold uppercase tracking-wider',
+                                  parsedMsg.isClient
+                                    ? 'text-secondary-foreground/70'
+                                    : parsedMsg.isAna
+                                      ? 'text-primary-foreground/70'
+                                      : parsedMsg.isAssistant
+                                        ? 'opacity-70'
+                                        : 'text-muted-foreground',
+                                )}
+                              >
+                                {parsedMsg.sender}
+                              </span>
+                            </div>
+                            <p>{parsedMsg.content}</p>
                             <span
-                              className={`text-[10px] font-bold mb-1 block uppercase tracking-wider ${
-                                parsedMsg.align === 'right' && parsedMsg.textColor === 'text-white'
-                                  ? 'text-blue-200'
-                                  : 'text-gray-500'
-                              }`}
-                            >
-                              {parsedMsg.sender}
-                            </span>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {parsedMsg.content}
-                            </p>
-                            <span
-                              className={`text-[10px] block text-right mt-1 font-medium ${
-                                parsedMsg.align === 'right' && parsedMsg.textColor === 'text-white'
-                                  ? 'text-blue-200'
-                                  : 'text-gray-400'
-                              }`}
+                              className={cn(
+                                'text-[10px] block text-right mt-2 font-medium',
+                                parsedMsg.isClient
+                                  ? 'text-secondary-foreground/50'
+                                  : parsedMsg.isAna
+                                    ? 'text-primary-foreground/50'
+                                    : parsedMsg.isAssistant
+                                      ? 'opacity-50'
+                                      : 'text-muted-foreground',
+                              )}
                             >
                               {parsedMsg.timestamp
                                 ? new Date(parsedMsg.timestamp).toLocaleTimeString('pt-BR', {
@@ -376,7 +395,7 @@ export function ConversasView() {
                     )
                   })()
                 ) : (
-                  <div className="text-center p-4 text-gray-500 text-sm">
+                  <div className="text-center p-4 text-muted-foreground text-sm">
                     Nenhuma mensagem na conversa.
                   </div>
                 )}
@@ -384,23 +403,23 @@ export function ConversasView() {
             </ScrollArea>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">
             Selecione um lead para ver a conversa
           </div>
         )}
       </div>
 
       {/* RIGHT PANEL - 20% */}
-      <div className="w-[20%] flex flex-col bg-slate-50/30">
-        <div className="p-4 border-b border-gray-200 bg-white">
-          <h2 className="font-bold text-sm text-gray-500 tracking-wider">DETALHES</h2>
+      <div className="w-[20%] flex flex-col bg-muted/10">
+        <div className="p-4 border-b border-border bg-background">
+          <h2 className="font-bold text-sm text-muted-foreground tracking-wider">DETALHES</h2>
         </div>
 
         {selectedLead ? (
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Tipo de Conversa
                 </label>
                 <Select
@@ -411,7 +430,7 @@ export function ConversasView() {
                     handleUpdateLead(selectedLead.id, { tipo_conversa: newVal })
                   }}
                 >
-                  <SelectTrigger className="h-9 bg-white">
+                  <SelectTrigger className="h-9 bg-background">
                     <SelectValue placeholder="Selecione um tipo..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -427,13 +446,15 @@ export function ConversasView() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Status
+                </label>
                 <Select
                   disabled={updating}
                   value={selectedLead.status}
                   onValueChange={(val) => handleUpdateLead(selectedLead.id, { status: val })}
                 >
-                  <SelectTrigger className="h-9 bg-white">
+                  <SelectTrigger className="h-9 bg-background">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -447,7 +468,9 @@ export function ConversasView() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Categoria</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Categoria
+                </label>
                 <Input
                   disabled={updating}
                   value={selectedLead.categoria || ''}
@@ -461,12 +484,14 @@ export function ConversasView() {
                       handleUpdateLead(selectedLead.id, { categoria: e.target.value })
                     }
                   }}
-                  className="h-9 bg-white"
+                  className="h-9 bg-background"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Origem</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Origem
+                </label>
                 <Input
                   disabled={updating}
                   value={selectedLead.origem || ''}
@@ -478,12 +503,14 @@ export function ConversasView() {
                       handleUpdateLead(selectedLead.id, { origem: e.target.value })
                     }
                   }}
-                  className="h-9 bg-white"
+                  className="h-9 bg-background"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">Consultor</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Consultor
+                </label>
                 <Select
                   disabled={updating}
                   value={selectedLead.consultor_id || 'unassigned'}
@@ -492,7 +519,7 @@ export function ConversasView() {
                     handleUpdateLead(selectedLead.id, { consultor_id: newVal })
                   }}
                 >
-                  <SelectTrigger className="h-9 bg-white">
+                  <SelectTrigger className="h-9 bg-background">
                     <SelectValue placeholder="Selecione um consultor..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -507,7 +534,7 @@ export function ConversasView() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Notas / Resumo IA
                 </label>
                 <textarea
@@ -521,14 +548,13 @@ export function ConversasView() {
                       handleUpdateLead(selectedLead.id, { notas: e.target.value })
                     }
                   }}
-                  rows={4}
-                  className="w-full text-sm bg-white border border-gray-200 rounded-md p-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                  className="w-full text-sm bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/50 rounded-md p-3 outline-none focus:border-yellow-400 dark:focus:border-yellow-600 focus:ring-1 focus:ring-yellow-400 resize-y min-h-[100px] placeholder:text-yellow-700/40 dark:placeholder:text-yellow-200/30 text-yellow-950 dark:text-yellow-100 shadow-sm"
                   placeholder="Anotações ou resumo gerado pela IA..."
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Notas Pessoais
                 </label>
                 <textarea
@@ -547,17 +573,16 @@ export function ConversasView() {
                       handleUpdateLead(selectedLead.id, { notas_pessoais: e.target.value } as any)
                     }
                   }}
-                  rows={3}
-                  className="w-full text-sm bg-white border border-gray-200 rounded-md p-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                  className="w-full text-sm bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-md p-3 outline-none focus:border-blue-400 dark:focus:border-blue-600 focus:ring-1 focus:ring-blue-400 resize-y min-h-[80px] placeholder:text-blue-700/40 dark:placeholder:text-blue-200/30 text-blue-950 dark:text-blue-100 shadow-sm"
                   placeholder="Anotações internas (não lidas pela IA)..."
                 />
               </div>
 
-              <div className="pt-4 border-t border-gray-200 space-y-3">
+              <div className="pt-4 border-t border-border space-y-3">
                 <Button
                   disabled={updating}
                   variant="outline"
-                  className="w-full justify-center bg-white"
+                  className="w-full justify-center bg-background"
                   onClick={() => {
                     if (!selectedLead.consultor_id) {
                       toast.error('Selecione um consultor primeiro')
@@ -572,7 +597,7 @@ export function ConversasView() {
                 <Button
                   disabled={updating}
                   variant="outline"
-                  className="w-full justify-center bg-white"
+                  className="w-full justify-center bg-background"
                   onClick={() => toast.info('Funcionalidade de agendamento em desenvolvimento')}
                 >
                   Agendar
@@ -580,7 +605,7 @@ export function ConversasView() {
 
                 <Button
                   disabled={updating}
-                  className="w-full justify-center bg-blue-600 hover:bg-blue-700 text-white"
+                  className="w-full justify-center"
                   onClick={handleGerarDossie}
                 >
                   Gerar Dossiê
@@ -589,7 +614,7 @@ export function ConversasView() {
             </div>
           </ScrollArea>
         ) : (
-          <div className="flex-1 flex p-4 text-sm text-center text-gray-400 items-center justify-center">
+          <div className="flex-1 flex p-4 text-sm text-center text-muted-foreground items-center justify-center">
             Selecione um lead para ver os detalhes
           </div>
         )}

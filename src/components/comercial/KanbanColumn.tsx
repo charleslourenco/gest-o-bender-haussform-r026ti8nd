@@ -44,11 +44,11 @@ export function KanbanColumn({
     return (
       <div
         className={cn(
-          'min-w-[60px] w-[60px] md:min-w-[60px] md:w-[60px] rounded-lg p-2 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer h-full min-h-[500px] max-h-full border-2',
+          'min-w-[60px] w-[60px] md:min-w-[60px] md:w-[60px] rounded-lg p-2 flex flex-col items-center gap-4 transition-all duration-200 cursor-pointer h-full min-h-[500px] max-h-full border',
           isVisible ? 'flex' : 'hidden md:flex',
           isDragOver
-            ? 'bg-dark-denim/10 border-dashed border-dark-denim'
-            : 'bg-pale-cornflower border-transparent hover:border-steel-blue',
+            ? 'bg-accent/50 border-dashed border-primary'
+            : 'bg-muted/30 border-transparent hover:border-border hover:bg-muted/50',
         )}
         onClick={onToggleCollapse}
         onDragOver={onDragOver}
@@ -56,7 +56,7 @@ export function KanbanColumn({
         onDrop={onDrop}
       >
         <button
-          className="text-steel-blue hover:text-dark-denim p-1 rounded transition-colors"
+          className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
           onClick={(e) => {
             e.stopPropagation()
             onToggleCollapse()
@@ -67,7 +67,7 @@ export function KanbanColumn({
         </button>
         <div className="flex-1 flex justify-center pt-4">
           <span
-            className="text-midnight-navy font-bold text-sm whitespace-nowrap rotate-180"
+            className="text-foreground font-bold text-sm whitespace-nowrap rotate-180"
             style={{ writingMode: 'vertical-rl' }}
           >
             {title} ({leads.length})
@@ -80,23 +80,22 @@ export function KanbanColumn({
   return (
     <div
       className={cn(
-        'min-w-full md:min-w-[260px] md:w-[260px] rounded-lg p-3 flex flex-col gap-3 h-full min-h-[500px] max-h-full transition-all duration-200 border-2',
+        'min-w-full md:min-w-[280px] md:w-[280px] rounded-lg p-3 flex flex-col gap-3 h-full min-h-[500px] max-h-full transition-all duration-200 border',
         isVisible ? 'flex' : 'hidden md:flex',
-        isDragOver
-          ? 'bg-dark-denim/10 border-dashed border-dark-denim'
-          : 'bg-pale-cornflower border-transparent',
+        isDragOver ? 'bg-accent/50 border-dashed border-primary' : 'bg-muted/30 border-transparent',
       )}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
       <div className="flex items-center justify-between mb-1">
-        <h3 className="text-midnight-navy font-bold text-[16px] flex items-center gap-2">
-          {title} <span className="text-steel-blue text-[13px] font-normal">({leads.length})</span>
+        <h3 className="text-foreground font-bold text-[15px] flex items-center gap-2">
+          {title}{' '}
+          <span className="text-muted-foreground text-[13px] font-normal">({leads.length})</span>
         </h3>
         <button
           onClick={onToggleCollapse}
-          className="text-steel-blue hover:text-dark-denim p-1 rounded transition-colors"
+          className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
           title="Minimizar coluna"
         >
           <Minimize2 className="w-4 h-4" />

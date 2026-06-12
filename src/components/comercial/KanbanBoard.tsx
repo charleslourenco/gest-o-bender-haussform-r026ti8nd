@@ -79,7 +79,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         await updateLead(editingLead.id, data)
         toast({
           description: 'Lead atualizado com sucesso!',
-          className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
         })
       } else {
         const userName = user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Desconhecido'
@@ -91,7 +90,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         })
         toast({
           description: 'Lead criado com sucesso!',
-          className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
         })
       }
       setFormOpen(false)
@@ -101,7 +99,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       toast({
         description: e.message,
         variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
     }
   }
@@ -135,7 +132,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       await deleteLead(leadToDelete.id)
       toast({
         description: 'Lead deletado com sucesso!',
-        className: 'bg-dark-denim text-off-white border-none p-4 rounded-lg',
       })
       setLeadToDelete(null)
       loadData()
@@ -143,7 +139,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       toast({
         description: e.message,
         variant: 'destructive',
-        className: 'bg-steel-blue text-off-white border-none p-4 rounded-lg',
       })
     }
   }
@@ -194,7 +189,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         {COLUMNS.map((c) => (
           <div
             key={c}
-            className="flex-1 min-w-[300px] h-full bg-pale-cornflower animate-pulse rounded-lg"
+            className="flex-1 min-w-[300px] h-full bg-muted/50 border animate-pulse rounded-lg"
           ></div>
         ))}
       </div>
@@ -203,11 +198,11 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
 
   if (error) {
     return (
-      <div className="bg-pale-cornflower p-6 rounded-lg text-center border-2 border-steel-blue">
-        <p className="text-midnight-navy font-bold text-[18px] mb-4">{error}</p>
+      <div className="bg-card p-6 rounded-lg text-center border">
+        <p className="text-foreground font-bold text-lg mb-4">{error}</p>
         <button
           onClick={loadData}
-          className="bg-dark-denim text-off-white px-6 py-3 rounded-lg hover:opacity-90 min-h-[44px] transition-opacity duration-200"
+          className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 min-h-[44px] transition-colors duration-200"
         >
           Tentar Novamente
         </button>
@@ -218,19 +213,19 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
   const controls = (
     <>
       <div className="relative flex-1 min-w-[200px] max-w-md">
-        <Search className="absolute left-3 top-2.5 w-4 h-4 text-white/50 pointer-events-none" />
+        <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input
           type="text"
           placeholder="Buscar lead..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 bg-white/10 border border-white/20 text-white placeholder-white/50 rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 focus:ring-1 focus:ring-white/40 transition-all"
+          className="w-full pl-9 bg-background border border-input text-foreground placeholder:text-muted-foreground rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring transition-all"
         />
       </div>
       <select
         value={sourceFilter}
         onChange={(e) => setSourceFilter(e.target.value)}
-        className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 transition-all cursor-pointer min-w-[140px] [&>option]:bg-[#0A1931] [&>option]:text-white"
+        className="bg-background border border-input text-foreground rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring transition-all cursor-pointer min-w-[140px]"
       >
         <option value="">Origem (Todas)</option>
         <option value="Instagram">Instagram</option>
@@ -242,7 +237,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       <select
         value={consultantFilter}
         onChange={(e) => setConsultantFilter(e.target.value)}
-        className="bg-white/10 border border-white/20 text-white rounded-md px-3 py-1.5 text-sm outline-none focus:border-white/40 transition-all cursor-pointer min-w-[150px] [&>option]:bg-[#0A1931] [&>option]:text-white"
+        className="bg-background border border-input text-foreground rounded-md px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring transition-all cursor-pointer min-w-[150px]"
       >
         <option value="">Consultor (Todos)</option>
         {users.map((u) => (
@@ -256,7 +251,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
           setEditingLead(null)
           setFormOpen(true)
         }}
-        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-md font-medium transition-colors shadow-sm text-sm border border-emerald-500/30 whitespace-nowrap"
+        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1.5 rounded-md font-medium transition-colors shadow-sm text-sm border border-primary/20 whitespace-nowrap"
       >
         + Novo Lead
       </button>
@@ -269,10 +264,10 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
 
       {/* Content */}
       {leads.length === 0 && !debouncedSearch && !sourceFilter && !consultantFilter ? (
-        <div className="bg-white p-12 rounded-xl shadow-sm text-center flex flex-col items-center justify-center m-auto max-w-lg w-full border border-gray-100">
-          <Target className="w-12 h-12 text-steel-blue mb-4" />
-          <h2 className="text-midnight-navy font-bold text-[24px] mb-2">Nenhum lead cadastrado</h2>
-          <p className="text-steel-blue mb-6">
+        <div className="bg-card p-12 rounded-xl shadow-sm text-center flex flex-col items-center justify-center m-auto max-w-lg w-full border">
+          <Target className="w-12 h-12 text-muted-foreground mb-4" />
+          <h2 className="text-foreground font-bold text-2xl mb-2">Nenhum lead cadastrado</h2>
+          <p className="text-muted-foreground mb-6">
             Comece adicionando seu primeiro lead para gerenciar seu funil de vendas.
           </p>
           <button
@@ -280,7 +275,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
               setEditingLead(null)
               setFormOpen(true)
             }}
-            className="bg-dark-denim text-white px-6 py-3 rounded-lg hover:opacity-90 font-medium transition-opacity shadow-sm"
+            className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 font-medium transition-colors shadow-sm"
           >
             Adicionar Primeiro Lead
           </button>
@@ -289,7 +284,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="md:hidden mb-4 shrink-0">
             <select
-              className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim font-bold transition-all duration-200"
+              className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-2 focus:ring-ring font-medium transition-all duration-200"
               value={activeCol}
               onChange={(e) => setActiveCol(e.target.value)}
             >

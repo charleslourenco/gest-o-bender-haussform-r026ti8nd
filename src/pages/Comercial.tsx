@@ -156,13 +156,13 @@ export default function Comercial() {
 
   if (hasPermission === null) {
     return (
-      <div className="h-full flex flex-col bg-off-white">
-        <div className="bg-midnight-navy p-6 shrink-0">
-          <div className="h-10 w-64 bg-pale-cornflower/20 animate-pulse rounded-lg"></div>
+      <div className="h-full flex flex-col bg-background">
+        <div className="bg-muted/50 p-6 shrink-0 border-b">
+          <div className="h-10 w-64 bg-muted animate-pulse rounded-lg"></div>
         </div>
         <div className="flex-1 flex gap-4 p-6">
-          <div className="flex-1 bg-pale-cornflower animate-pulse rounded-lg"></div>
-          <div className="flex-1 bg-pale-cornflower animate-pulse rounded-lg hidden md:block"></div>
+          <div className="flex-1 bg-muted/50 animate-pulse rounded-lg border"></div>
+          <div className="flex-1 bg-muted/50 animate-pulse rounded-lg border hidden md:block"></div>
         </div>
       </div>
     )
@@ -170,13 +170,13 @@ export default function Comercial() {
 
   if (!hasPermission) {
     return (
-      <div className="h-full flex flex-col bg-off-white">
-        <div className="bg-midnight-navy p-6 shrink-0">
-          <h1 className="text-off-white font-bold text-[32px]">Kanban Comercial</h1>
+      <div className="h-full flex flex-col bg-background">
+        <div className="bg-card p-6 shrink-0 border-b">
+          <h1 className="text-foreground font-bold text-3xl">Kanban Comercial</h1>
         </div>
         <div className="flex-1 p-6">
-          <div className="bg-pale-cornflower p-6 rounded-lg text-center border-2 border-steel-blue">
-            <p className="text-midnight-navy font-bold text-[18px]">
+          <div className="bg-muted p-6 rounded-lg text-center border">
+            <p className="text-foreground font-bold text-lg">
               Você não tem permissão para acessar este módulo.
             </p>
           </div>
@@ -189,19 +189,19 @@ export default function Comercial() {
     <Tabs
       value={activeTab}
       onValueChange={setActiveTab}
-      className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-off-white p-6 pt-0 space-y-4"
+      className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-background p-6 pt-0 space-y-4"
     >
-      <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 scrollbar-hide">
+      <div className="flex flex-row items-center justify-between w-full bg-card border text-card-foreground px-4 py-3 mb-4 rounded-lg mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 scrollbar-hide shadow-sm">
         <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-emerald-400 hidden sm:block" />
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-500 hidden sm:block" />
             Comercial
           </h1>
-          <TabsList className="bg-transparent border-none p-0 flex gap-2 h-auto">
+          <TabsList className="bg-muted/50 p-1 flex gap-1 h-auto rounded-md">
             <TabsTrigger
               value="kanban"
               onClick={() => setActiveTab('kanban')}
-              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
+              className="py-1.5 px-3 rounded-md transition-colors"
             >
               <LayoutDashboard className="w-4 h-4 mr-2" />
               Kanban
@@ -209,7 +209,7 @@ export default function Comercial() {
             <TabsTrigger
               value="lista"
               onClick={() => setActiveTab('lista')}
-              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
+              className="py-1.5 px-3 rounded-md transition-colors"
             >
               <ListIcon className="w-4 h-4 mr-2" />
               Lista
@@ -217,7 +217,7 @@ export default function Comercial() {
             <TabsTrigger
               value="indicadores"
               onClick={() => setActiveTab('indicadores')}
-              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
+              className="py-1.5 px-3 rounded-md transition-colors"
             >
               <BarChart3 className="w-4 h-4 mr-2" />
               Indicadores
@@ -225,7 +225,7 @@ export default function Comercial() {
             <TabsTrigger
               value="conversas"
               onClick={() => setActiveTab('conversas')}
-              className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 py-1.5 px-3 rounded-md transition-colors data-[state=active]:shadow-none"
+              className="py-1.5 px-3 rounded-md transition-colors"
             >
               <MessageCircle className="w-4 h-4 mr-2" />
               Conversas
@@ -247,7 +247,7 @@ export default function Comercial() {
             ref={topScrollRef}
             className={cn(
               'overflow-x-auto overflow-y-hidden shrink-0',
-              '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-colors',
+              '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50 transition-colors',
               scrollInfo.scrollWidth > scrollInfo.clientWidth + 2 ? 'block mb-2' : 'hidden',
             )}
           >
@@ -263,7 +263,7 @@ export default function Comercial() {
           value="lista"
           className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
         >
-          <div className="flex-1 overflow-auto bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="flex-1 overflow-auto bg-card rounded-xl shadow-sm border">
             <ComercialList />
           </div>
         </TabsContent>
@@ -279,7 +279,7 @@ export default function Comercial() {
           value="conversas"
           className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
         >
-          <div className="flex-1 overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="flex-1 overflow-hidden bg-card rounded-xl shadow-sm border flex">
             <ConversasView />
           </div>
         </TabsContent>
