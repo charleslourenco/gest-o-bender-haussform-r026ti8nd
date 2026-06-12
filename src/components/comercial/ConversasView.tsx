@@ -86,32 +86,7 @@ export function ConversasView() {
     setMessages([]) // Immediately clear previous messages to prevent frozen data
     try {
       const data = await fetchLeadMessages(lead.id, lead.telefone)
-      if (data && data.length > 0) {
-        setMessages(data)
-      } else {
-        // Dynamic fallback to mock data to show app working end-to-end if no real data
-        // and to prove the state changed successfully for the selected lead.
-        setMessages([
-          {
-            id: `mock-1-${lead.id}`,
-            sender: 'ai',
-            text: `Olá ${lead.nome}! Sou a Catarina, assistente virtual da Bender Haussform. Como posso ajudar?`,
-            timestamp: new Date().toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-          },
-          {
-            id: `mock-2-${lead.id}`,
-            sender: 'client',
-            text: 'Gostaria de saber mais sobre projetos sob medida.',
-            timestamp: new Date(Date.now() + 60000).toLocaleTimeString('pt-BR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-          },
-        ])
-      }
+      setMessages(data || [])
     } catch (error) {
       console.error(error)
       setMessages([])
@@ -128,6 +103,36 @@ export function ConversasView() {
       setMessages([])
     }
   }, [selectedLead?.id, loadMessages])
+
+  // Real-time synchronization for new whatsapp messages
+  useEffect(() => {
+    if (!selectedLead?.id) return
+
+    const channel = supabase
+      .channel(`messages_sub_${selectedLead.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'whatsapp_messages',
+        } as any,
+        (payload: any) => {
+          const newMsg = payload.new
+          if (
+            newMsg &&
+            (newMsg.lead_id === selectedLead.id || newMsg.phone === selectedLead.telefone)
+          ) {
+            loadMessages(selectedLead)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedLead, loadMessages])
 
   const filteredLeads = leads.filter((l) => {
     if (tipoConversaFilter !== 'Todas' && l.tipo_conversa !== tipoConversaFilter) return false
@@ -190,6 +195,7 @@ export function ConversasView() {
                 <SelectItem value="Fornecedor">Fornecedor</SelectItem>
                 <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
                 <SelectItem value="Atendimento">Atendimento</SelectItem>
+                <SelectItem value="Outro">Outro</SelectItem>
               </SelectContent>
             </Select>
 
@@ -303,6 +309,33 @@ export function ConversasView() {
         {selectedLead ? (
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase">
+                  Tipo de Conversa
+                </label>
+                <Select
+                  disabled={updating}
+                  value={selectedLead.tipo_conversa || 'unassigned'}
+                  onValueChange={(val) => {
+                    const newVal = val === 'unassigned' ? null : val
+                    handleUpdateLead(selectedLead.id, { tipo_conversa: newVal })
+                  }}
+                >
+                  <SelectTrigger className="h-9 bg-white">
+                    <SelectValue placeholder="Selecione um tipo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Sem classificação</SelectItem>
+                    <SelectItem value="Lead Comercial">Lead Comercial</SelectItem>
+                    <SelectItem value="RH">RH</SelectItem>
+                    <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                    <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
+                    <SelectItem value="Atendimento">Atendimento</SelectItem>
+                    <SelectItem value="Outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-gray-500 uppercase">Status</label>
                 <Select
