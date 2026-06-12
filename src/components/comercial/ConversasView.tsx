@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   fetchLeads,
@@ -52,6 +52,8 @@ export function ConversasView() {
 
   const [updating, setUpdating] = useState(false)
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     loadData()
     const channel = supabase
@@ -81,28 +83,37 @@ export function ConversasView() {
     }
   }
 
-  const loadMessages = useCallback(async (lead: Lead) => {
-    setLoadingMessages(true)
-    setMessages([]) // Immediately clear previous messages to prevent frozen data
+  const loadMessages = useCallback(async (leadId: string, phone: string, isSilent = false) => {
+    if (!isSilent) {
+      setLoadingMessages(true)
+      setMessages([]) // Immediately clear previous messages to prevent frozen data
+    }
     try {
-      const data = await fetchLeadMessages(lead.id, lead.telefone)
+      const data = await fetchLeadMessages(leadId, phone)
       setMessages(data || [])
     } catch (error) {
       console.error(error)
-      setMessages([])
+      if (!isSilent) setMessages([])
     } finally {
-      setLoadingMessages(false)
+      if (!isSilent) setLoadingMessages(false)
     }
   }, [])
 
   // Synchronize center panel messages when a new lead is selected
   useEffect(() => {
     if (selectedLead?.id) {
-      loadMessages(selectedLead)
+      loadMessages(selectedLead.id, selectedLead.telefone)
     } else {
       setMessages([])
     }
-  }, [selectedLead?.id, loadMessages])
+  }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages])
 
   // Real-time synchronization for new whatsapp messages
   useEffect(() => {
@@ -116,14 +127,15 @@ export function ConversasView() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
-        } as any,
+        },
         (payload: any) => {
           const newMsg = payload.new
           if (
             newMsg &&
             (newMsg.lead_id === selectedLead.id || newMsg.phone === selectedLead.telefone)
           ) {
-            loadMessages(selectedLead)
+            // Silent reload to prevent UI flicker
+            loadMessages(selectedLead.id, selectedLead.telefone, true)
           }
         },
       )
@@ -132,7 +144,7 @@ export function ConversasView() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedLead, loadMessages])
+  }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
 
   const filteredLeads = leads.filter((l) => {
     if (tipoConversaFilter !== 'Todas' && l.tipo_conversa !== tipoConversaFilter) return false
@@ -343,7 +355,7 @@ export function ConversasView() {
                       pushCurrent()
                     })
 
-                    return parsedMessages.map((msg) => {
+                    const rendered = parsedMessages.map((msg) => {
                       if (msg.isSystem || msg.align === 'center') {
                         return (
                           <div key={msg.id} className="flex justify-center my-4">
@@ -398,6 +410,13 @@ export function ConversasView() {
                         </div>
                       )
                     })
+
+                    return (
+                      <>
+                        {rendered}
+                        <div ref={messagesEndRef} />
+                      </>
+                    )
                   })()
                 ) : (
                   <div className="text-center p-4 text-gray-500 text-sm">
