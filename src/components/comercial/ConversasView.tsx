@@ -268,105 +268,58 @@ export function ConversasView() {
                   </div>
                 ) : messages.length > 0 ? (
                   (() => {
-                    const parsedMessages: any[] = []
-                    messages.forEach((msg, index) => {
-                      const text = msg.content || msg.text || msg.body || ''
-                      const lines = text.split('\n')
-                      let currentMsg: any = null
+                    const rendered = messages.map((msg) => {
+                      const isClient =
+                        msg.sender_type === 'lead' ||
+                        msg.sender_type === 'cliente' ||
+                        (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                      const isSystem = msg.sender_type === 'system'
+                      const isAssistant =
+                        msg.sender_type === 'catarina' || msg.sender_type === 'assistant'
+                      const isAna = msg.sender_type === 'ana'
 
-                      const pushCurrent = () => {
-                        if (currentMsg && currentMsg.content.trim()) {
-                          parsedMessages.push(currentMsg)
-                        }
+                      const parsedMsg = {
+                        id: msg.id,
+                        sender:
+                          msg.sender_name ||
+                          (isAssistant
+                            ? 'Catarina'
+                            : isAna
+                              ? 'Ana'
+                              : isClient
+                                ? 'Cliente'
+                                : 'Equipe'),
+                        content: msg.content || msg.text || msg.body || '',
+                        timestamp: msg.created_at,
+                        align: isSystem ? 'center' : isClient ? 'left' : 'right',
+                        bgColor: isSystem
+                          ? 'bg-gray-100'
+                          : isClient
+                            ? 'bg-white border border-gray-200'
+                            : isAna
+                              ? 'bg-blue-600'
+                              : 'bg-[#dcf8c6] border border-[#c3e6a6]',
+                        textColor: isSystem
+                          ? 'text-gray-600'
+                          : isClient
+                            ? 'text-gray-900'
+                            : isAna
+                              ? 'text-white'
+                              : 'text-gray-900',
+                        isSystem,
                       }
 
-                      lines.forEach((line: string, lineIndex: number) => {
-                        const trimmedLine = line.trim()
-                        if (trimmedLine.startsWith('[Cliente]:')) {
-                          pushCurrent()
-                          currentMsg = {
-                            id: `${msg.id}-${index}-${lineIndex}`,
-                            sender: 'Cliente',
-                            content: trimmedLine.substring(10).trim(),
-                            timestamp: msg.created_at,
-                            align: 'right',
-                            bgColor: 'bg-gray-800',
-                            textColor: 'text-white',
-                            isSystem: false,
-                          }
-                        } else if (trimmedLine.startsWith('[Catarina]:')) {
-                          pushCurrent()
-                          currentMsg = {
-                            id: `${msg.id}-${index}-${lineIndex}`,
-                            sender: 'Catarina',
-                            content: trimmedLine.substring(11).trim(),
-                            timestamp: msg.created_at,
-                            align: 'left',
-                            bgColor: 'bg-gray-200',
-                            textColor: 'text-gray-800',
-                            isSystem: false,
-                          }
-                        } else if (trimmedLine.startsWith('[Ana]:')) {
-                          pushCurrent()
-                          currentMsg = {
-                            id: `${msg.id}-${index}-${lineIndex}`,
-                            sender: 'Ana',
-                            content: trimmedLine.substring(6).trim(),
-                            timestamp: msg.created_at,
-                            align: 'left',
-                            bgColor: 'bg-gray-200',
-                            textColor: 'text-gray-800',
-                            isSystem: false,
-                          }
-                        } else {
-                          if (currentMsg) {
-                            currentMsg.content += '\n' + line
-                          } else {
-                            // Default parsing for messages without prefixes
-                            const isClient =
-                              msg.sender_type === 'lead' ||
-                              (msg.direction === 'inbound' && msg.sender_type !== 'system')
-                            const isSystem = msg.sender_type === 'system'
-                            const isAssistant = msg.sender_type === 'assistant'
-
-                            currentMsg = {
-                              id: `${msg.id}-${index}-${lineIndex}`,
-                              sender:
-                                msg.sender_name ||
-                                (isAssistant ? 'Catarina' : isClient ? 'Cliente' : 'Equipe'),
-                              content: line,
-                              timestamp: msg.created_at,
-                              align: isSystem ? 'center' : isClient ? 'right' : 'left',
-                              bgColor: isSystem
-                                ? 'bg-gray-100'
-                                : isClient
-                                  ? 'bg-gray-800'
-                                  : 'bg-gray-200',
-                              textColor: isSystem
-                                ? 'text-gray-600'
-                                : isClient
-                                  ? 'text-white'
-                                  : 'text-gray-800',
-                              isSystem,
-                            }
-                          }
-                        }
-                      })
-                      pushCurrent()
-                    })
-
-                    const rendered = parsedMessages.map((msg) => {
-                      if (msg.isSystem || msg.align === 'center') {
+                      if (parsedMsg.isSystem || parsedMsg.align === 'center') {
                         return (
-                          <div key={msg.id} className="flex justify-center my-4">
+                          <div key={parsedMsg.id} className="flex justify-center my-4">
                             <div className="bg-gray-100 text-gray-600 rounded-lg p-3 text-sm max-w-[90%] border border-gray-200 text-center">
                               <span className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">
-                                {msg.sender || 'Sistema'}
+                                {parsedMsg.sender || 'Sistema'}
                               </span>
-                              <p className="whitespace-pre-wrap">{msg.content}</p>
+                              <p className="whitespace-pre-wrap">{parsedMsg.content}</p>
                               <span className="text-[10px] text-gray-400 mt-2 block">
-                                {msg.timestamp
-                                  ? new Date(msg.timestamp).toLocaleString('pt-BR')
+                                {parsedMsg.timestamp
+                                  ? new Date(parsedMsg.timestamp).toLocaleString('pt-BR')
                                   : ''}
                               </span>
                             </div>
@@ -376,31 +329,35 @@ export function ConversasView() {
 
                       return (
                         <div
-                          key={msg.id}
-                          className={`flex ${msg.align === 'right' ? 'justify-end' : 'justify-start'}`}
+                          key={parsedMsg.id}
+                          className={`flex ${parsedMsg.align === 'right' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${msg.bgColor} ${msg.textColor} ${
-                              msg.align === 'right' ? 'rounded-tr-none' : 'rounded-tl-none'
+                            className={`max-w-[80%] rounded-lg p-3 shadow-sm relative ${parsedMsg.bgColor} ${parsedMsg.textColor} ${
+                              parsedMsg.align === 'right' ? 'rounded-tr-none' : 'rounded-tl-none'
                             }`}
                           >
                             <span
                               className={`text-[10px] font-bold mb-1 block uppercase tracking-wider ${
-                                msg.align === 'right' ? 'text-gray-300' : 'text-gray-500'
+                                parsedMsg.align === 'right' && parsedMsg.textColor === 'text-white'
+                                  ? 'text-blue-200'
+                                  : 'text-gray-500'
                               }`}
                             >
-                              {msg.sender}
+                              {parsedMsg.sender}
                             </span>
                             <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                              {msg.content}
+                              {parsedMsg.content}
                             </p>
                             <span
                               className={`text-[10px] block text-right mt-1 font-medium ${
-                                msg.align === 'right' ? 'text-gray-400' : 'text-gray-500'
+                                parsedMsg.align === 'right' && parsedMsg.textColor === 'text-white'
+                                  ? 'text-blue-200'
+                                  : 'text-gray-400'
                               }`}
                             >
-                              {msg.timestamp
-                                ? new Date(msg.timestamp).toLocaleTimeString('pt-BR', {
+                              {parsedMsg.timestamp
+                                ? new Date(parsedMsg.timestamp).toLocaleTimeString('pt-BR', {
                                     hour: '2-digit',
                                     minute: '2-digit',
                                   })
@@ -547,6 +504,53 @@ export function ConversasView() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase">
+                  Notas / Resumo IA
+                </label>
+                <textarea
+                  disabled={updating}
+                  value={selectedLead.notas || ''}
+                  onChange={(e) =>
+                    setSelectedLead((prev) => (prev ? { ...prev, notas: e.target.value } : null))
+                  }
+                  onBlur={(e) => {
+                    if (e.target.value !== leads.find((l) => l.id === selectedLead.id)?.notas) {
+                      handleUpdateLead(selectedLead.id, { notas: e.target.value })
+                    }
+                  }}
+                  rows={4}
+                  className="w-full text-sm bg-white border border-gray-200 rounded-md p-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                  placeholder="Anotações ou resumo gerado pela IA..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase">
+                  Notas Pessoais
+                </label>
+                <textarea
+                  disabled={updating}
+                  value={(selectedLead as any).notas_pessoais || ''}
+                  onChange={(e) =>
+                    setSelectedLead((prev) =>
+                      prev ? ({ ...prev, notas_pessoais: e.target.value } as any) : null,
+                    )
+                  }
+                  onBlur={(e) => {
+                    if (
+                      e.target.value !==
+                      (leads.find((l) => l.id === selectedLead.id) as any)?.notas_pessoais
+                    ) {
+                      handleUpdateLead(selectedLead.id, { notas_pessoais: e.target.value } as any)
+                    }
+                  }}
+                  rows={3}
+                  className="w-full text-sm bg-white border border-gray-200 rounded-md p-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y"
+                  placeholder="Anotações internas (não lidas pela IA)..."
+                />
               </div>
 
               <div className="pt-4 border-t border-gray-200 space-y-3">

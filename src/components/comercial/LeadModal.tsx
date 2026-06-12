@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { Lead } from '@/types'
 import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
+import { fetchLeadMessages } from '@/services/comercial'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -21,6 +22,8 @@ interface Props {
 
 export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const [isGenerating, setIsGenerating] = useState(false)
+  const [messages, setMessages] = useState<any[]>([])
+  const [loadingMessages, setLoadingMessages] = useState(false)
 
   const formatPhone = (value: string) => {
     if (!value) return ''
@@ -47,6 +50,25 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
     setTelefone(formatPhone(lead?.telefone || ''))
     setNome(lead?.nome || '')
   }, [lead])
+
+  useEffect(() => {
+    if (lead?.id) {
+      const loadMessages = async () => {
+        setLoadingMessages(true)
+        try {
+          const data = await fetchLeadMessages(lead.id, lead.telefone)
+          setMessages(data || [])
+        } catch (error) {
+          console.error(error)
+        } finally {
+          setLoadingMessages(false)
+        }
+      }
+      loadMessages()
+    } else {
+      setMessages([])
+    }
+  }, [lead?.id, lead?.telefone])
 
   const handleNomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const exceptions = ['de', 'da', 'do', 'das', 'dos', 'e']
@@ -118,40 +140,6 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
     onSave(data)
   }
-
-  const parsedChat = useMemo(() => {
-    const rawNotas = lead?.notas || ''
-    const lines = rawNotas.split('\n')
-    const chat = []
-    let currentMsg: any = null
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed) continue
-
-      if (trimmed.startsWith('[Cliente]:')) {
-        if (currentMsg) chat.push(currentMsg)
-        currentMsg = { sender: 'Cliente', text: trimmed.replace('[Cliente]:', '').trim() }
-      } else if (trimmed.startsWith('[Catarina]:')) {
-        if (currentMsg) chat.push(currentMsg)
-        currentMsg = { sender: 'Catarina', text: trimmed.replace('[Catarina]:', '').trim() }
-      } else if (trimmed.startsWith('[Ana]:')) {
-        if (currentMsg) chat.push(currentMsg)
-        currentMsg = { sender: 'Ana', text: trimmed.replace('[Ana]:', '').trim() }
-      } else if (trimmed.startsWith('[Novo Dado')) {
-        if (currentMsg) chat.push(currentMsg)
-        currentMsg = { sender: 'Sistema', text: trimmed }
-      } else {
-        if (currentMsg) {
-          currentMsg.text += '\n' + trimmed
-        } else {
-          currentMsg = { sender: 'Sistema', text: trimmed }
-        }
-      }
-    }
-    if (currentMsg) chat.push(currentMsg)
-    return chat
-  }, [lead?.notas])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -289,6 +277,18 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               </div>
               <div>
                 <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
+                  Notas / Resumo da IA
+                </label>
+                <textarea
+                  name="notas"
+                  defaultValue={(lead as any)?.notas || ''}
+                  rows={4}
+                  className="w-full bg-pale-cornflower border-2 border-steel-blue text-midnight-navy rounded-lg px-4 py-3 outline-none focus:border-dark-denim focus:ring-1 focus:ring-dark-denim transition-all duration-200 resize-none"
+                  placeholder="Anotações ou resumo gerado pela IA..."
+                ></textarea>
+              </div>
+              <div>
+                <label className="block text-midnight-navy font-semibold text-[14px] mb-1.5">
                   Notas Pessoais
                 </label>
                 <textarea
@@ -317,32 +317,48 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin bg-off-white/50">
-              {parsedChat.length > 0 ? (
-                parsedChat.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'p-3 rounded-lg max-w-[85%] shadow-sm',
-                      msg.sender === 'Cliente'
-                        ? 'bg-dark-denim text-off-white self-end rounded-tr-none'
-                        : msg.sender === 'Sistema'
-                          ? 'bg-amber-100/50 text-amber-900 border border-amber-200 text-[11px] self-center w-full text-center shadow-none'
-                          : 'bg-pale-cornflower border border-steel-blue/30 text-midnight-navy self-start rounded-tl-none',
-                    )}
-                  >
-                    <span
+              {loadingMessages ? (
+                <div className="flex justify-center items-center h-full opacity-60 text-steel-blue text-[13px] font-medium">
+                  Carregando mensagens...
+                </div>
+              ) : messages.length > 0 ? (
+                messages.map((msg, i) => {
+                  const isClient =
+                    msg.sender_type === 'cliente' ||
+                    msg.sender_type === 'lead' ||
+                    msg.direction === 'inbound'
+                  const isSystem = msg.sender_type === 'system'
+                  const isAna = msg.sender_type === 'ana'
+                  const senderName = isClient ? 'Cliente' : isAna ? 'Ana' : 'Catarina'
+
+                  return (
+                    <div
+                      key={msg.id || i}
                       className={cn(
-                        'text-[10px] font-bold block mb-1 opacity-70 uppercase tracking-wider',
-                        msg.sender === 'Sistema' && 'hidden',
+                        'p-3 rounded-lg max-w-[85%] shadow-sm',
+                        isClient
+                          ? 'bg-pale-cornflower border border-steel-blue/30 text-midnight-navy self-start rounded-tl-none'
+                          : isSystem
+                            ? 'bg-amber-100/50 text-amber-900 border border-amber-200 text-[11px] self-center w-full text-center shadow-none'
+                            : isAna
+                              ? 'bg-blue-600 text-white self-end rounded-tr-none'
+                              : 'bg-dark-denim text-off-white self-end rounded-tr-none',
                       )}
                     >
-                      {msg.sender}
-                    </span>
-                    <span className="text-[13px] whitespace-pre-wrap leading-relaxed">
-                      {msg.text}
-                    </span>
-                  </div>
-                ))
+                      <span
+                        className={cn(
+                          'text-[10px] font-bold block mb-1 opacity-70 uppercase tracking-wider',
+                          isSystem && 'hidden',
+                        )}
+                      >
+                        {senderName}
+                      </span>
+                      <span className="text-[13px] whitespace-pre-wrap leading-relaxed">
+                        {msg.content || msg.text || msg.body || ''}
+                      </span>
+                    </div>
+                  )
+                })
               ) : (
                 <div className="text-steel-blue flex flex-col items-center justify-center h-full opacity-60">
                   <MessageSquare className="w-8 h-8 mb-2" />
