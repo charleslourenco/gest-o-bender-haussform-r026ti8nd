@@ -32,6 +32,21 @@ Deno.serve(async (req) => {
       payload.id ||
       `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
+    // Extract Webhook Timestamp
+    let extractedTimestamp = new Date().toISOString()
+    if (payload.timestamp) {
+      const ts =
+        typeof payload.timestamp === 'number' ? payload.timestamp : parseInt(payload.timestamp, 10)
+      if (!isNaN(ts)) {
+        extractedTimestamp = new Date(ts > 10000000000 ? ts : ts * 1000).toISOString()
+      }
+    } else if (payload.moment) {
+      const ts = typeof payload.moment === 'number' ? payload.moment : parseInt(payload.moment, 10)
+      if (!isNaN(ts)) {
+        extractedTimestamp = new Date(ts > 10000000000 ? ts : ts * 1000).toISOString()
+      }
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const supabase = createClient(supabaseUrl, supabaseKey)
@@ -41,61 +56,19 @@ Deno.serve(async (req) => {
     }
 
     // Check if message already exists to avoid duplicate webhook processing
-    const { data: existingMsg } = await supabase
+    const { data: existingMsg, error: existingMsgErr } = await supabase
       .from('whatsapp_messages')
       .select('id')
       .eq('external_id', msgExternalId)
       .maybeSingle()
 
+    if (existingMsgErr) console.error('Erro ao verificar mensagem duplicada:', existingMsgErr)
+
     if (existingMsg) {
       return new Response('Duplicate message ignored', { status: 200 })
     }
 
-    if (payload.fromMe) {
-      let { data: leads } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('telefone', phone)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-      let currentLead = leads && leads.length > 0 ? leads[0] : null
-
-      if (currentLead) {
-        await supabase
-          .from('whatsapp_sessions')
-          .update({
-            step: 99,
-            last_human_interaction_at: new Date().toISOString(),
-          })
-          .eq('phone', phone)
-
-        let newStatus = currentLead.status
-        if (currentLead.status === 'Novo Lead') {
-          newStatus = 'Aguardando Consultor'
-        }
-
-        await supabase
-          .from('leads')
-          .update({
-            status: newStatus,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq('id', currentLead.id)
-      }
-
-      await supabase.from('whatsapp_messages').insert({
-        lead_id: currentLead?.id || null,
-        phone,
-        sender_type: 'ana',
-        sender_name: 'Ana',
-        content: messageText,
-        external_id: msgExternalId,
-        direction: 'outbound',
-      })
-
-      return new Response('Ignored fromMe', { status: 200 })
-    }
-
+    // 1. Lead Lookup / Creation
     let { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -123,28 +96,83 @@ Deno.serve(async (req) => {
         .select('*')
         .single()
 
-      if (error) throw error
-      lead = newLead
+      if (error) {
+        console.error('Erro ao criar novo lead:', error)
+      } else {
+        lead = newLead
+      }
     }
 
-    await supabase.from('whatsapp_messages').insert({
-      lead_id: lead.id,
+    // 2. Process Human Sent (fromMe)
+    if (payload.fromMe) {
+      if (lead) {
+        const { error: sessionUpdateErr } = await supabase
+          .from('whatsapp_sessions')
+          .update({
+            step: 99,
+            last_human_interaction_at: nowStr,
+          })
+          .eq('phone', phone)
+
+        if (sessionUpdateErr) console.error('Erro ao atualizar sessão (fromMe):', sessionUpdateErr)
+
+        let newStatus = lead.status
+        if (lead.status === 'Novo Lead') {
+          newStatus = 'Aguardando Consultor'
+        }
+
+        const { error: leadUpdateErr } = await supabase
+          .from('leads')
+          .update({
+            status: newStatus,
+            atualizado_em: nowStr,
+          })
+          .eq('id', lead.id)
+
+        if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)
+      }
+
+      const { error: insertAnaErr } = await supabase.from('whatsapp_messages').insert({
+        lead_id: lead?.id || null,
+        phone,
+        sender_type: 'ana',
+        sender_name: 'Ana',
+        content: messageText,
+        external_id: msgExternalId,
+        direction: 'outbound',
+        created_at: extractedTimestamp,
+      })
+
+      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana:', insertAnaErr)
+
+      return new Response('Ignored fromMe', { status: 200 })
+    }
+
+    // 3. Process Customer Sent (!fromMe)
+    const { error: insertClientErr } = await supabase.from('whatsapp_messages').insert({
+      lead_id: lead?.id || null,
       phone,
       sender_type: 'cliente',
       sender_name: senderName,
       content: messageText,
       external_id: msgExternalId,
       direction: 'inbound',
+      created_at: extractedTimestamp,
     })
 
-    let { data: session } = await supabase
+    if (insertClientErr) console.error('Erro ao inserir mensagem do Cliente:', insertClientErr)
+
+    // Session Management
+    let { data: session, error: sessionErr } = await supabase
       .from('whatsapp_sessions')
       .select('*')
       .eq('phone', phone)
       .maybeSingle()
 
-    if (!session) {
-      const { data: newSession } = await supabase
+    if (sessionErr) console.error('Erro ao buscar sessão:', sessionErr)
+
+    if (!session && lead) {
+      const { data: newSession, error: newSessErr } = await supabase
         .from('whatsapp_sessions')
         .insert({
           phone,
@@ -153,22 +181,37 @@ Deno.serve(async (req) => {
         })
         .select('*')
         .single()
-      session = newSession
+
+      if (newSessErr) {
+        console.error('Erro ao criar sessão:', newSessErr)
+      } else {
+        session = newSession
+      }
     }
 
+    if (!lead || !session) {
+      return new Response('Failsafe sem lead ou session', { status: 200 })
+    }
+
+    // Reset Flow
     if (messageText.trim().toUpperCase() === 'RESETAR') {
-      if (session) await supabase.from('whatsapp_sessions').update({ step: 0 }).eq('id', session.id)
-      if (lead) await supabase.from('leads').update({ status: 'Novo Lead' }).eq('id', lead.id)
+      await supabase.from('whatsapp_sessions').update({ step: 0 }).eq('id', session.id)
+      await supabase.from('leads').update({ status: 'Novo Lead' }).eq('id', lead.id)
 
       const botMsg = 'Sessão reiniciada. A Catarina está pronta para conversar novamente.'
-      await supabase.from('whatsapp_messages').insert({
+
+      const { error: insertCatarinaResetErr } = await supabase.from('whatsapp_messages').insert({
         lead_id: lead.id,
         phone,
         sender_type: 'catarina',
         sender_name: 'Catarina',
         content: botMsg,
         direction: 'outbound',
+        created_at: new Date().toISOString(),
       })
+
+      if (insertCatarinaResetErr)
+        console.error('Erro ao inserir mensagem da Catarina (Reset):', insertCatarinaResetErr)
 
       const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
       const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -186,6 +229,7 @@ Deno.serve(async (req) => {
       return new Response('Reset OK', { status: 200 })
     }
 
+    // Human Managed Flow
     const isHumanManaged =
       session.step === 99 || lead.status !== 'Novo Lead' || lead.consultor_id !== null
 
@@ -232,14 +276,23 @@ Deno.serve(async (req) => {
         if (!alreadySentInThisBlock) {
           const botMsg = `Por favor, aguarde o retorno da Ana. Ela responderá em breve.`
 
-          await supabase.from('whatsapp_messages').insert({
-            lead_id: lead.id,
-            phone,
-            sender_type: 'catarina',
-            sender_name: 'Catarina',
-            content: botMsg,
-            direction: 'outbound',
-          })
+          const { error: insertCatarinaStandbyErr } = await supabase
+            .from('whatsapp_messages')
+            .insert({
+              lead_id: lead.id,
+              phone,
+              sender_type: 'catarina',
+              sender_name: 'Catarina',
+              content: botMsg,
+              direction: 'outbound',
+              created_at: new Date().toISOString(),
+            })
+
+          if (insertCatarinaStandbyErr)
+            console.error(
+              'Erro ao inserir mensagem da Catarina (Espera):',
+              insertCatarinaStandbyErr,
+            )
 
           const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
           const zapiToken = Deno.env.get('ZAPI_TOKEN')
@@ -291,6 +344,7 @@ Deno.serve(async (req) => {
       return new Response('Handed over', { status: 200 })
     }
 
+    // AI Flow
     await supabase
       .from('whatsapp_sessions')
       .update({
@@ -421,14 +475,18 @@ async function processResponse(
 ) {
   const readableText = responseText.replace(/\|\|\|/g, ' ')
 
-  await supabase.from('whatsapp_messages').insert({
+  const { error: insertCatarinaErr } = await supabase.from('whatsapp_messages').insert({
     lead_id: lead.id,
     phone,
     sender_type: 'catarina',
     sender_name: 'Catarina',
     content: readableText,
     direction: 'outbound',
+    created_at: new Date().toISOString(),
   })
+
+  if (insertCatarinaErr)
+    console.error('Erro ao inserir mensagem da Catarina (Resposta):', insertCatarinaErr)
 
   let nextStep = session.step
   let nextStatus = lead.status
@@ -468,13 +526,20 @@ async function processResponse(
     updatePayload.origem = `WhatsApp - ${String(dados.origem).substring(0, 50)}`
   }
 
-  await supabase.from('leads').update(updatePayload).eq('id', lead.id)
+  const { error: updateLeadErr } = await supabase
+    .from('leads')
+    .update(updatePayload)
+    .eq('id', lead.id)
+
+  if (updateLeadErr) console.error('Erro ao atualizar status/categoria do lead:', updateLeadErr)
 
   if (nextStep !== session.step) {
-    await supabase
+    const { error: updateSessionErr } = await supabase
       .from('whatsapp_sessions')
       .update({ step: nextStep, updated_at: new Date().toISOString() })
       .eq('id', session.id)
+
+    if (updateSessionErr) console.error('Erro ao atualizar step da sessão:', updateSessionErr)
   }
 
   const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
