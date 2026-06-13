@@ -19,8 +19,13 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 import { COLUMNS } from './constants'
-import { Loader2, Sparkles, User as UserIcon } from 'lucide-react'
+import { Loader2, Sparkles, User as UserIcon, Calendar as CalendarIcon, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { DateRange } from 'react-day-picker'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 interface Lead {
   id: string
@@ -52,8 +57,7 @@ export function ConversasView() {
   const [categoriaFilter, setCategoriaFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState('Todos')
   const [nameSearch, setNameSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [date, setDate] = useState<DateRange | undefined>()
 
   const [updating, setUpdating] = useState(false)
 
@@ -156,15 +160,18 @@ export function ConversasView() {
     if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
     if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
 
-    if (dateFrom && l.created_at) {
+    if (date?.from && l.created_at) {
       const leadDate = new Date(l.created_at)
-      const from = new Date(dateFrom + 'T00:00:00')
+      const from = new Date(date.from)
+      from.setHours(0, 0, 0, 0)
       if (leadDate < from) return false
     }
 
-    if (dateTo && l.created_at) {
+    if (date?.to && l.created_at) {
       const leadDate = new Date(l.created_at)
-      const to = new Date(dateTo + 'T23:59:59.999')
+      // Include the entire end day
+      const to = new Date(date.to)
+      to.setHours(23, 59, 59, 999)
       if (leadDate > to) return false
     }
 
@@ -261,29 +268,55 @@ export function ConversasView() {
               </SelectContent>
             </Select>
 
-            <div className="flex gap-2 items-center">
-              <div className="flex-1 space-y-1">
-                <label className="text-[10px] uppercase font-semibold text-muted-foreground">
-                  De:
-                </label>
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="bg-background h-8 text-xs"
-                />
-              </div>
-              <div className="flex-1 space-y-1">
-                <label className="text-[10px] uppercase font-semibold text-muted-foreground">
-                  Até:
-                </label>
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="bg-background h-8 text-xs"
-                />
-              </div>
+            <div className="flex items-center gap-2 w-full">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant="outline"
+                    className={cn(
+                      'flex-1 justify-start text-left font-normal bg-background h-9 px-3',
+                      !date && 'text-muted-foreground',
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                    <span className="truncate text-xs">
+                      {date?.from ? (
+                        date.to ? (
+                          <>
+                            {format(date.from, 'dd/MM/yyyy')} - {format(date.to, 'dd/MM/yyyy')}
+                          </>
+                        ) : (
+                          format(date.from, 'dd/MM/yyyy')
+                        )
+                      ) : (
+                        <span>Filtrar por data</span>
+                      )}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={1}
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              {date && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setDate(undefined)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           </div>
         </div>
