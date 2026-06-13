@@ -222,7 +222,7 @@ export function ConversasView() {
               <SelectContent>
                 <SelectItem value="Todos">Todos os Status</SelectItem>
                 <SelectItem value="Novo Lead">Novo Lead</SelectItem>
-                <SelectItem value="Aguardando Consultor">Aguardando Consultor</SelectItem>
+                <SelectItem value="Aguardando Consultor">Aguardando Responsável</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -241,7 +241,8 @@ export function ConversasView() {
               >
                 <div className="font-medium truncate">{lead.nome}</div>
                 <div className="text-xs mt-1 opacity-70 truncate">
-                  {lead.categoria || 'Sem categoria'} • {lead.status}
+                  {lead.categoria || 'Sem categoria'} •{' '}
+                  {lead.status?.replace('Consultor', 'Responsável')}
                 </div>
               </button>
             ))}
@@ -262,7 +263,7 @@ export function ConversasView() {
               <div className="flex-1">
                 <h3 className="font-bold text-foreground">{selectedLead.nome}</h3>
                 <div className="text-xs text-muted-foreground font-medium">
-                  Status: {selectedLead.status}
+                  Status: {selectedLead.status?.replace('Consultor', 'Responsável')}
                 </div>
               </div>
             </div>
@@ -433,9 +434,9 @@ export function ConversasView() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {COLUMNS.map((col) => (
+                    {COLUMNS.map((col: string) => (
                       <SelectItem key={col} value={col}>
-                        {col}
+                        {col.replace('Consultor', 'Responsável')}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -476,24 +477,37 @@ export function ConversasView() {
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Origem
                 </label>
-                <Input
+                <Select
                   disabled={updating}
-                  value={selectedLead.origem || ''}
-                  onChange={(e) =>
-                    setSelectedLead((prev) => (prev ? { ...prev, origem: e.target.value } : null))
-                  }
-                  onBlur={(e) => {
-                    if (e.target.value !== leads.find((l) => l.id === selectedLead.id)?.origem) {
-                      handleUpdateLead(selectedLead.id, { origem: e.target.value })
-                    }
+                  value={selectedLead.origem || 'unassigned'}
+                  onValueChange={(val) => {
+                    const newVal = val === 'unassigned' ? null : val
+                    handleUpdateLead(selectedLead.id, { origem: newVal })
                   }}
-                  className="h-9 bg-background"
-                />
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Selecione uma origem..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Sem origem</SelectItem>
+                    <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                    <SelectItem value="Instagram">Instagram</SelectItem>
+                    <SelectItem value="Google">Google</SelectItem>
+                    <SelectItem value="Facebook">Facebook</SelectItem>
+                    <SelectItem value="Parceiros">Parceiros</SelectItem>
+                    <SelectItem value="Corretor">Corretor</SelectItem>
+                    <SelectItem value="Arquiteto">Arquiteto</SelectItem>
+                    <SelectItem value="Outdoor">Outdoor</SelectItem>
+                    <SelectItem value="Recompra">Recompra</SelectItem>
+                    <SelectItem value="Indicação">Indicação</SelectItem>
+                    <SelectItem value="Porta">Porta</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Consultor
+                  Responsável
                 </label>
                 <Select
                   disabled={updating}
@@ -504,7 +518,7 @@ export function ConversasView() {
                   }}
                 >
                   <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Selecione um consultor..." />
+                    <SelectValue placeholder="Selecione um responsável..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Não designado</SelectItem>
@@ -569,13 +583,13 @@ export function ConversasView() {
                   className="w-full justify-center bg-background"
                   onClick={() => {
                     if (!selectedLead.consultor_id) {
-                      toast.error('Selecione um consultor primeiro')
+                      toast.error('Selecione um responsável primeiro')
                       return
                     }
                     handleUpdateLead(selectedLead.id, { status: 'Designar Consultor' })
                   }}
                 >
-                  Passar para Consultor
+                  Passar para Responsável
                 </Button>
 
                 <Button
