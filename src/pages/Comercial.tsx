@@ -280,7 +280,7 @@ export default function Comercial() {
           className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
         >
           <div className="flex-1 overflow-hidden bg-card rounded-xl shadow-sm border flex">
-            <ConversasView />
+            <ConversasView toolbarPortal={toolbarNode} isActive={activeTab === 'conversas'} />
           </div>
         </TabsContent>
       </div>

@@ -2794,7 +2794,7 @@ export const Constants = {
 //   criado_em: timestamp with time zone (not null, default: now())
 //   atualizado_em: timestamp with time zone (not null, default: now())
 //   criado_por_nome: text (nullable)
-//   kanban_ativo: boolean (not null, default: true)
+//   kanban_ativo: boolean (not null, default: false)
 //   data_venda: timestamp with time zone (nullable)
 //   categoria: text (not null, default: 'Comercial'::text)
 //   notas_pessoais: text (nullable)

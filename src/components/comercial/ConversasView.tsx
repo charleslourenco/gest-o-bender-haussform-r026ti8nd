@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase/client'
 import {
   fetchLeads,
@@ -47,7 +48,12 @@ interface User {
   nome: string
 }
 
-export function ConversasView() {
+interface ConversasViewProps {
+  toolbarPortal?: HTMLDivElement | null
+  isActive?: boolean
+}
+
+export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewProps = {}) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
@@ -218,20 +224,19 @@ export function ConversasView() {
 
   return (
     <div className="flex h-full w-full bg-background">
-      {/* LEFT PANEL - 30% */}
-      <div className="w-[30%] border-r border-border flex flex-col bg-muted/10">
-        <div className="p-4 border-b border-border bg-background">
-          <h2 className="font-bold text-sm text-muted-foreground mb-4 tracking-wider">CONVERSAS</h2>
-          <div className="space-y-3">
+      {isActive &&
+        toolbarPortal &&
+        createPortal(
+          <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
             <Input
-              placeholder="Buscar por nome do cliente..."
+              placeholder="Buscar nome..."
               value={nameSearch}
               onChange={(e) => setNameSearch(e.target.value)}
-              className="bg-background"
+              className="h-9 w-[150px] lg:w-[200px]"
             />
 
             <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger className="bg-background">
+              <SelectTrigger className="h-9 w-[140px] lg:w-[180px]">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
@@ -249,7 +254,7 @@ export function ConversasView() {
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="bg-background">
+              <SelectTrigger className="h-9 w-[140px] lg:w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -269,14 +274,14 @@ export function ConversasView() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2 w-full">
+            <div className="flex items-center gap-1">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     id="date"
                     variant="outline"
                     className={cn(
-                      'flex-1 justify-start text-left font-normal bg-background h-9 px-3',
+                      'justify-start text-left font-normal bg-background h-9 px-3 w-[200px] lg:w-[240px]',
                       !date && 'text-muted-foreground',
                     )}
                   >
@@ -319,7 +324,14 @@ export function ConversasView() {
                 </Button>
               )}
             </div>
-          </div>
+          </div>,
+          toolbarPortal,
+        )}
+
+      {/* LEFT PANEL - 30% */}
+      <div className="w-[30%] border-r border-border flex flex-col bg-muted/10">
+        <div className="p-4 border-b border-border bg-background shrink-0">
+          <h2 className="font-bold text-sm text-muted-foreground tracking-wider">CONVERSAS</h2>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
