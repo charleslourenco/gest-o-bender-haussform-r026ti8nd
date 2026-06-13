@@ -207,34 +207,15 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                   className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 cursor-pointer"
                 >
                   <option value="Comercial">Comercial</option>
-                  <option value="Corretor(a)">Corretor(a)</option>
-                  <option value="Já é cliente">Já é cliente</option>
+                  <option value="Já é Cliente">Já é Cliente</option>
                   <option value="Fornecedor">Fornecedor</option>
                   <option value="Assistência">Assistência</option>
-                  <option value="Currículos">Currículos</option>
+                  <option value="Currículo">Currículo</option>
                   <option value="Arquiteto Externo">Arquiteto Externo</option>
-                  <option value="Outros Assuntos">Outros Assuntos</option>
                   <option value="Parceiro">Parceiro</option>
                   <option value="Equipe">Equipe</option>
+                  <option value="Outros Assuntos">Outros Assuntos</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-foreground font-semibold text-[14px] mb-1.5">
-                  Tipo de Conversa
-                </label>
-                <Select name="tipo_conversa" defaultValue={lead?.tipo_conversa || undefined}>
-                  <SelectTrigger className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Lead Comercial">Lead Comercial</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                    <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
-                    <SelectItem value="Atendimento">Atendimento</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div>
                 <label className="block text-foreground font-semibold text-[14px] mb-1.5">

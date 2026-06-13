@@ -27,7 +27,6 @@ interface Lead {
   nome: string
   email: string
   telefone: string
-  tipo_conversa: string | null
   status: string
   categoria: string
   origem: string
@@ -49,7 +48,7 @@ export function ConversasView() {
   const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
 
-  const [tipoConversaFilter, setTipoConversaFilter] = useState('Todas')
+  const [categoriaFilter, setCategoriaFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState('Todos')
 
   const [updating, setUpdating] = useState(false)
@@ -149,7 +148,7 @@ export function ConversasView() {
   }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
 
   const filteredLeads = leads.filter((l) => {
-    if (tipoConversaFilter !== 'Todas' && l.tipo_conversa !== tipoConversaFilter) return false
+    if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
     if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
     return true
   })
@@ -198,18 +197,21 @@ export function ConversasView() {
         <div className="p-4 border-b border-border bg-background">
           <h2 className="font-bold text-sm text-muted-foreground mb-4 tracking-wider">CONVERSAS</h2>
           <div className="space-y-3">
-            <Select value={tipoConversaFilter} onValueChange={setTipoConversaFilter}>
+            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
               <SelectTrigger className="bg-background">
-                <SelectValue placeholder="Tipo de Conversa" />
+                <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Todas">Todas as Conversas</SelectItem>
-                <SelectItem value="Lead Comercial">Lead Comercial</SelectItem>
-                <SelectItem value="RH">RH</SelectItem>
+                <SelectItem value="Todas">Todas as Categorias</SelectItem>
+                <SelectItem value="Comercial">Comercial</SelectItem>
+                <SelectItem value="Já é Cliente">Já é Cliente</SelectItem>
                 <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
-                <SelectItem value="Atendimento">Atendimento</SelectItem>
-                <SelectItem value="Outro">Outro</SelectItem>
+                <SelectItem value="Assistência">Assistência</SelectItem>
+                <SelectItem value="Currículo">Currículo</SelectItem>
+                <SelectItem value="Arquiteto Externo">Arquiteto Externo</SelectItem>
+                <SelectItem value="Parceiro">Parceiro</SelectItem>
+                <SelectItem value="Equipe">Equipe</SelectItem>
+                <SelectItem value="Outros Assuntos">Outros Assuntos</SelectItem>
               </SelectContent>
             </Select>
 
@@ -239,7 +241,7 @@ export function ConversasView() {
               >
                 <div className="font-medium truncate">{lead.nome}</div>
                 <div className="text-xs mt-1 opacity-70 truncate">
-                  {lead.tipo_conversa || 'Sem tipo'} • {lead.status}
+                  {lead.categoria || 'Sem categoria'} • {lead.status}
                 </div>
               </button>
             ))}
@@ -420,33 +422,6 @@ export function ConversasView() {
             <div className="p-4 space-y-6">
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
-                  Tipo de Conversa
-                </label>
-                <Select
-                  disabled={updating}
-                  value={selectedLead.tipo_conversa || 'unassigned'}
-                  onValueChange={(val) => {
-                    const newVal = val === 'unassigned' ? null : val
-                    handleUpdateLead(selectedLead.id, { tipo_conversa: newVal })
-                  }}
-                >
-                  <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Selecione um tipo..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Sem classificação</SelectItem>
-                    <SelectItem value="Lead Comercial">Lead Comercial</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="Fornecedor">Fornecedor</SelectItem>
-                    <SelectItem value="Suporte Interno">Suporte Interno</SelectItem>
-                    <SelectItem value="Atendimento">Atendimento</SelectItem>
-                    <SelectItem value="Outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Status
                 </label>
                 <Select
@@ -471,21 +446,30 @@ export function ConversasView() {
                 <label className="text-xs font-semibold text-muted-foreground uppercase">
                   Categoria
                 </label>
-                <Input
+                <Select
                   disabled={updating}
-                  value={selectedLead.categoria || ''}
-                  onChange={(e) =>
-                    setSelectedLead((prev) =>
-                      prev ? { ...prev, categoria: e.target.value } : null,
-                    )
-                  }
-                  onBlur={(e) => {
-                    if (e.target.value !== leads.find((l) => l.id === selectedLead.id)?.categoria) {
-                      handleUpdateLead(selectedLead.id, { categoria: e.target.value })
-                    }
+                  value={selectedLead.categoria || 'unassigned'}
+                  onValueChange={(val) => {
+                    const newVal = val === 'unassigned' ? null : val
+                    handleUpdateLead(selectedLead.id, { categoria: newVal })
                   }}
-                  className="h-9 bg-background"
-                />
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Selecione uma categoria..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Sem classificação</SelectItem>
+                    <SelectItem value="Comercial">Comercial</SelectItem>
+                    <SelectItem value="Já é Cliente">Já é Cliente</SelectItem>
+                    <SelectItem value="Fornecedor">Fornecedor</SelectItem>
+                    <SelectItem value="Assistência">Assistência</SelectItem>
+                    <SelectItem value="Currículo">Currículo</SelectItem>
+                    <SelectItem value="Arquiteto Externo">Arquiteto Externo</SelectItem>
+                    <SelectItem value="Parceiro">Parceiro</SelectItem>
+                    <SelectItem value="Equipe">Equipe</SelectItem>
+                    <SelectItem value="Outros Assuntos">Outros Assuntos</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

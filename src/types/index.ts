@@ -26,7 +26,6 @@ export interface Lead {
   consultor?: { nome: string } | null
   kanban_ativo?: boolean
   categoria?: string
-  tipo_conversa?: string | null
 }
 
 export interface Client {
