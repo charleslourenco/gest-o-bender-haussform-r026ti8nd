@@ -33,6 +33,7 @@ interface Lead {
   consultor_id: string | null
   consultor?: { nome: string }
   notas?: string | null
+  created_at?: string
 }
 
 interface User {
@@ -50,6 +51,9 @@ export function ConversasView() {
 
   const [categoriaFilter, setCategoriaFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState('Todos')
+  const [nameSearch, setNameSearch] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const [updating, setUpdating] = useState(false)
 
@@ -148,8 +152,22 @@ export function ConversasView() {
   }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
 
   const filteredLeads = leads.filter((l) => {
-    if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
     if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
+    if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
+    if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
+
+    if (dateFrom && l.created_at) {
+      const leadDate = new Date(l.created_at)
+      const from = new Date(dateFrom + 'T00:00:00')
+      if (leadDate < from) return false
+    }
+
+    if (dateTo && l.created_at) {
+      const leadDate = new Date(l.created_at)
+      const to = new Date(dateTo + 'T23:59:59.999')
+      if (leadDate > to) return false
+    }
+
     return true
   })
 
@@ -197,6 +215,13 @@ export function ConversasView() {
         <div className="p-4 border-b border-border bg-background">
           <h2 className="font-bold text-sm text-muted-foreground mb-4 tracking-wider">CONVERSAS</h2>
           <div className="space-y-3">
+            <Input
+              placeholder="Buscar por nome do cliente..."
+              value={nameSearch}
+              onChange={(e) => setNameSearch(e.target.value)}
+              className="bg-background"
+            />
+
             <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Categoria" />
@@ -222,9 +247,44 @@ export function ConversasView() {
               <SelectContent>
                 <SelectItem value="Todos">Todos os Status</SelectItem>
                 <SelectItem value="Novo Lead">Novo Lead</SelectItem>
-                <SelectItem value="Aguardando Consultor">Aguardando Responsável</SelectItem>
+                <SelectItem value="Aguardando Consultor">Aguardando Consultor</SelectItem>
+                <SelectItem value="Contactado">Contactado</SelectItem>
+                <SelectItem value="Em Nutrição">Em Nutrição</SelectItem>
+                <SelectItem value="Designar Consultor">Designar Consultor</SelectItem>
+                <SelectItem value="Consultoria Inicial">Consultoria Inicial</SelectItem>
+                <SelectItem value="Projeto Apresentação">Projeto Apresentação</SelectItem>
+                <SelectItem value="Negociação">Negociação</SelectItem>
+                <SelectItem value="Ação Gerente">Ação Gerente</SelectItem>
+                <SelectItem value="Stand By">Stand By</SelectItem>
+                <SelectItem value="Vendido">Vendido</SelectItem>
+                <SelectItem value="Perdido">Perdido</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="flex gap-2 items-center">
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] uppercase font-semibold text-muted-foreground">
+                  De:
+                </label>
+                <Input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="bg-background h-8 text-xs"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] uppercase font-semibold text-muted-foreground">
+                  Até:
+                </label>
+                <Input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="bg-background h-8 text-xs"
+                />
+              </div>
+            </div>
           </div>
         </div>
         <ScrollArea className="flex-1">
