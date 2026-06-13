@@ -240,20 +240,53 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       return
     }
 
+    let finalStatus = newStatusId
+    let isAutoTransition = false
+
+    if (newStatusId === 'lista_materiais') {
+      finalStatus = 'aguardando_plano_corte'
+      isAutoTransition = true
+    } else if (newStatusId === 'expedicao') {
+      finalStatus = 'aguardando_agenda'
+      isAutoTransition = true
+    }
+
     setItems((prev) =>
-      prev.map((i) => (i.id === itemId ? { ...i, status_analise: newStatusId } : i)),
+      prev.map((i) => (i.id === itemId ? { ...i, status_analise: finalStatus } : i)),
     )
 
     try {
-      const { error: updateErr } = await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: newStatusId, atualizado_em: new Date().toISOString() })
-        .eq('id', itemId)
+      if (isAutoTransition) {
+        await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: newStatusId, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
 
-      if (updateErr) throw updateErr
-      toast.success('Status atualizado com sucesso!')
+        const { error: updateErr } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: finalStatus, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
 
-      if (newStatusId === 'aguardando_agenda') {
+        if (updateErr) throw updateErr
+
+        if (newStatusId === 'lista_materiais') {
+          toast.success(
+            'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
+          )
+        } else if (newStatusId === 'expedicao') {
+          toast.success('Card transferido automaticamente para Montagem (Aguardando Agenda).')
+        }
+      } else {
+        const { error: updateErr } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: newStatusId, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
+
+        if (updateErr) throw updateErr
+        toast.success('Status atualizado com sucesso!')
+      }
+
+      if (finalStatus === 'aguardando_agenda') {
         setShowSobrasPrompt(true)
       }
     } catch (err: any) {
@@ -584,19 +617,54 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const item = items.find((i) => i.id === itemId)
     if (!item || item.status_analise === columnId) return
 
+    let finalStatus = columnId
+    let isAutoTransition = false
+
+    if (columnId === 'lista_materiais') {
+      finalStatus = 'aguardando_plano_corte'
+      isAutoTransition = true
+    } else if (columnId === 'expedicao') {
+      finalStatus = 'aguardando_agenda'
+      isAutoTransition = true
+    }
+
     // Optimistic UI update
-    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, status_analise: columnId } : i)))
+    setItems((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, status_analise: finalStatus } : i)),
+    )
 
     try {
-      const { error: updateErr } = await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
-        .eq('id', itemId)
+      if (isAutoTransition) {
+        await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
 
-      if (updateErr) throw updateErr
-      toast.success('Card movido com sucesso!')
+        const { error: updateErr } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: finalStatus, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
 
-      if (columnId === 'aguardando_agenda') {
+        if (updateErr) throw updateErr
+
+        if (columnId === 'lista_materiais') {
+          toast.success(
+            'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
+          )
+        } else if (columnId === 'expedicao') {
+          toast.success('Card transferido automaticamente para Montagem (Aguardando Agenda).')
+        }
+      } else {
+        const { error: updateErr } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
+          .eq('id', itemId)
+
+        if (updateErr) throw updateErr
+        toast.success('Card movido com sucesso!')
+      }
+
+      if (finalStatus === 'aguardando_agenda') {
         setShowSobrasPrompt(true)
       }
     } catch (err: any) {

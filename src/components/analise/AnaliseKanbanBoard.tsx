@@ -151,13 +151,38 @@ export function AnaliseKanbanBoard({
     const card = cards.find((c) => c.id === draggingId)
     if (!card || card.status_analise === status) return
 
+    let finalStatus = status
+    let isAutoTransition = false
+
+    if (status === 'lista_materiais') {
+      finalStatus = 'aguardando_plano_corte'
+      isAutoTransition = true
+    }
+
     setCards((prev) =>
-      prev.map((c) => (c.id === draggingId ? { ...c, status_analise: status } : c)),
+      prev.map((c) => (c.id === draggingId ? { ...c, status_analise: finalStatus } : c)),
     )
-    await supabase
-      .from('produtos_servicos_projeto')
-      .update({ status_analise: status })
-      .eq('id', draggingId)
+
+    if (isAutoTransition) {
+      await supabase
+        .from('produtos_servicos_projeto')
+        .update({ status_analise: status })
+        .eq('id', draggingId)
+
+      await supabase
+        .from('produtos_servicos_projeto')
+        .update({ status_analise: finalStatus })
+        .eq('id', draggingId)
+
+      toast({
+        description: 'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
+      })
+    } else {
+      await supabase
+        .from('produtos_servicos_projeto')
+        .update({ status_analise: status })
+        .eq('id', draggingId)
+    }
 
     if (status === 'lista_materiais' && card.cliente_id) {
       setListaMateriaisAlert(card)
