@@ -39,6 +39,7 @@ interface Lead {
   consultor?: { nome: string }
   notas?: string | null
   created_at?: string
+  kanban_ativo?: boolean
 }
 
 interface User {
@@ -353,10 +354,19 @@ export function ConversasView() {
         {selectedLead ? (
           <>
             <div className="p-4 bg-background border-b border-border shadow-sm z-10 flex items-center gap-3 shrink-0">
-              <div className="flex-1">
-                <h3 className="font-bold text-foreground">{selectedLead.nome}</h3>
-                <div className="text-xs text-muted-foreground font-medium">
-                  Status: {selectedLead.status?.replace('Consultor', 'Responsável')}
+              <div className="flex-1 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-foreground flex items-center gap-2">
+                    {selectedLead.nome}
+                    {selectedLead.kanban_ativo && (
+                      <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">
+                        Kanban
+                      </span>
+                    )}
+                  </h3>
+                  <div className="text-xs text-muted-foreground font-medium">
+                    Status: {selectedLead.status?.replace('Consultor', 'Responsável')}
+                  </div>
                 </div>
               </div>
             </div>
@@ -545,7 +555,11 @@ export function ConversasView() {
                   value={selectedLead.categoria || 'unassigned'}
                   onValueChange={(val) => {
                     const newVal = val === 'unassigned' ? null : val
-                    handleUpdateLead(selectedLead.id, { categoria: newVal })
+                    const updates: Partial<Lead> = { categoria: newVal as string }
+                    if (newVal === 'Comercial') {
+                      updates.kanban_ativo = true
+                    }
+                    handleUpdateLead(selectedLead.id, updates)
                   }}
                 >
                   <SelectTrigger className="h-9 bg-background">
@@ -670,6 +684,16 @@ export function ConversasView() {
               </div>
 
               <div className="pt-4 border-t border-border space-y-3">
+                {!selectedLead.kanban_ativo && (
+                  <Button
+                    disabled={updating}
+                    variant="secondary"
+                    className="w-full justify-center"
+                    onClick={() => handleUpdateLead(selectedLead.id, { kanban_ativo: true })}
+                  >
+                    Ativar no Kanban
+                  </Button>
+                )}
                 <Button
                   disabled={updating}
                   variant="outline"

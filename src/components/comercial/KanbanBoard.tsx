@@ -85,8 +85,9 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         await createLead({
           ...data,
           status: 'Novo Lead',
-          ordem: leads.filter((l) => l.status === 'Novo Lead').length,
+          ordem: leads.filter((l) => l.kanban_ativo && l.status === 'Novo Lead').length,
           criado_por_nome: userName,
+          kanban_ativo: true,
         })
         toast({
           description: 'Lead criado com sucesso!',
@@ -107,7 +108,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     const lead = leads.find((l) => l.id === id)
     if (!lead || lead.status === newStatus) return
 
-    const newOrder = leads.filter((l) => l.status === newStatus).length
+    const newOrder = leads.filter((l) => l.kanban_ativo && l.status === newStatus).length
     setLeads((prev) =>
       prev.map((l) => (l.id === id ? { ...l, status: newStatus, ordem: newOrder } : l)),
     )
@@ -154,7 +155,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     const lead = leads.find((l) => l.id === id)
     if (!lead || lead.status === status) return
 
-    const newOrder = leads.filter((l) => l.status === status).length
+    const newOrder = leads.filter((l) => l.kanban_ativo && l.status === status).length
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status, ordem: newOrder } : l)))
     await updateLead(id, { status, ordem: newOrder })
 
@@ -166,6 +167,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
   const filteredLeads = useMemo(
     () =>
       leads.filter((l) => {
+        if (!l.kanban_ativo) return false
         const matchS =
           l.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
           l.email.toLowerCase().includes(debouncedSearch.toLowerCase())
