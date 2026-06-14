@@ -9,6 +9,88 @@ export type Database = {
   }
   public: {
     Tables: {
+      acompanhamentos: {
+        Row: {
+          codigo_projeto: string | null
+          data_atualizacao: string
+          data_criacao: string
+          id: string
+          nome_cliente: string | null
+          observacoes: string | null
+          quantidade_itens: number | null
+          responsavel_id: string | null
+          status_atual: string | null
+          tipo_acompanhamento: string | null
+        }
+        Insert: {
+          codigo_projeto?: string | null
+          data_atualizacao?: string
+          data_criacao?: string
+          id?: string
+          nome_cliente?: string | null
+          observacoes?: string | null
+          quantidade_itens?: number | null
+          responsavel_id?: string | null
+          status_atual?: string | null
+          tipo_acompanhamento?: string | null
+        }
+        Update: {
+          codigo_projeto?: string | null
+          data_atualizacao?: string
+          data_criacao?: string
+          id?: string
+          nome_cliente?: string | null
+          observacoes?: string | null
+          quantidade_itens?: number | null
+          responsavel_id?: string | null
+          status_atual?: string | null
+          tipo_acompanhamento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'acompanhamentos_responsavel_id_fkey'
+            columns: ['responsavel_id']
+            isOneToOne: false
+            referencedRelation: 'responsaveis_acompanhamentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      acompanhamentos_historico: {
+        Row: {
+          acompanhamento_id: string | null
+          data_mudanca: string
+          id: string
+          responsavel_mudanca: string | null
+          status_anterior: string | null
+          status_novo: string | null
+        }
+        Insert: {
+          acompanhamento_id?: string | null
+          data_mudanca?: string
+          id?: string
+          responsavel_mudanca?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Update: {
+          acompanhamento_id?: string | null
+          data_mudanca?: string
+          id?: string
+          responsavel_mudanca?: string | null
+          status_anterior?: string | null
+          status_novo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'acompanhamentos_historico_acompanhamento_id_fkey'
+            columns: ['acompanhamento_id']
+            isOneToOne: false
+            referencedRelation: 'acompanhamentos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       alocacao_montagem: {
         Row: {
           card_id: string
@@ -2017,6 +2099,33 @@ export type Database = {
           },
         ]
       }
+      responsaveis_acompanhamentos: {
+        Row: {
+          alocacao_atual: string | null
+          data_criacao: string
+          id: string
+          nome: string
+          status: string | null
+          telefone: string | null
+        }
+        Insert: {
+          alocacao_atual?: string | null
+          data_criacao?: string
+          id?: string
+          nome: string
+          status?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          alocacao_atual?: string | null
+          data_criacao?: string
+          id?: string
+          nome?: string
+          status?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       solicitacoes_compra: {
         Row: {
           atualizado_em: string
@@ -2459,6 +2568,24 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: acompanhamentos
+//   id: uuid (not null, default: gen_random_uuid())
+//   codigo_projeto: text (nullable)
+//   nome_cliente: text (nullable)
+//   tipo_acompanhamento: text (nullable)
+//   data_criacao: timestamp with time zone (not null, default: now())
+//   data_atualizacao: timestamp with time zone (not null, default: now())
+//   status_atual: text (nullable, default: 'INÍCIO'::text)
+//   responsavel_id: uuid (nullable)
+//   quantidade_itens: integer (nullable, default: 1)
+//   observacoes: text (nullable)
+// Table: acompanhamentos_historico
+//   id: uuid (not null, default: gen_random_uuid())
+//   acompanhamento_id: uuid (nullable)
+//   status_anterior: text (nullable)
+//   status_novo: text (nullable)
+//   data_mudanca: timestamp with time zone (not null, default: now())
+//   responsavel_mudanca: text (nullable)
 // Table: alocacao_montagem
 //   id: uuid (not null, default: gen_random_uuid())
 //   montador_id: uuid (not null)
@@ -2942,6 +3069,13 @@ export const Constants = {
 //   terceirizado_validado: boolean (not null, default: false)
 //   outsourced_checked: boolean (not null, default: false)
 //   is_outsourced: boolean (not null, default: false)
+// Table: responsaveis_acompanhamentos
+//   id: uuid (not null, default: gen_random_uuid())
+//   nome: text (not null)
+//   telefone: text (nullable)
+//   status: text (nullable, default: 'Disponível'::text)
+//   alocacao_atual: text (nullable)
+//   data_criacao: timestamp with time zone (not null, default: now())
 // Table: solicitacoes_compra
 //   id: uuid (not null, default: gen_random_uuid())
 //   usuario_id: uuid (not null)
@@ -3010,6 +3144,13 @@ export const Constants = {
 //   last_human_interaction_at: timestamp with time zone (nullable)
 
 // --- CONSTRAINTS ---
+// Table: acompanhamentos
+//   UNIQUE acompanhamentos_codigo_projeto_key: UNIQUE (codigo_projeto)
+//   PRIMARY KEY acompanhamentos_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY acompanhamentos_responsavel_id_fkey: FOREIGN KEY (responsavel_id) REFERENCES responsaveis_acompanhamentos(id) ON DELETE SET NULL
+// Table: acompanhamentos_historico
+//   FOREIGN KEY acompanhamentos_historico_acompanhamento_id_fkey: FOREIGN KEY (acompanhamento_id) REFERENCES acompanhamentos(id) ON DELETE CASCADE
+//   PRIMARY KEY acompanhamentos_historico_pkey: PRIMARY KEY (id)
 // Table: alocacao_montagem
 //   FOREIGN KEY alocacao_montagem_card_id_fkey: FOREIGN KEY (card_id) REFERENCES produtos_servicos_projeto(id) ON DELETE CASCADE
 //   FOREIGN KEY alocacao_montagem_montador_id_fkey: FOREIGN KEY (montador_id) REFERENCES montadores(id) ON DELETE CASCADE
@@ -3150,6 +3291,8 @@ export const Constants = {
 //   FOREIGN KEY produtos_servicos_projeto_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
 //   FOREIGN KEY produtos_servicos_projeto_formulario_comercial_id_fkey: FOREIGN KEY (formulario_comercial_id) REFERENCES formulario_comercial(id) ON DELETE CASCADE
 //   PRIMARY KEY produtos_servicos_projeto_pkey: PRIMARY KEY (id)
+// Table: responsaveis_acompanhamentos
+//   PRIMARY KEY responsaveis_acompanhamentos_pkey: PRIMARY KEY (id)
 // Table: solicitacoes_compra
 //   FOREIGN KEY solicitacoes_compra_cliente_id_fkey: FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE SET NULL
 //   PRIMARY KEY solicitacoes_compra_pkey: PRIMARY KEY (id)
@@ -3173,6 +3316,14 @@ export const Constants = {
 //   PRIMARY KEY whatsapp_sessions_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: acompanhamentos
+//   Policy "auth_all_acompanhamentos" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: acompanhamentos_historico
+//   Policy "auth_all_historico" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: alocacao_montagem
 //   Policy "alocacao_montagem_all" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -3514,6 +3665,10 @@ export const Constants = {
 //   Policy "produtos_servicos_projeto_update" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: responsaveis_acompanhamentos
+//   Policy "auth_all_responsaveis" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: solicitacoes_compra
 //   Policy "Enable delete for own or admin" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: ((usuario_id = auth.uid()) OR is_admin(auth.uid()))
@@ -3775,6 +3930,23 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION log_acompanhamento_history()
+//   CREATE OR REPLACE FUNCTION public.log_acompanhamento_history()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF OLD.status_atual IS DISTINCT FROM NEW.status_atual THEN
+//       INSERT INTO public.acompanhamentos_historico (
+//         acompanhamento_id, status_anterior, status_novo, responsavel_mudanca
+//       ) VALUES (
+//         NEW.id, OLD.status_atual, NEW.status_atual, current_setting('request.jwt.claims', true)::jsonb->>'email'
+//       );
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION log_kanban_history()
 //   CREATE OR REPLACE FUNCTION public.log_kanban_history()
 //    RETURNS trigger
@@ -3928,6 +4100,73 @@ export const Constants = {
 //           RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;
 //        END IF;
 //     END LOOP;
+//   END;
+//   $function$
+//
+// FUNCTION route_acompanhamentos()
+//   CREATE OR REPLACE FUNCTION public.route_acompanhamentos()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   DECLARE
+//     item JSONB;
+//     tipo TEXT;
+//     proj_codigo TEXT;
+//     cli_nome TEXT;
+//     found_acompanhamento BOOLEAN := FALSE;
+//     new_produtos JSONB := '[]'::jsonb;
+//   BEGIN
+//     -- 1. Scan produtos_servicos array
+//     IF NEW.produtos_servicos IS NOT NULL THEN
+//       FOR item IN SELECT * FROM jsonb_array_elements(NEW.produtos_servicos)
+//       LOOP
+//         IF (item->>'nome') ILIKE '%acompanhamento%' OR (item->>'descricao') ILIKE '%acompanhamento%' THEN
+//           tipo := item->>'nome';
+//           proj_codigo := COALESCE(jsonb_extract_path_text(to_jsonb(NEW), 'codigo_projeto'), NEW.id::text);
+//           cli_nome := COALESCE(jsonb_extract_path_text(to_jsonb(NEW), 'nome_cliente'), 'Desconhecido');
+//
+//           INSERT INTO public.acompanhamentos (codigo_projeto, nome_cliente, tipo_acompanhamento, status_atual, quantidade_itens)
+//           VALUES (proj_codigo, cli_nome, tipo, 'INÍCIO', COALESCE((item->>'quantidade')::integer, 1))
+//           ON CONFLICT (codigo_projeto) DO NOTHING;
+//
+//           found_acompanhamento := TRUE;
+//         ELSE
+//           new_produtos := new_produtos || item;
+//         END IF;
+//       END LOOP;
+//
+//       IF found_acompanhamento THEN
+//         NEW.produtos_servicos := new_produtos;
+//       END IF;
+//     END IF;
+//
+//     -- 2. Scan itens array (fallback if structure is slightly different)
+//     IF NEW.itens IS NOT NULL THEN
+//       new_produtos := '[]'::jsonb;
+//       found_acompanhamento := FALSE;
+//       FOR item IN SELECT * FROM jsonb_array_elements(NEW.itens)
+//       LOOP
+//         IF (item->>'nome') ILIKE '%acompanhamento%' OR (item->>'descricao') ILIKE '%acompanhamento%' THEN
+//           tipo := item->>'nome';
+//           proj_codigo := COALESCE(jsonb_extract_path_text(to_jsonb(NEW), 'codigo_projeto'), NEW.id::text);
+//           cli_nome := COALESCE(jsonb_extract_path_text(to_jsonb(NEW), 'nome_cliente'), 'Desconhecido');
+//
+//           INSERT INTO public.acompanhamentos (codigo_projeto, nome_cliente, tipo_acompanhamento, status_atual, quantidade_itens)
+//           VALUES (proj_codigo, cli_nome, tipo, 'INÍCIO', COALESCE((item->>'quantidade')::integer, 1))
+//           ON CONFLICT DO NOTHING;
+//
+//           found_acompanhamento := TRUE;
+//         ELSE
+//           new_produtos := new_produtos || item;
+//         END IF;
+//       END LOOP;
+//
+//       IF found_acompanhamento THEN
+//         NEW.itens := new_produtos;
+//       END IF;
+//     END IF;
+//
+//     RETURN NEW;
 //   END;
 //   $function$
 //
@@ -4094,8 +4333,72 @@ export const Constants = {
 //   END;
 //   $function$
 //
+// FUNCTION update_responsavel_status()
+//   CREATE OR REPLACE FUNCTION public.update_responsavel_status()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     -- Se o responsável mudou, o novo fica Alocado
+//     IF NEW.responsavel_id IS NOT NULL AND (OLD.responsavel_id IS NULL OR NEW.responsavel_id != OLD.responsavel_id) AND NEW.status_atual != 'FINALIZAÇÃO' THEN
+//       UPDATE public.responsaveis_acompanhamentos SET status = 'Alocado' WHERE id = NEW.responsavel_id;
+//     END IF;
+//
+//     -- Se moveu pra FINALIZAÇÃO ou removeu responsável, verifica se o antigo pode ficar Disponível
+//     IF (NEW.status_atual = 'FINALIZAÇÃO' OR NEW.responsavel_id IS NULL OR NEW.responsavel_id != OLD.responsavel_id) AND OLD.responsavel_id IS NOT NULL THEN
+//       IF NOT EXISTS (
+//         SELECT 1 FROM public.acompanhamentos
+//         WHERE responsavel_id = OLD.responsavel_id
+//         AND status_atual != 'FINALIZAÇÃO'
+//         AND id != NEW.id
+//       ) THEN
+//         UPDATE public.responsaveis_acompanhamentos SET status = 'Disponível' WHERE id = OLD.responsavel_id;
+//       END IF;
+//     END IF;
+//
+//     RETURN NEW;
+//   END;
+//   $function$
+//
+// FUNCTION update_responsavel_status_delete()
+//   CREATE OR REPLACE FUNCTION public.update_responsavel_status_delete()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF OLD.responsavel_id IS NOT NULL THEN
+//       IF NOT EXISTS (
+//         SELECT 1 FROM public.acompanhamentos
+//         WHERE responsavel_id = OLD.responsavel_id
+//         AND status_atual != 'FINALIZAÇÃO'
+//       ) THEN
+//         UPDATE public.responsaveis_acompanhamentos SET status = 'Disponível' WHERE id = OLD.responsavel_id;
+//       END IF;
+//     END IF;
+//     RETURN OLD;
+//   END;
+//   $function$
+//
+// FUNCTION update_responsavel_status_insert()
+//   CREATE OR REPLACE FUNCTION public.update_responsavel_status_insert()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF NEW.responsavel_id IS NOT NULL AND NEW.status_atual != 'FINALIZAÇÃO' THEN
+//       UPDATE public.responsaveis_acompanhamentos SET status = 'Alocado' WHERE id = NEW.responsavel_id;
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 
 // --- TRIGGERS ---
+// Table: acompanhamentos
+//   on_acompanhamento_delete: CREATE TRIGGER on_acompanhamento_delete AFTER DELETE ON public.acompanhamentos FOR EACH ROW EXECUTE FUNCTION update_responsavel_status_delete()
+//   on_acompanhamento_insert: CREATE TRIGGER on_acompanhamento_insert AFTER INSERT ON public.acompanhamentos FOR EACH ROW EXECUTE FUNCTION update_responsavel_status_insert()
+//   on_acompanhamento_status_change: CREATE TRIGGER on_acompanhamento_status_change AFTER UPDATE OF status_atual ON public.acompanhamentos FOR EACH ROW EXECUTE FUNCTION log_acompanhamento_history()
+//   on_acompanhamento_update: CREATE TRIGGER on_acompanhamento_update AFTER UPDATE OF responsavel_id, status_atual ON public.acompanhamentos FOR EACH ROW EXECUTE FUNCTION update_responsavel_status()
 // Table: assinaturas
 //   on_signature_completed: CREATE TRIGGER on_signature_completed AFTER UPDATE ON public.assinaturas FOR EACH ROW EXECUTE FUNCTION trigger_finalize_signature()
 // Table: documentos_cliente
@@ -4104,6 +4407,7 @@ export const Constants = {
 //   trg_caixa_item_reservado: CREATE TRIGGER trg_caixa_item_reservado AFTER INSERT OR DELETE OR UPDATE ON public.estoque_caixas_itens FOR EACH ROW EXECUTE FUNCTION handle_caixa_item_reservado()
 // Table: formulario_comercial
 //   on_formulario_comercial_update: CREATE TRIGGER on_formulario_comercial_update AFTER INSERT OR UPDATE ON public.formulario_comercial FOR EACH ROW EXECUTE FUNCTION sync_formulario_items()
+//   route_acompanhamentos_trg: CREATE TRIGGER route_acompanhamentos_trg BEFORE INSERT OR UPDATE ON public.formulario_comercial FOR EACH ROW EXECUTE FUNCTION route_acompanhamentos()
 // Table: fornecedores
 //   set_fornecedores_atualizado_em: CREATE TRIGGER set_fornecedores_atualizado_em BEFORE UPDATE ON public.fornecedores FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 // Table: leads
@@ -4121,6 +4425,8 @@ export const Constants = {
 //   set_templates_atualizado_em: CREATE TRIGGER set_templates_atualizado_em BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION handle_updated_at()
 
 // --- INDEXES ---
+// Table: acompanhamentos
+//   CREATE UNIQUE INDEX acompanhamentos_codigo_projeto_key ON public.acompanhamentos USING btree (codigo_projeto)
 // Table: assinantes
 //   CREATE UNIQUE INDEX assinantes_token_acesso_key ON public.assinantes USING btree (token_acesso)
 // Table: clientes

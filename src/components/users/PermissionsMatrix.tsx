@@ -21,6 +21,7 @@ const MODULES = [
   'Análise Técnica',
   'Produção',
   'Montagem',
+  'Acompanhamentos',
   'Estoque & Compras',
   'Gestão de Pessoas',
   'Usuários',
