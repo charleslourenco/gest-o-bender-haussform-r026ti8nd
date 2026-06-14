@@ -760,19 +760,26 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao || isMontagemRoute
                     ? cn(
-                        'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border',
-                        item.is_outsourced ? 'border-orange-500' : 'border-transparent',
+                        'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border-2',
+                        item.is_outsourced
+                          ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                          : 'border-transparent dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                       )
                     : cn(
-                        'rounded-lg shadow-sm hover:shadow-md flex flex-col',
+                        'rounded-lg shadow-sm hover:shadow-md flex flex-col border-2',
                         isAnaliseTecnica
                           ? cn(
                               'bg-[#1A3D63] text-white p-1.5 gap-1',
                               item.is_outsourced
-                                ? 'border border-orange-500'
-                                : 'border border-white/10 hover:border-white/30',
+                                ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                : 'border-white/10 hover:border-white/30 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                             )
-                          : 'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-3 gap-2',
+                          : cn(
+                              'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-3 gap-2',
+                              item.is_outsourced
+                                ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                            ),
                       ),
                 )}
               >

@@ -112,7 +112,7 @@ export function AnaliseKanbanCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={`flex flex-col gap-1.5 p-3 w-full h-fit rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all 
-        ${card.is_outsourced ? 'bg-orange-100 text-orange-950 border-2 border-orange-400 hover:border-orange-500 dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500 dark:hover:border-orange-400' : 'bg-card text-card-foreground border border-border dark:border-cyan-500 hover:border-primary/50 dark:hover:border-cyan-400'} 
+        ${card.is_outsourced ? 'bg-orange-100 text-orange-950 border-2 border-orange-400 hover:border-orange-500 dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] dark:hover:border-orange-400' : 'bg-card text-card-foreground border-2 border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:border-primary/50 dark:hover:border-cyan-400'} 
         ${card.has_outsourced_dependency ? 'border-l-4 border-l-orange-600 dark:border-l-orange-500' : ''}
         ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
     >

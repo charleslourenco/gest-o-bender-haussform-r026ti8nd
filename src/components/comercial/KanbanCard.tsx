@@ -114,9 +114,9 @@ export function KanbanCard({
         onEdit()
       }}
       className={cn(
-        'bg-card border border-border dark:border-cyan-500 rounded-lg p-3 mb-3 shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 relative',
+        'bg-card border-2 border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] rounded-lg p-3 mb-3 shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 relative',
         isAguardando
-          ? 'border-orange-500/50 dark:border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.1)] dark:shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+          ? 'border-orange-500/50 dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] shadow-[0_0_10px_rgba(249,115,22,0.1)]'
           : '',
         isDragging && 'opacity-50 ring-2 ring-primary border-primary dark:border-primary',
       )}

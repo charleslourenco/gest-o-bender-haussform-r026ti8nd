@@ -78,19 +78,34 @@ export function KanbanCard({
       onClick={onClick}
       className={cn(
         isMontagem
-          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border border-transparent dark:border-cyan-500 cursor-pointer hover:shadow-md dark:hover:border-cyan-400 transition-all'
-          : 'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
+          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border-2 border-transparent cursor-pointer hover:shadow-md transition-all'
+          : 'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col border-2',
+        isMontagem && card.is_outsourced
+          ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] border-orange-500'
+          : isMontagem
+            ? 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400'
+            : '',
         !isMontagem && isAnaliseTecnica
           ? cn(
               'bg-[#1A3D63] text-white p-1.5 gap-1',
               card.is_outsourced
-                ? 'border-2 border-orange-500 bg-orange-500/10'
-                : 'border border-white/10 hover:border-white/30 dark:border-cyan-500 dark:hover:border-cyan-400',
+                ? 'border-orange-500 bg-orange-500/10 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                : 'border-white/10 hover:border-white/30 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
             )
           : !isMontagem && isProducao
-            ? 'bg-[#1A3D63] border border-white/20 hover:border-white/40 dark:border-cyan-500 dark:hover:border-cyan-400 p-2 gap-1 text-white'
+            ? cn(
+                'bg-[#1A3D63] hover:border-white/40 p-2 gap-1 text-white',
+                card.is_outsourced
+                  ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                  : 'border-white/20 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+              )
             : !isMontagem
-              ? 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower dark:border-cyan-500 dark:hover:border-cyan-400 p-3 gap-2 text-white'
+              ? cn(
+                  'bg-midnight-navy hover:border-pale-cornflower p-3 gap-2 text-white',
+                  card.is_outsourced
+                    ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                    : 'border-steel-blue/40 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+                )
               : '',
       )}
     >
