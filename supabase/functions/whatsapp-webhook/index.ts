@@ -2,6 +2,31 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import OpenAI from 'npm:openai@4'
 
+async function sendZapiMessage(phone: string, text: string) {
+  const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
+  const zapiToken = Deno.env.get('ZAPI_TOKEN')
+  if (zapiInstance && zapiToken && text) {
+    const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
+    try {
+      const payload = { phone, message: text }
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Client-Token': Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+      }
+      const zapiRes = await fetch(zapiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      })
+      if (!zapiRes.ok) {
+        console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
+      }
+    } catch (e) {
+      console.error('Falha de rede ao chamar Z-API:', e)
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
@@ -214,20 +239,85 @@ Deno.serve(async (req) => {
       if (insertCatarinaResetErr)
         console.error('Erro ao inserir mensagem da Catarina (Reset):', insertCatarinaResetErr)
 
-      const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-      const zapiToken = Deno.env.get('ZAPI_TOKEN')
-      if (zapiInstance && zapiToken) {
-        await fetch(`https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Client-Token':
-              Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-          },
-          body: JSON.stringify({ phone, message: botMsg }),
-        }).catch(() => {})
-      }
+      await sendZapiMessage(phone, botMsg)
       return new Response('Reset OK', { status: 200 })
+    }
+
+    // Weekend Sub-flow Handlers
+    if (session.step === 90 || session.step === 91) {
+      if (session.step === 90) {
+        const msgUpper = messageText.trim().toUpperCase()
+
+        if (
+          msgUpper === 'NÃO' ||
+          msgUpper === 'NAO' ||
+          msgUpper === 'N' ||
+          msgUpper.includes('NÃO PRECISA') ||
+          msgUpper.includes('NAO PRECISA')
+        ) {
+          const botMsg = 'Tá bom! Ana vai entrar em contato com você segunda-feira de manhã.'
+          await supabase.from('whatsapp_messages').insert({
+            lead_id: lead.id,
+            phone,
+            sender_type: 'catarina',
+            sender_name: 'Catarina',
+            content: botMsg,
+            direction: 'outbound',
+            created_at: new Date().toISOString(),
+          })
+          await sendZapiMessage(phone, botMsg)
+          await supabase
+            .from('whatsapp_sessions')
+            .update({ step: 99, updated_at: nowStr })
+            .eq('id', session.id)
+          await supabase
+            .from('leads')
+            .update({ status: 'Aguardando Consultor', atualizado_em: nowStr })
+            .eq('id', lead.id)
+        } else {
+          const botMsg = 'Qual informação você gostaria que eu anotasse para ela?'
+          await supabase.from('whatsapp_messages').insert({
+            lead_id: lead.id,
+            phone,
+            sender_type: 'catarina',
+            sender_name: 'Catarina',
+            content: botMsg,
+            direction: 'outbound',
+            created_at: new Date().toISOString(),
+          })
+          await sendZapiMessage(phone, botMsg)
+          await supabase
+            .from('whatsapp_sessions')
+            .update({ step: 91, updated_at: nowStr })
+            .eq('id', session.id)
+        }
+      } else if (session.step === 91) {
+        const botMsg = 'Perfeito! Anotei tudo. Ana vai receber com suas informações.'
+        await supabase.from('whatsapp_messages').insert({
+          lead_id: lead.id,
+          phone,
+          sender_type: 'catarina',
+          sender_name: 'Catarina',
+          content: botMsg,
+          direction: 'outbound',
+          created_at: new Date().toISOString(),
+        })
+        await sendZapiMessage(phone, botMsg)
+
+        const timestampStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+        const noteAddition = `\n[${timestampStr}] Info Extra Fim de Semana:\n${messageText}`
+        const newNotas = lead.notas ? lead.notas + '\n' + noteAddition : noteAddition
+
+        await supabase
+          .from('whatsapp_sessions')
+          .update({ step: 99, updated_at: nowStr })
+          .eq('id', session.id)
+        await supabase
+          .from('leads')
+          .update({ status: 'Aguardando Consultor', notas: newNotas, atualizado_em: nowStr })
+          .eq('id', lead.id)
+      }
+      return new Response('Weekend subflow handled', { status: 200 })
     }
 
     // Human Managed Flow
@@ -295,22 +385,7 @@ Deno.serve(async (req) => {
               insertCatarinaStandbyErr,
             )
 
-          const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-          const zapiToken = Deno.env.get('ZAPI_TOKEN')
-          if (zapiInstance && zapiToken) {
-            await fetch(
-              `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Client-Token':
-                    Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-                },
-                body: JSON.stringify({ phone, message: botMsg }),
-              },
-            ).catch(() => {})
-          }
+          await sendZapiMessage(phone, botMsg)
 
           const { data: cli } = await supabase
             .from('clientes')
@@ -381,7 +456,7 @@ Você precisa descobrir as seguintes informações (faça UMA pergunta por vez, 
 Regras de Ouro:
 - VERIFIQUE O HISTÓRICO: O histórico da conversa está nas mensagens anteriores. Se você já falou com o cliente antes, NÃO se apresente novamente e retome o assunto de forma natural (ex: "Dando sequência ao que falávamos...").
 - PRIMEIRA MENSAGEM: Se não houver histórico de conversas, apresente-se amigavelmente. Ex: "Olá! Sou a Catarina, Consultora Virtual da Bender Haussform, de Balneário Piçarras - SC."
-- TRANSIÇÃO PARA A ANA: Quando for realizar o transbordo, SEMPRE diga que vai repassar a conversa para a **Ana**. (Ex: "Vou repassar suas informações para a Ana, nossa especialista...").
+- TRANSIÇÃO PARA A ANA: Quando for realizar o transbordo, NÃO se despeça nem diga que vai repassar para a Ana. Apenas forneça a última resposta natural ao cliente (ex: confirmando que entendeu) e marque "transbordo": true. O sistema adicionará automaticamente a mensagem de transbordo correta.
 - Trate o cliente pelo nome se souber (nome atual fornecido pelo WhatsApp: ${senderName}).
 - Seja natural, não pareça um formulário robótico. Reaja ao que o cliente diz.
 - Atendemos exclusivamente o litoral de SC e regiões próximas a Balneário Piçarras. Se o cliente for de uma cidade fora da área, informe educadamente, MAS NÃO ENCERRE o atendimento bruscamente.
@@ -389,7 +464,6 @@ Regras de Ouro:
   a) O cliente pedir explicitamente para falar com um consultor/humano/Ana; OU
   b) O assunto for assistência técnica/reparo; OU
   c) Você já tiver finalizado a coleta de TODAS as informações principais (os 5 pontos de triagem) e for a hora de repassar para a Ana.
-- Ao marcar transbordo = true, SEMPRE envie uma última mensagem avisando o cliente que a **Ana** vai assumir a conversa em breve.
 - Retorne SEMPRE um JSON válido com a seguinte estrutura:
 {
   "resposta": "Sua resposta aqui. Pode usar ||| para quebrar em múltiplas mensagens",
@@ -474,27 +548,36 @@ async function processResponse(
   isTransbordo: boolean,
   dados: any,
 ) {
-  const readableText = responseText.replace(/\|\|\|/g, ' ')
+  let messagesToSend = responseText
+    .split('|||')
+    .map((m: string) => m.trim())
+    .filter(Boolean)
 
-  const { error: insertCatarinaErr } = await supabase.from('whatsapp_messages').insert({
-    lead_id: lead.id,
-    phone,
-    sender_type: 'catarina',
-    sender_name: 'Catarina',
-    content: readableText,
-    direction: 'outbound',
-    created_at: new Date().toISOString(),
-  })
+  const now = new Date()
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000
+  const brTime = new Date(utc - 3600000 * 3)
+  const day = brTime.getDay()
+  const hour = brTime.getHours()
 
-  if (insertCatarinaErr)
-    console.error('Erro ao inserir mensagem da Catarina (Resposta):', insertCatarinaErr)
+  const isWeekend = day === 0 || day === 6 || (day === 5 && hour >= 18)
 
   let nextStep = session.step
   let nextStatus = lead.status
 
   if (isTransbordo) {
-    nextStep = 99
-    nextStatus = 'Aguardando Consultor'
+    if (isWeekend) {
+      nextStep = 90
+      messagesToSend.push(
+        'Vou passar para a Ana, nossa especialista. Como é fim de semana, ela vai entrar em contato com você segunda-feira de manhã. Tá bom?',
+      )
+      messagesToSend.push('Quer que eu anote algo mais para ela?')
+    } else {
+      nextStep = 99
+      nextStatus = 'Aguardando Consultor'
+      messagesToSend.push(
+        'Vou passar para a Ana, nossa especialista. Ela vai ligar para conversar sobre o projeto.',
+      )
+    }
   } else if (session.step === 0) {
     nextStep = 1
   }
@@ -542,45 +625,62 @@ async function processResponse(
     if (updateSessionErr) console.error('Erro ao atualizar step da sessão:', updateSessionErr)
   }
 
-  const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-  const zapiToken = Deno.env.get('ZAPI_TOKEN')
+  if (messagesToSend.length > 0) {
+    const finalContentToSave = messagesToSend.join('\n\n')
+    const { error: insertCatarinaErr } = await supabase.from('whatsapp_messages').insert({
+      lead_id: lead.id,
+      phone,
+      sender_type: 'catarina',
+      sender_name: 'Catarina',
+      content: finalContentToSave,
+      direction: 'outbound',
+      created_at: new Date().toISOString(),
+    })
 
-  if (zapiInstance && zapiToken && responseText) {
-    const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
+    if (insertCatarinaErr)
+      console.error('Erro ao inserir mensagem da Catarina (Resposta):', insertCatarinaErr)
 
-    try {
-      const messages = responseText
-        .split('|||')
-        .map((m: string) => m.trim())
-        .filter(Boolean)
+    const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
+    const zapiToken = Deno.env.get('ZAPI_TOKEN')
 
-      for (const msg of messages) {
-        const payload = {
-          phone,
-          message: msg,
+    if (zapiInstance && zapiToken) {
+      const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
+
+      try {
+        for (let i = 0; i < messagesToSend.length; i++) {
+          const msg = messagesToSend[i]
+          const payload = {
+            phone,
+            message: msg,
+          }
+
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Client-Token':
+              Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
+          }
+
+          const zapiRes = await fetch(zapiUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(payload),
+          })
+
+          if (!zapiRes.ok) {
+            console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
+          }
+
+          if (i < messagesToSend.length - 1) {
+            let delay = 1500
+            if (isTransbordo && isWeekend && i === messagesToSend.length - 2) {
+              delay = 2000
+            }
+            await new Promise((resolve) => setTimeout(resolve, delay))
+          }
         }
-
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'Client-Token': Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-        }
-
-        const zapiRes = await fetch(zapiUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-        })
-
-        if (!zapiRes.ok) {
-          console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
-        }
-
-        if (messages.length > 1) {
-          await new Promise((resolve) => setTimeout(resolve, 1500))
-        }
+      } catch (e) {
+        console.error('Falha de rede ao chamar Z-API:', e)
       }
-    } catch (e) {
-      console.error('Falha de rede ao chamar Z-API:', e)
     }
   }
 }
