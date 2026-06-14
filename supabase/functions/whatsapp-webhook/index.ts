@@ -151,6 +151,7 @@ Deno.serve(async (req) => {
           .from('leads')
           .update({
             status: newStatus,
+            status_atendimento: 'em_atendimento',
             atualizado_em: nowStr,
           })
           .eq('id', lead.id)
@@ -414,6 +415,7 @@ Deno.serve(async (req) => {
         .from('leads')
         .update({
           atualizado_em: nowStr,
+          status_atendimento: 'aguardando_resposta',
         })
         .eq('id', lead.id)
 
@@ -599,6 +601,10 @@ async function processResponse(
   const updatePayload: any = {
     status: nextStatus,
     atualizado_em: new Date().toISOString(),
+  }
+
+  if (isTransbordo) {
+    updatePayload.status_atendimento = 'aguardando_resposta'
   }
 
   if (catSugerida && catSugerida !== lead.categoria) {

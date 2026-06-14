@@ -41,6 +41,7 @@ interface Lead {
   notas?: string | null
   created_at?: string
   kanban_ativo?: boolean
+  status_atendimento?: string
 }
 
 interface User {
@@ -67,6 +68,8 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
   const [date, setDate] = useState<DateRange | undefined>()
 
   const [updating, setUpdating] = useState(false)
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -222,6 +225,57 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
     }
   }
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedLead) return
+    try {
+      setSendingMessage(true)
+
+      const { data: userData } = await supabase.auth.getSession()
+      const userName = userData.session?.user?.user_metadata?.name || 'Ana'
+
+      const msgExternalId = `msg_out_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+
+      // Inserts the message as Ana
+      await supabase.from('whatsapp_messages').insert({
+        lead_id: selectedLead.id,
+        phone: selectedLead.telefone,
+        sender_type: 'ana',
+        sender_name: userName,
+        content: newMessage.trim(),
+        direction: 'outbound',
+        external_id: msgExternalId,
+        created_at: new Date().toISOString(),
+      })
+
+      // Updates attendance status indicating human action
+      await handleUpdateLead(selectedLead.id, { status_atendimento: 'em_atendimento' })
+
+      setNewMessage('')
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao enviar mensagem')
+    } finally {
+      setSendingMessage(false)
+    }
+  }
+
+  const getStatusClasses = (status?: string, isSelected?: boolean) => {
+    switch (status) {
+      case 'aguardando_resposta':
+        return `border-l-[5px] border-l-[#FFA500] ${!isSelected ? 'bg-[#FFA500]/5 hover:bg-[#FFA500]/10' : ''}`
+      case 'em_atendimento':
+        return `border-l-[5px] border-l-[#0066CC] ${!isSelected ? 'bg-[#0066CC]/5 hover:bg-[#0066CC]/10' : ''}`
+      case 'respondida':
+        return `border-l-[5px] border-l-[#00AA00] ${!isSelected ? 'bg-[#00AA00]/5 hover:bg-[#00AA00]/10' : ''}`
+      case 'finalizada':
+        return `border-l-[5px] border-l-[#CCCCCC] ${!isSelected ? 'bg-[#CCCCCC]/5 hover:bg-[#CCCCCC]/10' : ''}`
+      case 'arquivada':
+        return `border-l-[5px] border-l-[#999999] opacity-60 ${!isSelected ? 'bg-[#999999]/5 hover:bg-[#999999]/10' : ''}`
+      default:
+        return 'border-l-[5px] border-l-transparent'
+    }
+  }
+
   return (
     <div className="flex h-full w-full bg-background">
       {isActive &&
@@ -335,23 +389,33 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-1">
-            {filteredLeads.map((lead) => (
-              <button
-                key={lead.id}
-                onClick={() => setSelectedLead(lead)}
-                className={`w-full text-left p-3 rounded-md transition-colors ${
-                  selectedLead?.id === lead.id
-                    ? 'bg-secondary text-secondary-foreground shadow-sm border border-border'
-                    : 'hover:bg-muted text-foreground hover:shadow-sm border border-transparent'
-                }`}
-              >
-                <div className="font-medium truncate">{lead.nome}</div>
-                <div className="text-xs mt-1 opacity-70 truncate">
-                  {lead.categoria || 'Sem categoria'} •{' '}
-                  {lead.status?.replace('Consultor', 'Responsável')}
-                </div>
-              </button>
-            ))}
+            {filteredLeads.map((lead) => {
+              const isSelected = selectedLead?.id === lead.id
+              const statusClasses = getStatusClasses(lead.status_atendimento, isSelected)
+
+              return (
+                <button
+                  key={lead.id}
+                  onClick={() => setSelectedLead(lead)}
+                  data-status={lead.status_atendimento}
+                  className={cn(
+                    'w-full text-left p-3 rounded-md transition-colors border',
+                    isSelected
+                      ? 'bg-secondary text-secondary-foreground shadow-sm border-border'
+                      : 'text-foreground hover:shadow-sm border-transparent hover:border-border/50',
+                    statusClasses,
+                  )}
+                >
+                  <div className="font-medium truncate">{lead.nome}</div>
+                  <div className="text-xs mt-1 opacity-70 truncate flex justify-between items-center">
+                    <span>
+                      {lead.categoria || 'Sem categoria'} •{' '}
+                      {lead.status?.replace('Consultor', 'Responsável')}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
             {filteredLeads.length === 0 && (
               <div className="text-center p-4 text-muted-foreground text-sm">
                 Nenhum lead encontrado
@@ -519,6 +583,24 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                 )}
               </div>
             </ScrollArea>
+            <div className="p-4 bg-background border-t border-border shrink-0 flex items-center gap-2">
+              <Input
+                placeholder="Digite sua mensagem para o cliente..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                disabled={sendingMessage}
+                className="flex-1"
+              />
+              <Button onClick={handleSendMessage} disabled={!newMessage.trim() || sendingMessage}>
+                {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Enviar'}
+              </Button>
+            </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -620,6 +702,30 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                     <SelectItem value="Recompra">Recompra</SelectItem>
                     <SelectItem value="Indicação">Indicação</SelectItem>
                     <SelectItem value="Porta">Porta</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase">
+                  Status de Atendimento
+                </label>
+                <Select
+                  disabled={updating}
+                  value={selectedLead.status_atendimento || 'aguardando_resposta'}
+                  onValueChange={(val) =>
+                    handleUpdateLead(selectedLead.id, { status_atendimento: val })
+                  }
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Status atendimento..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aguardando_resposta">Aguardando Resposta</SelectItem>
+                    <SelectItem value="em_atendimento">Em Atendimento</SelectItem>
+                    <SelectItem value="respondida">Respondida</SelectItem>
+                    <SelectItem value="finalizada">Finalizada</SelectItem>
+                    <SelectItem value="arquivada">Arquivada</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
