@@ -49,7 +49,7 @@ export function AnaliseProjetoKanbanBoard() {
         leads (
           users (nome)
         ),
-        produtos_servicos_projeto (nome_produto, is_outsourced)
+        produtos_servicos_projeto (nome_produto, is_outsourced, status_analise)
       `)
 
     if (error) {
@@ -138,15 +138,15 @@ export function AnaliseProjetoKanbanBoard() {
   if (loading) return <div className="p-8 text-slate-400">Carregando...</div>
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50/50">
+    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50/50 dark:bg-transparent">
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex gap-4 p-6 h-full w-max items-stretch">
           {columnsData.map((col) => (
             <div
               key={col.id}
               className={cn(
-                'flex flex-col w-[340px] bg-slate-100/50 rounded-xl border border-slate-200 shrink-0 h-full',
-                dragOverCol === col.id && 'bg-slate-100 border-primary/50',
+                'flex flex-col w-[340px] bg-slate-100/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 h-full',
+                dragOverCol === col.id && 'bg-slate-100 dark:bg-slate-800 border-primary/50',
               )}
               onDragOver={(e) => {
                 e.preventDefault()
@@ -155,9 +155,11 @@ export function AnaliseProjetoKanbanBoard() {
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, col.id)}
             >
-              <div className="p-3 border-b border-slate-200 flex items-center justify-between bg-slate-100 rounded-t-xl">
-                <h3 className="font-semibold text-sm text-slate-700">{col.title}</h3>
-                <span className="bg-white text-slate-600 text-xs px-2 py-0.5 rounded-full font-medium shadow-sm border border-slate-200">
+              <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 rounded-t-xl">
+                <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-200">
+                  {col.title}
+                </h3>
+                <span className="bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full font-medium shadow-sm border border-slate-200 dark:border-slate-800">
                   {col.items.length}
                 </span>
               </div>
@@ -207,6 +209,13 @@ export function AnaliseProjetoKanbanBoard() {
                     ].filter((p) => Boolean(p.name))
                   }
 
+                  const isAlert = project.produtos_servicos_projeto?.some(
+                    (p: any) =>
+                      p.is_outsourced ||
+                      p.status_analise === 'aguardando_consultor' ||
+                      p.status_analise === 'item_terceirizado',
+                  )
+
                   return (
                     <div
                       key={project.id}
@@ -218,16 +227,17 @@ export function AnaliseProjetoKanbanBoard() {
                       onDragEnd={() => setDraggingId(null)}
                       onClick={() => navigate(`/analise-tecnica/${project.id}`)}
                       className={cn(
-                        'bg-[#1A3D63] text-[#F6FAFD] p-4 rounded-lg shadow-sm border cursor-pointer hover:border-[#4B7BB0] hover:shadow-md transition-all group relative',
-                        draggingId === project.id
-                          ? 'opacity-50 ring-2 ring-blue-500 border-[#2A5282]'
-                          : 'border-[#2A5282]',
+                        'p-4 rounded-lg shadow-sm border-2 cursor-pointer transition-all group relative',
+                        isAlert
+                          ? 'bg-orange-50 text-orange-950 border-orange-200 hover:border-orange-300 dark:bg-orange-950/20 dark:text-orange-300 dark:border-orange-500/50 dark:shadow-[0_0_15px_rgba(249,115,22,0.3)] dark:hover:border-orange-400'
+                          : 'bg-card text-card-foreground border-border hover:border-slate-300 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:border-cyan-400',
+                        draggingId === project.id && 'opacity-50 ring-2 ring-blue-500',
                       )}
                     >
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button
-                            className="absolute top-3 right-3 text-[#F6FAFD]/60 hover:text-red-400 transition-colors p-1.5 rounded hover:bg-red-500/20 opacity-0 group-hover:opacity-100"
+                            className="absolute top-3 right-3 text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100"
                             onClick={(e) => e.stopPropagation()}
                             title="Excluir Projeto"
                           >
@@ -257,52 +267,51 @@ export function AnaliseProjetoKanbanBoard() {
                         </AlertDialogContent>
                       </AlertDialog>
 
-                      <h4 className="font-semibold text-sm text-[#F6FAFD] mb-3 pr-6 line-clamp-2">
-                        {clientName}
-                      </h4>
+                      <h4 className="font-semibold text-sm mb-3 pr-6 line-clamp-2">{clientName}</h4>
 
                       <div className="space-y-2 mb-3">
-                        <div className="flex items-center text-xs text-[#F6FAFD]/80">
-                          <DollarSign className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
-                          <span className="font-medium">
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <DollarSign className="w-3.5 h-3.5 mr-2 opacity-70" />
+                          <span className="font-medium text-foreground">
                             {new Intl.NumberFormat('pt-BR', {
                               style: 'currency',
                               currency: 'BRL',
                             }).format(project.valor_total || 0)}
                           </span>
                         </div>
-                        <div className="flex items-center text-xs text-[#F6FAFD]/80">
-                          <User className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <User className="w-3.5 h-3.5 mr-2 opacity-70" />
                           <span className="truncate">{consultantName}</span>
                         </div>
                         {project.data_prevista_entrega && (
-                          <div className="flex items-center text-xs text-[#F6FAFD]/80">
-                            <Calendar className="w-3.5 h-3.5 mr-2 text-[#F6FAFD]/60" />
+                          <div className="flex items-center text-xs text-muted-foreground">
+                            <Calendar className="w-3.5 h-3.5 mr-2 opacity-70" />
                             {format(new Date(project.data_prevista_entrega), 'dd/MM/yyyy')}
                           </div>
                         )}
                       </div>
 
                       {productNames.length > 0 && (
-                        <div className="pt-3 border-t border-[#2A5282]">
-                          <div className="text-[10px] font-semibold text-[#F6FAFD]/60 uppercase mb-1.5 tracking-wider">
+                        <div className="pt-3 border-t border-border">
+                          <div className="text-[10px] font-semibold text-muted-foreground uppercase mb-1.5 tracking-wider">
                             Itens do Projeto ({productNames.length})
                           </div>
                           <div className="flex flex-col gap-1 w-full">
                             {productNames.slice(0, 5).map((item, idx: number) => (
                               <div
                                 key={idx}
-                                className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${
+                                className={cn(
+                                  'text-xs px-2 py-1 rounded w-full break-words leading-tight border',
                                   item.is_outsourced
-                                    ? 'bg-orange-600 border-orange-500 text-white'
-                                    : 'bg-[#0F294A] border-[#2A5282] text-[#F6FAFD]'
-                                }`}
+                                    ? 'bg-orange-100 border-orange-200 text-orange-900 dark:bg-orange-900/30 dark:border-orange-500/30 dark:text-orange-200'
+                                    : 'bg-muted/50 border-border text-foreground',
+                                )}
                               >
                                 • {item.name}
                               </div>
                             ))}
                             {productNames.length > 5 && (
-                              <div className="text-[#F6FAFD]/60 text-xs pl-2 italic">
+                              <div className="text-muted-foreground text-xs pl-2 italic">
                                 + {productNames.length - 5} item(ns)...
                               </div>
                             )}
