@@ -13,6 +13,7 @@ import {
   Factory,
   Hammer,
   Package,
+  ClipboardCheck,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -41,6 +42,12 @@ const menuItems = [
   },
   { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
   { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
+  {
+    title: 'Acompanhamentos',
+    icon: ClipboardCheck,
+    url: '/acompanhamentos',
+    module: 'Acompanhamentos',
+  },
   {
     title: 'Estoque & Compras',
     icon: Package,

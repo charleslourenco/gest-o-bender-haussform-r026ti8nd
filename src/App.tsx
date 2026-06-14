@@ -14,6 +14,7 @@ import AnaliseTecnica from './pages/AnaliseTecnica'
 import AnaliseTecnicaDetalhe from './pages/AnaliseTecnicaDetalhe'
 import Producao from './pages/Producao'
 import Montagem from './pages/Montagem'
+import Acompanhamentos from './pages/Acompanhamentos'
 import NotFound from './pages/NotFound'
 import EstoqueCompras from './pages/EstoqueCompras'
 import GestaoPessoas from './pages/GestaoPessoas'
@@ -58,6 +59,7 @@ const App = () => (
                 <Route path="/analise-tecnica/:id" element={<AnaliseTecnicaDetalhe />} />
                 <Route path="/producao" element={<Producao />} />
                 <Route path="/montagem" element={<Montagem />} />
+                <Route path="/acompanhamentos" element={<Acompanhamentos />} />
                 <Route path="/estoque-compras" element={<EstoqueCompras />} />
                 <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
                 <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />
