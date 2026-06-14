@@ -78,19 +78,19 @@ export function KanbanCard({
       onClick={onClick}
       className={cn(
         isMontagem
-          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border-none cursor-pointer hover:shadow-md transition-all'
+          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border border-transparent dark:border-cyan-500 cursor-pointer hover:shadow-md dark:hover:border-cyan-400 transition-all'
           : 'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col',
         !isMontagem && isAnaliseTecnica
           ? cn(
               'bg-[#1A3D63] text-white p-1.5 gap-1',
               card.is_outsourced
                 ? 'border-2 border-orange-500 bg-orange-500/10'
-                : 'border border-white/10 hover:border-white/30',
+                : 'border border-white/10 hover:border-white/30 dark:border-cyan-500 dark:hover:border-cyan-400',
             )
           : !isMontagem && isProducao
-            ? 'bg-[#1A3D63] border border-white/20 hover:border-white/40 p-2 gap-1 text-white'
+            ? 'bg-[#1A3D63] border border-white/20 hover:border-white/40 dark:border-cyan-500 dark:hover:border-cyan-400 p-2 gap-1 text-white'
             : !isMontagem
-              ? 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower p-3 gap-2 text-white'
+              ? 'bg-midnight-navy border border-steel-blue/40 hover:border-pale-cornflower dark:border-cyan-500 dark:hover:border-cyan-400 p-3 gap-2 text-white'
               : '',
       )}
     >

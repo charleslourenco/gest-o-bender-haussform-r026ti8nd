@@ -399,10 +399,10 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                   onClick={() => setSelectedLead(lead)}
                   data-status={lead.status_atendimento}
                   className={cn(
-                    'w-full text-left p-3 rounded-md transition-colors border',
+                    'w-full text-left p-3 rounded-md transition-colors border dark:border-cyan-500',
                     isSelected
-                      ? 'bg-secondary text-secondary-foreground shadow-sm border-border'
-                      : 'text-foreground hover:shadow-sm border-transparent hover:border-border/50',
+                      ? 'bg-secondary text-secondary-foreground shadow-sm border-border dark:border-cyan-400'
+                      : 'text-foreground hover:shadow-sm border-transparent hover:border-border/50 dark:border-cyan-500/50 dark:hover:border-cyan-400',
                     statusClasses,
                   )}
                 >

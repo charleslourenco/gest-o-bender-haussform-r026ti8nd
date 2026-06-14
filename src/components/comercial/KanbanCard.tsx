@@ -114,11 +114,11 @@ export function KanbanCard({
         onEdit()
       }}
       className={cn(
-        'bg-card border border-border rounded-lg p-3 mb-3 shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:border-primary/50 relative',
+        'bg-card border border-border dark:border-cyan-500 rounded-lg p-3 mb-3 shadow-sm transition-all duration-200 cursor-pointer group hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 relative',
         isAguardando
-          ? 'border-orange-500/50 shadow-[0_0_10px_rgba(249,115,22,0.1)] dark:shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+          ? 'border-orange-500/50 dark:border-orange-500/80 shadow-[0_0_10px_rgba(249,115,22,0.1)] dark:shadow-[0_0_10px_rgba(249,115,22,0.2)]'
           : '',
-        isDragging && 'opacity-50 ring-2 ring-primary border-primary',
+        isDragging && 'opacity-50 ring-2 ring-primary border-primary dark:border-primary',
       )}
     >
       <div className="flex justify-between items-start mb-2.5">
