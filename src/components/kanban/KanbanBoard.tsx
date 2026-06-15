@@ -463,7 +463,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
 
     if (selectedAnalyst !== 'all') {
-      if (selectedAnalyst === 'unassigned' && item?.analista_id !== null) return false
+      if (selectedAnalyst === 'unassigned' && item?.analista_id) return false
       if (selectedAnalyst !== 'unassigned' && item?.analista_id !== selectedAnalyst) return false
     }
 
@@ -700,7 +700,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   const renderColumns = () =>
     columns.map((col) => {
-      const colItems = filteredItems.filter((i) => i.status_analise === col.id)
+      const colItems = (filteredItems || []).filter((i) => i && i.status_analise === col.id)
       return (
         <div
           key={col.id}
@@ -1053,7 +1053,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             ))}
 
             {colItems.length === 0 && (
-              <div className="flex flex-1 min-h-[120px] items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40 pointer-events-none">
+              <div className="flex-1 min-h-[120px] h-full flex items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40 pointer-events-none">
                 <p className="text-sm font-medium text-steel-blue/50">Solte os cards aqui</p>
               </div>
             )}
@@ -1230,102 +1230,104 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredItems.map((item) => (
-                      <TableRow
-                        key={item?.id ?? Math.random().toString()}
-                        className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
-                      >
-                        <TableCell>
-                          <div className="flex flex-col gap-1 items-start">
-                            <span className="text-[10px] text-steel-blue font-medium mb-0.5">
-                              {getClienteNome(item) || 'Avulso'}
-                            </span>
-                            <span className="font-semibold leading-tight">
-                              {item?.nome_produto ?? 'Sem nome'}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {item?.codigo_rastreio && (
-                                <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
-                                  {item.codigo_rastreio}
-                                </span>
-                              )}
-                              {isAnaliseTecnica &&
-                                !item?.is_outsourced &&
-                                !item?.outsourced_checked && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      if (item?.id) handleOpenValidation(item.id)
-                                    }}
-                                    title="Terceirizado Pendente"
-                                    className="inline-flex items-center justify-center p-1 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-                                  >
-                                    <AlertTriangle className="h-3.5 w-3.5" />
-                                  </button>
+                    filteredItems.map((item) =>
+                      item ? (
+                        <TableRow
+                          key={item?.id ?? Math.random().toString()}
+                          className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
+                        >
+                          <TableCell>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="text-[10px] text-steel-blue font-medium mb-0.5">
+                                {getClienteNome(item) || 'Avulso'}
+                              </span>
+                              <span className="font-semibold leading-tight">
+                                {item?.nome_produto ?? 'Sem nome'}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                {item?.codigo_rastreio && (
+                                  <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
+                                    {item.codigo_rastreio}
+                                  </span>
                                 )}
+                                {isAnaliseTecnica &&
+                                  !item?.is_outsourced &&
+                                  !item?.outsourced_checked && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        if (item?.id) handleOpenValidation(item.id)
+                                      }}
+                                      title="Terceirizado Pendente"
+                                      className="inline-flex items-center justify-center p-1 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                                    >
+                                      <AlertTriangle className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">
-                          {item?.criado_em
-                            ? new Date(item.criado_em).toLocaleDateString('pt-BR')
-                            : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={item?.status_analise ?? ''}
-                            onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
-                          >
-                            <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
-                              <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px]">
-                              {columns.map((c) => (
-                                <SelectItem key={c.id} value={c.id} className="text-xs">
-                                  {c.title}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {item?.criado_em
+                              ? new Date(item.criado_em).toLocaleDateString('pt-BR')
+                              : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={item?.status_analise ?? ''}
+                              onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                                <SelectValue placeholder="Status" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[300px]">
+                                {columns.map((c) => (
+                                  <SelectItem key={c.id} value={c.id} className="text-xs">
+                                    {c.title}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={item?.analista_id || 'unassigned'}
+                              onValueChange={(val) =>
+                                item?.id &&
+                                handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                                <SelectValue placeholder="Responsável" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem
+                                  value="unassigned"
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  Não atribuído
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={item?.analista_id || 'unassigned'}
-                            onValueChange={(val) =>
-                              item?.id &&
-                              handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
-                            }
-                          >
-                            <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
-                              <SelectValue placeholder="Responsável" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem
-                                value="unassigned"
-                                className="text-xs text-muted-foreground"
-                              >
-                                Não atribuído
-                              </SelectItem>
-                              {allUsers.map((u) => (
-                                <SelectItem key={u.id} value={u.id} className="text-xs">
-                                  {u.nome}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <button
-                            onClick={() => item?.id && handleDeleteCard(item.id)}
-                            className="p-2 rounded-md hover:bg-red-50 text-red-500 transition-colors inline-flex items-center justify-center"
-                            title="Excluir item"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                {allUsers.map((u) => (
+                                  <SelectItem key={u.id} value={u.id} className="text-xs">
+                                    {u.nome}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <button
+                              onClick={() => item?.id && handleDeleteCard(item.id)}
+                              className="p-2 rounded-md hover:bg-red-50 text-red-500 transition-colors inline-flex items-center justify-center"
+                              title="Excluir item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      ) : null,
+                    )
                   )}
                 </TableBody>
               </Table>

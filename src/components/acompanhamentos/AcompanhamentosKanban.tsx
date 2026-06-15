@@ -144,16 +144,22 @@ export function AcompanhamentosKanban() {
     const cardId = e.dataTransfer.getData('cardId')
     if (!cardId) return
 
-    // Optimistic update
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status_atual: status } : c)))
+    try {
+      // Optimistic update
+      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status_atual: status } : c)))
 
-    const { error } = await supabase
-      .from('acompanhamentos')
-      .update({ status_atual: status })
-      .eq('id', cardId)
+      const { error } = await supabase
+        .from('acompanhamentos')
+        .update({ status_atual: status })
+        .eq('id', cardId)
 
-    if (error) {
-      toast({ title: 'Erro ao mover card', description: error.message, variant: 'destructive' })
+      if (error) throw error
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao mover card',
+        description: error.message || 'Erro desconhecido',
+        variant: 'destructive',
+      })
       fetchCards() // Revert
     }
   }
@@ -172,37 +178,37 @@ export function AcompanhamentosKanban() {
         onDragLeave={handleContainerDragLeave}
         className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 items-stretch min-h-0"
       >
-        {COLUMNS.map((col) => (
-          <div
-            key={col}
-            className={cn(
-              'flex flex-col flex-shrink-0 w-[300px] h-full rounded-lg border transition-colors',
-              dragOverCol === col
-                ? 'bg-muted/50 border-primary/50 ring-2 ring-primary/20'
-                : 'bg-muted/30 border-border',
-            )}
-            onDragOver={(e) => handleDragOver(e, col)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, col)}
-          >
-            <div className="p-3 font-semibold border-b border-border flex justify-between items-center bg-muted/50 rounded-t-lg shrink-0">
-              <span className="text-sm truncate mr-2" title={col}>
-                {col}
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                {cards.filter((c) => c.status_atual === col).length}
-              </Badge>
-            </div>
+        {COLUMNS.map((col) => {
+          const colCards = (cards || []).filter((c) => c && c.status_atual === col)
+          return (
+            <div
+              key={col}
+              className={cn(
+                'flex flex-col flex-shrink-0 w-[300px] h-full rounded-lg border transition-colors',
+                dragOverCol === col
+                  ? 'bg-muted/50 border-primary/50 ring-2 ring-primary/20'
+                  : 'bg-muted/30 border-border',
+              )}
+              onDragOver={(e) => handleDragOver(e, col)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, col)}
+            >
+              <div className="p-3 font-semibold border-b border-border flex justify-between items-center bg-muted/50 rounded-t-lg shrink-0">
+                <span className="text-sm truncate mr-2" title={col}>
+                  {col}
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {colCards.length}
+                </Badge>
+              </div>
 
-            <div className="p-2 flex-1 overflow-y-auto space-y-2 min-h-0 flex flex-col">
-              {cards.filter((c) => c.status_atual === col).length === 0 ? (
-                <div className="flex-1 min-h-[120px] flex items-center justify-center text-muted-foreground text-xs italic opacity-50 border-2 border-dashed border-border/50 rounded-md pointer-events-none">
-                  Solte os cards aqui
-                </div>
-              ) : (
-                cards
-                  .filter((c) => c.status_atual === col)
-                  .map((card) => (
+              <div className="p-2 flex-1 overflow-y-auto space-y-2 min-h-0 flex flex-col">
+                {colCards.length === 0 ? (
+                  <div className="flex-1 min-h-[120px] flex items-center justify-center text-muted-foreground text-xs italic opacity-50 border-2 border-dashed border-border/50 rounded-md pointer-events-none">
+                    Solte os cards aqui
+                  </div>
+                ) : (
+                  colCards.map((card) => (
                     <Card
                       key={card.id}
                       draggable
@@ -237,10 +243,11 @@ export function AcompanhamentosKanban() {
                       </CardContent>
                     </Card>
                   ))
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       <AcompanhamentoAvulsoModal

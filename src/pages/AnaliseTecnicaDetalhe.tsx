@@ -39,17 +39,21 @@ export default function AnaliseTecnicaDetalhe() {
   useEffect(() => {
     const fetchProjectDetails = async () => {
       if (!id) return
-      const { data } = await supabase
-        .from('formulario_comercial')
-        .select('cliente_id, clientes(nome)')
-        .eq('id', id)
-        .single()
+      try {
+        const { data } = await supabase
+          .from('formulario_comercial')
+          .select('cliente_id, clientes(nome)')
+          .eq('id', id)
+          .single()
 
-      if (data) {
-        setClienteId(data.cliente_id || '')
-        if (data.clientes && (data.clientes as any).nome) {
-          setClientName((data.clientes as any).nome)
+        if (data) {
+          setClienteId(data?.cliente_id || '')
+          if (data?.clientes && (data.clientes as any).nome) {
+            setClientName((data.clientes as any).nome)
+          }
         }
+      } catch (e) {
+        console.error('Erro ao buscar detalhes:', e)
       }
     }
     fetchProjectDetails()
@@ -58,15 +62,15 @@ export default function AnaliseTecnicaDetalhe() {
   useEffect(() => {
     const event = new CustomEvent('analise_detalhe_filters', {
       detail: {
-        cliente: filtroCliente,
-        consultor: filtroConsultor,
-        dateRange,
+        cliente: filtroCliente || '',
+        consultor: filtroConsultor || '',
+        dateRange: dateRange || { from: undefined, to: undefined },
         customFilter:
           'is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)',
       },
     })
     window.dispatchEvent(event)
-    window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: filtroCliente }))
+    window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: filtroCliente || '' }))
   }, [filtroCliente, filtroConsultor, dateRange])
 
   return (
@@ -132,12 +136,12 @@ export default function AnaliseTecnicaDetalhe() {
                 variant="outline"
                 className={cn(
                   'w-full justify-start text-left font-normal bg-[#0B1B2E] border-slate-700 text-white hover:bg-[#1A3D63] hover:text-white h-9 focus-visible:ring-blue-500/50',
-                  !dateRange.from && 'text-slate-400',
+                  !dateRange?.from && 'text-slate-400',
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateRange.from ? (
-                  dateRange.to ? (
+                {dateRange?.from ? (
+                  dateRange?.to ? (
                     <>
                       {format(dateRange.from, 'dd/MM/yy')} - {format(dateRange.to, 'dd/MM/yy')}
                     </>
@@ -153,8 +157,8 @@ export default function AnaliseTecnicaDetalhe() {
               <Calendar
                 initialFocus
                 mode="range"
-                defaultMonth={dateRange.from}
-                selected={{ from: dateRange.from, to: dateRange.to }}
+                defaultMonth={dateRange?.from || new Date()}
+                selected={{ from: dateRange?.from, to: dateRange?.to }}
                 onSelect={(range: any) => setDateRange(range || { from: undefined, to: undefined })}
                 numberOfMonths={2}
                 locale={ptBR}

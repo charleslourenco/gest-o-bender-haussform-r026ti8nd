@@ -236,29 +236,45 @@ export function AnaliseKanbanBoard({
       prev.map((c) => (c.id === draggingId ? { ...c, status_analise: finalStatus } : c)),
     )
 
-    if (isAutoTransition) {
-      await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: status })
-        .eq('id', draggingId)
+    try {
+      if (isAutoTransition) {
+        const { error: err1 } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: status })
+          .eq('id', draggingId)
 
-      await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: finalStatus })
-        .eq('id', draggingId)
+        if (err1) throw err1
 
+        const { error: err2 } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: finalStatus })
+          .eq('id', draggingId)
+
+        if (err2) throw err2
+
+        toast({
+          description:
+            'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
+        })
+      } else {
+        const { error } = await supabase
+          .from('produtos_servicos_projeto')
+          .update({ status_analise: status })
+          .eq('id', draggingId)
+
+        if (error) throw error
+      }
+
+      if (status === 'lista_materiais' && card.cliente_id) {
+        setListaMateriaisAlert(card)
+      }
+    } catch (error: any) {
       toast({
-        description: 'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
+        variant: 'destructive',
+        title: 'Erro ao mover card',
+        description: error.message || 'Sem permissão ou erro interno.',
       })
-    } else {
-      await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: status })
-        .eq('id', draggingId)
-    }
-
-    if (status === 'lista_materiais' && card.cliente_id) {
-      setListaMateriaisAlert(card)
+      loadCards() // revert optimistic update
     }
   }
 
@@ -358,11 +374,12 @@ export function AnaliseKanbanBoard({
         : false,
   }))
 
-  const filteredCards = cardsWithDeps.filter((c) => {
+  const filteredCards = (cardsWithDeps || []).filter((c) => {
+    if (!c) return false
     let matches = true
 
-    if (filters.cliente || searchQuery) {
-      const q = (filters.cliente || searchQuery).toLowerCase()
+    if (filters?.cliente || searchQuery) {
+      const q = (filters?.cliente || searchQuery || '').toLowerCase()
       const clientMatch =
         c.clientes?.nome?.toLowerCase().includes(q) ||
         c.nome_produto?.toLowerCase().includes(q) ||
@@ -370,12 +387,12 @@ export function AnaliseKanbanBoard({
       matches = matches && !!clientMatch
     }
 
-    if (filters.consultor) {
+    if (filters?.consultor) {
       const consultorName = c.users?.nome || ''
       matches = matches && consultorName.toLowerCase().includes(filters.consultor.toLowerCase())
     }
 
-    if (filters.dateRange?.from) {
+    if (filters?.dateRange?.from && c.criado_em) {
       const cardDate = new Date(c.criado_em)
       cardDate.setHours(0, 0, 0, 0)
       const fromDate = new Date(filters.dateRange.from)
@@ -417,36 +434,40 @@ export function AnaliseKanbanBoard({
         onDragLeave={handleContainerDragLeave}
       >
         <div ref={contentRef} className="flex gap-2.5 p-3 h-full min-h-full w-max items-stretch">
-          {columns.map((col) => (
-            <AnaliseKanbanColumn
-              key={col.id}
-              column={col}
-              cards={filteredCards
-                .filter((c) => c.status_analise === col.id)
-                .map((c) => ({
-                  ...c,
-                  is_parent_card: !formularioComercialId,
-                }))}
-              onDragOver={(e: any) => {
-                e.preventDefault()
-                setDragOverCol(col.id)
-              }}
-              onDragLeave={() => setDragOverCol(null)}
-              onDrop={(e: any) => handleDrop(e, col.id)}
-              isDragOver={dragOverCol === col.id}
-              onDragStart={(e: any, id: string) => {
-                e.dataTransfer.setData('cardId', id)
-                setDraggingId(id)
-              }}
-              onDragEnd={() => setDraggingId(null)}
-              draggingId={draggingId}
-              onCheckOutsourced={(card: any) => {
-                setAvulsoCardToUpdate(card)
-                setAvulsoModalOpen(true)
-              }}
-              onDelete={(id: string) => setCards((prev) => prev.filter((c) => c.id !== id))}
-            />
-          ))}
+          {(columns || []).map((col) => {
+            const colCards = (filteredCards || [])
+              .filter((c) => c && c.status_analise === col.id)
+              .map((c) => ({
+                ...c,
+                is_parent_card: !formularioComercialId,
+              }))
+
+            return (
+              <AnaliseKanbanColumn
+                key={col.id}
+                column={col}
+                cards={colCards}
+                onDragOver={(e: any) => {
+                  e.preventDefault()
+                  setDragOverCol(col.id)
+                }}
+                onDragLeave={() => setDragOverCol(null)}
+                onDrop={(e: any) => handleDrop(e, col.id)}
+                isDragOver={dragOverCol === col.id}
+                onDragStart={(e: any, id: string) => {
+                  e.dataTransfer.setData('cardId', id)
+                  setDraggingId(id)
+                }}
+                onDragEnd={() => setDraggingId(null)}
+                draggingId={draggingId}
+                onCheckOutsourced={(card: any) => {
+                  setAvulsoCardToUpdate(card)
+                  setAvulsoModalOpen(true)
+                }}
+                onDelete={(id: string) => setCards((prev) => prev.filter((c) => c.id !== id))}
+              />
+            )
+          })}
         </div>
       </div>
 
