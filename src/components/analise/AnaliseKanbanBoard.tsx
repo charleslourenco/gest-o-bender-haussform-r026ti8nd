@@ -221,7 +221,7 @@ export function AnaliseKanbanBoard({
     setDragOverCol(null)
     if (!draggingId) return
 
-    const card = cards.find((c) => c.id === draggingId)
+    const card = cards.find((c) => c?.id === draggingId)
     if (!card || card.status_analise === status) return
 
     let finalStatus = status
@@ -233,7 +233,7 @@ export function AnaliseKanbanBoard({
     }
 
     setCards((prev) =>
-      prev.map((c) => (c.id === draggingId ? { ...c, status_analise: finalStatus } : c)),
+      prev.map((c) => (c?.id === draggingId ? { ...c, status_analise: finalStatus } : c)),
     )
 
     try {
@@ -313,7 +313,7 @@ export function AnaliseKanbanBoard({
       const item = e.detail
       if (!item) return
 
-      setCards((prev) => prev.filter((c) => c.id !== item.id))
+      setCards((prev) => prev.filter((c) => c?.id !== item.id))
 
       try {
         const {
@@ -361,7 +361,7 @@ export function AnaliseKanbanBoard({
 
   const outsourcedNamesByForm = new Map()
   cards.forEach((c) => {
-    if (c.is_outsourced && c.formulario_comercial_id) {
+    if (c && c.is_outsourced && c.formulario_comercial_id) {
       outsourcedNamesByForm.set(`${c.formulario_comercial_id}_${c.nome_produto}`, true)
     }
   })
@@ -369,7 +369,7 @@ export function AnaliseKanbanBoard({
   const cardsWithDeps = cards.map((c) => ({
     ...c,
     has_outsourced_dependency:
-      !c.is_outsourced && c.formulario_comercial_id
+      c && !c.is_outsourced && c.formulario_comercial_id
         ? outsourcedNamesByForm.has(`${c.formulario_comercial_id}_${c.nome_produto}`)
         : false,
   }))
@@ -381,9 +381,9 @@ export function AnaliseKanbanBoard({
     if (filters?.cliente || searchQuery) {
       const q = (filters?.cliente || searchQuery || '').toLowerCase()
       const clientMatch =
-        c.clientes?.nome?.toLowerCase().includes(q) ||
-        c.nome_produto?.toLowerCase().includes(q) ||
-        c.project_item_names?.toLowerCase().includes(q)
+        (c.clientes?.nome || '').toLowerCase().includes(q) ||
+        (c.nome_produto || '').toLowerCase().includes(q) ||
+        (c.project_item_names || '').toLowerCase().includes(q)
       matches = matches && !!clientMatch
     }
 
@@ -451,7 +451,17 @@ export function AnaliseKanbanBoard({
                   e.preventDefault()
                   setDragOverCol(col.id)
                 }}
-                onDragLeave={() => setDragOverCol(null)}
+                onDragLeave={(e: React.DragEvent) => {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  if (
+                    e.clientX <= rect.left ||
+                    e.clientX >= rect.right ||
+                    e.clientY <= rect.top ||
+                    e.clientY >= rect.bottom
+                  ) {
+                    setDragOverCol(null)
+                  }
+                }}
                 onDrop={(e: any) => handleDrop(e, col.id)}
                 isDragOver={dragOverCol === col.id}
                 onDragStart={(e: any, id: string) => {
@@ -464,7 +474,7 @@ export function AnaliseKanbanBoard({
                   setAvulsoCardToUpdate(card)
                   setAvulsoModalOpen(true)
                 }}
-                onDelete={(id: string) => setCards((prev) => prev.filter((c) => c.id !== id))}
+                onDelete={(id: string) => setCards((prev) => prev.filter((c) => c?.id !== id))}
               />
             )
           })}

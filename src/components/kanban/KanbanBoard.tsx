@@ -197,7 +197,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         .eq('id', validatingCardId)
       if (error) throw error
       setItems((prev) =>
-        prev.map((i) => (i.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
+        prev.map((i) => (i?.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
       )
       toast.success('Validação concluída com sucesso!')
     } catch (err: any) {
@@ -221,7 +221,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           .update({ outsourced_checked: true })
           .eq('id', validatingCardId)
         setItems((prev) =>
-          prev.map((i) => (i.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
+          prev.map((i) => (i?.id === validatingCardId ? { ...i, outsourced_checked: true } : i)),
         )
       } catch (err) {
         console.error('Erro no auto-validation:', err)
@@ -233,7 +233,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   const handleStatusChange = async (itemId: string, newStatusId: string) => {
-    const item = items.find((i) => i.id === itemId)
+    const item = items.find((i) => i?.id === itemId)
     if (!item || item.status_analise === newStatusId) return
 
     if (isAnaliseTecnica && !item.is_outsourced && !item.outsourced_checked) {
@@ -253,7 +253,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
 
     setItems((prev) =>
-      prev.map((i) => (i.id === itemId ? { ...i, status_analise: finalStatus } : i)),
+      prev.map((i) => (i?.id === itemId ? { ...i, status_analise: finalStatus } : i)),
     )
 
     try {
@@ -456,9 +456,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      const matchName = item?.nome_produto?.toLowerCase().includes(q)
-      const matchCode = item?.codigo_rastreio?.toLowerCase().includes(q)
-      const matchClient = getClienteNome(item)?.toLowerCase().includes(q)
+      const matchName = (item?.nome_produto || '').toLowerCase().includes(q)
+      const matchCode = (item?.codigo_rastreio || '').toLowerCase().includes(q)
+      const matchClient = (getClienteNome(item) || '').toLowerCase().includes(q)
       if (!matchName && !matchCode && !matchClient) return false
     }
 
@@ -576,7 +576,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
-    setDragOverColId(null)
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (
+      e.clientX <= rect.left ||
+      e.clientX >= rect.right ||
+      e.clientY <= rect.top ||
+      e.clientY >= rect.bottom
+    ) {
+      setDragOverColId(null)
+    }
   }
 
   const handleDeleteCard = async (id: string) => {
@@ -592,7 +600,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         throw new Error('Sem permissão para excluir este card ou card não encontrado.')
       }
       toast.success('Card excluído com sucesso!')
-      setItems((prev) => prev.filter((i) => i.id !== id))
+      setItems((prev) => prev.filter((i) => i?.id !== id))
     } catch (err: any) {
       toast.error('Erro ao excluir card: ' + err.message)
     }
@@ -606,7 +614,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         .eq('id', id)
       if (error) throw error
       toast.success('Responsável atualizado com sucesso!')
-      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, analista_id: analystId } : i)))
+      setItems((prev) => prev.map((i) => (i?.id === id ? { ...i, analista_id: analystId } : i)))
     } catch (err: any) {
       toast.error('Erro ao atribuir responsável: ' + err.message)
     }
@@ -618,7 +626,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const itemId = e.dataTransfer.getData('itemId')
     if (!itemId) return
 
-    const item = items.find((i) => i.id === itemId)
+    const item = items.find((i) => i?.id === itemId)
     if (!item || item.status_analise === columnId) return
 
     let finalStatus = columnId
@@ -634,7 +642,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
     // Optimistic UI update
     setItems((prev) =>
-      prev.map((i) => (i.id === itemId ? { ...i, status_analise: finalStatus } : i)),
+      prev.map((i) => (i?.id === itemId ? { ...i, status_analise: finalStatus } : i)),
     )
 
     try {

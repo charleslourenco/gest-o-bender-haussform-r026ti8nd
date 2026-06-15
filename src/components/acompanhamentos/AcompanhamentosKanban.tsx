@@ -134,8 +134,16 @@ export function AcompanhamentosKanban() {
     setDragOverCol(status)
   }
 
-  const handleDragLeave = () => {
-    setDragOverCol(null)
+  const handleDragLeave = (e: React.DragEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    if (
+      e.clientX <= rect.left ||
+      e.clientX >= rect.right ||
+      e.clientY <= rect.top ||
+      e.clientY >= rect.bottom
+    ) {
+      setDragOverCol(null)
+    }
   }
 
   const handleDrop = async (e: React.DragEvent, status: string) => {
@@ -146,7 +154,7 @@ export function AcompanhamentosKanban() {
 
     try {
       // Optimistic update
-      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status_atual: status } : c)))
+      setCards((prev) => prev.map((c) => (c?.id === cardId ? { ...c, status_atual: status } : c)))
 
       const { error } = await supabase
         .from('acompanhamentos')
