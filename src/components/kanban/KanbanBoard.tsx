@@ -181,6 +181,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [validatingCardId, setValidatingCardId] = useState<string | null>(null)
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
   const [showCreateAvulsoForValidation, setShowCreateAvulsoForValidation] = useState(false)
+  const [dragOverColId, setDragOverColId] = useState<string | null>(null)
 
   const handleOpenValidation = (id: string) => {
     setValidatingCardId(id)
@@ -566,13 +567,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, colId: string) => {
     e.preventDefault()
-    e.currentTarget.classList.add('bg-steel-blue/10')
+    setDragOverColId(colId)
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('bg-steel-blue/10')
+    setDragOverColId(null)
   }
 
   const handleDeleteCard = async (id: string) => {
@@ -610,7 +611,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   const handleDrop = async (e: React.DragEvent, columnId: string) => {
     e.preventDefault()
-    e.currentTarget.classList.remove('bg-steel-blue/10')
+    setDragOverColId(null)
     const itemId = e.dataTransfer.getData('itemId')
     if (!itemId) return
 
@@ -701,14 +702,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         <div
           key={col.id}
           className={cn(
-            'transition-colors duration-200 shrink-0 flex flex-col h-full',
+            'transition-colors duration-200 shrink-0 flex flex-col h-full min-h-full',
             isAnaliseTecnica
-              ? 'max-h-full w-[320px] min-w-[320px] bg-slate-100 rounded-lg'
+              ? 'max-h-full w-[320px] min-w-[320px] rounded-lg'
               : isMontagemRoute || isProducao
-                ? 'w-[320px] min-w-[320px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20'
-                : 'w-[260px] min-w-[260px] rounded-xl bg-pale-cornflower/30 border border-steel-blue/20',
+                ? 'w-[320px] min-w-[320px] rounded-xl border border-steel-blue/20'
+                : 'w-[260px] min-w-[260px] rounded-xl border border-steel-blue/20',
+            dragOverColId === col.id
+              ? 'bg-steel-blue/20 ring-2 ring-steel-blue/50'
+              : isAnaliseTecnica
+                ? 'bg-slate-100'
+                : 'bg-pale-cornflower/30',
           )}
-          onDragOver={handleDragOver}
+          onDragOver={(e) => handleDragOver(e, col.id)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, col.id)}
         >

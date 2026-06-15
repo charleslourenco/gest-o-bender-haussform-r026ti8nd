@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Users } from 'lucide-react'
@@ -21,6 +22,82 @@ export function AcompanhamentosKanban() {
   const [cards, setCards] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { toast } = useToast()
+
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollSpeedRef = useRef(0)
+  const animationRef = useRef<number | null>(null)
+
+  const startAutoScroll = () => {
+    if (!animationRef.current) {
+      const scroll = () => {
+        if (scrollContainerRef.current && scrollSpeedRef.current !== 0) {
+          scrollContainerRef.current.scrollLeft += scrollSpeedRef.current
+        }
+        animationRef.current = requestAnimationFrame(scroll)
+      }
+      animationRef.current = requestAnimationFrame(scroll)
+    }
+  }
+
+  const stopAutoScroll = () => {
+    scrollSpeedRef.current = 0
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    const handleGlobalDrop = () => stopAutoScroll()
+    window.addEventListener('dragend', handleGlobalDrop)
+    window.addEventListener('drop', handleGlobalDrop)
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDrop)
+      window.removeEventListener('drop', handleGlobalDrop)
+    }
+  }, [])
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (!scrollContainerRef.current) return
+
+    const container = scrollContainerRef.current
+    const rect = container.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const scrollThreshold = 100
+
+    let speed = 0
+    if (x < scrollThreshold) {
+      speed = -15 * (1 - Math.max(0, x) / scrollThreshold)
+    } else if (rect.width - x < scrollThreshold) {
+      speed = 15 * (1 - Math.max(0, rect.width - x) / scrollThreshold)
+    }
+
+    if (speed !== 0) {
+      scrollSpeedRef.current = speed
+      startAutoScroll()
+    } else {
+      stopAutoScroll()
+    }
+  }
+
+  const handleContainerDragLeave = (e: React.DragEvent) => {
+    const rect = scrollContainerRef.current?.getBoundingClientRect()
+    if (rect) {
+      if (
+        e.clientX <= rect.left ||
+        e.clientX >= rect.right ||
+        e.clientY <= rect.top ||
+        e.clientY >= rect.bottom
+      ) {
+        stopAutoScroll()
+      }
+    } else {
+      stopAutoScroll()
+    }
+  }
 
   const fetchCards = async () => {
     const { data, error } = await supabase
@@ -52,12 +129,18 @@ export function AcompanhamentosKanban() {
     e.dataTransfer.setData('cardId', cardId)
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, status: string) => {
     e.preventDefault()
+    setDragOverCol(status)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverCol(null)
   }
 
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
+    setDragOverCol(null)
     const cardId = e.dataTransfer.getData('cardId')
     if (!cardId) return
 
@@ -83,12 +166,23 @@ export function AcompanhamentosKanban() {
         </Button>
       </div>
 
-      <div className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4">
+      <div
+        ref={scrollContainerRef}
+        onDragOver={handleContainerDragOver}
+        onDragLeave={handleContainerDragLeave}
+        className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 items-stretch"
+      >
         {COLUMNS.map((col) => (
           <div
             key={col}
-            className="flex flex-col flex-shrink-0 w-[300px] h-full bg-muted/30 rounded-lg border border-border"
-            onDragOver={handleDragOver}
+            className={cn(
+              'flex flex-col flex-shrink-0 w-[300px] min-h-full h-full rounded-lg border transition-colors',
+              dragOverCol === col
+                ? 'bg-muted/50 border-primary/50 ring-2 ring-primary/20'
+                : 'bg-muted/30 border-border',
+            )}
+            onDragOver={(e) => handleDragOver(e, col)}
+            onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, col)}
           >
             <div className="p-3 font-semibold border-b border-border flex justify-between items-center bg-muted/50 rounded-t-lg shrink-0">

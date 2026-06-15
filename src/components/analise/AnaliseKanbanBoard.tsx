@@ -52,6 +52,79 @@ export function AnaliseKanbanBoard({
   const isSyncingTop = useRef(false)
   const isSyncingBottom = useRef(false)
 
+  const scrollSpeedRef = useRef(0)
+  const animationRef = useRef<number | null>(null)
+
+  const startAutoScroll = () => {
+    if (!animationRef.current) {
+      const scroll = () => {
+        if (bottomScrollRef.current && scrollSpeedRef.current !== 0) {
+          bottomScrollRef.current.scrollLeft += scrollSpeedRef.current
+        }
+        animationRef.current = requestAnimationFrame(scroll)
+      }
+      animationRef.current = requestAnimationFrame(scroll)
+    }
+  }
+
+  const stopAutoScroll = () => {
+    scrollSpeedRef.current = 0
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+      animationRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    const handleGlobalDrop = () => stopAutoScroll()
+    window.addEventListener('dragend', handleGlobalDrop)
+    window.addEventListener('drop', handleGlobalDrop)
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDrop)
+      window.removeEventListener('drop', handleGlobalDrop)
+    }
+  }, [])
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (!bottomScrollRef.current) return
+
+    const container = bottomScrollRef.current
+    const rect = container.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const scrollThreshold = 100
+
+    let speed = 0
+    if (x < scrollThreshold) {
+      speed = -15 * (1 - Math.max(0, x) / scrollThreshold)
+    } else if (rect.width - x < scrollThreshold) {
+      speed = 15 * (1 - Math.max(0, rect.width - x) / scrollThreshold)
+    }
+
+    if (speed !== 0) {
+      scrollSpeedRef.current = speed
+      startAutoScroll()
+    } else {
+      stopAutoScroll()
+    }
+  }
+
+  const handleContainerDragLeave = (e: React.DragEvent) => {
+    const rect = bottomScrollRef.current?.getBoundingClientRect()
+    if (rect) {
+      if (
+        e.clientX <= rect.left ||
+        e.clientX >= rect.right ||
+        e.clientY <= rect.top ||
+        e.clientY >= rect.bottom
+      ) {
+        stopAutoScroll()
+      }
+    } else {
+      stopAutoScroll()
+    }
+  }
+
   const loadCards = async () => {
     let query = supabase
       .from('produtos_servicos_projeto')
@@ -340,8 +413,10 @@ export function AnaliseKanbanBoard({
         ref={bottomScrollRef}
         className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/50"
         onScroll={handleBottomScroll}
+        onDragOver={handleContainerDragOver}
+        onDragLeave={handleContainerDragLeave}
       >
-        <div ref={contentRef} className="flex gap-2.5 p-3 h-full w-max items-stretch">
+        <div ref={contentRef} className="flex gap-2.5 p-3 min-h-full h-fit w-max items-stretch">
           {columns.map((col) => (
             <AnaliseKanbanColumn
               key={col.id}
