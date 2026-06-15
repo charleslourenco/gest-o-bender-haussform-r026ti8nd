@@ -156,10 +156,11 @@ export function KanbanListView({
   }
 
   const getClienteNome = (card: any) => {
-    const nome = Array.isArray(card.clientes) ? card.clientes[0]?.nome : card.clientes?.nome
+    if (!card) return null
+    const nome = Array.isArray(card?.clientes) ? card.clientes[0]?.nome : card?.clientes?.nome
     if (nome) return nome
 
-    if (card.formulario_comercial) {
+    if (card?.formulario_comercial) {
       const form = Array.isArray(card.formulario_comercial)
         ? card.formulario_comercial[0]
         : card.formulario_comercial
@@ -173,9 +174,10 @@ export function KanbanListView({
     return null
   }
 
-  const filtered = cards.filter((c) => {
+  const filtered = (cards ?? []).filter((c) => {
+    if (!c) return false
     if (columns && columns.length > 0) {
-      const validColumn = columns.some((col) => col.id === c.status_analise)
+      const validColumn = columns.some((col) => col.id === c?.status_analise)
       if (!validColumn) return false
     }
 
@@ -183,8 +185,8 @@ export function KanbanListView({
     const q = searchQuery.toLowerCase()
     const clienteNome = getClienteNome(c)
     return (
-      c.nome_produto?.toLowerCase().includes(q) ||
-      c.codigo_rastreio?.toLowerCase().includes(q) ||
+      c?.nome_produto?.toLowerCase().includes(q) ||
+      c?.codigo_rastreio?.toLowerCase().includes(q) ||
       clienteNome?.toLowerCase().includes(q)
     )
   })
@@ -244,32 +246,34 @@ export function KanbanListView({
                       <TableCell className="font-medium w-full max-w-0">
                         <div className="flex items-center gap-3 text-sm">
                           <span className="whitespace-nowrap shrink-0 text-slate-500">
-                            {card.codigo_rastreio || '-'}
+                            {card?.codigo_rastreio || '-'}
                           </span>
                           <span className="text-slate-300 shrink-0">|</span>
                           <span className="truncate font-semibold text-[#1A3D63]">
                             {clienteNome || 'Avulso'}
                           </span>
                           <span className="text-slate-300 shrink-0">|</span>
-                          <span className="truncate text-slate-600">{card.nome_produto}</span>
+                          <span className="truncate text-slate-600">
+                            {card?.nome_produto ?? 'Sem nome'}
+                          </span>
                         </div>
                       </TableCell>
                     ) : (
                       <>
                         <TableCell className="font-medium whitespace-nowrap">
-                          {card.codigo_rastreio || '-'}
+                          {card?.codigo_rastreio || '-'}
                         </TableCell>
                         <TableCell className="font-medium">{clienteNome || 'Avulso'}</TableCell>
-                        <TableCell>{card.nome_produto}</TableCell>
+                        <TableCell>{card?.nome_produto ?? 'Sem nome'}</TableCell>
                       </>
                     )}
                     <TableCell className="whitespace-nowrap">
-                      {card.criado_em ? format(new Date(card.criado_em), 'dd/MM/yyyy') : '-'}
+                      {card?.criado_em ? format(new Date(card.criado_em), 'dd/MM/yyyy') : '-'}
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={card.status_analise || 'iniciar'}
-                        onValueChange={(val) => updateStatus(card.id, val)}
+                        value={card?.status_analise || 'iniciar'}
+                        onValueChange={(val) => card?.id && updateStatus(card.id, val)}
                       >
                         <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
                           <SelectValue />
@@ -285,10 +289,10 @@ export function KanbanListView({
                     </TableCell>
                     {isMontagem ? (
                       <TableCell>
-                        {card.alocacao_montagem && card.alocacao_montagem.length > 0
+                        {card?.alocacao_montagem && card.alocacao_montagem.length > 0
                           ? card.alocacao_montagem
                               .map((am: any) => {
-                                const m = montadores.find((m) => m.id === am.montador_id)
+                                const m = montadores.find((m) => m.id === am?.montador_id)
                                 return m?.nome_completo
                               })
                               .filter(Boolean)
@@ -298,8 +302,8 @@ export function KanbanListView({
                     ) : (
                       <TableCell>
                         <Select
-                          value={card.analista_id || 'unassigned'}
-                          onValueChange={(val) => updateAnalista(card.id, val)}
+                          value={card?.analista_id || 'unassigned'}
+                          onValueChange={(val) => card?.id && updateAnalista(card.id, val)}
                         >
                           <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
                             <SelectValue placeholder="Não atribuído" />

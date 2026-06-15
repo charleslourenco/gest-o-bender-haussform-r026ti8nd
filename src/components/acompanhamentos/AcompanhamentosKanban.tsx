@@ -194,9 +194,9 @@ export function AcompanhamentosKanban() {
               </Badge>
             </div>
 
-            <div className="p-2 flex-1 overflow-y-auto space-y-2 min-h-0">
+            <div className="p-2 flex-1 overflow-y-auto space-y-2 min-h-0 flex flex-col">
               {cards.filter((c) => c.status_atual === col).length === 0 ? (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-xs italic opacity-50 border-2 border-dashed border-border/50 rounded-md">
+                <div className="flex-1 min-h-[120px] flex items-center justify-center text-muted-foreground text-xs italic opacity-50 border-2 border-dashed border-border/50 rounded-md pointer-events-none">
                   Solte os cards aqui
                 </div>
               ) : (

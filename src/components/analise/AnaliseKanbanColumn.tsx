@@ -26,7 +26,12 @@ export function AnaliseKanbanColumn({
           {cards.length}
         </span>
       </h3>
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pb-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pb-1 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        {cards.length === 0 && (
+          <div className="flex-1 min-h-[100px] flex items-center justify-center rounded-md border-2 border-dashed border-border/50 opacity-50 pointer-events-none">
+            <span className="text-xs text-muted-foreground font-medium">Solte aqui</span>
+          </div>
+        )}
         {cards.map((card: any) => (
           <AnaliseKanbanCard
             key={card.id}

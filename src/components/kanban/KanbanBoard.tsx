@@ -438,10 +438,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }, [])
 
   const getClienteNome = (item: any) => {
-    const nome = Array.isArray(item.cliente) ? item.cliente[0]?.nome : item.cliente?.nome
+    if (!item) return null
+    const nome = Array.isArray(item?.cliente) ? item.cliente[0]?.nome : item?.cliente?.nome
     if (nome) return nome
 
-    if (item.formulario) {
+    if (item?.formulario) {
       const form = Array.isArray(item.formulario) ? item.formulario[0] : item.formulario
       const formCli = Array.isArray(form?.cliente) ? form.cliente[0]?.nome : form?.cliente?.nome
       if (formCli) return formCli
@@ -450,22 +451,24 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     return null
   }
 
-  const filteredItems = items.filter((item) => {
+  const filteredItems = (items ?? []).filter((item) => {
+    if (!item) return false
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      const matchName = item.nome_produto?.toLowerCase().includes(q)
-      const matchCode = item.codigo_rastreio?.toLowerCase().includes(q)
+      const matchName = item?.nome_produto?.toLowerCase().includes(q)
+      const matchCode = item?.codigo_rastreio?.toLowerCase().includes(q)
       const matchClient = getClienteNome(item)?.toLowerCase().includes(q)
       if (!matchName && !matchCode && !matchClient) return false
     }
 
     if (selectedAnalyst !== 'all') {
-      if (selectedAnalyst === 'unassigned' && item.analista_id !== null) return false
-      if (selectedAnalyst !== 'unassigned' && item.analista_id !== selectedAnalyst) return false
+      if (selectedAnalyst === 'unassigned' && item?.analista_id !== null) return false
+      if (selectedAnalyst !== 'unassigned' && item?.analista_id !== selectedAnalyst) return false
     }
 
     if (selectedConsultant !== 'all') {
-      if (item.formulario?.user_id !== selectedConsultant) return false
+      if (item?.formulario?.user_id !== selectedConsultant) return false
     }
 
     return true
@@ -752,13 +755,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
           <div
             className={cn(
-              'flex-1 overflow-y-auto space-y-2 custom-scrollbar',
+              'flex-1 overflow-y-auto space-y-2 custom-scrollbar flex flex-col',
               isAnaliseTecnica ? 'p-1.5 min-h-[200px]' : 'p-2 min-h-[150px]',
             )}
           >
             {colItems.map((item) => (
               <div
-                key={item.id}
+                key={item?.id ?? Math.random().toString()}
                 draggable
                 onDragStart={(e) => handleDragStart(e, item)}
                 onDragEnd={handleDragEnd}
@@ -827,7 +830,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   {isProducao || isMontagemRoute ? (
                     <>
                       <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-xs font-medium">
-                        {item.codigo_rastreio && (
+                        {item?.codigo_rastreio && (
                           <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
@@ -836,15 +839,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </div>
                       <h4
                         className="font-semibold leading-tight text-white/90 text-xs mt-1 truncate"
-                        title={item.nome_produto}
+                        title={item?.nome_produto ?? 'Sem nome'}
                       >
-                        {item.nome_produto}
+                        {item?.nome_produto ?? 'Sem nome'}
                       </h4>
                     </>
                   ) : isAnaliseTecnica ? (
                     <div className="flex flex-col gap-1 mt-0.5">
                       <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
-                        {item.codigo_rastreio && (
+                        {item?.codigo_rastreio && (
                           <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-white/20 text-white bg-white/10 shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
@@ -855,16 +858,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       </div>
                       <h4
                         className="font-semibold leading-tight text-[#F6FAFD] text-xs truncate"
-                        title={item.nome_produto}
+                        title={item?.nome_produto ?? 'Sem nome'}
                       >
-                        {item.nome_produto}
+                        {item?.nome_produto ?? 'Sem nome'}
                       </h4>
-                      {!item.is_outsourced && !item.outsourced_checked && (
+                      {!item?.is_outsourced && !item?.outsourced_checked && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleOpenValidation(item.id)
+                            if (item?.id) handleOpenValidation(item.id)
                           }}
                           title="Terceirizado Pendente"
                           className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors"
@@ -876,9 +879,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   ) : (
                     <>
                       <h4 className="font-semibold leading-tight text-midnight-navy text-sm">
-                        {item.nome_produto}
+                        {item?.nome_produto ?? 'Sem nome'}
                       </h4>
-                      {item.codigo_rastreio && (
+                      {item?.codigo_rastreio && (
                         <div className="mt-1">
                           <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-steel-blue bg-pale-cornflower border-steel-blue/20 leading-none">
                             {item.codigo_rastreio}
@@ -912,7 +915,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
                           )}
                         />
-                        <span>Qtd: {item.qtd}</span>
+                        <span>Qtd: {item?.qtd ?? 0}</span>
                       </div>
                       <div
                         className={cn(
@@ -921,7 +924,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         )}
                       >
                         <CalendarClock className="h-3 w-3 shrink-0" />
-                        <span>{new Date(item.criado_em).toLocaleDateString('pt-BR')}</span>
+                        <span>
+                          {item?.criado_em
+                            ? new Date(item.criado_em).toLocaleDateString('pt-BR')
+                            : '-'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -930,13 +937,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 {(isProducao || isMontagemRoute) && (
                   <div className="flex items-center justify-between mt-auto pt-0.5">
                     <div className="flex items-center gap-2">
-                      <TimeInColumn
-                        cardId={item.id}
-                        status={item.status_analise}
-                        criado_em={item.criado_em}
-                      />
+                      {item?.id && item?.status_analise && item?.criado_em && (
+                        <TimeInColumn
+                          cardId={item.id}
+                          status={item.status_analise}
+                          criado_em={item.criado_em}
+                        />
+                      )}
                       {isMontagemRoute &&
-                        item.alocacao_montagem &&
+                        item?.alocacao_montagem &&
                         item.alocacao_montagem.length > 0 && (
                           <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             <Wrench className="w-2.5 h-2.5" />
@@ -946,7 +955,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </div>
                     <div className="flex items-center gap-1 text-[10px]">
                       <Package className="h-3 w-3 shrink-0 text-white/50" />
-                      <span className="text-white/80">Qtd: {item.qtd}</span>
+                      <span className="text-white/80">Qtd: {item?.qtd ?? 0}</span>
                     </div>
                   </div>
                 )}
@@ -965,8 +974,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 >
                   {isAnaliseTecnica && (
                     <Select
-                      value={item.status_analise}
-                      onValueChange={(val) => handleStatusChange(item.id, val)}
+                      value={item?.status_analise ?? ''}
+                      onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
                     >
                       <SelectTrigger className="h-6 text-[10px] w-full bg-white/10 border-white/20 text-white focus:ring-0 focus:ring-offset-0 px-2">
                         <SelectValue placeholder="Status" />
@@ -986,9 +995,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   )}
 
                   <Select
-                    value={item.analista_id || 'unassigned'}
+                    value={item?.analista_id || 'unassigned'}
                     onValueChange={(val) =>
-                      handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                      item?.id && handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
                     }
                   >
                     <SelectTrigger
@@ -1042,7 +1051,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             ))}
 
             {colItems.length === 0 && (
-              <div className="flex h-24 items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40">
+              <div className="flex flex-1 min-h-[120px] items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40 pointer-events-none">
                 <p className="text-sm font-medium text-steel-blue/50">Solte os cards aqui</p>
               </div>
             )}
@@ -1221,7 +1230,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   ) : (
                     filteredItems.map((item) => (
                       <TableRow
-                        key={item.id}
+                        key={item?.id ?? Math.random().toString()}
                         className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
                       >
                         <TableCell>
@@ -1229,21 +1238,23 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             <span className="text-[10px] text-steel-blue font-medium mb-0.5">
                               {getClienteNome(item) || 'Avulso'}
                             </span>
-                            <span className="font-semibold leading-tight">{item.nome_produto}</span>
+                            <span className="font-semibold leading-tight">
+                              {item?.nome_produto ?? 'Sem nome'}
+                            </span>
                             <div className="flex items-center gap-2">
-                              {item.codigo_rastreio && (
+                              {item?.codigo_rastreio && (
                                 <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
                                   {item.codigo_rastreio}
                                 </span>
                               )}
                               {isAnaliseTecnica &&
-                                !item.is_outsourced &&
-                                !item.outsourced_checked && (
+                                !item?.is_outsourced &&
+                                !item?.outsourced_checked && (
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation()
-                                      handleOpenValidation(item.id)
+                                      if (item?.id) handleOpenValidation(item.id)
                                     }}
                                     title="Terceirizado Pendente"
                                     className="inline-flex items-center justify-center p-1 rounded bg-amber-500 text-white hover:bg-amber-600 transition-colors"
@@ -1255,12 +1266,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">
-                          {new Date(item.criado_em).toLocaleDateString('pt-BR')}
+                          {item?.criado_em
+                            ? new Date(item.criado_em).toLocaleDateString('pt-BR')
+                            : '-'}
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={item.status_analise}
-                            onValueChange={(val) => handleStatusChange(item.id, val)}
+                            value={item?.status_analise ?? ''}
+                            onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
                           >
                             <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
                               <SelectValue placeholder="Status" />
@@ -1276,8 +1289,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         </TableCell>
                         <TableCell>
                           <Select
-                            value={item.analista_id || 'unassigned'}
+                            value={item?.analista_id || 'unassigned'}
                             onValueChange={(val) =>
+                              item?.id &&
                               handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
                             }
                           >
@@ -1301,7 +1315,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         </TableCell>
                         <TableCell className="text-right">
                           <button
-                            onClick={() => handleDeleteCard(item.id)}
+                            onClick={() => item?.id && handleDeleteCard(item.id)}
                             className="p-2 rounded-md hover:bg-red-50 text-red-500 transition-colors inline-flex items-center justify-center"
                             title="Excluir item"
                           >

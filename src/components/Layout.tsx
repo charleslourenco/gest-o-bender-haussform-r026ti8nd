@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from './AppSidebar'
 import { Header } from './Header'
+import { ErrorBoundary } from './ErrorBoundary'
 
 export default function Layout() {
   return (
@@ -12,7 +13,9 @@ export default function Layout() {
           <Header />
           <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-background relative">
             <div className="mx-auto max-w-7xl animate-fade-in-up">
-              <Outlet />
+              <ErrorBoundary>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </main>
         </div>
