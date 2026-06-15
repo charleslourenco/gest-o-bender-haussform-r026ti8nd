@@ -411,12 +411,12 @@ export function AnaliseKanbanBoard({
 
       <div
         ref={bottomScrollRef}
-        className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/50"
+        className="flex-1 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/50 min-h-0"
         onScroll={handleBottomScroll}
         onDragOver={handleContainerDragOver}
         onDragLeave={handleContainerDragLeave}
       >
-        <div ref={contentRef} className="flex gap-2.5 p-3 min-h-full h-fit w-max items-stretch">
+        <div ref={contentRef} className="flex gap-2.5 p-3 h-full min-h-full w-max items-stretch">
           {columns.map((col) => (
             <AnaliseKanbanColumn
               key={col.id}

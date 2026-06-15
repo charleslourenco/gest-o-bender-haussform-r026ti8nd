@@ -113,18 +113,18 @@ export function KanbanCard({
         <>
           <div className="flex flex-row items-baseline gap-1 w-full truncate text-xs font-medium">
             <span className="truncate w-full">
-              {card.codigo_rastreio
+              {card?.codigo_rastreio
                 ? `#${card.codigo_rastreio}`
-                : `#${card.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
+                : `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
               {' - '}
-              {card.clientes?.nome || 'Cliente N/A'}
+              {card?.clientes?.nome || 'Cliente N/A'}
             </span>
           </div>
           <div className="truncate w-full text-xs font-semibold text-[#F6FAFD]">
-            {card.nome_produto}
+            {card?.nome_produto || 'Sem nome'}
           </div>
           <div className="flex justify-between items-center w-full mt-1">
-            <div className="truncate w-full text-[10px] text-white/70">Qtd: {card.qtd}</div>
+            <div className="truncate w-full text-[10px] text-white/70">Qtd: {card?.qtd || 0}</div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               {montadores.length > 0 && (
                 <div
@@ -142,38 +142,38 @@ export function KanbanCard({
         <div className="flex justify-between items-start w-full">
           <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
             <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none text-white bg-white/10 shrink-0">
-              {card.codigo_rastreio ||
-                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
+              {card?.codigo_rastreio ||
+                `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
             </span>
             <span className="font-semibold text-[#F6FAFD] text-xs truncate">
-              {card.nome_produto}
+              {card?.nome_produto || 'Sem nome'}
             </span>
           </div>
           <Badge className="text-[9px] py-0 px-1 leading-none bg-white/20 text-white shrink-0 ml-2">
-            Qtd: {card.qtd}
+            Qtd: {card?.qtd || 0}
           </Badge>
         </div>
       ) : isAnaliseTecnica ? (
         <>
           <div className="flex justify-between items-start w-full">
             <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
-              {card.codigo_rastreio && (
+              {card?.codigo_rastreio && (
                 <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none border border-white/20 text-white bg-white/10 shrink-0">
                   {card.codigo_rastreio}
                 </span>
               )}
-              <span className="text-xs truncate" title={card.clientes?.nome || 'Cliente N/A'}>
-                {card.clientes?.nome || 'Cliente N/A'}
+              <span className="text-xs truncate" title={card?.clientes?.nome || 'Cliente N/A'}>
+                {card?.clientes?.nome || 'Cliente N/A'}
               </span>
             </div>
             <Badge className="text-[9px] py-0 px-1 leading-none bg-white/20 text-white shrink-0 ml-2">
-              Qtd: {card.qtd}
+              Qtd: {card?.qtd || 0}
             </Badge>
           </div>
           <div className="font-semibold text-[#F6FAFD] leading-tight text-xs mt-0.5">
-            {card.nome_produto}
+            {card?.nome_produto || 'Sem nome'}
           </div>
-          {!card.is_outsourced && !card.outsourced_checked && (
+          {!card?.is_outsourced && !card?.outsourced_checked && (
             <button
               type="button"
               onClick={(e) => e.stopPropagation()}
@@ -188,15 +188,15 @@ export function KanbanCard({
         <>
           <div className="flex justify-between items-start">
             <span className="font-mono font-bold px-1 py-0.5 rounded text-[10px] leading-none text-pale-cornflower bg-steel-blue/20">
-              {card.codigo_rastreio ||
-                `#${card.formulario_comercial_id?.split('-')[0].toUpperCase() || 'N/A'}`}
+              {card?.codigo_rastreio ||
+                `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
             </span>
             <Badge className="text-[9px] py-0 px-1 leading-none bg-steel-blue">
-              Qtd: {card.qtd}
+              Qtd: {card?.qtd || 0}
             </Badge>
           </div>
           <div className="font-semibold text-[#F6FAFD] leading-tight text-sm mt-1">
-            {card.nome_produto}
+            {card?.nome_produto || 'Sem nome'}
           </div>
         </>
       )}
@@ -215,12 +215,12 @@ export function KanbanCard({
           {isAnaliseTecnica && <div></div>}
 
           <div className="flex flex-col items-end gap-1.5 shrink-0">
-            {!isMontagem && !isProducao && card.analista_id && usersMap[card.analista_id] && (
+            {!isMontagem && !isProducao && card?.analista_id && usersMap?.[card.analista_id] && (
               <div
                 className="flex items-center gap-1"
-                title={`Responsável: ${usersMap[card.analista_id].nome}`}
+                title={`Responsável: ${usersMap[card.analista_id]?.nome || 'Sem Nome'}`}
               >
-                {usersMap[card.analista_id].foto_perfil ? (
+                {usersMap[card.analista_id]?.foto_perfil ? (
                   <img
                     src={usersMap[card.analista_id].foto_perfil as string}
                     className="w-4 h-4 rounded-full object-cover border border-steel-blue"
@@ -228,7 +228,7 @@ export function KanbanCard({
                   />
                 ) : (
                   <div className="w-4 h-4 rounded-full bg-steel-blue text-midnight-navy flex items-center justify-center text-[8px] font-bold">
-                    {usersMap[card.analista_id].nome.charAt(0).toUpperCase()}
+                    {usersMap[card.analista_id]?.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
               </div>

@@ -705,7 +705,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         <div
           key={col.id}
           className={cn(
-            'transition-colors duration-200 shrink-0 flex flex-col h-full min-h-full',
+            'transition-colors duration-200 shrink-0 flex flex-col h-full',
             isAnaliseTecnica
               ? 'max-h-full w-[320px] min-w-[320px] rounded-lg'
               : isMontagemRoute || isProducao
@@ -763,14 +763,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               <div
                 key={item?.id ?? Math.random().toString()}
                 draggable
-                onDragStart={(e) => handleDragStart(e, item)}
+                onDragStart={(e) => {
+                  if (item) handleDragStart(e, item)
+                }}
                 onDragEnd={handleDragEnd}
                 className={cn(
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao || isMontagemRoute
                     ? cn(
                         'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border-2',
-                        item.is_outsourced
+                        item?.is_outsourced
                           ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
                           : 'border-transparent dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                       )
@@ -779,13 +781,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         isAnaliseTecnica
                           ? cn(
                               'bg-[#1A3D63] text-white p-1.5 gap-1',
-                              item.is_outsourced
+                              item?.is_outsourced
                                 ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
                                 : 'border-white/10 hover:border-white/30 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                             )
                           : cn(
                               'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-3 gap-2',
-                              item.is_outsourced
+                              item?.is_outsourced
                                 ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
                                 : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                             ),
@@ -1200,7 +1202,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           ref={scrollContainerRef}
           onDragOver={handleContainerDragOver}
           onDragLeave={handleContainerDragLeave}
-          className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1"
+          className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1 min-h-0"
         >
           {renderColumns()}
         </div>

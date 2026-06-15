@@ -170,13 +170,13 @@ export function AcompanhamentosKanban() {
         ref={scrollContainerRef}
         onDragOver={handleContainerDragOver}
         onDragLeave={handleContainerDragLeave}
-        className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 items-stretch"
+        className="flex-1 flex gap-4 overflow-x-auto overflow-y-hidden pb-4 items-stretch min-h-0"
       >
         {COLUMNS.map((col) => (
           <div
             key={col}
             className={cn(
-              'flex flex-col flex-shrink-0 w-[300px] min-h-full h-full rounded-lg border transition-colors',
+              'flex flex-col flex-shrink-0 w-[300px] h-full rounded-lg border transition-colors',
               dragOverCol === col
                 ? 'bg-muted/50 border-primary/50 ring-2 ring-primary/20'
                 : 'bg-muted/30 border-border',
@@ -212,26 +212,26 @@ export function AcompanhamentosKanban() {
                       <CardContent className="p-3">
                         <div className="flex justify-between items-start mb-2">
                           <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
-                            {card.codigo_projeto}
+                            {card?.codigo_projeto || 'N/A'}
                           </span>
                           <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                            {card.quantidade_itens} iten(s)
+                            {card?.quantidade_itens || 0} iten(s)
                           </span>
                         </div>
                         <h4 className="font-semibold text-sm mb-1 leading-tight">
-                          {card.nome_cliente}
+                          {card?.nome_cliente || 'Sem cliente'}
                         </h4>
                         <p
                           className="text-xs text-muted-foreground mb-3 line-clamp-2"
-                          title={card.tipo_acompanhamento}
+                          title={card?.tipo_acompanhamento || ''}
                         >
-                          {card.tipo_acompanhamento}
+                          {card?.tipo_acompanhamento || 'Sem descrição'}
                         </p>
 
                         <div className="flex items-center text-[11px] text-muted-foreground bg-muted/50 p-1.5 rounded-md">
                           <Users className="w-3 h-3 mr-1.5 shrink-0" />
                           <span className="truncate">
-                            {card.responsaveis_acompanhamentos?.nome || 'Sem responsável'}
+                            {card?.responsaveis_acompanhamentos?.nome || 'Sem responsável'}
                           </span>
                         </div>
                       </CardContent>

@@ -26,6 +26,7 @@ import AssinaturaPage from './pages/AssinaturaPage'
 import BaixaRetalho from './pages/BaixaRetalho'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ThemeProvider } from './components/theme-provider'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -55,11 +56,46 @@ const App = () => (
                 <Route path="/clientes" element={<AreaClientes />} />
                 <Route path="/clientes/:id" element={<AreaClientes />} />
                 <Route path="/financeiro" element={<Financeiro />} />
-                <Route path="/analise-tecnica" element={<AnaliseTecnica />} />
-                <Route path="/analise-tecnica/:id" element={<AnaliseTecnicaDetalhe />} />
-                <Route path="/producao" element={<Producao />} />
-                <Route path="/montagem" element={<Montagem />} />
-                <Route path="/acompanhamentos" element={<Acompanhamentos />} />
+                <Route
+                  path="/analise-tecnica"
+                  element={
+                    <ErrorBoundary>
+                      <AnaliseTecnica />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/analise-tecnica/:id"
+                  element={
+                    <ErrorBoundary>
+                      <AnaliseTecnicaDetalhe />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/producao"
+                  element={
+                    <ErrorBoundary>
+                      <Producao />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/montagem"
+                  element={
+                    <ErrorBoundary>
+                      <Montagem />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/acompanhamentos"
+                  element={
+                    <ErrorBoundary>
+                      <Acompanhamentos />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route path="/estoque-compras" element={<EstoqueCompras />} />
                 <Route path="/gestao-pessoas" element={<GestaoPessoas />} />
                 <Route path="/gestao-pessoas/:tipo/:id" element={<GestaoPessoas />} />

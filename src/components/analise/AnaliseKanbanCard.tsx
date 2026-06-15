@@ -122,7 +122,7 @@ export function AnaliseKanbanCard({
         ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
-        {card.codigo_rastreio ? (
+        {card?.codigo_rastreio ? (
           <span className="font-bold text-primary truncate bg-primary/10 px-1.5 py-0.5 rounded">
             {card.codigo_rastreio}
           </span>
@@ -181,11 +181,11 @@ export function AnaliseKanbanCard({
         </div>
       </div>
 
-      {card.clientes?.nome && (
+      {card?.clientes?.nome && (
         <span
           onClick={(e) => {
             e.stopPropagation()
-            if (card.cliente_id) {
+            if (card?.cliente_id) {
               navigate(`/clientes/${card.cliente_id}?tab=documentos`)
             }
           }}
@@ -196,7 +196,7 @@ export function AnaliseKanbanCard({
       )}
 
       <div className="flex flex-col gap-1 w-full my-1">
-        {card.is_parent_card && card.project_item_names ? (
+        {card?.is_parent_card && card?.project_item_names ? (
           card.project_item_names
             .split(',')
             .map((s: string) => s.trim())
@@ -213,7 +213,7 @@ export function AnaliseKanbanCard({
           <div
             className={`text-xs px-2 py-1 rounded w-full break-words leading-tight border ${isAlert ? 'bg-orange-200/50 border-orange-300 text-orange-950 dark:bg-orange-500/10 dark:border-orange-500/30 dark:text-orange-200' : 'bg-muted/50 border-border text-foreground'}`}
           >
-            • {card.nome_produto}
+            • {card?.nome_produto || 'Sem nome'}
           </div>
         )}
       </div>

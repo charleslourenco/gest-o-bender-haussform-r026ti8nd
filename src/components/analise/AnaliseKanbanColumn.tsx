@@ -15,7 +15,7 @@ export function AnaliseKanbanColumn({
 }: any) {
   return (
     <div
-      className={`flex flex-col w-[240px] bg-muted/40 dark:bg-muted/20 border border-border rounded-md p-2 transition-colors min-h-full h-full shrink-0 ${isDragOver ? 'ring-2 ring-primary/50 bg-muted/60 dark:bg-muted/40' : ''}`}
+      className={`flex flex-col w-[240px] bg-muted/40 dark:bg-muted/20 border border-border rounded-md p-2 transition-colors h-full shrink-0 ${isDragOver ? 'ring-2 ring-primary/50 bg-muted/60 dark:bg-muted/40' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
