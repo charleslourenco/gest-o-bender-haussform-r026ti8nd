@@ -357,7 +357,7 @@ export function SectionProdutos({ data, update }: Props) {
                   <input
                     type="text"
                     className={inputClass}
-                    value={formatCurrencyInput(p.valor_unitario * 100)}
+                    value={formatCurrencyInput(Math.round(p.valor_unitario * 100))}
                     onChange={(e) =>
                       upProd(
                         p.id,
@@ -368,7 +368,7 @@ export function SectionProdutos({ data, update }: Props) {
                   />
                 </td>
                 <td className="p-[8px] border border-steel-blue font-bold">
-                  {formatCurrencyInput(p.qtd * p.valor_unitario * 100)}
+                  {formatCurrencyInput(Math.round(p.qtd * p.valor_unitario * 100))}
                 </td>
                 <td className="p-[8px] border border-steel-blue text-center">
                   <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer justify-center">
@@ -415,20 +415,20 @@ export function SectionTotais({ data, update }: Props) {
       <div className="flex flex-col gap-[12px] max-w-xs ml-auto">
         <div className="flex justify-between items-center bg-off-white p-3 border-2 border-steel-blue rounded">
           <span className="font-semibold">Subtotal:</span>
-          <span>{formatCurrencyInput(subtotal * 100)}</span>
+          <span>{formatCurrencyInput(Math.round(subtotal * 100))}</span>
         </div>
         <div className="flex justify-between items-center bg-off-white p-3 border-2 border-steel-blue rounded">
           <span className="font-semibold">Desconto:</span>
           <input
             type="text"
             className="w-[120px] text-right bg-transparent outline-none font-bold"
-            value={formatCurrencyInput(data.desconto * 100)}
+            value={formatCurrencyInput(Math.round(data.desconto * 100))}
             onChange={(e) => update('desconto', Number(e.target.value.replace(/\D/g, '')) / 100)}
           />
         </div>
         <div className="flex justify-between items-center bg-dark-denim text-off-white p-3 rounded">
           <span className="font-bold text-lg">Total final:</span>
-          <span className="font-bold text-lg">{formatCurrencyInput(total * 100)}</span>
+          <span className="font-bold text-lg">{formatCurrencyInput(Math.round(total * 100))}</span>
         </div>
       </div>
     </div>
@@ -479,11 +479,26 @@ export function SectionPagamento({ data, update }: Props) {
     }
   }, [total])
 
-  const upParc = (id: string, f: string, v: any) =>
+  const upParc = (id: string, f: string, v: any) => {
+    const isFirstAndDate = f === 'data' && data.pagamento_parcelado[0]?.id === id
+    if (isFirstAndDate && v) {
+      const baseDate = new Date(v + 'T12:00:00Z')
+      if (!isNaN(baseDate.getTime())) {
+        const newData = data.pagamento_parcelado.map((p, i) => {
+          if (i === 0) return { ...p, [f]: v }
+          const pDate = new Date(baseDate.getTime())
+          pDate.setDate(pDate.getDate() + 30 * i)
+          return { ...p, data: pDate.toISOString().split('T')[0] }
+        })
+        update('pagamento_parcelado', newData)
+        return
+      }
+    }
     update(
       'pagamento_parcelado',
       data.pagamento_parcelado.map((p) => (p.id === id ? { ...p, [f]: v } : p)),
     )
+  }
 
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
@@ -590,7 +605,7 @@ export function SectionPagamento({ data, update }: Props) {
                       <input
                         type="text"
                         className={inputClass}
-                        value={formatCurrencyInput(p.valor * 100)}
+                        value={formatCurrencyInput(Math.round(p.valor * 100))}
                         onChange={(e) =>
                           upParc(p.id, 'valor', Number(e.target.value.replace(/\D/g, '')) / 100)
                         }

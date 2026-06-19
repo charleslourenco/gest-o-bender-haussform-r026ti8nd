@@ -147,7 +147,8 @@ export const maskCEP = (v: string) =>
 
 export const formatCurrencyInput = (v: any) => {
   if (!v && v !== 0) return 'R$ 0,00'
-  const value = typeof v === 'string' ? v.replace(/\D/g, '') : v.toString().replace(/\D/g, '')
+  const valueStr = typeof v === 'number' ? Math.round(v).toString() : v.toString()
+  const value = valueStr.replace(/\D/g, '')
   if (!value) return 'R$ 0,00'
   const number = (Number(value) / 100).toFixed(2)
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
