@@ -32,6 +32,7 @@ export function AnaliseKanbanCard({
 }: any) {
   const navigate = useNavigate()
   const needsCheck =
+    card &&
     !card.is_outsourced &&
     !card.has_outsourced_dependency &&
     (card.outsourced_checked === false || card.outsourced_checked === null)

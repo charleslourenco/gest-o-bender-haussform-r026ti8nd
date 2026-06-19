@@ -471,8 +471,7 @@ export function AnaliseKanbanBoard({
                 onDragEnd={() => setDraggingId(null)}
                 draggingId={draggingId}
                 onCheckOutsourced={(card: any) => {
-                  setAvulsoCardToUpdate(card)
-                  setAvulsoModalOpen(true)
+                  setCheckModalCard(card)
                 }}
                 onDelete={(id: string) => setCards((prev) => prev.filter((c) => c?.id !== id))}
               />
