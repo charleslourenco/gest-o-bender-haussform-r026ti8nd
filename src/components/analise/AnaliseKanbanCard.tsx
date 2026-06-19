@@ -31,13 +31,14 @@ export function AnaliseKanbanCard({
   onDelete,
 }: any) {
   const navigate = useNavigate()
+
   const needsCheck =
     card &&
-    !card.is_outsourced &&
-    !card.has_outsourced_dependency &&
+    card.is_outsourced &&
     (card.outsourced_checked === false || card.outsourced_checked === null)
+
   const [users, setUsers] = useState<any[]>([])
-  const [analistaId, setAnalistaId] = useState<string>(card.analista_id || '')
+  const [analistaId, setAnalistaId] = useState<string>(card?.analista_id || '')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export function AnaliseKanbanCard({
   const handleDelete = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
 
-    if (card.is_parent_card && card.formulario_comercial_id) {
+    if (card?.is_parent_card && card?.formulario_comercial_id) {
       const { error } = await supabase
         .from('formulario_comercial')
         .delete()
@@ -72,13 +73,13 @@ export function AnaliseKanbanCard({
         if (onDelete) onDelete(card.id)
       }
     } else {
-      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card.id)
+      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card?.id)
 
       if (error) {
         toast({ title: 'Erro ao excluir card', description: error.message, variant: 'destructive' })
       } else {
         toast({ title: 'Card excluído com sucesso!' })
-        if (onDelete) onDelete(card.id)
+        if (onDelete) onDelete(card?.id)
       }
     }
   }
@@ -88,11 +89,11 @@ export function AnaliseKanbanCard({
     const { error } = await supabase
       .from('produtos_servicos_projeto')
       .update({ analista_id: userId })
-      .eq('id', card.id)
+      .eq('id', card?.id)
 
     if (error) {
       toast({ title: 'Erro ao atribuir analista', variant: 'destructive' })
-      setAnalistaId(card.analista_id || '')
+      setAnalistaId(card?.analista_id || '')
     } else {
       toast({ title: 'Analista atribuído com sucesso' })
     }
@@ -101,6 +102,8 @@ export function AnaliseKanbanCard({
   const stopPropagation = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
   }
+
+  if (!card) return null
 
   // Filter out commercial direct outsourced cards from Kanban
   if (card.is_outsourced && !card.terceirizado_validado) {
@@ -136,8 +139,9 @@ export function AnaliseKanbanCard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (onCheckOutsourced) onCheckOutsourced(card)
+                window.dispatchEvent(new CustomEvent('check_outsourced', { detail: card }))
               }}
-              title="Criar Card Terceirizado"
+              title="Verificar Terceirizado"
               className="bg-orange-600 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-orange-700 dark:bg-orange-500/20 dark:text-orange-400 dark:border dark:border-orange-500/50 dark:hover:bg-orange-500/40 cursor-pointer shrink-0"
             >
               ⚠️

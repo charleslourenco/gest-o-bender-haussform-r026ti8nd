@@ -24,7 +24,6 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
   const [nome, setNome] = useState(baseCard?.nome_produto || '')
   const [clienteId, setClienteId] = useState(baseCard?.cliente_id || '')
   const [qtd, setQtd] = useState<number | ''>(baseCard?.qtd || 1)
-  const [valorUnitario, setValorUnitario] = useState<number | ''>(baseCard?.valor_unitario || '')
   const [descricao, setDescricao] = useState('')
 
   const [clientes, setClientes] = useState<any[]>([])
@@ -40,7 +39,7 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
   }, [])
 
   const handleCreate = async () => {
-    if (!nome || !clienteId || qtd === '' || valorUnitario === '') {
+    if (!nome || !clienteId || qtd === '') {
       toast({ description: 'Preencha todos os campos obrigatórios.', variant: 'destructive' })
       return
     }
@@ -49,8 +48,8 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
       nome_produto: nome,
       status_analise: 'iniciar',
       qtd: Number(qtd),
-      valor_unitario: Number(valorUnitario),
-      valor_total: Number(qtd) * Number(valorUnitario),
+      valor_unitario: 0,
+      valor_total: 0,
       cliente_id: clienteId,
       descricao: descricao || null,
       formulario_comercial_id: baseCard?.formulario_comercial_id || null,
@@ -103,7 +102,7 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
               className="bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-500"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
               <Label className="text-slate-200">
                 Quantidade <span className="text-red-500">*</span>
@@ -114,20 +113,6 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
                 value={qtd}
                 onChange={(e) => setQtd(e.target.value ? Number(e.target.value) : '')}
                 className="bg-[#0B1B2E] border-slate-700 text-white"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-slate-200">
-                Valor Unitário (R$) <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={valorUnitario}
-                onChange={(e) => setValorUnitario(e.target.value ? Number(e.target.value) : '')}
-                placeholder="0.00"
-                className="bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -153,7 +138,7 @@ export function CriarCardAvulsoModal({ onClose, onSuccess, baseCard }: any) {
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={loading || !nome || !clienteId || qtd === '' || valorUnitario === ''}
+            disabled={loading || !nome || !clienteId || qtd === ''}
             className="bg-green-600 hover:bg-green-700 text-white"
           >
             Criar Card

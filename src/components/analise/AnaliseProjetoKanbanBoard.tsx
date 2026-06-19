@@ -191,29 +191,30 @@ export function AnaliseProjetoKanbanBoard() {
 
                   let productNames: { name: string; is_outsourced: boolean }[] = []
                   if (
-                    project.produtos_servicos_projeto &&
+                    project?.produtos_servicos_projeto &&
+                    Array.isArray(project.produtos_servicos_projeto) &&
                     project.produtos_servicos_projeto.length > 0
                   ) {
                     productNames = project.produtos_servicos_projeto.map((p: any) => ({
-                      name: p.nome_produto,
-                      is_outsourced: p.is_outsourced === true,
+                      name: p?.nome_produto,
+                      is_outsourced: p?.is_outsourced === true,
                     }))
                   } else {
-                    const ambientes = Array.isArray(project.ambientes) ? project.ambientes : []
-                    const psp = Array.isArray(project.produtos_servicos)
+                    const ambientes = Array.isArray(project?.ambientes) ? project.ambientes : []
+                    const psp = Array.isArray(project?.produtos_servicos)
                       ? project.produtos_servicos
                       : []
                     productNames = [
-                      ...ambientes.map((a: any) => ({ name: a.nome, is_outsourced: false })),
-                      ...psp.map((p: any) => ({ name: p.nome, is_outsourced: false })),
-                    ].filter((p) => Boolean(p.name))
+                      ...ambientes.map((a: any) => ({ name: a?.nome, is_outsourced: false })),
+                      ...psp.map((p: any) => ({ name: p?.nome, is_outsourced: false })),
+                    ].filter((p) => Boolean(p?.name))
                   }
 
-                  const isAlert = project.produtos_servicos_projeto?.some(
+                  const isAlert = project?.produtos_servicos_projeto?.some(
                     (p: any) =>
-                      p.is_outsourced ||
-                      p.status_analise === 'aguardando_consultor' ||
-                      p.status_analise === 'item_terceirizado',
+                      p?.is_outsourced ||
+                      p?.status_analise === 'aguardando_consultor' ||
+                      p?.status_analise === 'item_terceirizado',
                   )
 
                   return (
