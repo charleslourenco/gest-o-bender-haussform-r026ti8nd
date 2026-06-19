@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
 import type { DashboardData as BaseDashboardData } from './dashboard/types'
@@ -16,6 +15,7 @@ import { CaptacaoTab } from './dashboard/CaptacaoTab'
 
 interface DashboardData extends BaseDashboardData {
   contasPagarCount?: number | null
+  solicitacoesCompraCount?: number | null
 }
 import { ComercialTab } from './dashboard/ComercialTab'
 import { AnaliseTab } from './dashboard/AnaliseTab'
@@ -32,6 +32,7 @@ export default function Dashboard() {
     forms: [],
     projetos: [],
     contasPagarCount: null,
+    solicitacoesCompraCount: null,
   })
   const [loading, setLoading] = useState(true)
 
@@ -59,6 +60,25 @@ export default function Dashboard() {
         const queryForms = supabase.from('formulario_comercial').select('lead_id, valor_total')
 
         const [resLeads, resProj, resForms] = await Promise.all([queryLeads, queryProj, queryForms])
+
+        // Robust data fetching for Solicitações de Compra Pendentes using HEAD request properly
+        let solicitacoesCompraCount: number | null = null
+        try {
+          const { count, error } = await supabase
+            .from('solicitacoes_compra')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'Pendente')
+
+          if (error) {
+            console.warn('[Dashboard] Supabase error fetching solicitacoes_compra:', error)
+            solicitacoesCompraCount = 0
+          } else {
+            solicitacoesCompraCount = count ?? 0
+          }
+        } catch (err) {
+          console.warn('[Dashboard] Exception fetching solicitacoes_compra:', err)
+          solicitacoesCompraCount = 0
+        }
 
         // Robust data fetching for Accounts Payable (Contas a Pagar)
         let contasPagarCount: number | null = null
@@ -116,6 +136,7 @@ export default function Dashboard() {
           projetos: resProj.data || [],
           forms: resForms.data || [],
           contasPagarCount,
+          solicitacoesCompraCount,
         })
       } catch (error) {
         console.error('Erro ao carregar dados', error)
@@ -180,6 +201,19 @@ export default function Dashboard() {
                 <span className="text-destructive text-sm font-medium">Erro</span>
               ) : (
                 <span className="font-bold text-foreground">{data.contasPagarCount}</span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md h-9 border border-border">
+              <span className="text-muted-foreground text-sm font-medium">
+                Solicitações Pendentes:
+              </span>
+              {loading ? (
+                <Skeleton className="h-5 w-8" />
+              ) : data.solicitacoesCompraCount === null ? (
+                <span className="text-destructive text-sm font-medium">Erro</span>
+              ) : (
+                <span className="font-bold text-foreground">{data.solicitacoesCompraCount}</span>
               )}
             </div>
 
