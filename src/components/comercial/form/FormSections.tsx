@@ -441,7 +441,16 @@ export function SectionPagamento({ data, update }: Props) {
     0,
   )
   const total = Math.max(0, subtotal - (Number(data.desconto) || 0))
-  const metodos = ['PIX', 'Boleto', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência']
+  const metodos = [
+    'PIX',
+    'Boleto',
+    'Cartão de Crédito',
+    'Cartão de Débito',
+    'Transferência',
+    'Dinheiro',
+    'Permuta',
+    'Cheque',
+  ]
 
   const applyParcels = (length: number, forceTotal?: number) => {
     const calcTotal = forceTotal !== undefined ? forceTotal : total
