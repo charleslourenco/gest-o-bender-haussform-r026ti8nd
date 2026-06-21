@@ -321,6 +321,29 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
+  const handlePreviewFile = async (url: string) => {
+    try {
+      const signedUrl = await getSignedUrl(url)
+      if (signedUrl) {
+        window.open(signedUrl, '_blank')
+      } else {
+        toast.error('Não foi possível gerar o link de visualização.')
+      }
+    } catch (e: any) {
+      console.error('Erro ao visualizar arquivo:', e)
+      toast.error('Não foi possível visualizar o arquivo.')
+    }
+  }
+
+  const isPreviewable = (url: string | null) => {
+    if (!url) return false
+    const lowerUrl = url.toLowerCase()
+    const match = lowerUrl.match(/\.([a-z0-9]+)(?:\?|$)/)
+    if (!match) return true // assumed PDF
+    const ext = match[1]
+    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)
+  }
+
   const handleDownloadFile = async (url: string, filename: string) => {
     try {
       let bucket = 'bender_clientes'
@@ -464,6 +487,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                   ? elapsedLocal > 120000
                   : elapsedServer > 180000 && elapsedServer < 86400000)
 
+              const urlToPreview =
+                allAssinados && doc.arquivo_assinado_url
+                  ? doc.arquivo_assinado_url
+                  : doc.arquivo_url
+
               return (
                 <div
                   key={doc.id}
@@ -526,19 +554,38 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
+                    {doc.status !== 'processando' &&
+                      urlToPreview &&
+                      isPreviewable(urlToPreview) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePreviewFile(urlToPreview)}
+                          className="hover:bg-accent hover:text-accent-foreground"
+                        >
+                          <Eye className="w-4 h-4 mr-1" /> Visualizar
+                        </Button>
+                      )}
+
                     {doc.status !== 'processando' && doc.arquivo_url && !allAssinados && (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
+                        onClick={() => {
+                          const isManual =
+                            doc.tipo === 'upload_manual' || doc.tipo === 'lista_materiais'
+                          const name = doc.template_nome || 'Documento'
                           handleDownloadFile(
                             doc.arquivo_url,
-                            `Rascunho_${doc.template_nome || 'Documento'}.pdf`,
+                            isManual ? name : `Rascunho_${name}.pdf`,
                           )
-                        }
+                        }}
                         className="hover:bg-accent hover:text-accent-foreground"
                       >
-                        <Download className="w-4 h-4 mr-1" /> PDF (Rascunho)
+                        <Download className="w-4 h-4 mr-1" />{' '}
+                        {doc.tipo === 'upload_manual' || doc.tipo === 'lista_materiais'
+                          ? 'Download'
+                          : 'PDF (Rascunho)'}
                       </Button>
                     )}
 
