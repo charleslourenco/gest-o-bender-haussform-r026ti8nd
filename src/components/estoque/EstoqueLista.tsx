@@ -10,7 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Plus, Trash2, Tags } from 'lucide-react'
+import { Search, Plus, Trash2, Tags, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -283,6 +283,73 @@ export function EstoqueLista() {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  const handleExportCSV = () => {
+    if (filteredItems.length === 0) return
+
+    const headers = [
+      'Item',
+      'Marca',
+      'Detalhes Técnicos',
+      'Categoria',
+      'Fornecedor',
+      'Quantidade',
+      'Unidade',
+      'Valor Unitário',
+      'Valor Total',
+      'Alocações de Clientes',
+    ]
+
+    const escapeCSV = (value: any) => {
+      if (value === null || value === undefined) return '""'
+      const stringValue = String(value)
+      return `"${stringValue.replace(/"/g, '""')}"`
+    }
+
+    const rows = filteredItems.map((item) => {
+      const detalhes = []
+      if (item.cor) detalhes.push(`Cor: ${item.cor}`)
+      if (item.espessura_mm) detalhes.push(`Esp: ${item.espessura_mm}mm`)
+      if (item.largura_mm) detalhes.push(`Larg: ${item.largura_mm}mm`)
+      if (item.comprimento_m) detalhes.push(`Comp: ${item.comprimento_m}m`)
+      const detalhesStr = detalhes.length > 0 ? detalhes.join(' | ') : '-'
+
+      const itemAllocations = allocations.filter((a) => a.item_id === item.id)
+      const alocacoesStr =
+        itemAllocations.length > 0
+          ? itemAllocations.map((a) => `${a.cliente_nome} (${a.quantidade})`).join(', ')
+          : '-'
+
+      return [
+        escapeCSV(item.nome),
+        escapeCSV(item.marca || '-'),
+        escapeCSV(detalhesStr),
+        escapeCSV(item.categoria || '-'),
+        escapeCSV(item.fornecedor || '-'),
+        escapeCSV(item.quantidade),
+        escapeCSV(item.unidade),
+        escapeCSV(Number(item.valor_unitario || 0).toFixed(2)),
+        escapeCSV((Number(item.quantidade || 0) * Number(item.valor_unitario || 0)).toFixed(2)),
+        escapeCSV(alocacoesStr),
+      ].join(',')
+    })
+
+    const csvContent = [headers.join(','), ...rows].join('\n')
+
+    // Add BOM for UTF-8 encoding
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    const dateStr = new Date().toISOString().split('T')[0]
+    link.href = url
+    link.download = `inventario_exportado_${dateStr}.csv`
+
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const itemsSemMetadados = items.filter((i) => !i.metadados_normalizados).length
 
   return (
@@ -318,12 +385,22 @@ export function EstoqueLista() {
             className="pl-9 dark:bg-slate-900 dark:border-slate-800"
           />
         </div>
-        <Button
-          className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" /> Novo Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleExportCSV}
+            disabled={filteredItems.length === 0}
+            className="border-gray-200 dark:border-slate-800"
+          >
+            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+          </Button>
+          <Button
+            className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Novo Item
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border dark:border-slate-800 overflow-hidden">

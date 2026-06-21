@@ -929,6 +929,38 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_alocacoes: {
+        Row: {
+          cliente_nome: string
+          criado_em: string
+          id: string
+          item_id: string
+          quantidade: number
+        }
+        Insert: {
+          cliente_nome: string
+          criado_em?: string
+          id?: string
+          item_id: string
+          quantidade: number
+        }
+        Update: {
+          cliente_nome?: string
+          criado_em?: string
+          id?: string
+          item_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_alocacoes_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       estoque_caixas: {
         Row: {
           atualizado_em: string
@@ -1020,12 +1052,14 @@ export type Database = {
         Row: {
           atualizado_em: string
           categoria: string | null
+          classe: string | null
           comprimento_m: number | null
           cor: string | null
           criado_em: string
           espessura_mm: number | null
           estoque_minimo: number
           fornecedor: string | null
+          grupo: string | null
           id: string
           largura_mm: number | null
           marca: string | null
@@ -1039,12 +1073,14 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           categoria?: string | null
+          classe?: string | null
           comprimento_m?: number | null
           cor?: string | null
           criado_em?: string
           espessura_mm?: number | null
           estoque_minimo?: number
           fornecedor?: string | null
+          grupo?: string | null
           id?: string
           largura_mm?: number | null
           marca?: string | null
@@ -1058,12 +1094,14 @@ export type Database = {
         Update: {
           atualizado_em?: string
           categoria?: string | null
+          classe?: string | null
           comprimento_m?: number | null
           cor?: string | null
           criado_em?: string
           espessura_mm?: number | null
           estoque_minimo?: number
           fornecedor?: string | null
+          grupo?: string | null
           id?: string
           largura_mm?: number | null
           marca?: string | null
