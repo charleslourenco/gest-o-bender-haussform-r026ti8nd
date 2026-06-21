@@ -10,7 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Plus, Trash2 } from 'lucide-react'
+import { Search, Plus, Trash2, Tags } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -23,10 +23,14 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 
+import { GerarEtiquetaModal } from './GerarEtiquetaModal'
+
 export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
+  const [allocations, setAllocations] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [itemToAllocate, setItemToAllocate] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
@@ -47,11 +51,15 @@ export function EstoqueLista() {
   })
 
   async function fetchItems() {
-    const { data } = await supabase
+    const { data: itemsData } = await supabase
       .from('estoque_itens' as any)
       .select('*')
       .order('nome')
-    if (data) setItems(data)
+
+    const { data: allocData } = await supabase.from('estoque_alocacoes' as any).select('*')
+
+    if (itemsData) setItems(itemsData)
+    if (allocData) setAllocations(allocData)
   }
 
   useEffect(() => {
@@ -331,97 +339,127 @@ export function EstoqueLista() {
               <TableHead className="text-right">V. Unitário</TableHead>
               <TableHead className="text-right">V. Total</TableHead>
               <TableHead className="text-center">Status</TableHead>
-              {isAdmin && <TableHead className="text-right">Ação</TableHead>}
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredItems.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium max-w-[200px] truncate" title={item.nome}>
-                  {item.nome}
-                </TableCell>
-                <TableCell>{item.marca || '-'}</TableCell>
-                <TableCell>
-                  <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
-                    {item.cor && (
-                      <div>
-                        <span className="font-medium">Cor:</span> {item.cor}
+            {filteredItems.map((item) => {
+              const itemAllocations = allocations.filter((a) => a.item_id === item.id)
+              const totalAllocated = itemAllocations.reduce((acc, curr) => acc + curr.quantidade, 0)
+
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium max-w-[250px]" title={item.nome}>
+                    <div className="truncate mb-1">{item.nome}</div>
+                    {itemAllocations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {itemAllocations.map((a) => (
+                          <span
+                            key={a.id}
+                            className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50"
+                          >
+                            <span className="text-[9px]">📍</span> {a.quantidade}x {a.cliente_nome}
+                          </span>
+                        ))}
                       </div>
                     )}
-                    {item.espessura_mm && (
-                      <div>
-                        <span className="font-medium">Esp:</span> {item.espessura_mm}mm
-                      </div>
+                  </TableCell>
+                  <TableCell>{item.marca || '-'}</TableCell>
+                  <TableCell>
+                    <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
+                      {item.cor && (
+                        <div>
+                          <span className="font-medium">Cor:</span> {item.cor}
+                        </div>
+                      )}
+                      {item.espessura_mm && (
+                        <div>
+                          <span className="font-medium">Esp:</span> {item.espessura_mm}mm
+                        </div>
+                      )}
+                      {item.largura_mm && (
+                        <div>
+                          <span className="font-medium">Larg:</span> {item.largura_mm}mm
+                        </div>
+                      )}
+                      {item.comprimento_m && (
+                        <div>
+                          <span className="font-medium">Comp:</span> {item.comprimento_m}m
+                        </div>
+                      )}
+                      {!item.cor &&
+                        !item.espessura_mm &&
+                        !item.largura_mm &&
+                        !item.comprimento_m &&
+                        '-'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {item.categoria || '-'}
+                    {item.terceirizado && (
+                      <Badge
+                        variant="secondary"
+                        className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
+                      >
+                        Terceirizado
+                      </Badge>
                     )}
-                    {item.largura_mm && (
-                      <div>
-                        <span className="font-medium">Larg:</span> {item.largura_mm}mm
-                      </div>
-                    )}
-                    {item.comprimento_m && (
-                      <div>
-                        <span className="font-medium">Comp:</span> {item.comprimento_m}m
-                      </div>
-                    )}
-                    {!item.cor &&
-                      !item.espessura_mm &&
-                      !item.largura_mm &&
-                      !item.comprimento_m &&
-                      '-'}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {item.categoria || '-'}
-                  {item.terceirizado && (
-                    <Badge
-                      variant="secondary"
-                      className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
-                    >
-                      Terceirizado
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>{item.fornecedor || '-'}</TableCell>
-                <TableCell className="text-right">
-                  {item.quantidade}{' '}
-                  <span className="text-xs text-gray-500 dark:text-slate-400">{item.unidade}</span>
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(item.valor_unitario)}</TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(item.quantidade * item.valor_unitario)}
-                </TableCell>
-                <TableCell className="text-center">
-                  {item.quantidade <= item.estoque_minimo ? (
-                    <Badge
-                      variant="destructive"
-                      className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
-                    >
-                      Estoque Baixo
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
-                    >
-                      Normal
-                    </Badge>
-                  )}
-                </TableCell>
-                {isAdmin && (
+                  </TableCell>
+                  <TableCell>{item.fornecedor || '-'}</TableCell>
                   <TableCell className="text-right">
+                    {item.quantidade}{' '}
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      {item.unidade}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(item.valor_unitario)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(item.quantidade * item.valor_unitario)}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {item.quantidade <= item.estoque_minimo ? (
+                      <Badge
+                        variant="destructive"
+                        className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
+                      >
+                        Estoque Baixo
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                      >
+                        Normal
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                      title="Apagar"
+                      onClick={() => setItemToAllocate(item)}
+                      className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
+                      title="Alocar e Gerar Etiqueta"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Tags className="w-4 h-4" />
                     </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(item.id)}
+                        className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                        title="Apagar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </TableCell>
-                )}
-              </TableRow>
-            ))}
+                </TableRow>
+              )
+            })}
             {filteredItems.length === 0 && (
               <TableRow>
                 <TableCell
@@ -575,6 +613,18 @@ export function EstoqueLista() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {itemToAllocate && (
+        <GerarEtiquetaModal
+          isOpen={!!itemToAllocate}
+          onClose={() => setItemToAllocate(null)}
+          item={itemToAllocate}
+          totalAllocated={allocations
+            .filter((a) => a.item_id === itemToAllocate.id)
+            .reduce((acc, curr) => acc + curr.quantidade, 0)}
+          onSave={fetchItems}
+        />
+      )}
     </div>
   )
 }
