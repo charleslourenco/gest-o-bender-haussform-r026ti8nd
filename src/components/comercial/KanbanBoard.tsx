@@ -43,27 +43,32 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
 
   const { toast } = useToast()
 
-  const loadData = async () => {
+  const loadData = async (isSilent = false) => {
     try {
-      setIsLoading(true)
+      if (!isSilent) setIsLoading(true)
       const [lData, uData] = await Promise.all([fetchLeads(), fetchUsers()])
       setLeads(lData)
       setUsers(uData)
       setError(null)
     } catch (e: any) {
-      setError(e.message)
+      console.error('Error loading Kanban data:', e)
+      if (!isSilent) setError(e.message || 'Erro ao carregar dados do Kanban.')
     } finally {
-      setIsLoading(false)
+      if (!isSilent) setIsLoading(false)
     }
   }
 
   useEffect(() => {
+    let isMounted = true
     loadData()
     const channel = supabase
       .channel('leads_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        if (isMounted) loadData(true)
+      })
       .subscribe()
     return () => {
+      isMounted = false
       supabase.removeChannel(channel)
     }
   }, [])
@@ -262,7 +267,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {toolbarPortal && isActive ? createPortal(controls, toolbarPortal) : null}
+      {toolbarPortal instanceof Element && isActive ? createPortal(controls, toolbarPortal) : null}
 
       {/* Content */}
       {leads.length === 0 && !debouncedSearch && !sourceFilter && !consultantFilter ? (

@@ -74,19 +74,21 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    let isMounted = true
     loadData()
     const channel = supabase
       .channel('conversas_leads_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        loadData()
+        if (isMounted) loadData(true)
       })
       .subscribe()
     return () => {
+      isMounted = false
       supabase.removeChannel(channel)
     }
   }, [])
 
-  const loadData = async () => {
+  const loadData = async (isSilent = false) => {
     try {
       const [leadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
       setLeads(leadsData as any)
@@ -97,8 +99,8 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
         return updated ? (updated as any) : current
       })
     } catch (error) {
-      console.error(error)
-      toast.error('Erro ao carregar dados')
+      console.error('Error loading Conversas data:', error)
+      if (!isSilent) toast.error('Erro ao carregar dados')
     }
   }
 
@@ -111,7 +113,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
       const data = await fetchLeadMessages(leadId, phone)
       setMessages(data || [])
     } catch (error) {
-      console.error(error)
+      console.error('Error fetching messages:', error)
       if (!isSilent) setMessages([])
     } finally {
       if (!isSilent) setLoadingMessages(false)
@@ -279,7 +281,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
   return (
     <div className="flex h-full w-full bg-background">
       {isActive &&
-        toolbarPortal &&
+        toolbarPortal instanceof Element &&
         createPortal(
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
             <Input

@@ -25,24 +25,35 @@ export default function Comercial() {
   const [scrollInfo, setScrollInfo] = useState({ scrollWidth: 0, clientWidth: 0 })
 
   useEffect(() => {
+    let isMounted = true
     const check = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (!data.session) {
-        setHasPermission(false)
-        return
-      }
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error || !data.session) {
+          if (isMounted) setHasPermission(false)
+          return
+        }
 
-      const res = await supabase.functions.invoke('check-permission', {
-        body: { action: 'read', modulo: 'Comercial' },
-      })
+        const res = await supabase.functions.invoke('check-permission', {
+          body: { action: 'read', modulo: 'Comercial' },
+        })
 
-      if (res.data?.allowed && ['Admin', 'Editor'].includes(res.data?.level)) {
-        setHasPermission(true)
-      } else {
-        setHasPermission(false)
+        if (!isMounted) return
+
+        if (res.data?.allowed && ['Admin', 'Editor'].includes(res.data?.level)) {
+          setHasPermission(true)
+        } else {
+          setHasPermission(false)
+        }
+      } catch (err) {
+        console.error('Erro ao verificar permissões:', err)
+        if (isMounted) setHasPermission(false)
       }
     }
     check()
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   useEffect(() => {
@@ -66,37 +77,41 @@ export default function Comercial() {
     const findScrollable = () => {
       if (!kanbanWrapperRef.current) return
 
-      const elements = Array.from(kanbanWrapperRef.current.querySelectorAll('*')) as HTMLElement[]
-      let bestEl: HTMLElement | null = null
-      let maxScroll = 0
+      try {
+        const elements = Array.from(kanbanWrapperRef.current.querySelectorAll('*')) as HTMLElement[]
+        let bestEl: HTMLElement | null = null
+        let maxScroll = 0
 
-      for (const el of elements) {
-        const style = window.getComputedStyle(el)
-        if (
-          el.scrollWidth > el.clientWidth &&
-          (style.overflowX === 'auto' ||
-            style.overflowX === 'scroll' ||
-            style.overflowX === 'overlay')
-        ) {
-          if (el.scrollWidth > maxScroll) {
-            maxScroll = el.scrollWidth
-            bestEl = el
+        for (const el of elements) {
+          const style = window.getComputedStyle(el)
+          if (
+            el.scrollWidth > el.clientWidth &&
+            (style.overflowX === 'auto' ||
+              style.overflowX === 'scroll' ||
+              style.overflowX === 'overlay')
+          ) {
+            if (el.scrollWidth > maxScroll) {
+              maxScroll = el.scrollWidth
+              bestEl = el
+            }
           }
         }
-      }
 
-      if (bestEl && bestEl !== targetScrollEl) {
-        targetScrollEl = bestEl
-        updateScrollInfo(bestEl)
+        if (bestEl && bestEl !== targetScrollEl) {
+          targetScrollEl = bestEl
+          updateScrollInfo(bestEl)
 
-        if (resizeObs) resizeObs.disconnect()
-        resizeObs = new ResizeObserver(() => {
-          if (targetScrollEl) updateScrollInfo(targetScrollEl)
-        })
-        resizeObs.observe(bestEl)
-        Array.from(bestEl.children).forEach((child) => resizeObs?.observe(child))
-      } else if (targetScrollEl) {
-        updateScrollInfo(targetScrollEl)
+          if (resizeObs) resizeObs.disconnect()
+          resizeObs = new ResizeObserver(() => {
+            if (targetScrollEl) updateScrollInfo(targetScrollEl)
+          })
+          resizeObs.observe(bestEl)
+          Array.from(bestEl.children).forEach((child) => resizeObs?.observe(child))
+        } else if (targetScrollEl) {
+          updateScrollInfo(targetScrollEl)
+        }
+      } catch (err) {
+        console.warn('Scroll sync query warning (ignorable):', err)
       }
     }
 
@@ -128,27 +143,36 @@ export default function Comercial() {
       }
     }
 
-    kanbanWrapperRef.current.addEventListener('scroll', onBottomScroll, true)
-    topScrollRef.current.addEventListener('scroll', onTopScroll, { passive: true })
+    const currentKanbanRef = kanbanWrapperRef.current
+    const currentTopRef = topScrollRef.current
+
+    currentKanbanRef.addEventListener('scroll', onBottomScroll, true)
+    currentTopRef.addEventListener('scroll', onTopScroll, { passive: true })
 
     const observer = new MutationObserver(() => {
       clearTimeout(findTimeout)
-      findTimeout = setTimeout(findScrollable, 200)
-    })
-    observer.observe(kanbanWrapperRef.current, {
-      childList: true,
-      subtree: true,
-      characterData: true,
+      findTimeout = setTimeout(findScrollable, 300)
     })
 
-    setTimeout(findScrollable, 100)
-    setTimeout(findScrollable, 500)
-    setTimeout(findScrollable, 1500)
+    // Optimize observer to prevent loop rendering
+    observer.observe(currentKanbanRef, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style', 'data-state'],
+    })
+
+    let timeouts = [
+      setTimeout(findScrollable, 100),
+      setTimeout(findScrollable, 500),
+      setTimeout(findScrollable, 1500),
+    ]
 
     return () => {
       clearTimeout(findTimeout)
-      kanbanWrapperRef.current?.removeEventListener('scroll', onBottomScroll, true)
-      topScrollRef.current?.removeEventListener('scroll', onTopScroll)
+      timeouts.forEach(clearTimeout)
+      currentKanbanRef?.removeEventListener('scroll', onBottomScroll, true)
+      currentTopRef?.removeEventListener('scroll', onTopScroll)
       observer.disconnect()
       if (resizeObs) resizeObs.disconnect()
     }
@@ -233,7 +257,11 @@ export default function Comercial() {
           </TabsList>
         </div>
         <div
-          ref={setToolbarNode}
+          ref={(node) => {
+            if (node !== toolbarNode) {
+              setToolbarNode(node)
+            }
+          }}
           className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap [&_input]:!w-28 lg:[&_input]:!w-40 [&_button[role='combobox']]:!w-28 lg:[&_button[role='combobox']]:!w-40"
         />
       </div>

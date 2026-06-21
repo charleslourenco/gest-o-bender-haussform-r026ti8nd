@@ -50,8 +50,22 @@ const App = () => (
               >
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/comercial" element={<Comercial />} />
-                <Route path="/comercial/documentacao/:id" element={<DocumentacaoLead />} />
+                <Route
+                  path="/comercial"
+                  element={
+                    <ErrorBoundary>
+                      <Comercial />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/comercial/documentacao/:id"
+                  element={
+                    <ErrorBoundary>
+                      <DocumentacaoLead />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route path="/usuarios" element={<Users />} />
                 <Route path="/clientes" element={<AreaClientes />} />
                 <Route path="/clientes/:id" element={<AreaClientes />} />
