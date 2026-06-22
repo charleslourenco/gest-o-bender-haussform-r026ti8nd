@@ -257,11 +257,7 @@ export default function Comercial() {
           </TabsList>
         </div>
         <div
-          ref={(node) => {
-            if (node !== toolbarNode) {
-              setToolbarNode(node)
-            }
-          }}
+          ref={setToolbarNode}
           className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap [&_input]:!w-28 lg:[&_input]:!w-40 [&_button[role='combobox']]:!w-28 lg:[&_button[role='combobox']]:!w-40"
         />
       </div>
