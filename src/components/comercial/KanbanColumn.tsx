@@ -99,13 +99,13 @@ export function KanbanColumn({
         <div className="flex items-center gap-1">
           {onAddLead && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={onAddLead}
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="h-7 w-7 rounded-full border-2 border-primary/50 text-primary hover:bg-primary hover:border-primary hover:text-primary-foreground transition-all flex items-center justify-center shrink-0 shadow-sm"
               title="Novo Lead"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4" strokeWidth={3} />
             </Button>
           )}
           <button
