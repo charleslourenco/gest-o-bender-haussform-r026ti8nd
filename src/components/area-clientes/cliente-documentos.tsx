@@ -266,8 +266,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         cliente_id: dossie.cliente_id,
         tipo: uploadTipo === 'lista_materiais' ? 'lista_materiais' : 'upload_manual',
         template_nome: file.name,
-        status: uploadTipo === 'lista_materiais' ? 'pendente' : 'Concluído',
+        status: uploadTipo === 'lista_materiais' ? 'Pendente' : 'Concluído',
         arquivo_url: filePath,
+        usuario_id: session.user.id,
       })
 
       const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'

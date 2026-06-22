@@ -1122,6 +1122,7 @@ export type Database = {
           produto: string
           recebido_em: string
           responsavel_entrega: string | null
+          status: string | null
           usuario_id: string | null
         }
         Insert: {
@@ -1131,6 +1132,7 @@ export type Database = {
           produto: string
           recebido_em?: string
           responsavel_entrega?: string | null
+          status?: string | null
           usuario_id?: string | null
         }
         Update: {
@@ -1140,9 +1142,18 @@ export type Database = {
           produto?: string
           recebido_em?: string
           responsavel_entrega?: string | null
+          status?: string | null
           usuario_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'fk_estoque_itens_cliente_users'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       estoque_movimentacoes: {
         Row: {
