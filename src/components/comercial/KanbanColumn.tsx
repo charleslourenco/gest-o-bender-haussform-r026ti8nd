@@ -1,7 +1,8 @@
 import { Lead } from '@/types'
 import { cn } from '@/lib/utils'
 import { KanbanCard } from './KanbanCard'
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Maximize2, Minimize2, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   title: string
@@ -20,6 +21,7 @@ interface Props {
   onToggleCollapse: () => void
   onStatusChange: (id: string, newStatus: string) => void
   columns: string[]
+  onAddLead?: () => void
 }
 
 export function KanbanColumn({
@@ -39,6 +41,7 @@ export function KanbanColumn({
   onToggleCollapse,
   onStatusChange,
   columns,
+  onAddLead,
 }: Props) {
   if (isCollapsed) {
     return (
@@ -93,13 +96,26 @@ export function KanbanColumn({
           {title}{' '}
           <span className="text-muted-foreground text-[13px] font-normal">({leads.length})</span>
         </h3>
-        <button
-          onClick={onToggleCollapse}
-          className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
-          title="Minimizar coluna"
-        >
-          <Minimize2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {onAddLead && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onAddLead}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              title="Novo Lead"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
+          <button
+            onClick={onToggleCollapse}
+            className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
+            title="Minimizar coluna"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       <div className="flex flex-col flex-1 overflow-y-auto pb-4 pr-1 scrollbar-hide">
         {leads.map((lead) => (

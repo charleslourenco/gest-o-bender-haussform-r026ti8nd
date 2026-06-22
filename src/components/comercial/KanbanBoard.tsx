@@ -253,15 +253,6 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
           </option>
         ))}
       </select>
-      <button
-        onClick={() => {
-          setEditingLead(null)
-          setFormOpen(true)
-        }}
-        className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1.5 rounded-md font-medium transition-colors shadow-sm text-sm border border-primary/20 whitespace-nowrap"
-      >
-        + Novo Lead
-      </button>
     </>
   )
 
@@ -335,8 +326,16 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
                   onDelete={(l) => setLeadToDelete(l)}
                   onStatusChange={handleStatusChange}
                   columns={COLUMNS}
+                  onAddLead={
+                    col === COLUMNS[0]
+                      ? () => {
+                          setEditingLead(null)
+                          setFormOpen(true)
+                        }
+                      : undefined
+                  }
                 />
-              ))}
+              ))}{' '}
             </div>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
