@@ -1228,10 +1228,12 @@ export type Database = {
           criado_em: string
           espessura: number | null
           id: string
+          item_id: string | null
           largura: number
           marca: string | null
           nome: string
           status: string
+          tipo: string | null
           usado_em: string | null
         }
         Insert: {
@@ -1241,10 +1243,12 @@ export type Database = {
           criado_em?: string
           espessura?: number | null
           id?: string
+          item_id?: string | null
           largura: number
           marca?: string | null
           nome: string
           status?: string
+          tipo?: string | null
           usado_em?: string | null
         }
         Update: {
@@ -1254,13 +1258,23 @@ export type Database = {
           criado_em?: string
           espessura?: number | null
           id?: string
+          item_id?: string | null
           largura?: number
           marca?: string | null
           nome?: string
           status?: string
+          tipo?: string | null
           usado_em?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_sobras_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+        ]
       }
       formulario_comercial: {
         Row: {
