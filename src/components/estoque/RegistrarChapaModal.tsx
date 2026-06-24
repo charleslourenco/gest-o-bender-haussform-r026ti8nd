@@ -33,7 +33,14 @@ export function RegistrarChapaModal({
   sobraParaEditar?: any
   onSave?: () => void
 }) {
-  const [uuid, setUuid] = useState(() => crypto.randomUUID())
+  const [uuid, setUuid] = useState(() => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0,
+        v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
+  })
   const [itens, setItems] = useState<any[]>([])
   const [novaSobra, setNovaSobra] = useState({
     item_id: '',
@@ -67,7 +74,14 @@ export function RegistrarChapaModal({
         })
       } else {
         setNovaSobra({ item_id: '', nome: '', marca: '', cliente_nome: '', espessura: 0 })
-        setUuid(crypto.randomUUID())
+        setUuid(() => {
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0,
+              v = c === 'x' ? r : (r & 0x3) | 0x8
+            return v.toString(16)
+          })
+        })
       }
     }
   }, [isOpen, sobraParaEditar])

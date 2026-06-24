@@ -118,7 +118,7 @@ export function GestaoSobras() {
 
       <Tabs defaultValue="retalhos">
         <TabsList className="mb-4">
-          <TabsTrigger value="retalhos">Retalhos (Pedacinhos)</TabsTrigger>
+          <TabsTrigger value="retalhos">Retalhos</TabsTrigger>
           <TabsTrigger value="chapas">Chapas Inteiras</TabsTrigger>
         </TabsList>
 

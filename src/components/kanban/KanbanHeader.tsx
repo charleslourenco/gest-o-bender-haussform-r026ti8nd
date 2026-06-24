@@ -198,11 +198,11 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <Filter className="w-4 h-4" />
             </Button>
             <Button
-              onClick={() => window.dispatchEvent(new CustomEvent('open_registrar_retalho'))}
+              onClick={() => window.dispatchEvent(new CustomEvent('open_registrar_sobra'))}
               className="bg-amber-500 hover:bg-amber-600 text-white h-9 whitespace-nowrap shrink-0"
             >
               <Scissors className="w-4 h-4 mr-2" />
-              Registrar Retalho
+              Registrar Sobra
             </Button>
             <Button
               onClick={() => setIsCreateOpen(true)}

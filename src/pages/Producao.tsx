@@ -37,13 +37,11 @@ export default function Producao() {
 
     window.addEventListener('kanban_tab_change', handleTab)
     window.addEventListener('kanban_search_change', handleSearch)
-    window.addEventListener('open_registrar_retalho', handleOpen)
     window.addEventListener('open_registrar_sobra', handleOpen)
 
     return () => {
       window.removeEventListener('kanban_tab_change', handleTab)
       window.removeEventListener('kanban_search_change', handleSearch)
-      window.removeEventListener('open_registrar_retalho', handleOpen)
       window.removeEventListener('open_registrar_sobra', handleOpen)
     }
   }, [])
