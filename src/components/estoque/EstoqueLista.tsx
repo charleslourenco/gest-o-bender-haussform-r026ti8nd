@@ -28,6 +28,7 @@ import { GerarEtiquetaModal } from './GerarEtiquetaModal'
 export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
   const [allocations, setAllocations] = useState<any[]>([])
+  const [sobrasChapas, setSobrasChapas] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [itemToAllocate, setItemToAllocate] = useState<any>(null)
@@ -57,9 +58,15 @@ export function EstoqueLista() {
       .order('nome')
 
     const { data: allocData } = await supabase.from('estoque_alocacoes' as any).select('*')
+    const { data: sobrasData } = await supabase
+      .from('estoque_sobras' as any)
+      .select('*')
+      .eq('tipo', 'chapa_inteira')
+      .eq('status', 'disponivel')
 
     if (itemsData) setItems(itemsData)
     if (allocData) setAllocations(allocData)
+    if (sobrasData) setSobrasChapas(sobrasData)
   }
 
   useEffect(() => {
@@ -423,23 +430,36 @@ export function EstoqueLista() {
             {filteredItems.map((item) => {
               const itemAllocations = allocations.filter((a) => a.item_id === item.id)
               const totalAllocated = itemAllocations.reduce((acc, curr) => acc + curr.quantidade, 0)
+              const itemSobras = sobrasChapas.filter((s) => s.item_id === item.id)
+              const totalSobras = itemSobras.length
 
               return (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium max-w-[250px]" title={item.nome}>
                     <div className="truncate mb-1">{item.nome}</div>
-                    {itemAllocations.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {itemAllocations.map((a) => (
-                          <span
-                            key={a.id}
-                            className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50"
-                          >
-                            <span className="text-[9px]">📍</span> {a.quantidade}x {a.cliente_nome}
+                    <div className="flex flex-col gap-1 mt-1">
+                      {itemAllocations.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {itemAllocations.map((a) => (
+                            <span
+                              key={a.id}
+                              className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50"
+                            >
+                              <span className="text-[9px]">📍</span> {a.quantidade}x{' '}
+                              {a.cliente_nome}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {totalSobras > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50">
+                            <span className="text-[9px]">♻️</span> {totalSobras}{' '}
+                            {totalSobras === 1 ? 'Sobra de Projeto' : 'Sobras de Projeto'}
                           </span>
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{item.marca || '-'}</TableCell>
                   <TableCell>
@@ -484,10 +504,20 @@ export function EstoqueLista() {
                   </TableCell>
                   <TableCell>{item.fornecedor || '-'}</TableCell>
                   <TableCell className="text-right">
-                    {item.quantidade}{' '}
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                      {item.unidade}
-                    </span>
+                    <div>
+                      {item.quantidade}{' '}
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        {item.unidade}
+                      </span>
+                    </div>
+                    {totalSobras > 0 && (
+                      <div
+                        className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"
+                        title={`${item.quantidade} de compra + ${totalSobras} sobras`}
+                      >
+                        Total geral: {Number(item.quantidade) + totalSobras}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(item.valor_unitario)}

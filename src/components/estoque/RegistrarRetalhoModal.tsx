@@ -124,6 +124,7 @@ export function RegistrarRetalhoModal({
         espessura: novaSobra.espessura,
         area: area,
         status: 'disponivel',
+        tipo: 'retalho',
       })
 
       error = insertError

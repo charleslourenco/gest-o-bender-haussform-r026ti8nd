@@ -2,7 +2,16 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Scissors, Trash2, Search, Check, Printer, Edit } from 'lucide-react'
+import {
+  Scissors,
+  Trash2,
+  Search,
+  Check,
+  Printer,
+  Edit,
+  LayoutTemplate,
+  ScissorsLineDashed,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
@@ -15,14 +24,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { RegistrarRetalhoModal } from './RegistrarRetalhoModal'
+import { RegistrarChapaModal } from './RegistrarChapaModal'
 import { printScrapLabel } from '@/lib/print-label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 
 export function GestaoSobras() {
   const [sobras, setSobras] = useState<any[]>([])
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [search, setSearch] = useState('')
 
+  const [isTypeSelectionOpen, setIsTypeSelectionOpen] = useState(false)
+  const [isRetalhoModalOpen, setIsRetalhoModalOpen] = useState(false)
+  const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
+
   const [sobraEditando, setSobraEditando] = useState<any>(null)
+  const [chapaEditando, setChapaEditando] = useState<any>(null)
 
   const { toast } = useToast()
 
@@ -39,28 +61,33 @@ export function GestaoSobras() {
   }
 
   function openEditModal(sobra: any) {
-    setSobraEditando(sobra)
-    setIsModalOpen(true)
+    if (sobra.tipo === 'chapa_inteira') {
+      setChapaEditando(sobra)
+      setIsChapaModalOpen(true)
+    } else {
+      setSobraEditando(sobra)
+      setIsRetalhoModalOpen(true)
+    }
   }
 
   async function handleDeletar(id: string) {
-    if (!confirm('Deseja realmente apagar este retalho?')) return
+    if (!confirm('Deseja realmente apagar este registro?')) return
     await supabase
       .from('estoque_sobras' as any)
       .delete()
       .eq('id', id)
     fetchSobras()
-    toast({ title: 'Retalho removido' })
+    toast({ title: 'Registro removido' })
   }
 
   async function handleUsar(id: string) {
-    if (!confirm('Marcar este retalho como utilizado?')) return
+    if (!confirm('Marcar esta sobra como utilizada?')) return
     await supabase
       .from('estoque_sobras' as any)
       .update({ status: 'usado', usado_em: new Date().toISOString() })
       .eq('id', id)
     fetchSobras()
-    toast({ title: 'Retalho marcado como usado' })
+    toast({ title: 'Sobra marcada como usada' })
   }
 
   const filteredSobras = sobras.filter(
@@ -75,135 +102,310 @@ export function GestaoSobras() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-midnight-navy dark:text-slate-100">
-            Banco de Retalhos (MDF)
+            Gestão de Sobras (MDF)
           </h2>
           <p className="text-gray-500 dark:text-slate-400">
-            Gerencie e imprima etiquetas térmicas de sobras.
+            Gerencie retalhos e chapas inteiras excedentes.
           </p>
         </div>
+        <Button
+          className="bg-steel-blue hover:bg-dark-denim text-white"
+          onClick={() => setIsTypeSelectionOpen(true)}
+        >
+          Registrar Sobra
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3 border-b">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Buscar retalho..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Nome do MDF</TableHead>
-                  <TableHead>Marca</TableHead>
-                  <TableHead className="text-center">Alt x Lar (mm)</TableHead>
-                  <TableHead className="text-center">Espess. (mm)</TableHead>
-                  <TableHead className="text-center">Área (m²)</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSobras.map((sobra) => (
-                  <TableRow key={sobra.id}>
-                    <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
-                    <TableCell>{sobra.nome}</TableCell>
-                    <TableCell>{sobra.marca || '-'}</TableCell>
-                    <TableCell className="text-center">
-                      {sobra.altura} x {sobra.largura}
-                    </TableCell>
-                    <TableCell className="text-center">{sobra.espessura}</TableCell>
-                    <TableCell className="text-center font-bold text-steel-blue dark:text-blue-400">
-                      {sobra.area.toFixed(2)} m²
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {sobra.status === 'disponivel' ? (
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+      <Tabs defaultValue="retalhos">
+        <TabsList className="mb-4">
+          <TabsTrigger value="retalhos">Retalhos (Pedacinhos)</TabsTrigger>
+          <TabsTrigger value="chapas">Chapas Inteiras</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="retalhos">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar retalho..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+                    <TableRow>
+                      <TableHead>Cliente/Projeto</TableHead>
+                      <TableHead>Nome do MDF</TableHead>
+                      <TableHead>Marca</TableHead>
+                      <TableHead className="text-center">Alt x Lar (mm)</TableHead>
+                      <TableHead className="text-center">Espess. (mm)</TableHead>
+                      <TableHead className="text-center">Área (m²)</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSobras
+                      .filter((s) => !s.tipo || s.tipo === 'retalho')
+                      .map((sobra) => (
+                        <TableRow key={sobra.id}>
+                          <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
+                          <TableCell>{sobra.nome}</TableCell>
+                          <TableCell>{sobra.marca || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            {sobra.altura} x {sobra.largura}
+                          </TableCell>
+                          <TableCell className="text-center">{sobra.espessura}</TableCell>
+                          <TableCell className="text-center font-bold text-steel-blue dark:text-blue-400">
+                            {sobra.area.toFixed(2)} m²
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {sobra.status === 'disponivel' ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                              >
+                                Disponível
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                              >
+                                Usado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {sobra.status === 'disponivel' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50 mr-1"
+                                  onClick={() => printScrapLabel(sobra)}
+                                  title="Imprimir Etiqueta"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 mr-1"
+                                  onClick={() => handleUsar(sobra.id)}
+                                  title="Marcar Uso"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50 h-8 w-8 mr-1"
+                                  onClick={() => openEditModal(sobra)}
+                                  title="Editar"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                              onClick={() => handleDeletar(sobra.id)}
+                              title="Deletar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    {filteredSobras.filter((s) => !s.tipo || s.tipo === 'retalho').length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-8 text-gray-500 dark:text-slate-400"
                         >
-                          Disponível
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="secondary"
-                          className="bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                          Nenhum retalho encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="chapas">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar chapa..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+                    <TableRow>
+                      <TableHead>Cliente/Projeto</TableHead>
+                      <TableHead>Nome do MDF</TableHead>
+                      <TableHead>Marca</TableHead>
+                      <TableHead className="text-center">Espess. (mm)</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSobras
+                      .filter((s) => s.tipo === 'chapa_inteira')
+                      .map((sobra) => (
+                        <TableRow key={sobra.id}>
+                          <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
+                          <TableCell>{sobra.nome}</TableCell>
+                          <TableCell>{sobra.marca || '-'}</TableCell>
+                          <TableCell className="text-center">{sobra.espessura}</TableCell>
+                          <TableCell className="text-center">
+                            {sobra.status === 'disponivel' ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                              >
+                                Disponível
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                              >
+                                Usado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {sobra.status === 'disponivel' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 mr-1"
+                                  onClick={() => handleUsar(sobra.id)}
+                                  title="Marcar Uso"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50 h-8 w-8 mr-1"
+                                  onClick={() => openEditModal(sobra)}
+                                  title="Editar"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                              onClick={() => handleDeletar(sobra.id)}
+                              title="Deletar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    {filteredSobras.filter((s) => s.tipo === 'chapa_inteira').length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center py-8 text-gray-500 dark:text-slate-400"
                         >
-                          Usado
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      {sobra.status === 'disponivel' && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50 mr-1"
-                            onClick={() => printScrapLabel(sobra)}
-                            title="Imprimir Etiqueta"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 mr-1"
-                            onClick={() => handleUsar(sobra.id)}
-                            title="Marcar Uso"
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50 h-8 w-8 mr-1"
-                            onClick={() => openEditModal(sobra)}
-                            title="Editar"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                        onClick={() => handleDeletar(sobra.id)}
-                        title="Deletar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filteredSobras.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-8 text-gray-500 dark:text-slate-400"
-                    >
-                      Nenhum retalho encontrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                          Nenhuma chapa inteira encontrada.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isTypeSelectionOpen} onOpenChange={setIsTypeSelectionOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tipo de Sobra</DialogTitle>
+            <DialogDescription>
+              Selecione o tipo de sobra de projeto que deseja registrar no sistema.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-steel-blue hover:text-steel-blue transition-colors"
+              onClick={() => {
+                setIsTypeSelectionOpen(false)
+                setSobraEditando(null)
+                setIsRetalhoModalOpen(true)
+              }}
+            >
+              <ScissorsLineDashed className="w-8 h-8" />
+              <div className="text-center">
+                <div className="font-semibold">Retalho</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Pedaço com dimensões customizadas
+                </div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-emerald-600 hover:text-emerald-600 transition-colors"
+              onClick={() => {
+                setIsTypeSelectionOpen(false)
+                setChapaEditando(null)
+                setIsChapaModalOpen(true)
+              }}
+            >
+              <LayoutTemplate className="w-8 h-8" />
+              <div className="text-center">
+                <div className="font-semibold">Chapa Inteira</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Chapa completa não utilizada
+                </div>
+              </div>
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       <RegistrarRetalhoModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isRetalhoModalOpen}
+        onClose={() => setIsRetalhoModalOpen(false)}
         sobraParaEditar={sobraEditando}
+        onSave={fetchSobras}
+      />
+
+      <RegistrarChapaModal
+        isOpen={isChapaModalOpen}
+        onClose={() => setIsChapaModalOpen(false)}
+        sobraParaEditar={chapaEditando}
         onSave={fetchSobras}
       />
     </div>

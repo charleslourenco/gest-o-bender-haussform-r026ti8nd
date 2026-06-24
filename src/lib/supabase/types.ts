@@ -565,6 +565,7 @@ export type Database = {
           template_id: string | null
           template_nome: string | null
           tipo: string
+          usuario_id: string | null
         }
         Insert: {
           arquivo_assinado_url?: string | null
@@ -579,6 +580,7 @@ export type Database = {
           template_id?: string | null
           template_nome?: string | null
           tipo?: string
+          usuario_id?: string | null
         }
         Update: {
           arquivo_assinado_url?: string | null
@@ -593,6 +595,7 @@ export type Database = {
           template_id?: string | null
           template_nome?: string | null
           tipo?: string
+          usuario_id?: string | null
         }
         Relationships: [
           {
@@ -607,6 +610,13 @@ export type Database = {
             columns: ['template_id']
             isOneToOne: false
             referencedRelation: 'templates'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documentos_cliente_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
             referencedColumns: ['id']
           },
         ]
