@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 export interface KanbanColumn {
@@ -59,26 +59,98 @@ export function KanbanListView({
   const [users, setUsers] = useState<any[]>([])
   const [montadores, setMontadores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const PAGE_SIZE = 30
+  const pageRef = useRef(0)
 
-  const fetchCards = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('produtos_servicos_projeto')
-      .select(`
+  useEffect(() => {
+    pageRef.current = page
+  }, [page])
+
+  const columnsKey = JSON.stringify(columns)
+
+  const fetchCards = useCallback(
+    async (isLoadMore = false) => {
+      if (isLoadMore) setIsLoadingMore(true)
+      else setLoading(true)
+
+      const currentPage = isLoadMore ? page + 1 : 0
+      const from = currentPage * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
+      let query = supabase.from('produtos_servicos_projeto').select(
+        `
+        *,
+        clientes(nome),
+        formulario_comercial(nome_cliente, clientes(nome)),
+        alocacao_montagem(montador_id, card_id)
+      `,
+        { count: 'exact' },
+      )
+
+      if (columns && columns.length > 0) {
+        query = query.in(
+          'status_analise',
+          columns.map((c) => c.id),
+        )
+      }
+
+      query = query.order('criado_em', { ascending: false }).range(from, to)
+
+      const { data, count, error } = await query
+
+      if (error) {
+        console.error('Erro ao buscar itens:', error)
+        toast.error('Erro ao buscar itens')
+      } else if (data) {
+        if (isLoadMore) {
+          setCards((prev) => {
+            const newItems = data.filter((d) => !prev.some((p) => p.id === d.id))
+            return [...prev, ...newItems]
+          })
+          setPage(currentPage)
+        } else {
+          setCards(data)
+          setPage(0)
+        }
+
+        if (count !== null && to + 1 >= count) {
+          setHasMore(false)
+        } else if (data.length < PAGE_SIZE) {
+          setHasMore(false)
+        } else {
+          setHasMore(true)
+        }
+      }
+      setLoading(false)
+      setIsLoadingMore(false)
+    },
+    [columnsKey, page],
+  )
+
+  const refreshCards = useCallback(async () => {
+    const limit = (pageRef.current + 1) * PAGE_SIZE
+    let query = supabase.from('produtos_servicos_projeto').select(`
         *,
         clientes(nome),
         formulario_comercial(nome_cliente, clientes(nome)),
         alocacao_montagem(montador_id, card_id)
       `)
-      .order('criado_em', { ascending: false })
 
-    if (error) {
-      console.error('Erro ao buscar itens:', error)
-      toast.error('Erro ao buscar itens')
-    } else if (data) {
+    if (columns && columns.length > 0) {
+      query = query.in(
+        'status_analise',
+        columns.map((c) => c.id),
+      )
+    }
+
+    const { data, error } = await query.order('criado_em', { ascending: false }).limit(limit)
+    if (!error && data) {
       setCards(data)
     }
-    setLoading(false)
-  }, [])
+  }, [columnsKey])
 
   const fetchUsers = useCallback(async () => {
     const { data, error } = await supabase.from('users').select('id, nome').eq('status', true)
@@ -107,12 +179,12 @@ export function KanbanListView({
     fetchMontadores()
 
     const handleUpdate = () => {
-      fetchCards()
+      refreshCards()
       fetchMontadores()
     }
     window.addEventListener('kanban_updated', handleUpdate)
     return () => window.removeEventListener('kanban_updated', handleUpdate)
-  }, [fetchCards, fetchUsers, fetchMontadores])
+  }, [fetchCards, refreshCards, fetchUsers, fetchMontadores])
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase
@@ -123,7 +195,7 @@ export function KanbanListView({
       toast.error('Erro ao atualizar status')
     } else {
       toast.success('Status atualizado')
-      fetchCards()
+      refreshCards()
       window.dispatchEvent(new Event('kanban_updated'))
     }
   }
@@ -138,7 +210,7 @@ export function KanbanListView({
       toast.error('Erro ao atualizar responsável')
     } else {
       toast.success('Responsável atualizado')
-      fetchCards()
+      refreshCards()
       window.dispatchEvent(new Event('kanban_updated'))
     }
   }
@@ -150,7 +222,7 @@ export function KanbanListView({
       toast.error('Erro ao excluir')
     } else {
       toast.success('Item excluído')
-      fetchCards()
+      refreshCards()
       window.dispatchEvent(new Event('kanban_updated'))
     }
   }
@@ -191,7 +263,7 @@ export function KanbanListView({
     )
   })
 
-  if (loading) {
+  if (loading && cards.length === 0) {
     return <div className="p-8 text-center text-[#1A3D63]/70 font-medium">Carregando itens...</div>
   }
 
@@ -335,6 +407,19 @@ export function KanbanListView({
             )}
           </TableBody>
         </Table>
+        {hasMore && (
+          <div className="p-4 flex justify-center border-t border-slate-200">
+            <Button
+              variant="outline"
+              onClick={() => fetchCards(true)}
+              disabled={isLoadingMore}
+              className="bg-white text-[#1A3D63] border-[#1A3D63]/20 hover:bg-[#1A3D63]/5"
+            >
+              {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Carregar Mais
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

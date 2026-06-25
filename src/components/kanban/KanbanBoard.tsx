@@ -153,8 +153,17 @@ function TimeInColumn({
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [items, setItems] = useState<Item[]>([])
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const PAGE_SIZE = 30
+  const pageRef = useRef(0)
+
+  useEffect(() => {
+    pageRef.current = page
+  }, [page])
 
   const [loading, setLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -335,10 +344,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
+  const columnsKey = JSON.stringify(columns)
+
   useEffect(() => {
     fetchItems()
 
-    const handleKanbanUpdated = () => fetchItems()
+    const handleKanbanUpdated = () => fetchCurrentLoadedItems()
     const handleTabChange = (e: any) => setActiveView(e.detail)
     window.addEventListener('kanban_updated', handleKanbanUpdated)
     window.addEventListener('kanban_tab_change', handleTabChange)
@@ -353,7 +364,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           table: 'produtos_servicos_projeto',
         },
         () => {
-          fetchItems()
+          fetchCurrentLoadedItems()
         },
       )
       .subscribe()
@@ -363,14 +374,93 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       window.removeEventListener('kanban_tab_change', handleTabChange)
       supabase.removeChannel(channel)
     }
-  }, [columns])
+  }, [columnsKey])
 
-  const fetchItems = async () => {
+  const fetchItems = async (isLoadMore = false) => {
     try {
-      setLoading(true)
+      if (isLoadMore) {
+        setIsLoadingMore(true)
+      } else {
+        setLoading(true)
+      }
       setError(null)
 
-      const { data, error: err } = await supabase.from('produtos_servicos_projeto').select(`
+      const columnIds = columns.map((c) => c.id)
+      const currentPage = isLoadMore ? page + 1 : 0
+      const from = currentPage * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
+      let query = supabase.from('produtos_servicos_projeto').select(
+        `
+          id, 
+          nome_produto, 
+          codigo_rastreio, 
+          qtd, 
+          status_analise, 
+          criado_em,
+          analista_id,
+          cliente_id,
+          terceirizado_validado,
+          outsourced_checked,
+          is_outsourced,
+          cliente:clientes(nome),
+          formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
+          alocacao_montagem(montador_id)
+        `,
+        { count: 'exact' },
+      )
+
+      if (columnIds.length > 0) {
+        query = query.in('status_analise', columnIds)
+      }
+
+      query = query.order('criado_em', { ascending: false })
+      query = query.range(from, to)
+
+      const { data, count, error: err } = await query
+
+      if (err) throw err
+
+      if (isMontagemRoute && !isLoadMore) {
+        const { data: montData } = await supabase
+          .from('montadores')
+          .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
+        if (montData) setAllMontadores(montData)
+      }
+
+      const validItems = (data as unknown as Item[]) || []
+
+      if (isLoadMore) {
+        setItems((prev) => {
+          const newItems = validItems.filter((fi) => !prev.some((pi) => pi?.id === fi.id))
+          return [...prev, ...newItems]
+        })
+        setPage(currentPage)
+      } else {
+        setItems(validItems)
+        setPage(0)
+      }
+
+      if (count !== null && to + 1 >= count) {
+        setHasMore(false)
+      } else if (validItems.length < PAGE_SIZE) {
+        setHasMore(false)
+      } else {
+        setHasMore(true)
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar dados do Kanban:', err)
+      setError(err.message || 'Erro ao carregar dados do Kanban.')
+    } finally {
+      setLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  const fetchCurrentLoadedItems = async () => {
+    try {
+      const columnIds = columns.map((c) => c.id)
+      let query = supabase.from('produtos_servicos_projeto').select(`
           id, 
           nome_produto, 
           codigo_rastreio, 
@@ -387,27 +477,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           alocacao_montagem(montador_id)
         `)
 
-      if (err) throw err
-
-      if (isMontagemRoute) {
-        const { data: montData } = await supabase
-          .from('montadores')
-          .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
-        if (montData) setAllMontadores(montData)
+      if (columnIds.length > 0) {
+        query = query.in('status_analise', columnIds)
       }
 
-      // We only care about items that are in one of the columns provided to this board
-      const columnIds = columns.map((c) => c.id)
-      const validItems = (data as unknown as Item[]).filter((i) =>
-        columnIds.includes(i.status_analise),
-      )
+      query = query.order('criado_em', { ascending: false })
 
-      setItems(validItems)
-    } catch (err: any) {
-      console.error('Erro ao carregar dados do Kanban:', err)
-      setError(err.message || 'Erro ao carregar dados do Kanban.')
-    } finally {
-      setLoading(false)
+      const limit = (pageRef.current + 1) * PAGE_SIZE
+      const { data, error: err } = await query.limit(limit)
+
+      if (!err && data) {
+        setItems(data as unknown as Item[])
+      }
+    } catch (e) {
+      console.error(e)
     }
   }
 
@@ -769,7 +852,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           >
             {colItems.map((item) => (
               <div
-                key={item?.id ?? Math.random().toString()}
+                key={item.id}
                 draggable
                 onDragStart={(e) => {
                   if (item) handleDragStart(e, item)
@@ -1206,13 +1289,28 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'kanban' && (
-        <div
-          ref={scrollContainerRef}
-          onDragOver={handleContainerDragOver}
-          onDragLeave={handleContainerDragLeave}
-          className="h-full w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1 min-h-0"
-        >
-          {renderColumns()}
+        <div className="flex flex-col h-full flex-1 overflow-hidden">
+          <div
+            ref={scrollContainerRef}
+            onDragOver={handleContainerDragOver}
+            onDragLeave={handleContainerDragLeave}
+            className="w-full overflow-x-auto overflow-y-hidden flex flex-row items-stretch gap-4 px-6 pb-4 pt-4 custom-scrollbar flex-1 min-h-0"
+          >
+            {renderColumns()}
+          </div>
+          {hasMore && (
+            <div className="p-4 flex justify-center shrink-0 border-t border-steel-blue/10 bg-off-white">
+              <Button
+                variant="outline"
+                onClick={() => fetchItems(true)}
+                disabled={isLoadingMore}
+                className="bg-white text-steel-blue border-steel-blue/20 hover:bg-steel-blue/5"
+              >
+                {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Carregar Mais
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1241,7 +1339,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     filteredItems.map((item) =>
                       item ? (
                         <TableRow
-                          key={item?.id ?? Math.random().toString()}
+                          key={item.id}
                           className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
                         >
                           <TableCell>
@@ -1340,6 +1438,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 </TableBody>
               </Table>
             </div>
+            {hasMore && (
+              <div className="p-4 flex justify-center shrink-0 border-t border-slate-200 bg-white">
+                <Button
+                  variant="outline"
+                  onClick={() => fetchItems(true)}
+                  disabled={isLoadingMore}
+                  className="bg-white text-[#1A3D63] border-[#1A3D63]/20 hover:bg-[#1A3D63]/5"
+                >
+                  {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Carregar Mais
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
