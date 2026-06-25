@@ -78,9 +78,6 @@ export default function Producao() {
               <ScissorsLineDashed className="w-8 h-8" />
               <div className="text-center">
                 <div className="font-semibold">Retalho</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Pedaço com dimensões customizadas
-                </div>
               </div>
             </Button>
             <Button
