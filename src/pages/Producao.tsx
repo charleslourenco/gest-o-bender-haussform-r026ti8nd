@@ -91,9 +91,7 @@ export default function Producao() {
               <LayoutTemplate className="w-8 h-8" />
               <div className="text-center">
                 <div className="font-semibold">Chapa Inteira</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Chapa completa não utilizada
-                </div>
+                <div className="text-xs text-muted-foreground mt-1">Chapa Inteira</div>
               </div>
             </Button>
           </div>
