@@ -411,9 +411,9 @@ export function EstoqueLista() {
       </div>
 
       <div className="rounded-md border dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-250px)]">
           <Table className="min-w-[1200px]">
-            <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+            <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
               <TableRow>
                 <TableHead className="whitespace-nowrap">Item</TableHead>
                 <TableHead className="whitespace-nowrap">Marca</TableHead>

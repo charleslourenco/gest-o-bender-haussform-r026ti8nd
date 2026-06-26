@@ -136,18 +136,20 @@ export function GestaoSobras() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+              <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
+                <Table className="min-w-[1000px]">
+                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                     <TableRow>
-                      <TableHead>Cliente/Projeto</TableHead>
-                      <TableHead>Nome do MDF</TableHead>
-                      <TableHead>Marca</TableHead>
-                      <TableHead className="text-center">Alt x Lar (mm)</TableHead>
-                      <TableHead className="text-center">Espess. (mm)</TableHead>
-                      <TableHead className="text-center">Área (m²)</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
+                      <TableHead className="whitespace-nowrap">Nome do MDF</TableHead>
+                      <TableHead className="whitespace-nowrap">Marca</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">
+                        Alt x Lar (mm)
+                      </TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Espess. (mm)</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Área (m²)</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -257,16 +259,16 @@ export function GestaoSobras() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+              <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
+                <Table className="min-w-[800px]">
+                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                     <TableRow>
-                      <TableHead>Cliente/Projeto</TableHead>
-                      <TableHead>Nome do MDF</TableHead>
-                      <TableHead>Marca</TableHead>
-                      <TableHead className="text-center">Espess. (mm)</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
+                      <TableHead className="whitespace-nowrap">Nome do MDF</TableHead>
+                      <TableHead className="whitespace-nowrap">Marca</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Espess. (mm)</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

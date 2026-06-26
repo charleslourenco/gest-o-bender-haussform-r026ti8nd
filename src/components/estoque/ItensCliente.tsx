@@ -192,9 +192,9 @@ export function ItensCliente() {
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[calc(100vh-350px)]">
               <Table className="min-w-[1000px]">
-                <TableHeader>
+                <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                   <TableRow>
                     <TableHead className="whitespace-nowrap">Cliente</TableHead>
                     <TableHead className="whitespace-nowrap">Produto</TableHead>
