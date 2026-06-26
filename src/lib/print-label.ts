@@ -164,6 +164,7 @@ export function printScrapLabel(sobra: {
   largura: number
   espessura: number | null
   tipo?: string
+  comprimento?: number | null
 }) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
@@ -256,7 +257,15 @@ export function printScrapLabel(sobra: {
           <p><strong>Cliente:</strong> ${sobra.cliente_nome || '-'}</p>
           <p><strong>Marca:</strong> ${sobra.marca || '-'}</p>
           <div class="medidas">
-            ${sobra.tipo === 'chapa_inteira' ? `CHAPA INTEIRA - ${sobra.espessura || 0}mm` : `${sobra.altura}A x ${sobra.largura}L x ${sobra.espessura || 0}E mm`}
+            ${
+              sobra.tipo === 'chapa_inteira'
+                ? `CHAPA INTEIRA - ${sobra.espessura || 0}mm`
+                : sobra.tipo === 'fita_rolo'
+                  ? `ROLO FITA - ${sobra.largura}mm L`
+                  : sobra.tipo === 'fita_pedaco'
+                    ? `PEDAÇO FITA - ${sobra.largura}mm L x ${sobra.comprimento || 0}m C`
+                    : `${sobra.altura}A x ${sobra.largura}L x ${sobra.espessura || 0}E mm`
+            }
           </div>
         </div>
         <div class="qr-container">
