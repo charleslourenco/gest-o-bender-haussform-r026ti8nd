@@ -11,7 +11,7 @@ import {
   Edit,
   LayoutTemplate,
   ScissorsLineDashed,
-  Tape,
+  Disc,
   Ruler,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -537,7 +537,7 @@ export function GestaoSobras() {
                 setIsFitaRoloModalOpen(true)
               }}
             >
-              <Tape className="w-8 h-8" />
+              <Disc className="w-8 h-8" />
               <div className="text-center">
                 <div className="font-semibold">Fita (Rolo)</div>
                 <div className="text-xs text-muted-foreground mt-1">Rolo de fita de borda</div>
