@@ -12,8 +12,17 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { Check, X, Clock, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
-import { useGrabScroll } from '@/hooks/use-grab-scroll'
+import {
+  Check,
+  X,
+  Clock,
+  ExternalLink,
+  RefreshCw,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { useTableScroll } from '@/hooks/use-table-scroll'
 
 type Solicitacao = {
   id: string
@@ -41,7 +50,8 @@ export function SolicitacoesCompra() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
-  const { ref: scrollRef, events: scrollEvents, isDragging } = useGrabScroll<HTMLDivElement>()
+  const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight, checkScroll } =
+    useTableScroll()
 
   const fetchSolicitacoes = async () => {
     setLoading(true)
@@ -128,11 +138,31 @@ export function SolicitacoesCompra() {
         </Button>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
-        <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0 relative group">
+          {canScrollLeft && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={scrollLeft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-l-none rounded-r-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-l-0 transition-opacity"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
+          {canScrollRight && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={scrollRight}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-r-none rounded-l-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-r-0 transition-opacity"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          )}
           <div
             ref={scrollRef}
-            {...scrollEvents}
-            className={`overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+            onScroll={checkScroll}
+            className="overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           >
             <Table className="min-w-[1200px] relative">
               <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
