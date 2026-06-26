@@ -179,10 +179,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
   const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
 
-  const [showSobrasPrompt, setShowSobrasPrompt] = useState(false)
-  const [showSobrasRegister, setShowSobrasRegister] = useState(false)
-  const [novaSobra, setNovaSobra] = useState({ nome: '', largura: 0, altura: 0 })
-  const [descarteSugerido, setDescarteSugerido] = useState(false)
   const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores' | 'montadores'>(
     'kanban',
   )
@@ -256,9 +252,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     if (newStatusId === 'lista_materiais') {
       finalStatus = 'aguardando_plano_corte'
       isAutoTransition = true
-    } else if (newStatusId === 'expedicao') {
-      finalStatus = 'aguardando_agenda'
-      isAutoTransition = true
     }
 
     setItems((prev) =>
@@ -283,8 +276,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           toast.success(
             'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
           )
-        } else if (newStatusId === 'expedicao') {
-          toast.success('Card transferido automaticamente para Montagem (Aguardando Agenda).')
         }
       } else {
         const { error: updateErr } = await supabase
@@ -295,52 +286,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         if (updateErr) throw updateErr
         toast.success('Status atualizado com sucesso!')
       }
-
-      if (finalStatus === 'aguardando_agenda') {
-        setShowSobrasPrompt(true)
-      }
     } catch (err: any) {
       toast.error('Erro ao atualizar status: ' + err.message)
       fetchItems()
-    }
-  }
-
-  useEffect(() => {
-    if (novaSobra.largura > 0 && novaSobra.altura > 0) {
-      const area = novaSobra.largura * novaSobra.altura
-      setDescarteSugerido(area < 1)
-    } else {
-      setDescarteSugerido(false)
-    }
-  }, [novaSobra.largura, novaSobra.altura])
-
-  const handleSalvarSobra = async () => {
-    if (!novaSobra.nome || novaSobra.largura <= 0 || novaSobra.altura <= 0) {
-      return toast.error('Preencha todos os campos corretamente')
-    }
-
-    const area = novaSobra.largura * novaSobra.altura
-    if (area < 1) {
-      toast.error('Peça muito pequena! Peças menores que 1m² devem ser descartadas.')
-      return
-    }
-
-    try {
-      const { error } = await supabase.from('estoque_sobras').insert({
-        nome: novaSobra.nome,
-        largura: novaSobra.largura,
-        altura: novaSobra.altura,
-        area: area,
-        status: 'disponivel',
-      })
-
-      if (error) throw error
-
-      toast.success('Retalho registrado com sucesso no estoque de sobras!')
-      setShowSobrasRegister(false)
-      setNovaSobra({ nome: '', largura: 0, altura: 0 })
-    } catch (err: any) {
-      toast.error('Erro ao registrar sobra: ' + err.message)
     }
   }
 
@@ -718,9 +666,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     if (columnId === 'lista_materiais') {
       finalStatus = 'aguardando_plano_corte'
       isAutoTransition = true
-    } else if (columnId === 'expedicao') {
-      finalStatus = 'aguardando_agenda'
-      isAutoTransition = true
     }
 
     // Optimistic UI update
@@ -746,8 +691,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           toast.success(
             'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
           )
-        } else if (columnId === 'expedicao') {
-          toast.success('Card transferido automaticamente para Montagem (Aguardando Agenda).')
         }
       } else {
         const { error: updateErr } = await supabase
@@ -757,10 +700,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
         if (updateErr) throw updateErr
         toast.success('Card movido com sucesso!')
-      }
-
-      if (finalStatus === 'aguardando_agenda') {
-        setShowSobrasPrompt(true)
       }
     } catch (err: any) {
       toast.error('Erro ao mover o card: ' + err.message)
@@ -1475,36 +1414,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      <Dialog open={showSobrasPrompt} onOpenChange={setShowSobrasPrompt}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Projeto Concluído!</DialogTitle>
-            <DialogDescription>
-              Sobrou algum material (retalho) que pode ser reaproveitado deste projeto?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:justify-between mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowSobrasPrompt(false)}
-              className="w-full sm:w-auto"
-            >
-              Não, tudo utilizado
-            </Button>
-            <Button
-              onClick={() => {
-                setShowSobrasPrompt(false)
-                setShowSobrasRegister(true)
-              }}
-              className="bg-amber-500 hover:bg-amber-600 text-white w-full sm:w-auto"
-            >
-              <Scissors className="w-4 h-4 mr-2" />
-              Sim, registrar retalho
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={showTerceirizadoDialog} onOpenChange={setShowTerceirizadoDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1534,82 +1443,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         onCreated={handleValidationCardCreated}
         initialIsOutsourced={true}
       />
-
-      <Dialog open={showSobrasRegister} onOpenChange={setShowSobrasRegister}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Novo Retalho</DialogTitle>
-            <DialogDescription>
-              Insira as medidas em metros. Peças menores que 1m² não são aceitas e devem ser
-              descartadas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nome do Material / Cor</Label>
-              <Input
-                placeholder="Ex: MDF Branco TX 15mm"
-                value={novaSobra.nome}
-                onChange={(e) => setNovaSobra({ ...novaSobra, nome: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Largura (metros)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex: 1.5"
-                  value={novaSobra.largura || ''}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, largura: Number(e.target.value) })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Altura (metros)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Ex: 1.2"
-                  value={novaSobra.altura || ''}
-                  onChange={(e) => setNovaSobra({ ...novaSobra, altura: Number(e.target.value) })}
-                />
-              </div>
-            </div>
-
-            {descarteSugerido && novaSobra.largura > 0 && novaSobra.altura > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-medium">
-                  Área total: {(novaSobra.largura * novaSobra.altura).toFixed(2)}m².
-                  <br />
-                  Peça muito pequena. Sugerimos o descarte direto.
-                </p>
-              </div>
-            )}
-            {!descarteSugerido && novaSobra.largura > 0 && novaSobra.altura > 0 && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md flex items-center gap-2">
-                <Check className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-medium">
-                  Área total: {(novaSobra.largura * novaSobra.altura).toFixed(2)}m². Peça válida
-                  para o estoque!
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSobrasRegister(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSalvarSobra}
-              className="bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={descarteSugerido}
-            >
-              Salvar Retalho
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

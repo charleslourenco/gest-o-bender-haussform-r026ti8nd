@@ -19,7 +19,6 @@ const COLUMNS = [
   { id: 'coladeira', title: 'Coladeira' },
   { id: 'bancada', title: 'Bancada' },
   { id: 'embalagem', title: 'Embalagem' },
-  { id: 'expedicao', title: 'Expedição' },
   { id: 'aguardando_agenda', title: 'Concluído (Pronto p/ Montagem)' },
 ]
 
