@@ -20,6 +20,27 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+export const CATEGORIAS_ESTOQUE = [
+  'Ferragens',
+  'Chapas',
+  'Acessórios',
+  'Fitas de borda',
+  'Sistemas de fixação',
+  'Serralheria',
+  'Estofaria',
+  'Portas de alumínio e vidro',
+  'Espelhos',
+  'Perfil puxador/puxador',
+  'Iluminação',
+]
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
@@ -38,6 +59,28 @@ export function EstoqueLista() {
 
   const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight, checkScroll } =
     useTableScroll()
+
+  const handleCategoryChange = async (id: string, newCategory: string) => {
+    try {
+      const { error } = await supabase
+        .from('estoque_itens')
+        .update({ categoria: newCategory, atualizado_em: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast({ title: 'Categoria atualizada' })
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, categoria: newCategory } : item)),
+      )
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao atualizar categoria',
+        description: e.message,
+        variant: 'destructive',
+      })
+    }
+  }
 
   const [newItem, setNewItem] = useState({
     nome: '',
@@ -528,15 +571,36 @@ export function EstoqueLista() {
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {item.categoria || '-'}
-                      {item.terceirizado && (
-                        <Badge
-                          variant="secondary"
-                          className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={item.categoria || ''}
+                          onValueChange={(val) => handleCategoryChange(item.id, val)}
                         >
-                          Terceirizado
-                        </Badge>
-                      )}
+                          <SelectTrigger className="w-[180px] h-8 text-xs border-transparent hover:border-gray-200 dark:hover:border-slate-700 bg-transparent shadow-none px-2 focus:ring-0">
+                            <SelectValue placeholder="Sem categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIAS_ESTOQUE.map((cat) => (
+                              <SelectItem key={cat} value={cat}>
+                                {cat}
+                              </SelectItem>
+                            ))}
+                            {item.categoria && !CATEGORIAS_ESTOQUE.includes(item.categoria) && (
+                              <SelectItem value={item.categoria} disabled className="text-gray-400">
+                                {item.categoria} (Antiga)
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {item.terceirizado && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
+                          >
+                            Terceirizado
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-normal break-words min-w-[150px] max-w-[250px]">
                       {item.fornecedor || '-'}
@@ -630,11 +694,21 @@ export function EstoqueLista() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Categoria</Label>
-                <Input
+                <Select
                   value={newItem.categoria}
-                  onChange={(e) => setNewItem({ ...newItem, categoria: e.target.value })}
-                  placeholder="Ferragens"
-                />
+                  onValueChange={(val) => setNewItem({ ...newItem, categoria: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIAS_ESTOQUE.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Fornecedor</Label>

@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content:
-              'Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor" (string), "valor" (número float), "data_emissao" (string YYYY-MM-DD), "numero_nota" (string, usar se for NF ou romaneio), e "itens" (array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero)).',
+              'Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor" (string), "valor" (número float), "data_emissao" (string YYYY-MM-DD), "numero_nota" (string, usar se for NF ou romaneio), e "itens" (array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero), "categoria" (string, DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação)).',
           },
           {
             role: 'user',
