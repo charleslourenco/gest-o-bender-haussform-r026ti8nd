@@ -141,7 +141,7 @@ export function SolicitacoesCompra() {
                   <TableHead className="whitespace-nowrap">Solicitante</TableHead>
                   <TableHead className="whitespace-nowrap">Cliente</TableHead>
                   <TableHead className="whitespace-nowrap min-w-[200px]">Item / Detalhes</TableHead>
-                  <TableHead className="whitespace-nowrap">Fornecedor</TableHead>
+                  <TableHead className="min-w-[150px]">Fornecedor</TableHead>
                   <TableHead className="whitespace-nowrap">Qtd</TableHead>
                   <TableHead className="whitespace-nowrap">Previsão</TableHead>
                   <TableHead className="whitespace-nowrap">Urgência</TableHead>
@@ -188,7 +188,7 @@ export function SolicitacoesCompra() {
                           </a>
                         )}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{s.fornecedor || '-'}</TableCell>
+                      <TableCell>{s.fornecedor || '-'}</TableCell>
                       <TableCell className="whitespace-nowrap">
                         {s.quantidade} {s.unidade}
                       </TableCell>

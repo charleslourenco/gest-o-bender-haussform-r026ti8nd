@@ -426,7 +426,7 @@ export function EstoqueLista() {
                 <TableHead className="whitespace-nowrap">Marca</TableHead>
                 <TableHead className="whitespace-nowrap">Detalhes</TableHead>
                 <TableHead className="whitespace-nowrap">Categoria</TableHead>
-                <TableHead className="whitespace-nowrap">Fornecedor</TableHead>
+                <TableHead className="min-w-[150px]">Fornecedor</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Quantidade</TableHead>
                 <TableHead className="text-right whitespace-nowrap">V. Unitário</TableHead>
                 <TableHead className="text-right whitespace-nowrap">V. Total</TableHead>
@@ -515,7 +515,7 @@ export function EstoqueLista() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{item.fornecedor || '-'}</TableCell>
+                    <TableCell>{item.fornecedor || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div>
                         {item.quantidade}{' '}
