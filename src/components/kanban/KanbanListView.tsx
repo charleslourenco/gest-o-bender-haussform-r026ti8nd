@@ -37,7 +37,6 @@ const ALL_STAGES = [
   { id: 'coladeira', title: 'Coladeira' },
   { id: 'bancada', title: 'Bancada' },
   { id: 'embalagem', title: 'Embalagem' },
-  { id: 'expedicao', title: 'Expedição' },
   { id: 'transporte', title: 'Transporte' },
   { id: 'montagem', title: 'Montagem' },
   { id: 'assistencia', title: 'Assistência' },

@@ -454,8 +454,7 @@ export function EstoqueLista() {
                       {totalSobras > 0 && (
                         <div className="flex flex-wrap gap-1 mt-0.5">
                           <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50">
-                            <span className="text-[9px]">♻️</span> {totalSobras}{' '}
-                            {totalSobras === 1 ? 'Sobra de Projeto' : 'Sobras de Projeto'}
+                            <span className="text-[9px]">♻️</span> Possui Sobras ({totalSobras})
                           </span>
                         </div>
                       )}
@@ -510,14 +509,6 @@ export function EstoqueLista() {
                         {item.unidade}
                       </span>
                     </div>
-                    {totalSobras > 0 && (
-                      <div
-                        className="text-[10px] text-amber-600 dark:text-amber-400 font-medium mt-0.5"
-                        title={`${item.quantidade} de compra + ${totalSobras} sobras`}
-                      >
-                        Total geral: {Number(item.quantidade) + totalSobras}
-                      </div>
-                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(item.valor_unitario)}
