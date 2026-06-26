@@ -197,13 +197,13 @@ export function ItensCliente() {
             <div
               ref={scrollRef}
               {...scrollEvents}
-              className={`overflow-auto flex-1 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+              className={`overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
             >
               <Table className="min-w-[1000px] relative">
                 <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                   <TableRow>
                     <TableHead className="whitespace-nowrap">Cliente</TableHead>
-                    <TableHead className="whitespace-nowrap">Produto</TableHead>
+                    <TableHead className="min-w-[200px] max-w-[350px]">Produto</TableHead>
                     <TableHead className="whitespace-nowrap">Recebido Em</TableHead>
                     <TableHead className="whitespace-nowrap">Entregue Em</TableHead>
                     <TableHead className="whitespace-nowrap">Responsável (Entrega)</TableHead>
@@ -223,7 +223,7 @@ export function ItensCliente() {
                         <TableCell className="font-medium whitespace-nowrap">
                           {item.cliente_nome}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap min-w-[200px]">
+                        <TableCell className="min-w-[200px] max-w-[350px] whitespace-normal break-words">
                           {item.produto}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">

@@ -417,16 +417,16 @@ export function EstoqueLista() {
         <div
           ref={scrollRef}
           {...scrollEvents}
-          className={`overflow-auto flex-1 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          className={`overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
         >
           <Table className="min-w-[1200px] relative">
             <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
               <TableRow>
                 <TableHead className="whitespace-nowrap">Item</TableHead>
-                <TableHead className="whitespace-nowrap">Marca</TableHead>
+                <TableHead className="min-w-[120px] max-w-[200px]">Marca</TableHead>
                 <TableHead className="whitespace-nowrap">Detalhes</TableHead>
                 <TableHead className="whitespace-nowrap">Categoria</TableHead>
-                <TableHead className="min-w-[150px]">Fornecedor</TableHead>
+                <TableHead className="min-w-[150px] max-w-[250px]">Fornecedor</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Quantidade</TableHead>
                 <TableHead className="text-right whitespace-nowrap">V. Unitário</TableHead>
                 <TableHead className="text-right whitespace-nowrap">V. Total</TableHead>
@@ -474,7 +474,9 @@ export function EstoqueLista() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{item.marca || '-'}</TableCell>
+                    <TableCell className="whitespace-normal break-words min-w-[120px] max-w-[200px]">
+                      {item.marca || '-'}
+                    </TableCell>
                     <TableCell>
                       <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
                         {item.cor && (
@@ -515,7 +517,9 @@ export function EstoqueLista() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>{item.fornecedor || '-'}</TableCell>
+                    <TableCell className="whitespace-normal break-words min-w-[150px] max-w-[250px]">
+                      {item.fornecedor || '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div>
                         {item.quantidade}{' '}

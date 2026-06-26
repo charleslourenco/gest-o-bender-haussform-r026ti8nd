@@ -33,8 +33,8 @@ export function useGrabScroll<T extends HTMLElement>() {
     if (isInteractive(e.target as HTMLElement)) return
     if (!ref.current) return
     setIsDragging(true)
-    setStartX(e.pageX - ref.current.offsetLeft)
-    setStartY(e.pageY - ref.current.offsetTop)
+    setStartX(e.clientX)
+    setStartY(e.clientY)
     setScrollLeft(ref.current.scrollLeft)
     setScrollTop(ref.current.scrollTop)
   }
@@ -45,8 +45,8 @@ export function useGrabScroll<T extends HTMLElement>() {
   const onMouseMove = (e: ReactMouseEvent<T>) => {
     if (!isDragging || !ref.current) return
     e.preventDefault()
-    const x = e.pageX - ref.current.offsetLeft
-    const y = e.pageY - ref.current.offsetTop
+    const x = e.clientX
+    const y = e.clientY
     const walkX = (x - startX) * 1.5
     const walkY = (y - startY) * 1.5
     ref.current.scrollLeft = scrollLeft - walkX
@@ -57,8 +57,8 @@ export function useGrabScroll<T extends HTMLElement>() {
     if (isInteractive(e.target as HTMLElement)) return
     if (!ref.current) return
     setIsDragging(true)
-    setStartX(e.touches[0].pageX - ref.current.offsetLeft)
-    setStartY(e.touches[0].pageY - ref.current.offsetTop)
+    setStartX(e.touches[0].clientX)
+    setStartY(e.touches[0].clientY)
     setScrollLeft(ref.current.scrollLeft)
     setScrollTop(ref.current.scrollTop)
   }
@@ -67,8 +67,8 @@ export function useGrabScroll<T extends HTMLElement>() {
 
   const onTouchMove = (e: ReactTouchEvent<T>) => {
     if (!isDragging || !ref.current) return
-    const x = e.touches[0].pageX - ref.current.offsetLeft
-    const y = e.touches[0].pageY - ref.current.offsetTop
+    const x = e.touches[0].clientX
+    const y = e.touches[0].clientY
     const walkX = (x - startX) * 1.5
     const walkY = (y - startY) * 1.5
     ref.current.scrollLeft = scrollLeft - walkX

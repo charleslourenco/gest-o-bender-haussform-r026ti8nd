@@ -132,7 +132,7 @@ export function SolicitacoesCompra() {
           <div
             ref={scrollRef}
             {...scrollEvents}
-            className={`overflow-auto flex-1 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+            className={`overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
           >
             <Table className="min-w-[1200px] relative">
               <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
@@ -141,7 +141,7 @@ export function SolicitacoesCompra() {
                   <TableHead className="whitespace-nowrap">Solicitante</TableHead>
                   <TableHead className="whitespace-nowrap">Cliente</TableHead>
                   <TableHead className="whitespace-nowrap min-w-[200px]">Item / Detalhes</TableHead>
-                  <TableHead className="min-w-[150px]">Fornecedor</TableHead>
+                  <TableHead className="min-w-[150px] max-w-[250px]">Fornecedor</TableHead>
                   <TableHead className="whitespace-nowrap">Qtd</TableHead>
                   <TableHead className="whitespace-nowrap">Previsão</TableHead>
                   <TableHead className="whitespace-nowrap">Urgência</TableHead>
@@ -166,8 +166,8 @@ export function SolicitacoesCompra() {
                         {s.usuario?.nome || 'Usuário Desconhecido'}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{s.cliente?.nome || '-'}</TableCell>
-                      <TableCell className="min-w-[250px]">
-                        <p className="font-medium whitespace-nowrap">{s.nome_item}</p>
+                      <TableCell className="min-w-[250px] max-w-[350px] whitespace-normal break-words">
+                        <p className="font-medium">{s.nome_item}</p>
                         <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
                           {s.modelo && <span>Mod: {s.modelo}</span>}
                           {s.cor && <span>Cor: {s.cor}</span>}
@@ -188,7 +188,9 @@ export function SolicitacoesCompra() {
                           </a>
                         )}
                       </TableCell>
-                      <TableCell>{s.fornecedor || '-'}</TableCell>
+                      <TableCell className="whitespace-normal break-words min-w-[150px] max-w-[250px]">
+                        {s.fornecedor || '-'}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {s.quantidade} {s.unidade}
                       </TableCell>
