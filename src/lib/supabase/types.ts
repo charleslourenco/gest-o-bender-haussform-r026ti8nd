@@ -1225,6 +1225,7 @@ export type Database = {
           altura: number
           area: number
           cliente_nome: string | null
+          comprimento: number | null
           criado_em: string
           espessura: number | null
           id: string
@@ -1240,6 +1241,7 @@ export type Database = {
           altura: number
           area: number
           cliente_nome?: string | null
+          comprimento?: number | null
           criado_em?: string
           espessura?: number | null
           id?: string
@@ -1255,6 +1257,7 @@ export type Database = {
           altura?: number
           area?: number
           cliente_nome?: string | null
+          comprimento?: number | null
           criado_em?: string
           espessura?: number | null
           id?: string

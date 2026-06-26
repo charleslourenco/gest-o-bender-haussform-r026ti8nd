@@ -496,7 +496,7 @@ export function GestaoSobras() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-steel-blue hover:text-steel-blue transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-steel-blue hover:text-steel-blue transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setSobraEditando(null)
@@ -505,15 +505,12 @@ export function GestaoSobras() {
             >
               <ScissorsLineDashed className="w-8 h-8" />
               <div className="text-center">
-                <div className="font-semibold">Retalho</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Pedaço com dimensões customizadas
-                </div>
+                <div className="font-semibold">Retalho MDF</div>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-emerald-600 hover:text-emerald-600 transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-emerald-600 hover:text-emerald-600 transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setChapaEditando(null)
@@ -522,15 +519,12 @@ export function GestaoSobras() {
             >
               <LayoutTemplate className="w-8 h-8" />
               <div className="text-center">
-                <div className="font-semibold">Chapa Inteira</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  Chapa completa não utilizada
-                </div>
+                <div className="font-semibold">Chapa Inteira MDF</div>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-amber-600 hover:text-amber-600 transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-amber-600 hover:text-amber-600 transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setFitaEditando(null)
@@ -539,13 +533,12 @@ export function GestaoSobras() {
             >
               <Disc className="w-8 h-8" />
               <div className="text-center">
-                <div className="font-semibold">Fita (Rolo)</div>
-                <div className="text-xs text-muted-foreground mt-1">Rolo de fita de borda</div>
+                <div className="font-semibold">Fita de Bordas (Rolo)</div>
               </div>
             </Button>
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:text-purple-600 transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:text-purple-600 transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setFitaEditando(null)
@@ -554,8 +547,7 @@ export function GestaoSobras() {
             >
               <Ruler className="w-8 h-8" />
               <div className="text-center">
-                <div className="font-semibold">Fita (Pedaço)</div>
-                <div className="text-xs text-muted-foreground mt-1">Pedaço de fita de borda</div>
+                <div className="font-semibold">Fita de Bordas (Pedaço)</div>
               </div>
             </Button>
           </div>
