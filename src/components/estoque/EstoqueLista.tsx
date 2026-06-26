@@ -40,6 +40,9 @@ export const CATEGORIAS_ESTOQUE = [
   'Espelhos',
   'Perfil puxador/puxador',
   'Iluminação',
+  'Colas e adesivos',
+  'Insumos',
+  'Material elétrico',
 ]
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
