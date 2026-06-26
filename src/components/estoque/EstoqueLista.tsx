@@ -43,6 +43,10 @@ export const CATEGORIAS_ESTOQUE = [
   'Colas e adesivos',
   'Insumos',
   'Material elétrico',
+  'Uniformes e EPIs',
+  'móveis soltos',
+  'brocas/fresas/serras',
+  'Parafusos',
 ]
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
