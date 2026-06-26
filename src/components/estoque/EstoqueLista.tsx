@@ -411,165 +411,173 @@ export function EstoqueLista() {
       </div>
 
       <div className="rounded-md border dark:border-slate-800 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead>Marca</TableHead>
-              <TableHead>Detalhes</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Fornecedor</TableHead>
-              <TableHead className="text-right">Quantidade</TableHead>
-              <TableHead className="text-right">V. Unitário</TableHead>
-              <TableHead className="text-right">V. Total</TableHead>
-              <TableHead className="text-center">Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredItems.map((item) => {
-              const itemAllocations = allocations.filter((a) => a.item_id === item.id)
-              const totalAllocated = itemAllocations.reduce((acc, curr) => acc + curr.quantidade, 0)
-              const itemSobras = sobrasChapas.filter((s) => s.item_id === item.id)
-              const totalSobras = itemSobras.length
+        <div className="overflow-x-auto">
+          <Table className="min-w-[1200px]">
+            <TableHeader className="bg-gray-50 dark:bg-slate-900/50">
+              <TableRow>
+                <TableHead className="whitespace-nowrap">Item</TableHead>
+                <TableHead className="whitespace-nowrap">Marca</TableHead>
+                <TableHead className="whitespace-nowrap">Detalhes</TableHead>
+                <TableHead className="whitespace-nowrap">Categoria</TableHead>
+                <TableHead className="whitespace-nowrap">Fornecedor</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Quantidade</TableHead>
+                <TableHead className="text-right whitespace-nowrap">V. Unitário</TableHead>
+                <TableHead className="text-right whitespace-nowrap">V. Total</TableHead>
+                <TableHead className="text-center whitespace-nowrap">Status</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredItems.map((item) => {
+                const itemAllocations = allocations.filter((a) => a.item_id === item.id)
+                const totalAllocated = itemAllocations.reduce(
+                  (acc, curr) => acc + curr.quantidade,
+                  0,
+                )
+                const itemSobras = sobrasChapas.filter((s) => s.item_id === item.id)
+                const totalSobras = itemSobras.length
 
-              return (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium max-w-[250px]" title={item.nome}>
-                    <div className="truncate mb-1">{item.nome}</div>
-                    <div className="flex flex-col gap-1 mt-1">
-                      {itemAllocations.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {itemAllocations.map((a) => (
-                            <span
-                              key={a.id}
-                              className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50"
-                            >
-                              <span className="text-[9px]">📍</span> {a.quantidade}x{' '}
-                              {a.cliente_nome}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {totalSobras > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-0.5">
-                          <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50">
-                            <span className="text-[9px]">♻️</span> Possui Sobras ({totalSobras})
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.marca || '-'}</TableCell>
-                  <TableCell>
-                    <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
-                      {item.cor && (
-                        <div>
-                          <span className="font-medium">Cor:</span> {item.cor}
-                        </div>
-                      )}
-                      {item.espessura_mm && (
-                        <div>
-                          <span className="font-medium">Esp:</span> {item.espessura_mm}mm
-                        </div>
-                      )}
-                      {item.largura_mm && (
-                        <div>
-                          <span className="font-medium">Larg:</span> {item.largura_mm}mm
-                        </div>
-                      )}
-                      {item.comprimento_m && (
-                        <div>
-                          <span className="font-medium">Comp:</span> {item.comprimento_m}m
-                        </div>
-                      )}
-                      {!item.cor &&
-                        !item.espessura_mm &&
-                        !item.largura_mm &&
-                        !item.comprimento_m &&
-                        '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {item.categoria || '-'}
-                    {item.terceirizado && (
-                      <Badge
-                        variant="secondary"
-                        className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
-                      >
-                        Terceirizado
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{item.fornecedor || '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <div>
-                      {item.quantidade}{' '}
-                      <span className="text-xs text-gray-500 dark:text-slate-400">
-                        {item.unidade}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.valor_unitario)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.quantidade * item.valor_unitario)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {item.quantidade <= item.estoque_minimo ? (
-                      <Badge
-                        variant="destructive"
-                        className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
-                      >
-                        Estoque Baixo
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
-                      >
-                        Normal
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setItemToAllocate(item)}
-                      className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
-                      title="Alocar e Gerar Etiqueta"
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell
+                      className="font-medium min-w-[250px] max-w-[350px]"
+                      title={item.nome}
                     >
-                      <Tags className="w-4 h-4" />
-                    </Button>
-                    {isAdmin && (
+                      <div className="truncate mb-1">{item.nome}</div>
+                      <div className="flex flex-col gap-1 mt-1">
+                        {itemAllocations.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {itemAllocations.map((a) => (
+                              <span
+                                key={a.id}
+                                className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50"
+                              >
+                                <span className="text-[9px]">📍</span> {a.quantidade}x{' '}
+                                {a.cliente_nome}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {totalSobras > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-sm flex items-center gap-1 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/50">
+                              <span className="text-[9px]">♻️</span> Possui Sobras ({totalSobras})
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{item.marca || '-'}</TableCell>
+                    <TableCell>
+                      <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
+                        {item.cor && (
+                          <div>
+                            <span className="font-medium">Cor:</span> {item.cor}
+                          </div>
+                        )}
+                        {item.espessura_mm && (
+                          <div>
+                            <span className="font-medium">Esp:</span> {item.espessura_mm}mm
+                          </div>
+                        )}
+                        {item.largura_mm && (
+                          <div>
+                            <span className="font-medium">Larg:</span> {item.largura_mm}mm
+                          </div>
+                        )}
+                        {item.comprimento_m && (
+                          <div>
+                            <span className="font-medium">Comp:</span> {item.comprimento_m}m
+                          </div>
+                        )}
+                        {!item.cor &&
+                          !item.espessura_mm &&
+                          !item.largura_mm &&
+                          !item.comprimento_m &&
+                          '-'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {item.categoria || '-'}
+                      {item.terceirizado && (
+                        <Badge
+                          variant="secondary"
+                          className="ml-2 bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
+                        >
+                          Terceirizado
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{item.fornecedor || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div>
+                        {item.quantidade}{' '}
+                        <span className="text-xs text-gray-500 dark:text-slate-400">
+                          {item.unidade}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.valor_unitario)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.quantidade * item.valor_unitario)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.quantidade <= item.estoque_minimo ? (
+                        <Badge
+                          variant="destructive"
+                          className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
+                        >
+                          Estoque Baixo
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                        >
+                          Normal
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                        title="Apagar"
+                        onClick={() => setItemToAllocate(item)}
+                        className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
+                        title="Alocar e Gerar Etiqueta"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Tags className="w-4 h-4" />
                       </Button>
-                    )}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                          title="Apagar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+              {filteredItems.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={10}
+                    className="text-center py-8 text-gray-500 dark:text-slate-400"
+                  >
+                    Nenhum item encontrado no estoque.
                   </TableCell>
                 </TableRow>
-              )
-            })}
-            {filteredItems.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={10}
-                  className="text-center py-8 text-gray-500 dark:text-slate-400"
-                >
-                  Nenhum item encontrado no estoque.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

@@ -191,127 +191,133 @@ export function ItensCliente() {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Recebido Em</TableHead>
-                  <TableHead>Entregue Em</TableHead>
-                  <TableHead>Responsável (Entrega)</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {itens.length === 0 ? (
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table className="min-w-[1000px]">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nenhum item registrado.
-                    </TableCell>
+                    <TableHead className="whitespace-nowrap">Cliente</TableHead>
+                    <TableHead className="whitespace-nowrap">Produto</TableHead>
+                    <TableHead className="whitespace-nowrap">Recebido Em</TableHead>
+                    <TableHead className="whitespace-nowrap">Entregue Em</TableHead>
+                    <TableHead className="whitespace-nowrap">Responsável (Entrega)</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Ação</TableHead>
                   </TableRow>
-                ) : (
-                  itens.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.cliente_nome}</TableCell>
-                      <TableCell>{item.produto}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {formatDate(item.recebido_em)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {item.entregue_em ? (
-                          formatDate(item.entregue_em)
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {item.responsavel_entrega ? (
-                          item.responsavel_entrega
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        {!item.entregue_em && (
-                          <Dialog
-                            open={dialogOpen && selectedItem === item.id}
-                            onOpenChange={(open) => {
-                              if (!open) {
-                                setDialogOpen(false)
-                                setSelectedItem(null)
-                              } else {
-                                setSelectedItem(item.id)
-                                setDialogOpen(true)
-                              }
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="outline">
-                                <Send className="h-4 w-4 mr-2" />
-                                Registrar Entrega
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Registrar Entrega</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                  <Label>Item</Label>
-                                  <p className="text-sm font-medium">
-                                    {item.produto} (Cliente: {item.cliente_nome})
-                                  </p>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="responsavel">
-                                    Quem levou / Responsável pela entrega?
-                                  </Label>
-                                  <Input
-                                    id="responsavel"
-                                    value={responsavel}
-                                    onChange={(e) => setResponsavel(e.target.value)}
-                                    placeholder="Ex: Motorista Carlos"
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                                  Cancelar
-                                </Button>
-                                <Button onClick={handleDeliver} disabled={!responsavel}>
-                                  Confirmar Entrega
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        )}
-                        {item.entregue_em && (
-                          <Badge
-                            variant="secondary"
-                            className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900"
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            Entregue
-                          </Badge>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(item.id)}
-                            className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                            title="Apagar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {itens.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Nenhum item registrado.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    itens.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {item.cliente_nome}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap min-w-[200px]">
+                          {item.produto}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(item.recebido_em)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {item.entregue_em ? (
+                            formatDate(item.entregue_em)
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {item.responsavel_entrega ? (
+                            item.responsavel_entrega
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          {!item.entregue_em && (
+                            <Dialog
+                              open={dialogOpen && selectedItem === item.id}
+                              onOpenChange={(open) => {
+                                if (!open) {
+                                  setDialogOpen(false)
+                                  setSelectedItem(null)
+                                } else {
+                                  setSelectedItem(item.id)
+                                  setDialogOpen(true)
+                                }
+                              }}
+                            >
+                              <DialogTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Registrar Entrega
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Registrar Entrega</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                  <div className="space-y-2">
+                                    <Label>Item</Label>
+                                    <p className="text-sm font-medium">
+                                      {item.produto} (Cliente: {item.cliente_nome})
+                                    </p>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label htmlFor="responsavel">
+                                      Quem levou / Responsável pela entrega?
+                                    </Label>
+                                    <Input
+                                      id="responsavel"
+                                      value={responsavel}
+                                      onChange={(e) => setResponsavel(e.target.value)}
+                                      placeholder="Ex: Motorista Carlos"
+                                    />
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                                    Cancelar
+                                  </Button>
+                                  <Button onClick={handleDeliver} disabled={!responsavel}>
+                                    Confirmar Entrega
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          {item.entregue_em && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900"
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Entregue
+                            </Badge>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(item.id)}
+                              className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                              title="Apagar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </CardContent>
       </Card>
