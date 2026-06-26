@@ -109,8 +109,8 @@ export function SolicitacoesCompra() {
   }
 
   return (
-    <Card className="animate-in fade-in duration-300">
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="h-full flex flex-col animate-in fade-in duration-300 min-h-0">
+      <CardHeader className="flex-none flex flex-row items-center justify-between">
         <div>
           <CardTitle>Solicitações de Compra</CardTitle>
           <CardDescription>Gerencie os pedidos de materiais feitos pela equipe</CardDescription>
@@ -125,10 +125,10 @@ export function SolicitacoesCompra() {
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
       </CardHeader>
-      <CardContent>
-        <div className="rounded-md border overflow-hidden">
-          <div className="overflow-auto max-h-[calc(100vh-250px)]">
-            <Table className="min-w-[1200px]">
+      <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
+        <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0">
+          <div className="overflow-auto flex-1">
+            <Table className="min-w-[1200px] relative">
               <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                 <TableRow>
                   <TableHead className="whitespace-nowrap">Data</TableHead>

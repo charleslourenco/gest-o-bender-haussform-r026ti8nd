@@ -117,20 +117,35 @@ export default function EstoqueCompras() {
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
-          <TabsContent value="overview" className="m-0 border-none outline-none">
+        <div className="flex-1 overflow-hidden min-h-0 w-full relative">
+          <TabsContent
+            value="overview"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
+          >
             <EstoqueOverview />
           </TabsContent>
-          <TabsContent value="solicitacoes" className="m-0 border-none outline-none">
+          <TabsContent
+            value="solicitacoes"
+            className="m-0 border-none outline-none h-full flex flex-col overflow-hidden"
+          >
             <SolicitacoesCompra />
           </TabsContent>
-          <TabsContent value="estoque" className="m-0 border-none outline-none">
+          <TabsContent
+            value="estoque"
+            className="m-0 border-none outline-none h-full flex flex-col overflow-hidden"
+          >
             <EstoqueLista />
           </TabsContent>
-          <TabsContent value="listas-materiais" className="m-0 border-none outline-none">
+          <TabsContent
+            value="listas-materiais"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
+          >
             <ListasMateriais />
           </TabsContent>
-          <TabsContent value="documentos" className="m-0 border-none outline-none space-y-8">
+          <TabsContent
+            value="documentos"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20 space-y-8"
+          >
             <section>
               <h2 className="text-xl font-bold text-midnight-navy dark:text-slate-100 mb-4">
                 Entrada de Mercadorias (NF/OCR)
@@ -144,13 +159,22 @@ export default function EstoqueCompras() {
               <ConciliacaoListas />
             </section>
           </TabsContent>
-          <TabsContent value="itens-cliente" className="m-0 border-none outline-none">
+          <TabsContent
+            value="itens-cliente"
+            className="m-0 border-none outline-none h-full flex flex-col overflow-hidden"
+          >
             <ItensCliente />
           </TabsContent>
-          <TabsContent value="separacao" className="m-0 border-none outline-none">
+          <TabsContent
+            value="separacao"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
+          >
             <CaixasVirtuais />
           </TabsContent>
-          <TabsContent value="sobras" className="m-0 border-none outline-none">
+          <TabsContent
+            value="sobras"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
+          >
             <GestaoSobras />
           </TabsContent>
         </div>

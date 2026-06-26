@@ -360,9 +360,9 @@ export function EstoqueLista() {
   const itemsSemMetadados = items.filter((i) => !i.metadados_normalizados).length
 
   return (
-    <div className="space-y-4 bg-white dark:bg-slate-950 p-6 rounded-xl border dark:border-slate-800">
+    <div className="h-full flex flex-col space-y-4 bg-white dark:bg-slate-950 p-6 rounded-xl border dark:border-slate-800 min-h-0">
       {itemsSemMetadados > 0 && isAdmin && (
-        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4 flex items-center justify-between mb-4">
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4 flex items-center justify-between mb-4 flex-none">
           <div>
             <h4 className="font-semibold text-blue-800 dark:text-blue-300">
               Normalização Inteligente Pendente
@@ -382,7 +382,7 @@ export function EstoqueLista() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between flex-none">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
           <Input
@@ -410,9 +410,9 @@ export function EstoqueLista() {
         </div>
       </div>
 
-      <div className="rounded-md border dark:border-slate-800 overflow-hidden">
-        <div className="overflow-auto max-h-[calc(100vh-250px)]">
-          <Table className="min-w-[1200px]">
+      <div className="flex-1 rounded-md border dark:border-slate-800 overflow-hidden flex flex-col min-h-0">
+        <div className="overflow-auto flex-1">
+          <Table className="min-w-[1200px] relative">
             <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
               <TableRow>
                 <TableHead className="whitespace-nowrap">Item</TableHead>
