@@ -602,7 +602,7 @@ export function GestaoSobras() {
       </Tabs>
 
       <Dialog open={isTypeSelectionOpen} onOpenChange={setIsTypeSelectionOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>Tipo de Sobra</DialogTitle>
             <DialogDescription>

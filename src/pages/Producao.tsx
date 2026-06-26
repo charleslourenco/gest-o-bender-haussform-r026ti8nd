@@ -3,6 +3,8 @@ import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { RegistrarRetalhoModal } from '@/components/estoque/RegistrarRetalhoModal'
 import { RegistrarChapaModal } from '@/components/estoque/RegistrarChapaModal'
+import { RegistrarFitaRoloModal } from '@/components/estoque/RegistrarFitaRoloModal'
+import { RegistrarFitaPedacoModal } from '@/components/estoque/RegistrarFitaPedacoModal'
 import {
   Dialog,
   DialogContent,
@@ -11,7 +13,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { LayoutTemplate, ScissorsLineDashed } from 'lucide-react'
+import { LayoutTemplate, ScissorsLineDashed, Disc, Ruler } from 'lucide-react'
 
 const COLUMNS = [
   { id: 'aguardando_plano_corte', title: 'Aguardando plano de corte' },
@@ -28,6 +30,8 @@ export default function Producao() {
   const [isTypeSelectionOpen, setIsTypeSelectionOpen] = useState(false)
   const [isRetalhoModalOpen, setIsRetalhoModalOpen] = useState(false)
   const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
+  const [isFitaRoloModalOpen, setIsFitaRoloModalOpen] = useState(false)
+  const [isFitaPedacoModalOpen, setIsFitaPedacoModalOpen] = useState(false)
 
   useEffect(() => {
     const handleTab = (e: any) => setActiveTab(e?.detail || 'kanban')
@@ -68,39 +72,57 @@ export default function Producao() {
       </div>
 
       <Dialog open={isTypeSelectionOpen} onOpenChange={setIsTypeSelectionOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-[700px]">
           <DialogHeader>
             <DialogTitle>Tipo de Sobra</DialogTitle>
             <DialogDescription>
               Selecione o tipo de sobra de projeto que deseja registrar no sistema.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-steel-blue hover:text-steel-blue transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-steel-blue hover:text-steel-blue transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setIsRetalhoModalOpen(true)
               }}
             >
               <ScissorsLineDashed className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Retalho</div>
-              </div>
+              <div className="text-center font-semibold">Retalho MDF</div>
             </Button>
             <Button
               variant="outline"
-              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-emerald-600 hover:text-emerald-600 transition-colors"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-emerald-600 hover:text-emerald-600 transition-colors whitespace-normal"
               onClick={() => {
                 setIsTypeSelectionOpen(false)
                 setIsChapaModalOpen(true)
               }}
             >
               <LayoutTemplate className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Chapa Inteira</div>
-              </div>
+              <div className="text-center font-semibold">Chapa Inteira MDF</div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-amber-600 hover:text-amber-600 transition-colors whitespace-normal"
+              onClick={() => {
+                setIsTypeSelectionOpen(false)
+                setIsFitaRoloModalOpen(true)
+              }}
+            >
+              <Disc className="w-8 h-8" />
+              <div className="text-center font-semibold">Fita de Bordas (Rolo)</div>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-32 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:text-purple-600 transition-colors whitespace-normal"
+              onClick={() => {
+                setIsTypeSelectionOpen(false)
+                setIsFitaPedacoModalOpen(true)
+              }}
+            >
+              <Ruler className="w-8 h-8" />
+              <div className="text-center font-semibold">Fita de Bordas (Pedaço)</div>
             </Button>
           </div>
         </DialogContent>
@@ -111,6 +133,14 @@ export default function Producao() {
         onClose={() => setIsRetalhoModalOpen(false)}
       />
       <RegistrarChapaModal isOpen={isChapaModalOpen} onClose={() => setIsChapaModalOpen(false)} />
+      <RegistrarFitaRoloModal
+        isOpen={isFitaRoloModalOpen}
+        onClose={() => setIsFitaRoloModalOpen(false)}
+      />
+      <RegistrarFitaPedacoModal
+        isOpen={isFitaPedacoModalOpen}
+        onClose={() => setIsFitaPedacoModalOpen(false)}
+      />
     </div>
   )
 }
