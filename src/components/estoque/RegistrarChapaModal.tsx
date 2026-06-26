@@ -115,7 +115,7 @@ export function RegistrarChapaModal({
     }
 
     const payload = {
-      tipo: 'chapa_inteira',
+      tipo: 'Chapa Inteira MDF',
       item_id: novaSobra.item_id,
       nome: novaSobra.nome,
       marca: novaSobra.marca,
@@ -151,7 +151,7 @@ export function RegistrarChapaModal({
       })
 
       if (imprimir) {
-        printScrapLabel({ ...novaSobra, id: currentId, tipo: 'chapa_inteira' })
+        printScrapLabel({ ...novaSobra, id: currentId, tipo: 'Chapa Inteira MDF' })
       }
 
       onClose()

@@ -157,7 +157,7 @@ export function RegistrarFitaPedacoModal({
         altura: 0,
         area: 0,
         status: 'disponivel',
-        tipo: 'fita_pedaco',
+        tipo: 'Fita de Bordas (Pedaço)',
       })
       error = insertError
     }
@@ -177,7 +177,7 @@ export function RegistrarFitaPedacoModal({
           id: currentId,
           altura: 0,
           espessura: 0,
-          tipo: 'fita_pedaco',
+          tipo: 'Fita de Bordas (Pedaço)',
         })
       }
 

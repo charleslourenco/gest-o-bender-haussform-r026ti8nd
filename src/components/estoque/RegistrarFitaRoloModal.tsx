@@ -142,7 +142,7 @@ export function RegistrarFitaRoloModal({
         altura: 0,
         area: 0,
         status: 'disponivel',
-        tipo: 'fita_rolo',
+        tipo: 'Fita de Bordas (Rolo)',
       })
       error = insertError
     }
@@ -155,7 +155,13 @@ export function RegistrarFitaRoloModal({
       })
 
       if (imprimir) {
-        printScrapLabel({ ...novaSobra, id: currentId, altura: 0, espessura: 0, tipo: 'fita_rolo' })
+        printScrapLabel({
+          ...novaSobra,
+          id: currentId,
+          altura: 0,
+          espessura: 0,
+          tipo: 'Fita de Bordas (Rolo)',
+        })
       }
 
       onClose()

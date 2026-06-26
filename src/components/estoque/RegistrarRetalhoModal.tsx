@@ -138,7 +138,7 @@ export function RegistrarRetalhoModal({
         espessura: novaSobra.espessura,
         area: area,
         status: 'disponivel',
-        tipo: 'retalho',
+        tipo: 'Retalho MDF',
       })
 
       error = insertError
@@ -154,7 +154,7 @@ export function RegistrarRetalhoModal({
       })
 
       if (imprimir) {
-        printScrapLabel({ ...novaSobra, id: currentId })
+        printScrapLabel({ ...novaSobra, id: currentId, tipo: 'Retalho MDF' })
       }
 
       onClose()

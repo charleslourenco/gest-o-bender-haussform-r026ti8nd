@@ -68,13 +68,13 @@ export function GestaoSobras() {
   }
 
   function openEditModal(sobra: any) {
-    if (sobra.tipo === 'chapa_inteira') {
+    if (sobra.tipo === 'chapa_inteira' || sobra.tipo === 'Chapa Inteira MDF') {
       setChapaEditando(sobra)
       setIsChapaModalOpen(true)
-    } else if (sobra.tipo === 'fita_rolo') {
+    } else if (sobra.tipo === 'fita_rolo' || sobra.tipo === 'Fita de Bordas (Rolo)') {
       setFitaEditando(sobra)
       setIsFitaRoloModalOpen(true)
-    } else if (sobra.tipo === 'fita_pedaco') {
+    } else if (sobra.tipo === 'fita_pedaco' || sobra.tipo === 'Fita de Bordas (Pedaço)') {
       setFitaEditando(sobra)
       setIsFitaPedacoModalOpen(true)
     } else {
@@ -131,9 +131,10 @@ export function GestaoSobras() {
 
       <Tabs defaultValue="retalhos">
         <TabsList className="mb-4">
-          <TabsTrigger value="retalhos">Retalhos</TabsTrigger>
-          <TabsTrigger value="chapas">Chapas Inteiras</TabsTrigger>
-          <TabsTrigger value="fitas">Fitas de Borda</TabsTrigger>
+          <TabsTrigger value="retalhos">Retalho MDF</TabsTrigger>
+          <TabsTrigger value="chapas">Chapa Inteira MDF</TabsTrigger>
+          <TabsTrigger value="fitas-rolo">Fita de Bordas (Rolo)</TabsTrigger>
+          <TabsTrigger value="fitas-pedaco">Fita de Bordas (Pedaço)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="retalhos">
@@ -168,7 +169,7 @@ export function GestaoSobras() {
                   </TableHeader>
                   <TableBody>
                     {filteredSobras
-                      .filter((s) => !s.tipo || s.tipo === 'retalho')
+                      .filter((s) => !s.tipo || s.tipo === 'retalho' || s.tipo === 'Retalho MDF')
                       .map((sobra) => (
                         <TableRow key={sobra.id}>
                           <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
@@ -242,7 +243,9 @@ export function GestaoSobras() {
                           </TableCell>
                         </TableRow>
                       ))}
-                    {filteredSobras.filter((s) => !s.tipo || s.tipo === 'retalho').length === 0 && (
+                    {filteredSobras.filter(
+                      (s) => !s.tipo || s.tipo === 'retalho' || s.tipo === 'Retalho MDF',
+                    ).length === 0 && (
                       <TableRow>
                         <TableCell
                           colSpan={8}
@@ -287,7 +290,7 @@ export function GestaoSobras() {
                   </TableHeader>
                   <TableBody>
                     {filteredSobras
-                      .filter((s) => s.tipo === 'chapa_inteira')
+                      .filter((s) => s.tipo === 'chapa_inteira' || s.tipo === 'Chapa Inteira MDF')
                       .map((sobra) => (
                         <TableRow key={sobra.id}>
                           <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
@@ -346,7 +349,9 @@ export function GestaoSobras() {
                           </TableCell>
                         </TableRow>
                       ))}
-                    {filteredSobras.filter((s) => s.tipo === 'chapa_inteira').length === 0 && (
+                    {filteredSobras.filter(
+                      (s) => s.tipo === 'chapa_inteira' || s.tipo === 'Chapa Inteira MDF',
+                    ).length === 0 && (
                       <TableRow>
                         <TableCell
                           colSpan={6}
@@ -363,13 +368,13 @@ export function GestaoSobras() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="fitas">
+        <TabsContent value="fitas-rolo">
           <Card>
             <CardHeader className="pb-3 border-b">
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Buscar fita..."
+                  placeholder="Buscar fita (rolo)..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"
@@ -383,27 +388,19 @@ export function GestaoSobras() {
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
                       <TableHead className="whitespace-nowrap">Item</TableHead>
-                      <TableHead className="whitespace-nowrap">Tipo</TableHead>
                       <TableHead className="text-center whitespace-nowrap">Largura (mm)</TableHead>
-                      <TableHead className="text-center whitespace-nowrap">
-                        Comprimento (m)
-                      </TableHead>
                       <TableHead className="text-center whitespace-nowrap">Status</TableHead>
                       <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSobras
-                      .filter((s) => s.tipo === 'fita_rolo' || s.tipo === 'fita_pedaco')
+                      .filter((s) => s.tipo === 'fita_rolo' || s.tipo === 'Fita de Bordas (Rolo)')
                       .map((sobra) => (
                         <TableRow key={sobra.id}>
                           <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
                           <TableCell>{sobra.nome}</TableCell>
-                          <TableCell>{sobra.tipo === 'fita_rolo' ? 'Rolo' : 'Pedaço'}</TableCell>
                           <TableCell className="text-center">{sobra.largura || '-'}</TableCell>
-                          <TableCell className="text-center">
-                            {sobra.tipo === 'fita_pedaco' ? sobra.comprimento : '-'}
-                          </TableCell>
                           <TableCell className="text-center">
                             {sobra.status === 'disponivel' ? (
                               <Badge
@@ -466,14 +463,133 @@ export function GestaoSobras() {
                         </TableRow>
                       ))}
                     {filteredSobras.filter(
-                      (s) => s.tipo === 'fita_rolo' || s.tipo === 'fita_pedaco',
+                      (s) => s.tipo === 'fita_rolo' || s.tipo === 'Fita de Bordas (Rolo)',
                     ).length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={5}
                           className="text-center py-8 text-gray-500 dark:text-slate-400"
                         >
-                          Nenhuma fita encontrada.
+                          Nenhuma fita (rolo) encontrada.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fitas-pedaco">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar fita (pedaço)..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
+                <Table className="min-w-[800px]">
+                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
+                      <TableHead className="whitespace-nowrap">Item</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Largura (mm)</TableHead>
+                      <TableHead className="text-center whitespace-nowrap">
+                        Comprimento (m)
+                      </TableHead>
+                      <TableHead className="text-center whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSobras
+                      .filter(
+                        (s) => s.tipo === 'fita_pedaco' || s.tipo === 'Fita de Bordas (Pedaço)',
+                      )
+                      .map((sobra) => (
+                        <TableRow key={sobra.id}>
+                          <TableCell className="font-medium">{sobra.cliente_nome || '-'}</TableCell>
+                          <TableCell>{sobra.nome}</TableCell>
+                          <TableCell className="text-center">{sobra.largura || '-'}</TableCell>
+                          <TableCell className="text-center">{sobra.comprimento || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            {sobra.status === 'disponivel' ? (
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
+                              >
+                                Disponível
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="secondary"
+                                className="bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400"
+                              >
+                                Usado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {sobra.status === 'disponivel' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50 mr-1"
+                                  onClick={() => printScrapLabel(sobra)}
+                                  title="Imprimir Etiqueta"
+                                >
+                                  <Printer className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50 mr-1"
+                                  onClick={() => handleUsar(sobra.id)}
+                                  title="Marcar Uso"
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/50 h-8 w-8 mr-1"
+                                  onClick={() => openEditModal(sobra)}
+                                  title="Editar"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                              onClick={() => handleDeletar(sobra.id)}
+                              title="Deletar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    {filteredSobras.filter(
+                      (s) => s.tipo === 'fita_pedaco' || s.tipo === 'Fita de Bordas (Pedaço)',
+                    ).length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center py-8 text-gray-500 dark:text-slate-400"
+                        >
+                          Nenhuma fita (pedaço) encontrada.
                         </TableCell>
                       </TableRow>
                     )}
@@ -504,9 +620,7 @@ export function GestaoSobras() {
               }}
             >
               <ScissorsLineDashed className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Retalho MDF</div>
-              </div>
+              <div className="text-center font-semibold">Retalho MDF</div>
             </Button>
             <Button
               variant="outline"
@@ -518,9 +632,7 @@ export function GestaoSobras() {
               }}
             >
               <LayoutTemplate className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Chapa Inteira MDF</div>
-              </div>
+              <div className="text-center font-semibold">Chapa Inteira MDF</div>
             </Button>
             <Button
               variant="outline"
@@ -532,9 +644,7 @@ export function GestaoSobras() {
               }}
             >
               <Disc className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Fita de Bordas (Rolo)</div>
-              </div>
+              <div className="text-center font-semibold">Fita de Bordas (Rolo)</div>
             </Button>
             <Button
               variant="outline"
@@ -546,9 +656,7 @@ export function GestaoSobras() {
               }}
             >
               <Ruler className="w-8 h-8" />
-              <div className="text-center">
-                <div className="font-semibold">Fita de Bordas (Pedaço)</div>
-              </div>
+              <div className="text-center font-semibold">Fita de Bordas (Pedaço)</div>
             </Button>
           </div>
         </DialogContent>
