@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { RefreshCw, Send, Check, Trash2 } from 'lucide-react'
+import { useGrabScroll } from '@/hooks/use-grab-scroll'
 import {
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ export function ItensCliente() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
+  const { ref: scrollRef, events: scrollEvents, isDragging } = useGrabScroll<HTMLDivElement>()
 
   const fetchItens = async () => {
     setLoading(true)
@@ -192,7 +194,11 @@ export function ItensCliente() {
         </CardHeader>
         <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
           <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0">
-            <div className="overflow-auto flex-1">
+            <div
+              ref={scrollRef}
+              {...scrollEvents}
+              className={`overflow-auto flex-1 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+            >
               <Table className="min-w-[1000px] relative">
                 <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                   <TableRow>

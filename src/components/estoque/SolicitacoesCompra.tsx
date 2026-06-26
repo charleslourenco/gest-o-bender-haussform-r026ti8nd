@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Check, X, Clock, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
+import { useGrabScroll } from '@/hooks/use-grab-scroll'
 
 type Solicitacao = {
   id: string
@@ -40,6 +41,7 @@ export function SolicitacoesCompra() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
+  const { ref: scrollRef, events: scrollEvents, isDragging } = useGrabScroll<HTMLDivElement>()
 
   const fetchSolicitacoes = async () => {
     setLoading(true)
@@ -127,7 +129,11 @@ export function SolicitacoesCompra() {
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
         <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0">
-          <div className="overflow-auto flex-1">
+          <div
+            ref={scrollRef}
+            {...scrollEvents}
+            className={`overflow-auto flex-1 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          >
             <Table className="min-w-[1200px] relative">
               <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                 <TableRow>
