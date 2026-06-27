@@ -391,10 +391,10 @@ export function EstoqueLista() {
         escapeCSV(Number(item.valor_unitario || 0).toFixed(2)),
         escapeCSV((Number(item.quantidade || 0) * Number(item.valor_unitario || 0)).toFixed(2)),
         escapeCSV(alocacoesStr),
-      ].join(',')
+      ].join(';')
     })
 
-    const csvContent = [headers.join(','), ...rows].join('\n')
+    const csvContent = [headers.join(';'), ...rows].join('\n')
 
     // Add BOM for UTF-8 encoding
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
