@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, PackageOpen, Check, Box, Trash2 } from 'lucide-react'
+import { Plus, PackageOpen, Check, Box, Trash2, Link2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -201,7 +201,7 @@ export function CaixasVirtuais() {
                     Cliente: {caixa.cliente?.nome}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   <Badge
                     variant={caixa.status === 'entregue' ? 'outline' : 'secondary'}
                     className={
@@ -212,6 +212,22 @@ export function CaixasVirtuais() {
                   >
                     {caixa.status.toUpperCase()}
                   </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-steel-blue hover:bg-steel-blue/10 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                    onClick={() => {
+                      const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                      navigator.clipboard.writeText(link)
+                      toast({
+                        title: 'Link copiado!',
+                        description: 'Link de recebimento copiado para a área de transferência.',
+                      })
+                    }}
+                    title="Copiar Link de Recebimento"
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

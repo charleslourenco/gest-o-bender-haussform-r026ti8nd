@@ -24,6 +24,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import AssinaturaPage from './pages/AssinaturaPage'
 import BaixaRetalho from './pages/BaixaRetalho'
+import RecebimentoCaixa from './pages/RecebimentoCaixa'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ThemeProvider } from './components/theme-provider'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/assinatura/:id" element={<AssinaturaPage />} />
               <Route path="/baixa-retalho/:id" element={<BaixaRetalho />} />
+              <Route path="/recebimento-caixa/:id" element={<RecebimentoCaixa />} />
               <Route
                 element={
                   <ProtectedRoute>
