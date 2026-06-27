@@ -981,6 +981,8 @@ export type Database = {
           id: string
           nome: string
           projeto_id: string | null
+          recebedor_cpf: string | null
+          recebedor_nome: string | null
           status: string
         }
         Insert: {
@@ -992,6 +994,8 @@ export type Database = {
           id?: string
           nome: string
           projeto_id?: string | null
+          recebedor_cpf?: string | null
+          recebedor_nome?: string | null
           status?: string
         }
         Update: {
@@ -1003,6 +1007,8 @@ export type Database = {
           id?: string
           nome?: string
           projeto_id?: string | null
+          recebedor_cpf?: string | null
+          recebedor_nome?: string | null
           status?: string
         }
         Relationships: [

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { RefreshCw, Send, Check, Trash2 } from 'lucide-react'
+import { RefreshCw, Check, Trash2, ExternalLink, Copy, Send, Clock } from 'lucide-react'
 import { useGrabScroll } from '@/hooks/use-grab-scroll'
 import {
   Dialog,
@@ -32,6 +32,11 @@ type ItemCliente = {
   recebido_em: string
   entregue_em: string | null
   responsavel_entrega: string | null
+  recebedor_nome: string | null
+  recebedor_cpf: string | null
+  comprovante_url: string | null
+  assinado_em: string | null
+  status: string | null
 }
 
 export function ItensCliente() {
@@ -40,8 +45,7 @@ export function ItensCliente() {
   const [cliente, setCliente] = useState('')
   const [produto, setProduto] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [responsavel, setResponsavel] = useState('')
-  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<ItemCliente | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
@@ -50,7 +54,7 @@ export function ItensCliente() {
   const fetchItens = async () => {
     setLoading(true)
     const { data, error } = await supabase
-      .from('estoque_itens_cliente' as any)
+      .from('estoque_itens_cliente')
       .select('*')
       .order('recebido_em', { ascending: false })
 
@@ -61,7 +65,7 @@ export function ItensCliente() {
         variant: 'destructive',
       })
     } else {
-      setItens(data || [])
+      setItens((data || []) as ItemCliente[])
     }
     setLoading(false)
   }
@@ -92,7 +96,7 @@ export function ItensCliente() {
     e.preventDefault()
     if (!cliente || !produto) return
     setIsSubmitting(true)
-    const { error } = await supabase.from('estoque_itens_cliente' as any).insert({
+    const { error } = await supabase.from('estoque_itens_cliente').insert({
       cliente_nome: cliente,
       produto: produto,
     })
@@ -108,28 +112,24 @@ export function ItensCliente() {
     setIsSubmitting(false)
   }
 
-  const handleDeliver = async () => {
-    if (!selectedItem || !responsavel) return
-    const { error } = await supabase
-      .from('estoque_itens_cliente' as any)
-      .update({
-        entregue_em: new Date().toISOString(),
-        responsavel_entrega: responsavel,
+  const copySignatureLink = (item: ItemCliente) => {
+    const link = `${window.location.origin}/recebimento-item-cliente/${item.id}`
+    navigator.clipboard
+      .writeText(link)
+      .then(() => {
+        toast({ title: 'Link copiado!', description: 'Envie o link para o cliente assinar.' })
       })
-      .eq('id', selectedItem)
-
-    if (error) {
-      toast({ title: 'Erro', description: 'Erro ao registrar entrega.', variant: 'destructive' })
-    } else {
-      toast({ title: 'Sucesso', description: 'Entrega registrada com sucesso.' })
-      setDialogOpen(false)
-      setResponsavel('')
-      setSelectedItem(null)
-      fetchItens()
-    }
+      .catch(() => {
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível copiar o link.',
+          variant: 'destructive',
+        })
+      })
   }
 
-  const formatDate = (isoString: string) => {
+  const formatDate = (isoString: string | null) => {
+    if (!isoString) return null
     const d = new Date(isoString)
     return new Intl.DateTimeFormat('pt-BR', {
       day: '2-digit',
@@ -138,6 +138,11 @@ export function ItensCliente() {
       hour: '2-digit',
       minute: '2-digit',
     }).format(d)
+  }
+
+  const openModal = (item: ItemCliente) => {
+    setSelectedItem(item)
+    setDialogOpen(true)
   }
 
   return (
@@ -218,108 +223,151 @@ export function ItensCliente() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    itens.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium whitespace-nowrap">
-                          {item.cliente_nome}
-                        </TableCell>
-                        <TableCell className="min-w-[200px] max-w-[350px] whitespace-normal break-words">
-                          {item.produto}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {formatDate(item.recebido_em)}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {item.entregue_em ? (
-                            formatDate(item.entregue_em)
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {item.responsavel_entrega ? (
-                            item.responsavel_entrega
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          {!item.entregue_em && (
-                            <Dialog
-                              open={dialogOpen && selectedItem === item.id}
-                              onOpenChange={(open) => {
-                                if (!open) {
-                                  setDialogOpen(false)
-                                  setSelectedItem(null)
-                                } else {
-                                  setSelectedItem(item.id)
-                                  setDialogOpen(true)
-                                }
-                              }}
-                            >
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline">
-                                  <Send className="h-4 w-4 mr-2" />
-                                  Registrar Entrega
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Registrar Entrega</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
-                                  <div className="space-y-2">
-                                    <Label>Item</Label>
-                                    <p className="text-sm font-medium">
-                                      {item.produto} (Cliente: {item.cliente_nome})
-                                    </p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="responsavel">
-                                      Quem levou / Responsável pela entrega?
-                                    </Label>
-                                    <Input
-                                      id="responsavel"
-                                      value={responsavel}
-                                      onChange={(e) => setResponsavel(e.target.value)}
-                                      placeholder="Ex: Motorista Carlos"
-                                    />
-                                  </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                                    Cancelar
+                    itens.map((item) => {
+                      const entregue = !!item.entregue_em
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            {item.cliente_nome}
+                          </TableCell>
+                          <TableCell className="min-w-[200px] max-w-[350px] whitespace-normal break-words">
+                            {item.produto}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {formatDate(item.recebido_em) || '-'}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {entregue ? (
+                              formatDate(item.entregue_em)
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {item.recebedor_nome || item.responsavel_entrega || (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            {entregue ? (
+                              <>
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900 mr-2"
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Entregue
+                                </Badge>
+                                {item.comprovante_url && (
+                                  <a
+                                    href={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/comprovantes-itens-cliente/${item.comprovante_url.replace(/^comprovantes\//, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    <Button size="sm" variant="outline">
+                                      <ExternalLink className="h-4 w-4 mr-2" />
+                                      Ver Comprovante
+                                    </Button>
+                                  </a>
+                                )}
+                              </>
+                            ) : (
+                              <Dialog
+                                open={dialogOpen && selectedItem?.id === item.id}
+                                onOpenChange={(open) => {
+                                  if (!open) {
+                                    setDialogOpen(false)
+                                    setSelectedItem(null)
+                                  } else {
+                                    openModal(item)
+                                  }
+                                }}
+                              >
+                                <DialogTrigger asChild>
+                                  <Button size="sm" variant="outline">
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Registrar Entrega
                                   </Button>
-                                  <Button onClick={handleDeliver} disabled={!responsavel}>
-                                    Confirmar Entrega
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                          {item.entregue_em && (
-                            <Badge
-                              variant="secondary"
-                              className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-400 dark:hover:bg-emerald-900"
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Entregue
-                            </Badge>
-                          )}
-                          {isAdmin && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(item.id)}
-                              className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                              title="Apagar"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Registrar Entrega</DialogTitle>
+                                  </DialogHeader>
+                                  {selectedItem && (
+                                    <div className="space-y-4 py-2">
+                                      <div className="rounded-md border bg-muted/30 p-4 space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-muted-foreground">Cliente:</span>
+                                          <span className="font-medium">
+                                            {selectedItem.cliente_nome}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-muted-foreground">Produto:</span>
+                                          <span className="font-medium text-right">
+                                            {selectedItem.produto}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 text-sm">
+                                        <Clock className="h-4 w-4 text-amber-500" />
+                                        <span className="text-muted-foreground">
+                                          Status:{' '}
+                                          <span className="font-medium text-amber-600">
+                                            Aguardando assinatura
+                                          </span>
+                                        </span>
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label>Link de Assinatura</Label>
+                                        <p className="text-xs text-muted-foreground">
+                                          Copie o link abaixo e envie ao cliente para que ele
+                                          preencha seus dados e assine o comprovante de entrega.
+                                        </p>
+                                        <div className="flex gap-2">
+                                          <Input
+                                            readOnly
+                                            value={`${window.location.origin}/recebimento-item-cliente/${selectedItem.id}`}
+                                            className="text-xs"
+                                          />
+                                          <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={() => copySignatureLink(selectedItem)}
+                                            className="shrink-0"
+                                          >
+                                            <Copy className="h-4 w-4 mr-2" />
+                                            Copiar Link
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  <DialogFooter>
+                                    <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                                      Fechar
+                                    </Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(item.id)}
+                                className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                                title="Apagar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>

@@ -10,6 +10,7 @@
     "assistant-intelligence": 13,
     "financeiro-ai": 15,
     "material-normalization": 5,
-    "gerar-comprovante-caixa": 2
+    "gerar-comprovante-caixa": 2,
+    "gerar-comprovante-item-cliente": 1
   }
 }
