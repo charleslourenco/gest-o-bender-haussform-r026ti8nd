@@ -40,7 +40,7 @@ export const CATEGORIAS_ESTOQUE = [
   'Espelhos',
   'Perfil puxador/puxador',
   'Iluminação',
-  'Colas e adesivos',
+  'Colas/Adesivos/Solventes',
   'Insumos',
   'Material elétrico',
   'Uniformes e EPIs',
