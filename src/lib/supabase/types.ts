@@ -973,8 +973,10 @@ export type Database = {
       }
       estoque_caixas: {
         Row: {
+          assinado_em: string | null
           atualizado_em: string
           cliente_id: string | null
+          comprovante_url: string | null
           criado_em: string
           id: string
           nome: string
@@ -982,8 +984,10 @@ export type Database = {
           status: string
         }
         Insert: {
+          assinado_em?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          comprovante_url?: string | null
           criado_em?: string
           id?: string
           nome: string
@@ -991,8 +995,10 @@ export type Database = {
           status?: string
         }
         Update: {
+          assinado_em?: string | null
           atualizado_em?: string
           cliente_id?: string | null
+          comprovante_url?: string | null
           criado_em?: string
           id?: string
           nome?: string

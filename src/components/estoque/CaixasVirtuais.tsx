@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, PackageOpen, Check, Box, Trash2, Link2 } from 'lucide-react'
+import { Plus, PackageOpen, Check, Box, Trash2, Link2, UserRound } from 'lucide-react'
+import { maskCpf } from '@/lib/cpf'
 import {
   Dialog,
   DialogContent,
@@ -242,6 +243,16 @@ export function CaixasVirtuais() {
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-3">
+                {caixa.status === 'entregue' && caixa.recebedor_nome && (
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-md px-3 py-2">
+                    <UserRound className="w-4 h-4 shrink-0" />
+                    <span className="truncate">
+                      Recebido por: {caixa.recebedor_nome}
+                      {caixa.recebedor_cpf ? ` - ${maskCpf(caixa.recebedor_cpf)}` : ''}
+                    </span>
+                  </div>
+                )}
+
                 <h4 className="text-sm font-semibold text-gray-700 dark:text-slate-300 flex justify-between items-center">
                   Itens Separados
                   {caixa.status !== 'entregue' && (

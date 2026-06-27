@@ -4,9 +4,12 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { SignatureCanvas } from '@/components/area-clientes/signature-canvas'
 import { CheckCircle, Package, Loader2, Download, AlertCircle, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
+import { maskCpf, isValidCpf, sanitizeCpf } from '@/lib/cpf'
 
 interface CaixaItem {
   id: string
@@ -24,6 +27,8 @@ export default function RecebimentoCaixa() {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [pdfUrl, setPdfUrl] = useState('')
+  const [nome, setNome] = useState('')
+  const [cpf, setCpf] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -42,6 +47,8 @@ export default function RecebimentoCaixa() {
         setError('Caixa não encontrada ou link inválido.')
       } else {
         setCaixa(data)
+        if (data.recebedor_nome) setNome(data.recebedor_nome)
+        if (data.recebedor_cpf) setCpf(data.recebedor_cpf)
         if (data.comprovante_url) {
           const { data: urlData } = supabase.storage
             .from('comprovantes-caixas')
@@ -57,7 +64,19 @@ export default function RecebimentoCaixa() {
     load()
   }, [id])
 
+  const cpfValid = cpf.length === 0 ? false : isValidCpf(cpf)
+  const nomeValid = nome.trim().length >= 3
+  const canSubmit = !!signature && nomeValid && cpfValid && !submitting
+
   const handleSubmit = async () => {
+    if (!nomeValid) {
+      toast.error('Informe o nome completo do recebedor.')
+      return
+    }
+    if (!cpfValid) {
+      toast.error('Informe um CPF válido.')
+      return
+    }
     if (!signature) {
       toast.error('Por favor, desenhe sua assinatura no quadro.')
       return
@@ -65,7 +84,12 @@ export default function RecebimentoCaixa() {
     setSubmitting(true)
     try {
       const { data, error: fnError } = await supabase.functions.invoke('gerar-comprovante-caixa', {
-        body: { caixa_id: id, signature_base64: signature },
+        body: {
+          caixa_id: id,
+          signature_base64: signature,
+          recebedor_nome: nome.trim(),
+          recebedor_cpf: sanitizeCpf(cpf),
+        },
       })
       if (fnError) throw fnError
       if (data?.error) throw new Error(data.error)
@@ -169,6 +193,10 @@ export default function RecebimentoCaixa() {
                   <p className="text-sm text-emerald-600">
                     Sua assinatura foi registrada e o comprovante em PDF foi gerado.
                   </p>
+                  <p className="text-sm text-emerald-700 font-medium">
+                    Recebido por: {caixa.recebedor_nome || nome} -{' '}
+                    {caixa.recebedor_cpf ? maskCpf(caixa.recebedor_cpf) : cpf}
+                  </p>
                 </div>
                 {pdfUrl && (
                   <a href={pdfUrl} download target="_blank" rel="noopener noreferrer">
@@ -183,10 +211,43 @@ export default function RecebimentoCaixa() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
                   <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-700">
-                    Confirme o recebimento dos itens acima assinando no quadro. Sua assinatura
-                    possui validade jurídica.
+                    Confirme o recebimento dos itens acima informando seus dados e assinando no
+                    quadro. Sua assinatura possui validade jurídica.
                   </p>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="recebedor-nome">Nome Completo *</Label>
+                    <Input
+                      id="recebedor-nome"
+                      value={nome}
+                      onChange={(e) => setNome(e.target.value)}
+                      placeholder="Digite o nome completo"
+                      autoComplete="name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recebedor-cpf">CPF *</Label>
+                    <Input
+                      id="recebedor-cpf"
+                      value={cpf}
+                      onChange={(e) => setCpf(maskCpf(e.target.value))}
+                      placeholder="000.000.000-00"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      className={
+                        cpf.length > 0 && !cpfValid
+                          ? 'border-red-400 focus-visible:ring-red-400'
+                          : ''
+                      }
+                    />
+                    {cpf.length > 0 && !cpfValid && (
+                      <p className="text-xs text-red-500">CPF inválido.</p>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-sm font-semibold text-slate-700 mb-2 block">
                     Assinatura do Recebedor
@@ -196,7 +257,7 @@ export default function RecebimentoCaixa() {
                 <Button
                   className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700"
                   onClick={handleSubmit}
-                  disabled={!signature || submitting}
+                  disabled={!canSubmit}
                 >
                   {submitting ? (
                     <>
