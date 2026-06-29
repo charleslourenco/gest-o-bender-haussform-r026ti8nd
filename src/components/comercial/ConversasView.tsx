@@ -7,7 +7,9 @@ import {
   updateLead,
   moveLeadToClient,
   fetchLeadMessages,
+  sendWhatsAppMessage,
 } from '@/services/comercial'
+import { Phone as PhoneIcon } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -232,27 +234,28 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
     try {
       setSendingMessage(true)
 
-      const { data: userData } = await supabase.auth.getSession()
-      const userName = userData.session?.user?.user_metadata?.name || 'Ana'
+      const trimmed = newMessage.trim()
+      const result = await sendWhatsAppMessage(selectedLead.id, selectedLead.telefone, trimmed)
 
-      const msgExternalId = `msg_out_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      // Real-time feedback: add the persisted message to the thread immediately
+      if (result?.message) {
+        setMessages((prev) => [...prev, result.message])
+      }
 
-      // Inserts the message as Ana
-      await supabase.from('whatsapp_messages').insert({
-        lead_id: selectedLead.id,
-        phone: selectedLead.telefone,
-        sender_type: 'ana',
-        sender_name: userName,
-        content: newMessage.trim(),
-        direction: 'outbound',
-        external_id: msgExternalId,
-        created_at: new Date().toISOString(),
-      })
-
-      // Updates attendance status indicating human action
-      await handleUpdateLead(selectedLead.id, { status_atendimento: 'em_atendimento' })
+      // Silently update attendance status (no toast noise)
+      await supabase
+        .from('leads')
+        .update({ status_atendimento: 'em_atendimento', atualizado_em: new Date().toISOString() })
+        .eq('id', selectedLead.id)
+      setLeads((prev) =>
+        prev.map((l) =>
+          l.id === selectedLead.id ? { ...l, status_atendimento: 'em_atendimento' } : l,
+        ),
+      )
+      setSelectedLead((prev) => (prev ? { ...prev, status_atendimento: 'em_atendimento' } : null))
 
       setNewMessage('')
+      toast.success('Mensagem enviada')
     } catch (error) {
       console.error(error)
       toast.error('Erro ao enviar mensagem')
@@ -409,11 +412,13 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                   )}
                 >
                   <div className="font-medium truncate">{lead.nome}</div>
-                  <div className="text-xs mt-1 opacity-70 truncate flex justify-between items-center">
-                    <span>
-                      {lead.categoria || 'Sem categoria'} •{' '}
-                      {lead.status?.replace('Consultor', 'Responsável')}
-                    </span>
+                  <div className="text-xs mt-1 opacity-70 truncate flex items-center gap-1">
+                    <PhoneIcon className="w-3 h-3 opacity-60 shrink-0" />
+                    <span className="truncate">{lead.telefone || 'Sem telefone'}</span>
+                  </div>
+                  <div className="text-[10px] mt-0.5 opacity-60 truncate">
+                    {lead.categoria || 'Sem categoria'} •{' '}
+                    {lead.status?.replace('Consultor', 'Responsável')}
                   </div>
                 </button>
               )
@@ -428,7 +433,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
       </div>
 
       {/* CENTRAL PANEL - 50% */}
-      <div className="w-[50%] border-r border-border flex flex-col bg-muted/5 relative">
+      <div className="w-[50%] border-r border-border flex flex-col bg-[#EFEAE2] dark:bg-[#0b141a] relative">
         {selectedLead ? (
           <>
             <div className="p-4 bg-background border-b border-border shadow-sm z-10 flex items-center gap-3 shrink-0">
@@ -442,8 +447,11 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                       </span>
                     )}
                   </h3>
-                  <div className="text-xs text-muted-foreground font-medium">
-                    Status: {selectedLead.status?.replace('Consultor', 'Responsável')}
+                  <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                    <PhoneIcon className="w-3 h-3 opacity-60" />
+                    <span>{selectedLead.telefone || 'Sem telefone'}</span>
+                    <span className="opacity-40">•</span>
+                    <span>{selectedLead.status?.replace('Consultor', 'Responsável')}</span>
                   </div>
                 </div>
               </div>
@@ -513,17 +521,8 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                             className={cn(
                               'max-w-[80%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
                               parsedMsg.align === 'right'
-                                ? 'rounded-l-xl rounded-br-sm rounded-tr-xl'
-                                : 'rounded-r-xl rounded-bl-sm rounded-tl-xl',
-                              parsedMsg.isClient &&
-                                'bg-secondary text-secondary-foreground border border-border',
-                              parsedMsg.isAna && 'bg-primary text-primary-foreground',
-                              parsedMsg.isAssistant &&
-                                'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 border border-purple-200 dark:border-purple-800',
-                              !parsedMsg.isClient &&
-                                !parsedMsg.isAna &&
-                                !parsedMsg.isAssistant &&
-                                'bg-muted text-foreground border border-border',
+                                ? 'rounded-l-xl rounded-br-sm rounded-tr-xl bg-[#DCF8C6] dark:bg-[#005c4b] text-[#303030] dark:text-[#e9edef]'
+                                : 'rounded-r-xl rounded-bl-sm rounded-tl-xl bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-black/5 dark:border-white/5',
                             )}
                           >
                             <div className="flex items-center gap-1.5 mb-1.5">
@@ -534,13 +533,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                               <span
                                 className={cn(
                                   'text-[10px] font-bold uppercase tracking-wider',
-                                  parsedMsg.isClient
-                                    ? 'text-secondary-foreground/70'
-                                    : parsedMsg.isAna
-                                      ? 'text-primary-foreground/70'
-                                      : parsedMsg.isAssistant
-                                        ? 'opacity-70'
-                                        : 'text-muted-foreground',
+                                  'text-[#667781] dark:text-[#8696a0]',
                                 )}
                               >
                                 {parsedMsg.sender}
@@ -550,13 +543,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                             <span
                               className={cn(
                                 'text-[10px] block text-right mt-2 font-medium',
-                                parsedMsg.isClient
-                                  ? 'text-secondary-foreground/50'
-                                  : parsedMsg.isAna
-                                    ? 'text-primary-foreground/50'
-                                    : parsedMsg.isAssistant
-                                      ? 'opacity-50'
-                                      : 'text-muted-foreground',
+                                'text-[#667781] dark:text-[#8696a0]',
                               )}
                             >
                               {parsedMsg.timestamp

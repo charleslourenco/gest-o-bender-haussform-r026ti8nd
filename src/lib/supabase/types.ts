@@ -1138,30 +1138,42 @@ export type Database = {
       }
       estoque_itens_cliente: {
         Row: {
+          assinado_em: string | null
           cliente_nome: string
+          comprovante_url: string | null
           entregue_em: string | null
           id: string
           produto: string
+          recebedor_cpf: string | null
+          recebedor_nome: string | null
           recebido_em: string
           responsavel_entrega: string | null
           status: string | null
           usuario_id: string | null
         }
         Insert: {
+          assinado_em?: string | null
           cliente_nome: string
+          comprovante_url?: string | null
           entregue_em?: string | null
           id?: string
           produto: string
+          recebedor_cpf?: string | null
+          recebedor_nome?: string | null
           recebido_em?: string
           responsavel_entrega?: string | null
           status?: string | null
           usuario_id?: string | null
         }
         Update: {
+          assinado_em?: string | null
           cliente_nome?: string
+          comprovante_url?: string | null
           entregue_em?: string | null
           id?: string
           produto?: string
+          recebedor_cpf?: string | null
+          recebedor_nome?: string | null
           recebido_em?: string
           responsavel_entrega?: string | null
           status?: string | null

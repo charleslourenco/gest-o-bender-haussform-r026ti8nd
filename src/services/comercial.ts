@@ -37,6 +37,14 @@ export const deleteLead = async (id: string) => {
   if (error) throw error
 }
 
+export const sendWhatsAppMessage = async (leadId: string, phone: string, message: string) => {
+  const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
+    body: { leadId, phone, message },
+  })
+  if (error) throw error
+  return data as { success: boolean; message: any }
+}
+
 export const fetchLeadMessages = async (leadId: string, phone: string) => {
   let { data, error } = await supabase
     .from('whatsapp_messages' as any)

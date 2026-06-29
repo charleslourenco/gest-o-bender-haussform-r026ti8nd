@@ -11,6 +11,7 @@
     "financeiro-ai": 15,
     "material-normalization": 5,
     "gerar-comprovante-caixa": 2,
-    "gerar-comprovante-item-cliente": 1
+    "gerar-comprovante-item-cliente": 1,
+    "send-whatsapp-message": 1
   }
 }
