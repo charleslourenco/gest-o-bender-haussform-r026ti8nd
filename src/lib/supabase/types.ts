@@ -1095,6 +1095,45 @@ export type Database = {
           },
         ]
       }
+      estoque_item_aliases: {
+        Row: {
+          criado_em: string
+          descricao_nota: string
+          id: string
+          item_id: string
+          usuario_id: string | null
+        }
+        Insert: {
+          criado_em?: string
+          descricao_nota: string
+          id?: string
+          item_id: string
+          usuario_id?: string | null
+        }
+        Update: {
+          criado_em?: string
+          descricao_nota?: string
+          id?: string
+          item_id?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'estoque_item_aliases_item_id_fkey'
+            columns: ['item_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_item_aliases_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       estoque_itens: {
         Row: {
           atualizado_em: string

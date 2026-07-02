@@ -11,19 +11,31 @@ import {
   ChevronDown,
   ChevronRight,
   AlertTriangle,
+  Eye,
+  Paperclip,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { matchInvoiceItems, MatchedItem } from '@/services/estoque-matching'
 import { NotaReviewPanel } from './NotaReviewPanel'
+import {
+  uploadInvoiceFile,
+  getInvoiceSignedUrl,
+  attachInvoiceFile,
+  validateInvoiceFile,
+} from '@/services/notas-fiscais-storage'
 
 export function ComprasOCR() {
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [notas, setNotas] = useState<any[]>([])
   const [expandedNota, setExpandedNota] = useState<string | null>(null)
+  const [attachingNotaId, setAttachingNotaId] = useState<string | null>(null)
+  const [viewingUrl, setViewingUrl] = useState<string | null>(null)
+  const [viewingTitle, setViewingTitle] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const [isAdmin, setIsAdmin] = useState(false)
 
@@ -57,19 +69,71 @@ export function ComprasOCR() {
     if (data) setNotas(data)
   }
 
-  const handleProcessFile = async (file: File) => {
-    if (!file) return
-    if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+  const handleViewNota = async (nota: any) => {
+    if (!nota.arquivo_url) return
+    toast({ title: 'Gerando link de acesso...' })
+    const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
+    if (error || !url) {
       toast({
-        title: 'Formato inválido',
-        description: 'Por favor, envie PDF ou Imagens (JPG/PNG).',
+        title: 'Erro ao acessar arquivo',
+        description: error || 'Não foi possível gerar o link.',
         variant: 'destructive',
       })
+      return
+    }
+    const isPdf = nota.arquivo_url.toLowerCase().endsWith('.pdf')
+    if (isPdf) {
+      window.open(url, '_blank')
+    } else {
+      setViewingUrl(url)
+      setViewingTitle(`Nota: ${nota.numero_nota || nota.fornecedor}`)
+    }
+  }
+
+  const handleAttachClick = (notaId: string) => {
+    setAttachingNotaId(notaId)
+    attachInputRef.current?.click()
+  }
+
+  const handleAttachFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const targetId = attachingNotaId
+    setAttachingNotaId(null)
+    if (attachInputRef.current) attachInputRef.current.value = ''
+    if (!file || !targetId) return
+
+    const validationError = validateInvoiceFile(file)
+    if (validationError) {
+      toast({ title: 'Arquivo inválido', description: validationError, variant: 'destructive' })
+      return
+    }
+
+    toast({ title: 'Anexando arquivo...', description: 'Enviando para o armazenamento seguro.' })
+    const { path, error } = await attachInvoiceFile(targetId, file)
+    if (error) {
+      toast({ title: 'Erro ao anexar', description: error, variant: 'destructive' })
+      return
+    }
+    toast({ title: 'Arquivo anexado!', description: 'O documento foi vinculado à nota fiscal.' })
+    fetchNotas()
+  }
+
+  const handleProcessFile = async (file: File) => {
+    if (!file) return
+    const validationError = validateInvoiceFile(file)
+    if (validationError) {
+      toast({ title: 'Formato inválido', description: validationError, variant: 'destructive' })
       return
     }
 
     setIsProcessing(true)
     try {
+      const uploadResult = await uploadInvoiceFile(file)
+      if (uploadResult.error) {
+        throw new Error(uploadResult.error)
+      }
+      const arquivoUrl = uploadResult.path
+
       const reader = new FileReader()
       reader.onloadend = async () => {
         const base64Data = reader.result as string
@@ -169,6 +233,7 @@ export function ComprasOCR() {
           dados_ocr: { ...extractedData, itens: matchedItems },
           status_reconciliacao: notaStatus,
           numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
+          arquivo_url: arquivoUrl,
         })
 
         if (dbError) throw dbError
@@ -176,13 +241,13 @@ export function ComprasOCR() {
         if (pendingCount > 0) {
           toast({
             title: 'Documento Processado — Revisão Necessária',
-            description: `${inventoryInserted} itens alocados. ${pendingCount} item(ns) precisam de verificação manual.`,
+            description: `${inventoryInserted} itens alocados. ${pendingCount} item(ns) precisam de verificação manual. Arquivo armazenado com segurança.`,
             variant: 'default',
           })
         } else {
           toast({
             title: 'Documento Processado e Estoque Atualizado!',
-            description: `Nº: ${extractedData?.numero_nota || '-'} | Fornecedor: ${extractedData?.fornecedor || '-'} | Total: R$ ${extractedData?.valor || 0}`,
+            description: `Nº: ${extractedData?.numero_nota || '-'} | Fornecedor: ${extractedData?.fornecedor || '-'} | Total: R$ ${extractedData?.valor || 0}. Arquivo armazenado.`,
           })
         }
 
@@ -258,7 +323,7 @@ export function ComprasOCR() {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept=".pdf,image/png,image/jpeg,image/jpg"
+                    accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf"
                     onChange={(e) => {
                       if (e.target.files) handleProcessFile(e.target.files[0])
                       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -274,7 +339,7 @@ export function ComprasOCR() {
               <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
                 A IA extrai dados da NF, normaliza atributos técnicos e cruza com o inventário.
                 Itens ambíguos ficam em "Verificar" para confirmação manual — evitando cadastros
-                duplicados.
+                duplicados. O arquivo original é armazenado com segurança para auditoria.
               </p>
             </div>
           </CardContent>
@@ -328,6 +393,11 @@ export function ComprasOCR() {
                                   Verificar ({pendingCount})
                                 </Badge>
                               )}
+                              {nota.arquivo_url && (
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-[10px]">
+                                  <Paperclip className="w-2.5 h-2.5 mr-0.5" /> Arquivo
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-gray-500 dark:text-slate-400">
                               Nota: {nota.numero_nota} | Emissão:{' '}
@@ -351,6 +421,33 @@ export function ComprasOCR() {
                               {isPending ? 'Revisão Pendente' : 'Processado / Validado'}
                             </Badge>
                           </div>
+                          {nota.arquivo_url ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewNota(nota)
+                              }}
+                              title="Visualizar Nota"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAttachClick(nota.id)
+                              }}
+                              title="Anexar Arquivo"
+                            >
+                              <Paperclip className="w-4 h-4" />
+                            </Button>
+                          )}
                           {isPending && (
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                               {isExpanded ? (
@@ -388,6 +485,50 @@ export function ComprasOCR() {
           </CardContent>
         </Card>
       </div>
+
+      <input
+        type="file"
+        ref={attachInputRef}
+        className="hidden"
+        accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf"
+        onChange={handleAttachFile}
+      />
+
+      {viewingUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => {
+            setViewingUrl(null)
+            setViewingTitle('')
+          }}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
+              <h3 className="font-semibold text-sm dark:text-slate-100">{viewingTitle}</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setViewingUrl(null)
+                  setViewingTitle('')
+                }}
+              >
+                Fechar
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950">
+              <img
+                src={viewingUrl}
+                alt={viewingTitle}
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
