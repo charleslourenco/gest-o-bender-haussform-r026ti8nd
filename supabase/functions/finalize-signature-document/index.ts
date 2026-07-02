@@ -368,10 +368,12 @@ Deno.serve(async (req: Request) => {
               })
               .eq('id', docCliente.id)
           } catch (e: any) {
-            await supabase.from('logs_ia').insert({
-              acao: 'finalize_signature_pdfmonkey_error',
-              detalhes: { error: e.message },
-            })
+            await supabase
+              .from('logs_ia')
+              .insert({
+                acao: 'finalize_signature_pdfmonkey_error',
+                detalhes: { error: e.message },
+              })
             throw e
           }
         }
@@ -387,9 +389,30 @@ Deno.serve(async (req: Request) => {
         cltOrPjType = 'pj'
         nomeCliente = 'Parceiro'
       }
-      throw new Error(
-        'Apenas documentos gerados via PDFMonkey suportam esse fluxo final no momento.',
-      )
+      // Manual/uploaded documents: mark as signed without PDF regeneration
+      if (docCliente) {
+        await supabase
+          .from('documentos_cliente')
+          .update({ status: 'Assinado' })
+          .eq('id', docCliente.id)
+      }
+    }
+
+    // Check envelope completion: if this doc belongs to an envelope, verify all docs are signed
+    if (docCliente?.envelope_id) {
+      const { data: envDocs } = await supabase
+        .from('documentos_cliente')
+        .select('id, status')
+        .eq('envelope_id', docCliente.envelope_id)
+
+      const allDone =
+        envDocs && envDocs.length > 0 && envDocs.every((d: any) => d.status === 'Assinado')
+      if (allDone) {
+        await supabase
+          .from('envelopes_assinatura')
+          .update({ status: 'concluido', concluido_em: new Date().toISOString() })
+          .eq('id', docCliente.envelope_id)
+      }
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')

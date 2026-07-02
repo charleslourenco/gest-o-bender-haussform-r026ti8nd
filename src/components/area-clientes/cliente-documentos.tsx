@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Download, Upload, Plus, Eye, PenTool, Trash2 } from 'lucide-react'
+import { FileText, Download, Upload, Plus, Eye, PenTool, Trash2, Send } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -11,8 +11,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { SignatureModal } from './signature-modal'
 import { DocsModeloModal } from './docs-modelo-modal'
+import { EnvelopeSignatureModal } from './envelope-signature-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,8 +33,26 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   const [uploadTipo, setUploadTipo] = useState('upload_manual')
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
+  const [showEnvelopeModal, setShowEnvelopeModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const toggleDocSelection = (docId: string) => {
+    setSelectedDocIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(docId)) next.delete(docId)
+      else next.add(docId)
+      return next
+    })
+  }
+
+  const selectedDocs = docs.filter((d) => selectedDocIds.has(d.id))
+  const canBatchSign =
+    selectedDocs.length > 0 &&
+    selectedDocs.every(
+      (d) => d.status !== 'processando' && d.status !== 'Assinado' && !d.envelope_id,
+    )
 
   const [now, setNow] = useState(Date.now())
   const [localStartTimes, setLocalStartTimes] = useState<Record<string, number>>({})
@@ -458,6 +478,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         >
           <FileText className="w-4 h-4 mr-2" /> Docs Modelo
         </Button>
+
+        <Button
+          variant="default"
+          className="font-bold shadow bg-green-600 hover:bg-green-700 text-white"
+          disabled={!canBatchSign}
+          onClick={() => setShowEnvelopeModal(true)}
+        >
+          <Send className="w-4 h-4 mr-2" /> Enviar Selecionados ({selectedDocs.length})
+        </Button>
       </div>
 
       <DocsModeloModal open={showDocsModelo} onOpenChange={setShowDocsModelo} />
@@ -499,6 +528,16 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                   className="flex flex-col md:flex-row md:items-center justify-between bg-card p-4 rounded-lg border border-border shadow-sm gap-4 hover:border-primary/50 transition-colors"
                 >
                   <div className="flex items-center gap-3 overflow-hidden">
+                    <Checkbox
+                      checked={selectedDocIds.has(doc.id)}
+                      onCheckedChange={() => toggleDocSelection(doc.id)}
+                      disabled={
+                        doc.status === 'processando' ||
+                        doc.status === 'Assinado' ||
+                        !!doc.envelope_id
+                      }
+                      className="shrink-0"
+                    />
                     <FileText className="w-6 h-6 text-primary shrink-0" />
                     <div className="min-w-0">
                       <p className="font-bold text-foreground truncate">
@@ -647,6 +686,20 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           }}
         />
       )}
+
+      <EnvelopeSignatureModal
+        open={showEnvelopeModal}
+        onOpenChange={setShowEnvelopeModal}
+        selectedDocs={selectedDocs}
+        clienteId={dossie.cliente_id}
+        clienteNome={dossie.cliente?.nome || form.nome_cliente || ''}
+        clienteEmail={dossie.cliente?.email || form.email || ''}
+        onSuccess={() => {
+          setSelectedDocIds(new Set())
+          loadDocs()
+          onReload()
+        }}
+      />
     </div>
   )
 }
