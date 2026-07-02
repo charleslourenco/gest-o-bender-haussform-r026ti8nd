@@ -559,6 +559,7 @@ export type Database = {
           cliente_id: string | null
           conteudo_preenchido: string | null
           criado_em: string
+          envelope_id: string | null
           id: string
           projeto_id: string | null
           status: string
@@ -574,6 +575,7 @@ export type Database = {
           cliente_id?: string | null
           conteudo_preenchido?: string | null
           criado_em?: string
+          envelope_id?: string | null
           id?: string
           projeto_id?: string | null
           status?: string
@@ -589,6 +591,7 @@ export type Database = {
           cliente_id?: string | null
           conteudo_preenchido?: string | null
           criado_em?: string
+          envelope_id?: string | null
           id?: string
           projeto_id?: string | null
           status?: string
@@ -603,6 +606,13 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documentos_cliente_envelope_id_fkey'
+            columns: ['envelope_id']
+            isOneToOne: false
+            referencedRelation: 'envelopes_assinatura'
             referencedColumns: ['id']
           },
           {
@@ -801,6 +811,7 @@ export type Database = {
         Row: {
           cliente_id: string | null
           clt_id: string | null
+          codigo_verificacao: string | null
           concluido_em: string | null
           criado_em: string | null
           criado_por: string | null
@@ -808,11 +819,16 @@ export type Database = {
           id: string
           nome_documento: string
           pj_id: string | null
+          signatario_cpf: string | null
+          signatario_email: string | null
+          signatario_nome: string | null
           status: string | null
+          token_acesso: string | null
         }
         Insert: {
           cliente_id?: string | null
           clt_id?: string | null
+          codigo_verificacao?: string | null
           concluido_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
@@ -820,11 +836,16 @@ export type Database = {
           id?: string
           nome_documento: string
           pj_id?: string | null
+          signatario_cpf?: string | null
+          signatario_email?: string | null
+          signatario_nome?: string | null
           status?: string | null
+          token_acesso?: string | null
         }
         Update: {
           cliente_id?: string | null
           clt_id?: string | null
+          codigo_verificacao?: string | null
           concluido_em?: string | null
           criado_em?: string | null
           criado_por?: string | null
@@ -832,7 +853,11 @@ export type Database = {
           id?: string
           nome_documento?: string
           pj_id?: string | null
+          signatario_cpf?: string | null
+          signatario_email?: string | null
+          signatario_nome?: string | null
           status?: string | null
+          token_acesso?: string | null
         }
         Relationships: [
           {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -17,26 +17,35 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Trash2, Mail, Link as LinkIcon, Plus } from 'lucide-react'
+import { Loader2, Trash2, Mail, Link as LinkIcon, Plus, FileText } from 'lucide-react'
+
+interface SignatureModalProps {
+  docs: any[]
+  clienteId: string
+  clienteNome?: string
+  clienteEmail?: string
+  onClose: () => void
+}
 
 export function SignatureModal({
-  doc,
+  docs,
   clienteId,
+  clienteNome,
+  clienteEmail,
   onClose,
-}: {
-  doc: any
-  clienteId: string
-  onClose: () => void
-}) {
+}: SignatureModalProps) {
+  const isEnvelope = docs.length > 1
   const [signatures, setSignatures] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [envelope, setEnvelope] = useState<any>(null)
   const [form, setForm] = useState({
-    nome: '',
-    email: '',
+    nome: clienteNome || '',
+    email: clienteEmail || '',
+    cpf: '',
     tipo: 'Cliente',
     telefone: '',
   })
-  const [sending, setSending] = useState(false)
+  const [sendingId, setSendingId] = useState<string | null>(null)
 
   const roles = [
     'Cliente',
@@ -47,16 +56,46 @@ export function SignatureModal({
     'Analista',
   ]
 
+  const docIds = docs.map((d) => d.path || d.arquivo_url || d.id)
+
   const loadSignatures = async () => {
     try {
-      const { data, error } = await supabase
-        .from('assinaturas')
-        .select('*')
-        .eq('documento_id', doc.path || doc.arquivo_url)
-        .order('criado_em', { ascending: true })
+      if (isEnvelope) {
+        const { data: existingDocs } = await supabase
+          .from('documentos_cliente')
+          .select('envelope_id')
+          .in(
+            'id',
+            docs.map((d) => d.id),
+          )
 
-      if (error) throw error
-      setSignatures(data || [])
+        const envelopeIds = [
+          ...new Set((existingDocs || []).map((d) => d.envelope_id).filter(Boolean)),
+        ]
+        if (envelopeIds.length > 0) {
+          const { data: env } = await supabase
+            .from('envelopes_assinatura')
+            .select('*')
+            .eq('id', envelopeIds[0])
+            .single()
+          if (env) setEnvelope(env)
+        }
+
+        const { data: sigs } = await supabase
+          .from('assinaturas')
+          .select('*')
+          .in('documento_id', docIds)
+          .order('criado_em', { ascending: true })
+        setSignatures(sigs || [])
+      } else {
+        const { data, error } = await supabase
+          .from('assinaturas')
+          .select('*')
+          .eq('documento_id', docIds[0])
+          .order('criado_em', { ascending: true })
+        if (error) throw error
+        setSignatures(data || [])
+      }
     } catch (e: any) {
       toast.error('Erro ao carregar assinaturas: ' + e.message)
     } finally {
@@ -67,6 +106,21 @@ export function SignatureModal({
   useEffect(() => {
     loadSignatures()
   }, [])
+
+  const groupedSignatures = useMemo(() => {
+    if (!isEnvelope) return signatures.map((s) => ({ ...s, _ids: [s.id], _docCount: 1 }))
+    const groups: Record<string, any> = {}
+    for (const sig of signatures) {
+      const key = sig.signatario_email
+      if (!groups[key]) {
+        groups[key] = { ...sig, _ids: [sig.id], _docCount: 1 }
+      } else {
+        groups[key]._ids.push(sig.id)
+        groups[key]._docCount++
+      }
+    }
+    return Object.values(groups)
+  }, [signatures, isEnvelope])
 
   const handleAddSignature = async () => {
     if (!form.nome || !form.email) {
@@ -79,35 +133,92 @@ export function SignatureModal({
       const expiraEm = new Date()
       expiraEm.setDate(expiraEm.getDate() + 7)
 
-      const docId = doc.path || doc.arquivo_url
+      if (isEnvelope) {
+        let envId = envelope?.id
 
-      const { error } = await supabase.from('assinaturas').insert({
-        documento_id: docId,
-        documento_nome: doc.title || doc.template_nome,
-        cliente_id: clienteId,
-        signatario_nome: form.nome,
-        signatario_email: form.email,
-        signatario_telefone: form.telefone,
-        signatario_tipo: form.tipo,
-        codigo_confirmacao: code,
-        expira_em: expiraEm.toISOString(),
-        status: 'pendente',
-      })
+        if (!envId) {
+          const { data: newEnv, error: envError } = await supabase
+            .from('envelopes_assinatura')
+            .insert({
+              documento_id: docIds[0],
+              cliente_id: clienteId,
+              nome_documento: `Envelope com ${docs.length} documento(s)`,
+              status: 'aguardando',
+              signatario_nome: form.nome,
+              signatario_email: form.email,
+              codigo_verificacao: code,
+            })
+            .select()
+            .single()
+          if (envError) throw envError
+          envId = newEnv.id
+          setEnvelope(newEnv)
 
-      if (error) throw error
+          const { error: linkError } = await supabase
+            .from('documentos_cliente')
+            .update({ envelope_id: envId })
+            .in(
+              'id',
+              docs.map((d) => d.id),
+            )
+          if (linkError) throw linkError
+        }
+
+        for (const doc of docs) {
+          const docId = doc.arquivo_url || doc.path || doc.id
+          await supabase.from('assinaturas').insert({
+            documento_id: docId,
+            documento_nome: doc.template_nome || doc.tipo || 'Documento',
+            cliente_id: clienteId,
+            signatario_nome: form.nome,
+            signatario_email: form.email,
+            signatario_telefone: form.telefone || null,
+            signatario_tipo: form.tipo,
+            signatario_cpf: form.cpf || null,
+            codigo_confirmacao: code,
+            expira_em: expiraEm.toISOString(),
+            status: 'pendente',
+          })
+        }
+
+        const { data: authData } = await supabase.auth.getUser()
+        const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+        await supabase.from('timeline_eventos').insert({
+          cliente_id: clienteId,
+          usuario_nome: userName,
+          acao: `Envelope de assinatura criado com ${docs.length} documento(s) para ${form.nome}`,
+        })
+      } else {
+        const doc = docs[0]
+        const docId = doc.path || doc.arquivo_url
+        const { error } = await supabase.from('assinaturas').insert({
+          documento_id: docId,
+          documento_nome: doc.title || doc.template_nome || doc.tipo,
+          cliente_id: clienteId,
+          signatario_nome: form.nome,
+          signatario_email: form.email,
+          signatario_telefone: form.telefone || null,
+          signatario_tipo: form.tipo,
+          signatario_cpf: form.cpf || null,
+          codigo_confirmacao: code,
+          expira_em: expiraEm.toISOString(),
+          status: 'pendente',
+        })
+        if (error) throw error
+      }
 
       toast.success('Signatário adicionado com sucesso!')
-      setForm({ nome: '', email: '', tipo: 'Cliente', telefone: '' })
+      setForm({ nome: '', email: '', cpf: '', tipo: 'Cliente', telefone: '' })
       loadSignatures()
     } catch (e: any) {
       toast.error('Erro ao adicionar: ' + e.message)
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (sig: any) => {
     if (!confirm('Remover este signatário?')) return
     try {
-      const { error } = await supabase.from('assinaturas').delete().eq('id', id)
+      const { error } = await supabase.from('assinaturas').delete().in('id', sig._ids)
       if (error) throw error
       toast.success('Removido')
       loadSignatures()
@@ -117,32 +228,52 @@ export function SignatureModal({
   }
 
   const handleSendEmail = async (sig: any) => {
-    setSending(true)
+    setSendingId(sig._ids[0])
     try {
-      const link = `${window.location.origin}/assinatura/${sig.id}`
-      const { data, error } = await supabase.functions.invoke('send-signature-email', {
-        body: {
+      let link: string
+      let body: any
+
+      if (isEnvelope && envelope) {
+        link = `${window.location.origin}/assinar-envelope/${envelope.id}`
+        body = {
+          to: sig.signatario_email,
+          nome: sig.signatario_nome,
+          link,
+          codigo: sig.codigo_confirmacao,
+          documento_nome: `Envelope com ${docs.length} documento(s)`,
+          envelope_id: envelope.id,
+        }
+      } else {
+        link = `${window.location.origin}/assinatura/${sig.id}`
+        body = {
           to: sig.signatario_email,
           nome: sig.signatario_nome,
           link,
           codigo: sig.codigo_confirmacao,
           documento_nome: sig.documento_nome,
-        },
-      })
+        }
+      }
 
+      const { data, error } = await supabase.functions.invoke('send-signature-email', {
+        body,
+      })
       if (error) throw error
       if (data?.error) throw new Error(data.error)
-
       toast.success('E-mail enviado!')
     } catch (e: any) {
       toast.error('Erro ao enviar: ' + e.message)
     } finally {
-      setSending(false)
+      setSendingId(null)
     }
   }
 
   const copyLink = (sig: any) => {
-    const link = `${window.location.origin}/assinatura/${sig.id}`
+    let link: string
+    if (isEnvelope && envelope) {
+      link = `${window.location.origin}/assinar-envelope/${envelope.id}`
+    } else {
+      link = `${window.location.origin}/assinatura/${sig.id}`
+    }
     navigator.clipboard.writeText(link)
     toast.success('Link copiado!')
   }
@@ -151,10 +282,31 @@ export function SignatureModal({
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Gerenciar Assinaturas</DialogTitle>
+          <DialogTitle>
+            {isEnvelope
+              ? `Gerenciar Assinaturas — Envelope (${docs.length} documentos)`
+              : 'Gerenciar Assinaturas'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {isEnvelope && (
+            <div className="bg-muted p-4 rounded-lg">
+              <h4 className="font-semibold text-sm mb-2">Documentos no Envelope</h4>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {docs.map((doc, i) => (
+                  <div
+                    key={doc.id || i}
+                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                  >
+                    <FileText className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">{doc.template_nome || doc.tipo || doc.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-muted p-4 rounded-lg space-y-3">
             <h4 className="font-semibold text-sm">Adicionar Signatário</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -168,6 +320,11 @@ export function SignatureModal({
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              <Input
+                placeholder="CPF (opcional)"
+                value={form.cpf}
+                onChange={(e) => setForm({ ...form, cpf: e.target.value })}
               />
               <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
                 <SelectTrigger>
@@ -193,26 +350,29 @@ export function SignatureModal({
           </div>
 
           <div>
-            <h4 className="font-semibold text-sm mb-3">Signatários do Documento</h4>
+            <h4 className="font-semibold text-sm mb-3">
+              {isEnvelope ? 'Signatários do Envelope' : 'Signatários do Documento'}
+            </h4>
             {loading ? (
               <div className="flex justify-center p-4">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-            ) : signatures.length === 0 ? (
+            ) : groupedSignatures.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center p-4">
                 Nenhum signatário adicionado ainda.
               </p>
             ) : (
               <div className="space-y-3">
-                {signatures.map((sig) => (
+                {groupedSignatures.map((sig) => (
                   <div
-                    key={sig.id}
+                    key={sig._ids[0]}
                     className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 border rounded-md gap-3 bg-card/50"
                   >
                     <div>
                       <p className="font-medium text-sm">{sig.signatario_nome}</p>
                       <p className="text-xs text-muted-foreground">
                         {sig.signatario_email} • {sig.signatario_tipo}
+                        {isEnvelope && sig._docCount > 1 && ` • ${sig._docCount} documentos`}
                       </p>
                       <div className="mt-1">
                         <span
@@ -242,17 +402,21 @@ export function SignatureModal({
                             size="icon"
                             variant="outline"
                             onClick={() => handleSendEmail(sig)}
-                            disabled={sending}
+                            disabled={sendingId === sig._ids[0]}
                             title="Enviar E-mail"
                           >
-                            <Mail className="w-4 h-4" />
+                            {sendingId === sig._ids[0] ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Mail className="w-4 h-4" />
+                            )}
                           </Button>
                         </>
                       )}
                       <Button
                         size="icon"
                         variant="destructive"
-                        onClick={() => handleDelete(sig.id)}
+                        onClick={() => handleDelete(sig)}
                         title="Remover"
                       >
                         <Trash2 className="w-4 h-4" />

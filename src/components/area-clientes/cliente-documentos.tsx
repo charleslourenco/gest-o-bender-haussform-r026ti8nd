@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { SignatureModal } from './signature-modal'
 import { DocsModeloModal } from './docs-modelo-modal'
-import { EnvelopeSignatureModal } from './envelope-signature-modal'
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,12 +29,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   const [showDocsModelo, setShowDocsModelo] = useState(false)
   const [templates, setTemplates] = useState<any[]>([])
   const [generating, setGenerating] = useState(false)
-  const [signatureDoc, setSignatureDoc] = useState<any>(null)
+  const [signatureDocs, setSignatureDocs] = useState<any[]>([])
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
   const [uploadTipo, setUploadTipo] = useState('upload_manual')
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
-  const [showEnvelopeModal, setShowEnvelopeModal] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -47,12 +46,21 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     })
   }
 
+  const selectableDocs = docs.filter(
+    (d) => d.status !== 'processando' && d.status !== 'Assinado' && !d.envelope_id,
+  )
+  const allSelected =
+    selectableDocs.length > 0 && selectableDocs.every((d) => selectedDocIds.has(d.id))
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedDocIds(new Set())
+    } else {
+      setSelectedDocIds(new Set(selectableDocs.map((d) => d.id)))
+    }
+  }
+
   const selectedDocs = docs.filter((d) => selectedDocIds.has(d.id))
-  const canBatchSign =
-    selectedDocs.length > 0 &&
-    selectedDocs.every(
-      (d) => d.status !== 'processando' && d.status !== 'Assinado' && !d.envelope_id,
-    )
+  const canBatchSign = selectedDocs.length > 0
 
   const [now, setNow] = useState(Date.now())
   const [localStartTimes, setLocalStartTimes] = useState<Record<string, number>>({})
@@ -483,7 +491,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           variant="default"
           className="font-bold shadow bg-green-600 hover:bg-green-700 text-white"
           disabled={!canBatchSign}
-          onClick={() => setShowEnvelopeModal(true)}
+          onClick={() => setSignatureDocs(selectedDocs)}
         >
           <Send className="w-4 h-4 mr-2" /> Enviar Selecionados ({selectedDocs.length})
         </Button>
@@ -492,7 +500,15 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       <DocsModeloModal open={showDocsModelo} onOpenChange={setShowDocsModelo} />
 
       <div className="bg-muted/30 border border-border rounded-lg p-6">
-        <h3 className="font-bold text-lg mb-4 text-foreground">Documentos Gerados</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg text-foreground">Documentos Gerados</h3>
+          {docs.length > 0 && selectableDocs.length > 0 && (
+            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+              Selecionar Todos
+            </label>
+          )}
+        </div>
         {docs.length === 0 ? (
           <p className="text-muted-foreground italic text-sm">
             Nenhum documento encontrado para este cliente. Utilize o botão acima para gerar um novo
@@ -633,7 +649,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSignatureDoc(doc)}
+                        onClick={() =>
+                          setSignatureDocs([
+                            { ...doc, title: doc.template_nome || doc.tipo, path: doc.arquivo_url },
+                          ])
+                        }
                         className="hover:bg-accent hover:text-accent-foreground"
                       >
                         <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas
@@ -671,35 +691,20 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         )}
       </div>
 
-      {signatureDoc && (
+      {signatureDocs.length > 0 && (
         <SignatureModal
-          doc={{
-            ...signatureDoc,
-            title: signatureDoc.template_nome || signatureDoc.tipo,
-            path: signatureDoc.arquivo_url,
-          }}
+          docs={signatureDocs}
           clienteId={dossie.cliente_id}
+          clienteNome={dossie.cliente?.nome || form.nome_cliente || ''}
+          clienteEmail={dossie.cliente?.email || form.email || ''}
           onClose={() => {
-            setSignatureDoc(null)
+            setSignatureDocs([])
+            setSelectedDocIds(new Set())
             loadDocs()
             if (onReload) onReload()
           }}
         />
       )}
-
-      <EnvelopeSignatureModal
-        open={showEnvelopeModal}
-        onOpenChange={setShowEnvelopeModal}
-        selectedDocs={selectedDocs}
-        clienteId={dossie.cliente_id}
-        clienteNome={dossie.cliente?.nome || form.nome_cliente || ''}
-        clienteEmail={dossie.cliente?.email || form.email || ''}
-        onSuccess={() => {
-          setSelectedDocIds(new Set())
-          loadDocs()
-          onReload()
-        }}
-      />
     </div>
   )
 }

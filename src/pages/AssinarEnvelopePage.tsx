@@ -18,6 +18,7 @@ export default function AssinarEnvelopePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [code, setCode] = useState('')
+  const [signatarioEmail, setSignatarioEmail] = useState('')
   const [verified, setVerified] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
@@ -43,7 +44,6 @@ export default function AssinarEnvelopePage() {
       }
 
       setEnvelope(env)
-      setFormData((prev) => ({ ...prev, nome: env.signatario_nome || '' }))
 
       const { data: envDocs } = await supabase
         .from('documentos_cliente')
@@ -59,7 +59,6 @@ export default function AssinarEnvelopePage() {
           .from('assinaturas')
           .select('*')
           .in('documento_id', docIds)
-          .eq('signatario_email', env.signatario_email || '')
         setAssinaturas(sigs || [])
       }
       setLoading(false)
@@ -77,16 +76,32 @@ export default function AssinarEnvelopePage() {
   }
 
   const handleVerifyCode = () => {
-    if (code === envelope?.codigo_verificacao) {
+    const sig = assinaturas.find(
+      (a) =>
+        a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase() &&
+        a.codigo_confirmacao === code,
+    )
+    if (sig) {
       setVerified(true)
+      setFormData((prev) => ({ ...prev, nome: sig.signatario_nome || '' }))
       toast.success('Código verificado!')
     } else {
-      toast.error('Código incorreto.')
+      toast.error('E-mail ou código incorreto.')
     }
   }
 
+  const myAssinaturas = verified
+    ? assinaturas.filter(
+        (s) => s.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+      )
+    : []
+
   const handleSignDoc = async (doc: any) => {
-    const sig = assinaturas.find((a) => a.documento_id === doc.arquivo_url)
+    const sig = assinaturas.find(
+      (a) =>
+        a.documento_id === doc.arquivo_url &&
+        a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+    )
     if (!sig) {
       toast.error('Registro de assinatura não encontrado para este documento.')
       return
@@ -131,7 +146,6 @@ export default function AssinarEnvelopePage() {
         .from('assinaturas')
         .select('*')
         .in('documento_id', docs.map((d) => d.arquivo_url).filter(Boolean))
-        .eq('signatario_email', envelope.signatario_email || '')
       setAssinaturas(updatedSigs || [])
 
       const { data: updatedDocs } = await supabase
@@ -141,8 +155,14 @@ export default function AssinarEnvelopePage() {
         .order('criado_em', { ascending: true })
       setDocs(updatedDocs || [])
 
+      const myUpdatedSigs = (updatedSigs || []).filter(
+        (s) => s.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+      )
+      const myAllSigned =
+        myUpdatedSigs.length > 0 && myUpdatedSigs.every((s) => s.status === 'assinado')
       const allSigned =
-        updatedSigs && updatedSigs.length > 0 && updatedSigs.every((s) => s.status === 'assinado')
+        (updatedSigs || []).length > 0 && (updatedSigs || []).every((s) => s.status === 'assinado')
+
       if (allSigned) {
         await supabase
           .from('envelopes_assinatura')
@@ -150,6 +170,8 @@ export default function AssinarEnvelopePage() {
           .eq('id', id)
         setEnvelope({ ...envelope, status: 'concluido', concluido_em: new Date().toISOString() })
         toast.success('Todos os documentos foram assinados! Processo concluído.')
+      } else if (myAllSigned) {
+        toast.success('Você assinou todos os seus documentos! Aguardando demais signatários.')
       } else {
         toast.success('Documento assinado! Continue com o próximo.')
       }
@@ -178,6 +200,8 @@ export default function AssinarEnvelopePage() {
 
   const isConcluido = envelope.status === 'concluido'
   const allSigned = assinaturas.length > 0 && assinaturas.every((s) => s.status === 'assinado')
+  const myAllSigned =
+    myAssinaturas.length > 0 && myAssinaturas.every((s) => s.status === 'assinado')
   const isFormValid =
     formData.nome.trim() !== '' &&
     formData.cpf.length === 14 &&
@@ -197,7 +221,9 @@ export default function AssinarEnvelopePage() {
 
         <Card className="shadow-lg border-border mb-6">
           <CardHeader className="border-b bg-muted/10 pb-4">
-            <CardTitle className="text-lg">Olá, {envelope.signatario_nome}</CardTitle>
+            <CardTitle className="text-lg">
+              Olá, {envelope.signatario_nome || 'Signatário'}
+            </CardTitle>
             <CardDescription>
               {isConcluido
                 ? 'Todos os documentos foram assinados com sucesso.'
@@ -206,7 +232,12 @@ export default function AssinarEnvelopePage() {
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             {docs.map((doc, idx) => {
-              const sig = assinaturas.find((a) => a.documento_id === doc.arquivo_url)
+              const sig = assinaturas.find(
+                (a) =>
+                  a.documento_id === doc.arquivo_url &&
+                  (!verified ||
+                    a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase()),
+              )
               const signed = sig?.status === 'assinado' || doc.status === 'Assinado'
               return (
                 <div
@@ -250,11 +281,18 @@ export default function AssinarEnvelopePage() {
           <Card className="shadow-lg border-border">
             <CardHeader>
               <CardTitle className="text-base">Verificação</CardTitle>
-              <CardDescription>
-                Digite o código de 4 dígitos enviado para {envelope.signatario_email}
-              </CardDescription>
+              <CardDescription>Digite seu e-mail e o código de 4 dígitos recebido</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>E-mail do Signatário</Label>
+                <Input
+                  type="email"
+                  value={signatarioEmail}
+                  onChange={(e) => setSignatarioEmail(e.target.value)}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
               <div className="flex justify-center">
                 <InputOTP maxLength={4} value={code} onChange={setCode}>
                   <InputOTPGroup>
@@ -265,9 +303,24 @@ export default function AssinarEnvelopePage() {
                   </InputOTPGroup>
                 </InputOTP>
               </div>
-              <Button className="w-full" onClick={handleVerifyCode} disabled={code.length !== 4}>
+              <Button
+                className="w-full"
+                onClick={handleVerifyCode}
+                disabled={code.length !== 4 || !signatarioEmail.trim()}
+              >
                 Verificar Código
               </Button>
+            </CardContent>
+          </Card>
+        ) : myAllSigned ? (
+          <Card className="shadow-lg border-amber-500/30">
+            <CardContent className="p-8 text-center">
+              <CheckCircle className="w-12 h-12 text-amber-600 mx-auto mb-3" />
+              <p className="font-bold text-lg">Assinaturas Concluídas!</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Você assinou todos os seus documentos. Aguardando a conclusão pelos demais
+                signatários.
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -315,7 +368,11 @@ export default function AssinarEnvelopePage() {
               <div className="space-y-2 pt-4 border-t">
                 <Label className="text-sm">Assinar Documentos</Label>
                 {docs.map((doc, idx) => {
-                  const sig = assinaturas.find((a) => a.documento_id === doc.arquivo_url)
+                  const sig = assinaturas.find(
+                    (a) =>
+                      a.documento_id === doc.arquivo_url &&
+                      a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+                  )
                   const signed = sig?.status === 'assinado' || doc.status === 'Assinado'
                   return (
                     <div
