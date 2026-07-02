@@ -257,40 +257,35 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     fileInputRef.current?.click()
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const [batchUploadInfo, setBatchUploadInfo] = useState<{
+    current: number
+    total: number
+    fileName: string
+  } | null>(null)
 
-    setUploadProgress(0)
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev === null) return null
-        if (prev >= 90) return prev
-        return prev + (100 - prev) * 0.1
-      })
-    }, 500)
-
-    toast.info('Fazendo upload...', { id: 'upload-doc' })
+  const uploadSingleFile = async (
+    file: File,
+    session: any,
+    onProgress: (p: number) => void,
+  ): Promise<{ success: boolean; fileName: string; error?: string }> => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) throw new Error('Usuário não autenticado.')
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+      const filePath = `${dossie.cliente_id}/${uniqueSuffix}_${safeName}`
 
-      const filePath = `${dossie.cliente_id}/${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
       const { error: uploadError } = await supabase.storage
         .from('bender_clientes')
         .upload(filePath, file, {
-          upsert: true,
+          upsert: false,
           // @ts-expect-error: using undocumented flag or explicit resumable config
           resumable: true,
         })
 
       if (uploadError) throw uploadError
 
-      setUploadProgress(100)
+      onProgress(100)
 
-      await supabase.from('documentos_cliente').insert({
+      const { error: insertError } = await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
         tipo: uploadTipo === 'lista_materiais' ? 'lista_materiais' : 'upload_manual',
         template_nome: file.name,
@@ -299,6 +294,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         usuario_id: session.user.id,
       })
 
+      if (insertError) throw insertError
+
       const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
@@ -306,15 +303,99 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         acao: `Arquivo ${file.name} enviado (${uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'Manual'})`,
       })
 
-      toast.success('Arquivo enviado com sucesso!', { id: 'upload-doc' })
-      loadDocs()
+      return { success: true, fileName: file.name }
     } catch (err: any) {
-      toast.error('Erro no upload: ' + err.message, { id: 'upload-doc' })
-    } finally {
-      clearInterval(interval)
-      setTimeout(() => setUploadProgress(null), 1000)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      return { success: false, fileName: file.name, error: err.message || 'Erro desconhecido' }
     }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
+
+    const files = Array.from(fileList)
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      toast.error('Usuário não autenticado.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    setUploadProgress(0)
+    setBatchUploadInfo({ current: 0, total: files.length, fileName: files[0]?.name || '' })
+
+    const toastId = 'upload-doc'
+    if (files.length === 1) {
+      toast.info('Fazendo upload...', { id: toastId })
+    } else {
+      toast.info(`Iniciando upload de ${files.length} arquivos...`, { id: toastId })
+    }
+
+    let successCount = 0
+    const failedFiles: string[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setBatchUploadInfo({ current: i + 1, total: files.length, fileName: file.name })
+
+      const baseProgress = (i / files.length) * 100
+      setUploadProgress(baseProgress)
+
+      const interval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev === null) return null
+          const cap = baseProgress + (100 / files.length) * 0.9
+          if (prev >= cap) return prev
+          return prev + (cap - prev) * 0.15
+        })
+      }, 400)
+
+      const result = await uploadSingleFile(file, session, () => {})
+
+      clearInterval(interval)
+
+      if (result.success) {
+        successCount++
+      } else {
+        failedFiles.push(result.fileName)
+        toast.error(`Falha ao enviar "${result.fileName}": ${result.error}`, {
+          id: `upload-fail-${i}`,
+          duration: 6000,
+        })
+      }
+
+      setUploadProgress(((i + 1) / files.length) * 100)
+    }
+
+    setBatchUploadInfo(null)
+
+    if (successCount > 0 && failedFiles.length === 0) {
+      toast.success(
+        files.length === 1
+          ? 'Arquivo enviado com sucesso!'
+          : `${successCount} de ${files.length} arquivos enviados com sucesso!`,
+        { id: toastId },
+      )
+    } else if (successCount > 0 && failedFiles.length > 0) {
+      toast.warning(
+        `${successCount} de ${files.length} arquivos enviados. ${failedFiles.length} falharam.`,
+        { id: toastId, duration: 7000 },
+      )
+    } else {
+      toast.error('Nenhum arquivo pôde ser enviado.', { id: toastId })
+    }
+
+    loadDocs()
+    onReload()
+
+    setTimeout(() => {
+      setUploadProgress(null)
+    }, 1200)
+
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleRetryProcessing = async (doc: any) => {
@@ -412,16 +493,31 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileChange}
+        multiple
         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.mp4,.skp,.promob,.dwg,.dxf,.rvt"
       />
 
       {uploadProgress !== null && (
         <div className="bg-card p-4 rounded-lg border border-border shadow-sm mb-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-foreground">Enviando arquivo...</span>
+            <span className="text-sm font-semibold text-foreground">
+              {batchUploadInfo
+                ? batchUploadInfo.total > 1
+                  ? `Enviando ${batchUploadInfo.current} de ${batchUploadInfo.total} arquivos...`
+                  : 'Enviando arquivo...'
+                : 'Enviando arquivo...'}
+            </span>
             <span className="text-sm font-bold text-primary">{Math.round(uploadProgress)}%</span>
           </div>
           <Progress value={uploadProgress} className="h-2" />
+          {batchUploadInfo && batchUploadInfo.total > 1 && (
+            <p
+              className="text-xs text-muted-foreground mt-1 truncate"
+              title={batchUploadInfo.fileName}
+            >
+              Arquivo atual: {batchUploadInfo.fileName}
+            </p>
+          )}
         </div>
       )}
 
