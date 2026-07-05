@@ -27,7 +27,10 @@ export default function Financeiro() {
       setLoading(true)
       const [receberRes, pagarRes] = await Promise.all([
         supabase.from('contas_receber').select('*, cliente:clientes(nome)'),
-        supabase.from('contas_pagar' as any).select('*'),
+        supabase
+          .from('contas_pagar' as any)
+          .select('*')
+          .neq('status_pagamento', 'Agrupado'),
       ])
 
       if (receberRes.error) throw receberRes.error

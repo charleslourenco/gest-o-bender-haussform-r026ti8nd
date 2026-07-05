@@ -1,16 +1,17 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Sparkles,
   Upload,
   CheckCircle2,
   Circle,
-  Search,
   Paperclip,
   Eye,
   Trash2,
   X,
+  Layers,
 } from 'lucide-react'
 import {
   Table,
@@ -25,6 +26,7 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { format, parseISO } from 'date-fns'
+import { AgruparContasDialog } from '@/components/financeiro/AgruparContasDialog'
 
 export interface ExtendedTransaction {
   id: string
@@ -43,6 +45,12 @@ export interface ExtendedTransaction {
   comprovanteUrl?: string
 }
 
+const isEligibleForGrouping = (t: ExtendedTransaction): boolean => {
+  if (t.type !== 'despesa') return false
+  const s = (t.status || '').toLowerCase()
+  return s === 'pendente' || s === 'aguardando'
+}
+
 export function FinanceiroMovimentacoes({
   transactions,
   onRefresh,
@@ -51,6 +59,8 @@ export function FinanceiroMovimentacoes({
   onRefresh: () => void
 }) {
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [agruparOpen, setAgruparOpen] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -59,6 +69,45 @@ export function FinanceiroMovimentacoes({
     window.addEventListener('financeiro-refresh', handleRefresh)
     return () => window.removeEventListener('financeiro-refresh', handleRefresh)
   }, [onRefresh])
+
+  const eligibleTransactions = useMemo(
+    () => transactions.filter(isEligibleForGrouping),
+    [transactions],
+  )
+
+  const selectedTransactions = useMemo(
+    () => eligibleTransactions.filter((t) => selectedIds.has(t.id)),
+    [eligibleTransactions, selectedIds],
+  )
+
+  const selectedFornecedores = useMemo(
+    () => new Set(selectedTransactions.map((t) => t.entityName)),
+    [selectedTransactions],
+  )
+
+  const canGroup = selectedTransactions.length >= 2 && selectedFornecedores.size === 1
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === eligibleTransactions.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(eligibleTransactions.map((t) => t.id)))
+    }
+  }
+
+  const handleGroupSuccess = () => {
+    setSelectedIds(new Set())
+    onRefresh()
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -260,8 +309,18 @@ export function FinanceiroMovimentacoes({
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  const allEligibleSelected =
+    eligibleTransactions.length > 0 && selectedIds.size === eligibleTransactions.length
+
   return (
     <div className="space-y-6">
+      <AgruparContasDialog
+        open={agruparOpen}
+        onOpenChange={setAgruparOpen}
+        selectedTransactions={selectedTransactions}
+        onSuccess={handleGroupSuccess}
+      />
+
       <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 p-4 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-emerald-600" />
@@ -294,6 +353,33 @@ export function FinanceiroMovimentacoes({
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in">
+          <div className="text-sm text-blue-800">
+            <strong>{selectedIds.size}</strong> conta(s) selecionada(s)
+            {!canGroup && selectedIds.size >= 2 && (
+              <span className="ml-2 text-amber-600 font-medium">
+                ⚠ Selecione contas do mesmo fornecedor para agrupar
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setSelectedIds(new Set())}>
+              Limpar seleção
+            </Button>
+            <Button
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!canGroup}
+              onClick={() => setAgruparOpen(true)}
+            >
+              <Layers className="h-4 w-4 mr-2" />
+              Agrupar para Pagamento
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-semibold text-lg">Lançamentos Financeiros</h3>
@@ -302,6 +388,13 @@ export function FinanceiroMovimentacoes({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allEligibleSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Selecionar todas elegíveis"
+                  />
+                </TableHead>
                 <TableHead>Data Inserção</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Recebimento/Pgto</TableHead>
@@ -317,120 +410,137 @@ export function FinanceiroMovimentacoes({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="text-gray-500 text-xs">
-                    {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
-                  </TableCell>
-                  <TableCell className="font-medium whitespace-nowrap">
-                    {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
-                  </TableCell>
-                  <TableCell className="font-medium text-gray-600 whitespace-nowrap">
-                    {t.paidDate ? format(parseISO(t.paidDate), 'dd/MM/yyyy') : '-'}
-                  </TableCell>
-                  <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
-                  <TableCell className="text-gray-600 max-w-[150px] truncate" title={t.description}>
-                    {t.description}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-normal text-[10px]">
-                      {t.category || '-'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-gray-600">{t.meioPagamento || '-'}</TableCell>
-                  <TableCell>
-                    {t.antecipado ? (
-                      <Badge
-                        variant="secondary"
-                        className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]"
-                      >
-                        Sim
-                      </Badge>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell
-                    className={
-                      t.type === 'receita'
-                        ? 'text-emerald-600 font-bold whitespace-nowrap'
-                        : 'text-rose-600 font-bold whitespace-nowrap'
-                    }
-                  >
-                    {t.type === 'receita' ? '+' : '-'} {formatCurrency(t.amount)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={t.status === 'pago' ? 'default' : 'secondary'}
-                      className={t.status === 'pago' ? 'bg-emerald-500 text-white' : ''}
-                    >
-                      {t.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {t.comprovanteUrl ? (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-blue-50"
-                          asChild
-                        >
-                          <a
-                            href={getPublicUrl(t.comprovanteUrl)}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Ver Anexo"
-                          >
-                            <Eye className="h-4 w-4 text-blue-600" />
-                          </a>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-red-50"
-                          onClick={() => handleRemoveComprovante(t)}
-                          title="Remover Anexo"
-                        >
-                          <X className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer text-blue-500 hover:text-blue-700 flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-blue-50 transition-colors">
-                        <Paperclip className="h-3 w-3" /> Anexar
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*,application/pdf"
-                          onChange={(e) => handleUploadComprovante(t, e)}
+              {transactions.map((t) => {
+                const eligible = isEligibleForGrouping(t)
+                return (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      {eligible && (
+                        <Checkbox
+                          checked={selectedIds.has(t.id)}
+                          onCheckedChange={() => toggleSelection(t.id)}
+                          aria-label={`Selecionar ${t.entityName}`}
                         />
-                      </label>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => togglePayment(t)}
-                        className="text-gray-400 hover:text-emerald-600 transition-colors p-1"
-                        title={t.status === 'pago' ? 'Desfazer Pagamento' : 'Confirmar Pagamento'}
+                      )}
+                    </TableCell>
+                    <TableCell className="text-gray-500 text-xs">
+                      {format(parseISO(t.createdAt), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      {format(parseISO(t.dueDate), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-600 whitespace-nowrap">
+                      {t.paidDate ? format(parseISO(t.paidDate), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-900">{t.entityName}</TableCell>
+                    <TableCell
+                      className="text-gray-600 max-w-[150px] truncate"
+                      title={t.description}
+                    >
+                      {t.description}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-normal text-[10px]">
+                        {t.category || '-'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-600">
+                      {t.meioPagamento || '-'}
+                    </TableCell>
+                    <TableCell>
+                      {t.antecipado ? (
+                        <Badge
+                          variant="secondary"
+                          className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]"
+                        >
+                          Sim
+                        </Badge>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell
+                      className={
+                        t.type === 'receita'
+                          ? 'text-emerald-600 font-bold whitespace-nowrap'
+                          : 'text-rose-600 font-bold whitespace-nowrap'
+                      }
+                    >
+                      {t.type === 'receita' ? '+' : '-'} {formatCurrency(t.amount)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={t.status === 'pago' ? 'default' : 'secondary'}
+                        className={t.status === 'pago' ? 'bg-emerald-500 text-white' : ''}
                       >
-                        {t.status === 'pago' ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                        ) : (
-                          <Circle className="h-5 w-5" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(t)}
-                        className="text-gray-400 hover:text-red-600 transition-colors p-1"
-                        title="Excluir Lançamento"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {t.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {t.comprovanteUrl ? (
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-blue-50"
+                            asChild
+                          >
+                            <a
+                              href={getPublicUrl(t.comprovanteUrl)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Ver Anexo"
+                            >
+                              <Eye className="h-4 w-4 text-blue-600" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-red-50"
+                            onClick={() => handleRemoveComprovante(t)}
+                            title="Remover Anexo"
+                          >
+                            <X className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer text-blue-500 hover:text-blue-700 flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-blue-50 transition-colors">
+                          <Paperclip className="h-3 w-3" /> Anexar
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*,application/pdf"
+                            onChange={(e) => handleUploadComprovante(t, e)}
+                          />
+                        </label>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => togglePayment(t)}
+                          className="text-gray-400 hover:text-emerald-600 transition-colors p-1"
+                          title={t.status === 'pago' ? 'Desfazer Pagamento' : 'Confirmar Pagamento'}
+                        >
+                          {t.status === 'pago' ? (
+                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                          ) : (
+                            <Circle className="h-5 w-5" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(t)}
+                          className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                          title="Excluir Lançamento"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
