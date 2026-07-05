@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Loader2, Layers } from 'lucide-react'
 import {
   Dialog,
@@ -38,8 +38,22 @@ export function AgruparContasDialog({
   const [numParcelas, setNumParcelas] = useState('2')
   const [meioPagamento, setMeioPagamento] = useState('Boleto')
   const [dataPrimeiroVencimento, setDataPrimeiroVencimento] = useState('')
+  const [contaBancariaId, setContaBancariaId] = useState('none')
+  const [contas, setContas] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (open) {
+      supabase
+        .from('contas_bancarias')
+        .select('id, nome_exibicao, status')
+        .order('nome_exibicao')
+        .then(({ data }) => {
+          if (data) setContas(data.filter((c) => c.status))
+        })
+    }
+  }, [open])
 
   const total = useMemo(
     () => selectedTransactions.reduce((sum, t) => sum + t.amount, 0),
@@ -61,6 +75,7 @@ export function AgruparContasDialog({
     setNumParcelas('2')
     setMeioPagamento('Boleto')
     setDataPrimeiroVencimento('')
+    setContaBancariaId('none')
   }
 
   const handleSubmit = async () => {
@@ -95,6 +110,7 @@ export function AgruparContasDialog({
         p_meio_pagamento: meioPagamento,
         p_data_primeiro_vencimento: dataPrimeiroVencimento,
         p_user_id: user?.id,
+        p_conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
       })
 
       if (error) throw error
@@ -191,6 +207,23 @@ export function AgruparContasDialog({
               value={dataPrimeiroVencimento}
               onChange={(e) => setDataPrimeiroVencimento(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Conta Bancária (opcional)</Label>
+            <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma conta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhuma</SelectItem>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome_exibicao}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

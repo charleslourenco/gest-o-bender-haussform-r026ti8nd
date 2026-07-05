@@ -37,6 +37,8 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
   const [meioPagamento, setMeioPagamento] = useState('Pix')
   const [clientes, setClientes] = useState<any[]>([])
   const [clienteId, setClienteId] = useState('none')
+  const [contaBancariaId, setContaBancariaId] = useState('none')
+  const [contas, setContas] = useState<any[]>([])
 
   useEffect(() => {
     if (open) {
@@ -46,6 +48,13 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
         .order('nome')
         .then(({ data }) => {
           if (data) setClientes(data)
+        })
+      supabase
+        .from('contas_bancarias')
+        .select('id, nome_exibicao, status')
+        .order('nome_exibicao')
+        .then(({ data }) => {
+          if (data) setContas(data.filter((c) => c.status))
         })
     }
   }, [open])
@@ -65,6 +74,7 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
         user_id: user?.id,
         meio_pagamento: meioPagamento,
         cliente_id: clienteId === 'none' ? null : clienteId,
+        conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
       })
 
       if (error) throw error
@@ -80,6 +90,7 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
       setCategoria('Venda de Projetos')
       setMeioPagamento('Pix')
       setClienteId('none')
+      setContaBancariaId('none')
     } catch (error) {
       toast({
         title: 'Erro',
@@ -178,6 +189,23 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
                 <SelectItem value="Transferência">Transferência</SelectItem>
                 <SelectItem value="Cartão">Cartão</SelectItem>
                 <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Conta Bancária</Label>
+            <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma conta (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhuma</SelectItem>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome_exibicao}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

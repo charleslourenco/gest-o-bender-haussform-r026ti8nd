@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CircleArrowDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +11,13 @@ import {
 } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -27,6 +34,20 @@ export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
   const [valor, setValor] = useState('')
   const [dataVencimento, setDataVencimento] = useState('')
   const [categoria, setCategoria] = useState('')
+  const [contaBancariaId, setContaBancariaId] = useState('none')
+  const [contas, setContas] = useState<any[]>([])
+
+  useEffect(() => {
+    if (open) {
+      supabase
+        .from('contas_bancarias')
+        .select('id, nome_exibicao, status')
+        .order('nome_exibicao')
+        .then(({ data }) => {
+          if (data) setContas(data.filter((c) => c.status))
+        })
+    }
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +61,7 @@ export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
         categoria,
         user_id: user?.id,
         status_pagamento: 'aguardando',
+        conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
       })
 
       if (error) throw error
@@ -56,6 +78,7 @@ export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
       setValor('')
       setDataVencimento('')
       setCategoria('')
+      setContaBancariaId('none')
     } catch (error: any) {
       toast({
         title: 'Erro',
@@ -130,6 +153,22 @@ export function NovaContaPagarSheet({ onRefresh }: { onRefresh?: () => void }) {
               onChange={(e) => setCategoria(e.target.value)}
               placeholder="Ex: Material de Consumo"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contaBancaria">Conta Bancária</Label>
+            <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma conta (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhuma</SelectItem>
+                {contas.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome_exibicao}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Salvando...' : 'Salvar Conta a Pagar'}

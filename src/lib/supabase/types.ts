@@ -2586,6 +2586,16 @@ export type Database = {
           usuario_nome: string
         }[]
       }
+      group_contas_pagar: {
+        Args: {
+          p_data_primeiro_vencimento: string
+          p_ids: string[]
+          p_meio_pagamento: string
+          p_num_parcelas: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       has_module_access: {
         Args: { mod: string; user_id: string }
         Returns: boolean

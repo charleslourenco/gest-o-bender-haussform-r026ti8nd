@@ -9,6 +9,7 @@ import {
   ExtendedTransaction,
 } from '@/components/financeiro/FinanceiroMovimentacoes'
 import { FinanceiroDRE } from '@/components/financeiro/FinanceiroDRE'
+import { ContasBancariasTab } from '@/components/financeiro/ContasBancariasTab'
 import { useToast } from '@/hooks/use-toast'
 import { NovaContaPagarSheet } from '@/components/financeiro/NovaContaPagarSheet'
 import { NovaContaReceberSheet } from '@/components/financeiro/NovaContaReceberSheet'
@@ -148,6 +149,12 @@ export default function Financeiro() {
               >
                 DRE
               </TabsTrigger>
+              <TabsTrigger
+                value="contas"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+              >
+                Contas Bancárias
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -197,6 +204,9 @@ export default function Financeiro() {
           </TabsContent>
           <TabsContent value="dre" className="m-0 border-none outline-none">
             <FinanceiroDRE transactions={filteredTransactions as Transaction[]} />
+          </TabsContent>
+          <TabsContent value="contas" className="m-0 border-none outline-none">
+            <ContasBancariasTab />
           </TabsContent>
         </div>
       </Tabs>
