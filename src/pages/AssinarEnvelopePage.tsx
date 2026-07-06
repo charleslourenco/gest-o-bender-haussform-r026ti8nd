@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { FileText, CheckCircle, AlertCircle, ShieldCheck, PenTool } from 'lucide-react'
+import { FileText, CheckCircle, AlertCircle, ShieldCheck, PenTool, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { SignatureCanvas } from '@/components/area-clientes/signature-canvas'
 
 export default function AssinarEnvelopePage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+
   const [envelope, setEnvelope] = useState<any>(null)
   const [docs, setDocs] = useState<any[]>([])
   const [assinaturas, setAssinaturas] = useState<any[]>([])
+  const [assinante, setAssinante] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [code, setCode] = useState('')
@@ -61,10 +65,30 @@ export default function AssinarEnvelopePage() {
           .in('documento_id', docIds)
         setAssinaturas(sigs || [])
       }
+
+      if (token) {
+        const { data: assinanteData } = await supabase
+          .from('assinantes')
+          .select('*')
+          .eq('token_acesso', token)
+          .eq('envelope_id', id)
+          .single()
+
+        if (assinanteData) {
+          setAssinante(assinanteData)
+          setSignatarioEmail(assinanteData.email || '')
+          setFormData((prev) => ({
+            ...prev,
+            nome: assinanteData.nome_completo || '',
+            cpf: assinanteData.cpf || '',
+          }))
+        }
+      }
+
       setLoading(false)
     }
     load()
-  }, [id])
+  }, [id, token])
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value.replace(/\D/g, '')
@@ -75,7 +99,55 @@ export default function AssinarEnvelopePage() {
     setFormData({ ...formData, cpf: v })
   }
 
+  const handleVisualizarDoc = async (doc: any) => {
+    const filePath = doc.arquivo_url
+    if (!filePath) {
+      toast.error('Documento não disponível para visualização.')
+      return
+    }
+
+    try {
+      let url: string | null = null
+
+      if (filePath.startsWith('http')) {
+        const match = filePath.match(
+          /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
+        )
+        if (match) {
+          const bucket = match[1]
+          const path = decodeURIComponent(match[2])
+          const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+          if (data?.signedUrl) url = data.signedUrl
+        }
+        if (!url) url = filePath
+      } else {
+        const { data } = await supabase.storage
+          .from('bender_clientes')
+          .createSignedUrl(filePath, 3600)
+        if (data?.signedUrl) url = data.signedUrl
+        if (!url) {
+          const { data: pubData } = supabase.storage.from('bender_clientes').getPublicUrl(filePath)
+          if (pubData?.publicUrl) url = pubData.publicUrl
+        }
+      }
+
+      if (url) {
+        window.open(url, '_blank')
+      } else {
+        toast.error('Não foi possível gerar o link de visualização.')
+      }
+    } catch (e: any) {
+      toast.error('Erro ao visualizar documento: ' + e.message)
+    }
+  }
+
   const handleVerifyCode = () => {
+    if (assinante && assinante.codigo_verificacao === code) {
+      setVerified(true)
+      toast.success('Código verificado!')
+      return
+    }
+
     const sig = assinaturas.find(
       (a) =>
         a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase() &&
@@ -83,7 +155,7 @@ export default function AssinarEnvelopePage() {
     )
     if (sig) {
       setVerified(true)
-      setFormData((prev) => ({ ...prev, nome: sig.signatario_nome || '' }))
+      setFormData((prev) => ({ ...prev, nome: sig.signatario_nome || prev.nome }))
       toast.success('Código verificado!')
     } else {
       toast.error('E-mail ou código incorreto.')
@@ -141,6 +213,17 @@ export default function AssinarEnvelopePage() {
         .eq('id', sig.id)
 
       if (updateError) throw updateError
+
+      if (assinante) {
+        await supabase
+          .from('assinantes')
+          .update({
+            status: 'assinado',
+            assinado_em: new Date().toISOString(),
+            assinatura_base64: formData.assinaturaBase64,
+          })
+          .eq('id', assinante.id)
+      }
 
       const { data: updatedSigs } = await supabase
         .from('assinaturas')
@@ -208,6 +291,16 @@ export default function AssinarEnvelopePage() {
     formData.dataNascimento !== '' &&
     formData.assinaturaBase64 !== ''
 
+  const signerName =
+    assinante?.nome_completo ||
+    (verified ? myAssinaturas[0]?.signatario_nome : null) ||
+    envelope.signatario_nome ||
+    'Signatário'
+  const signerCpf =
+    assinante?.cpf || (verified ? myAssinaturas[0]?.signatario_cpf : null) || formData.cpf
+  const signerRole =
+    assinante?.papel || (verified ? myAssinaturas[0]?.signatario_tipo : null) || '—'
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 py-12 bg-muted/20">
       <div className="w-full max-w-2xl">
@@ -221,9 +314,7 @@ export default function AssinarEnvelopePage() {
 
         <Card className="shadow-lg border-border mb-6">
           <CardHeader className="border-b bg-muted/10 pb-4">
-            <CardTitle className="text-lg">
-              Olá, {envelope.signatario_nome || 'Signatário'}
-            </CardTitle>
+            <CardTitle className="text-lg">Olá, {signerName}</CardTitle>
             <CardDescription>
               {isConcluido
                 ? 'Todos os documentos foram assinados com sucesso.'
@@ -261,11 +352,40 @@ export default function AssinarEnvelopePage() {
                       </p>
                     </div>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleVisualizarDoc(doc)}
+                    className="shrink-0"
+                  >
+                    <Eye className="w-4 h-4 mr-1" /> Visualizar
+                  </Button>
                 </div>
               )
             })}
           </CardContent>
         </Card>
+
+        {(verified || assinante) && !isConcluido && !allSigned && (
+          <Card className="shadow-lg border-border mb-6">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Nome: </span>
+                  <span className="font-semibold">{signerName}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">CPF: </span>
+                  <span className="font-semibold">{signerCpf || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Papel: </span>
+                  <span className="font-semibold">{signerRole}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isConcluido || allSigned ? (
           <Card className="shadow-lg border-green-500/30">
@@ -281,18 +401,24 @@ export default function AssinarEnvelopePage() {
           <Card className="shadow-lg border-border">
             <CardHeader>
               <CardTitle className="text-base">Verificação</CardTitle>
-              <CardDescription>Digite seu e-mail e o código de 4 dígitos recebido</CardDescription>
+              <CardDescription>
+                {assinante
+                  ? `Digite o código de 4 dígitos enviado para ${signatarioEmail}`
+                  : 'Digite seu e-mail e o código de 4 dígitos recebido'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>E-mail do Signatário</Label>
-                <Input
-                  type="email"
-                  value={signatarioEmail}
-                  onChange={(e) => setSignatarioEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                />
-              </div>
+              {!assinante && (
+                <div className="space-y-2">
+                  <Label>E-mail do Signatário</Label>
+                  <Input
+                    type="email"
+                    value={signatarioEmail}
+                    onChange={(e) => setSignatarioEmail(e.target.value)}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+              )}
               <div className="flex justify-center">
                 <InputOTP maxLength={4} value={code} onChange={setCode}>
                   <InputOTPGroup>
@@ -306,7 +432,7 @@ export default function AssinarEnvelopePage() {
               <Button
                 className="w-full"
                 onClick={handleVerifyCode}
-                disabled={code.length !== 4 || !signatarioEmail.trim()}
+                disabled={code.length !== 4 || (!assinante && !signatarioEmail.trim())}
               >
                 Verificar Código
               </Button>
@@ -382,19 +508,24 @@ export default function AssinarEnvelopePage() {
                       <span className="text-sm font-medium truncate">
                         {idx + 1}. {doc.template_nome || doc.tipo}
                       </span>
-                      {signed ? (
-                        <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" /> Assinado
-                        </span>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleSignDoc(doc)}
-                          disabled={!isFormValid || submitting}
-                        >
-                          <PenTool className="w-4 h-4 mr-1" /> Assinar
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => handleVisualizarDoc(doc)}>
+                          <Eye className="w-4 h-4" />
                         </Button>
-                      )}
+                        {signed ? (
+                          <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" /> Assinado
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleSignDoc(doc)}
+                            disabled={!isFormValid || submitting}
+                          >
+                            <PenTool className="w-4 h-4 mr-1" /> Assinar
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

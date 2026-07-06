@@ -425,6 +425,45 @@ export type Database = {
         }
         Relationships: []
       }
+      contas_bancarias: {
+        Row: {
+          agencia: string | null
+          atualizado_em: string
+          banco: string | null
+          criado_em: string
+          id: string
+          nome_exibicao: string
+          numero_conta: string | null
+          saldo_atual: number
+          saldo_inicial: number
+          status: boolean
+        }
+        Insert: {
+          agencia?: string | null
+          atualizado_em?: string
+          banco?: string | null
+          criado_em?: string
+          id?: string
+          nome_exibicao: string
+          numero_conta?: string | null
+          saldo_atual?: number
+          saldo_inicial?: number
+          status?: boolean
+        }
+        Update: {
+          agencia?: string | null
+          atualizado_em?: string
+          banco?: string | null
+          criado_em?: string
+          id?: string
+          nome_exibicao?: string
+          numero_conta?: string | null
+          saldo_atual?: number
+          saldo_inicial?: number
+          status?: boolean
+        }
+        Relationships: []
+      }
       contas_pagar: {
         Row: {
           antecipado: boolean | null
@@ -432,6 +471,7 @@ export type Database = {
           categoria: string | null
           codigo_barras: string | null
           comprovante_url: string | null
+          conta_bancaria_id: string | null
           criado_em: string
           data_pagamento: string | null
           data_vencimento: string
@@ -449,6 +489,7 @@ export type Database = {
           categoria?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
+          conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento: string
@@ -466,6 +507,7 @@ export type Database = {
           categoria?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
+          conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento?: string
@@ -477,7 +519,15 @@ export type Database = {
           user_id?: string | null
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'contas_pagar_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+        ]
       }
       contas_receber: {
         Row: {
@@ -486,6 +536,7 @@ export type Database = {
           categoria: string | null
           cliente_id: string | null
           comprovante_url: string | null
+          conta_bancaria_id: string | null
           criado_em: string
           data_pagamento: string | null
           data_vencimento: string
@@ -504,6 +555,7 @@ export type Database = {
           categoria?: string | null
           cliente_id?: string | null
           comprovante_url?: string | null
+          conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento: string
@@ -522,6 +574,7 @@ export type Database = {
           categoria?: string | null
           cliente_id?: string | null
           comprovante_url?: string | null
+          conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
           data_vencimento?: string
@@ -540,6 +593,13 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_receber_conta_bancaria_id_fkey'
+            columns: ['conta_bancaria_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
             referencedColumns: ['id']
           },
           {
@@ -2448,6 +2508,61 @@ export type Database = {
           },
         ]
       }
+      transferencias_bancarias: {
+        Row: {
+          conta_destino_id: string | null
+          conta_origem_id: string | null
+          criado_em: string
+          data_transferencia: string
+          descricao: string | null
+          id: string
+          usuario_id: string | null
+          valor: number
+        }
+        Insert: {
+          conta_destino_id?: string | null
+          conta_origem_id?: string | null
+          criado_em?: string
+          data_transferencia: string
+          descricao?: string | null
+          id?: string
+          usuario_id?: string | null
+          valor: number
+        }
+        Update: {
+          conta_destino_id?: string | null
+          conta_origem_id?: string | null
+          criado_em?: string
+          data_transferencia?: string
+          descricao?: string | null
+          id?: string
+          usuario_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'transferencias_bancarias_conta_destino_id_fkey'
+            columns: ['conta_destino_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transferencias_bancarias_conta_origem_id_fkey'
+            columns: ['conta_origem_id']
+            isOneToOne: false
+            referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'transferencias_bancarias_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       users: {
         Row: {
           atualizado_em: string
@@ -2588,6 +2703,7 @@ export type Database = {
       }
       group_contas_pagar: {
         Args: {
+          p_conta_bancaria_id?: string
           p_data_primeiro_vencimento: string
           p_ids: string[]
           p_meio_pagamento: string
