@@ -1,31 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import OpenAI from 'npm:openai@4'
-
-async function sendZapiMessage(phone: string, text: string) {
-  const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-  const zapiToken = Deno.env.get('ZAPI_TOKEN')
-  if (zapiInstance && zapiToken && text) {
-    const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
-    try {
-      const payload = { phone, message: text }
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Client-Token': Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-      }
-      const zapiRes = await fetch(zapiUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      })
-      if (!zapiRes.ok) {
-        console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
-      }
-    } catch (e) {
-      console.error('Falha de rede ao chamar Z-API:', e)
-    }
-  }
-}
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
@@ -57,7 +31,6 @@ Deno.serve(async (req) => {
       payload.id ||
       `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
-    // Extract Webhook Timestamp
     let extractedTimestamp = new Date().toISOString()
     if (payload.timestamp) {
       const ts =
@@ -80,7 +53,7 @@ Deno.serve(async (req) => {
       return new Response('Ignored', { status: 200 })
     }
 
-    // Check if message already exists to avoid duplicate webhook processing
+    // Deduplicate webhooks
     const { data: existingMsg, error: existingMsgErr } = await supabase
       .from('whatsapp_messages')
       .select('id')
@@ -88,12 +61,11 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (existingMsgErr) console.error('Erro ao verificar mensagem duplicada:', existingMsgErr)
-
     if (existingMsg) {
       return new Response('Duplicate message ignored', { status: 200 })
     }
 
-    // 1. Lead Lookup / Creation
+    // Lead Lookup / Creation
     let { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
@@ -129,19 +101,47 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Process Human Sent (fromMe)
+    // Ensure a session exists and is flagged as human-managed (step 99)
+    // so manual operators always have full context.
+    let { data: session, error: sessionErr } = await supabase
+      .from('whatsapp_sessions')
+      .select('*')
+      .eq('phone', phone)
+      .maybeSingle()
+
+    if (sessionErr) console.error('Erro ao buscar sessão:', sessionErr)
+
+    if (!session) {
+      const { data: newSession, error: newSessErr } = await supabase
+        .from('whatsapp_sessions')
+        .insert({
+          phone,
+          lead_id: lead?.id || null,
+          step: 99,
+        })
+        .select('*')
+        .single()
+
+      if (newSessErr) {
+        console.error('Erro ao criar sessão:', newSessErr)
+      } else {
+        session = newSession
+      }
+    } else if (session.step !== 99) {
+      // Normalize existing sessions to human-managed (manual mode).
+      const { error: normErr } = await supabase
+        .from('whatsapp_sessions')
+        .update({ step: 99, updated_at: nowStr })
+        .eq('id', session.id)
+
+      if (normErr) console.error('Erro ao normalizar sessão para modo manual:', normErr)
+      session = { ...session, step: 99, updated_at: nowStr }
+    }
+
+    // Outbound message sent from the connected WhatsApp (fromMe).
+    // Logged for history/context. No automated follow-up is performed.
     if (payload.fromMe) {
       if (lead) {
-        const { error: sessionUpdateErr } = await supabase
-          .from('whatsapp_sessions')
-          .update({
-            step: 99,
-            last_human_interaction_at: nowStr,
-          })
-          .eq('phone', phone)
-
-        if (sessionUpdateErr) console.error('Erro ao atualizar sessão (fromMe):', sessionUpdateErr)
-
         let newStatus = lead.status
         if (lead.status === 'Novo Lead') {
           newStatus = 'Aguardando Consultor'
@@ -159,6 +159,19 @@ Deno.serve(async (req) => {
         if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)
       }
 
+      if (session) {
+        const { error: sessionUpdateErr } = await supabase
+          .from('whatsapp_sessions')
+          .update({
+            step: 99,
+            last_human_interaction_at: nowStr,
+            updated_at: nowStr,
+          })
+          .eq('id', session.id)
+
+        if (sessionUpdateErr) console.error('Erro ao atualizar sessão (fromMe):', sessionUpdateErr)
+      }
+
       const { error: insertAnaErr } = await supabase.from('whatsapp_messages').insert({
         lead_id: lead?.id || null,
         phone,
@@ -172,10 +185,10 @@ Deno.serve(async (req) => {
 
       if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana:', insertAnaErr)
 
-      return new Response('Ignored fromMe', { status: 200 })
+      return new Response('Outbound logged (manual mode)', { status: 200 })
     }
 
-    // 3. Process Customer Sent (!fromMe)
+    // Inbound customer message — always record it for manual follow-up.
     const { error: insertClientErr } = await supabase.from('whatsapp_messages').insert({
       lead_id: lead?.id || null,
       phone,
@@ -189,504 +202,39 @@ Deno.serve(async (req) => {
 
     if (insertClientErr) console.error('Erro ao inserir mensagem do Cliente:', insertClientErr)
 
-    // Session Management
-    let { data: session, error: sessionErr } = await supabase
-      .from('whatsapp_sessions')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (sessionErr) console.error('Erro ao buscar sessão:', sessionErr)
-
-    if (!session && lead) {
-      const { data: newSession, error: newSessErr } = await supabase
+    // Update session/lead context so operators know there's a new pending message.
+    if (session) {
+      const { error: sessionTouchErr } = await supabase
         .from('whatsapp_sessions')
-        .insert({
-          phone,
-          lead_id: lead.id,
-          step: 0,
-        })
-        .select('*')
-        .single()
-
-      if (newSessErr) {
-        console.error('Erro ao criar sessão:', newSessErr)
-      } else {
-        session = newSession
-      }
-    }
-
-    if (!lead || !session) {
-      return new Response('Failsafe sem lead ou session', { status: 200 })
-    }
-
-    // Reset Flow
-    if (messageText.trim().toUpperCase() === 'RESETAR') {
-      await supabase.from('whatsapp_sessions').update({ step: 0 }).eq('id', session.id)
-      await supabase.from('leads').update({ status: 'Novo Lead' }).eq('id', lead.id)
-
-      const botMsg = 'Sessão reiniciada. A Catarina está pronta para conversar novamente.'
-
-      const { error: insertCatarinaResetErr } = await supabase.from('whatsapp_messages').insert({
-        lead_id: lead.id,
-        phone,
-        sender_type: 'catarina',
-        sender_name: 'Catarina',
-        content: botMsg,
-        direction: 'outbound',
-        created_at: new Date().toISOString(),
-      })
-
-      if (insertCatarinaResetErr)
-        console.error('Erro ao inserir mensagem da Catarina (Reset):', insertCatarinaResetErr)
-
-      await sendZapiMessage(phone, botMsg)
-      return new Response('Reset OK', { status: 200 })
-    }
-
-    // Weekend Sub-flow Handlers
-    if (session.step === 90 || session.step === 91) {
-      if (session.step === 90) {
-        const msgUpper = messageText.trim().toUpperCase()
-
-        if (
-          msgUpper === 'NÃO' ||
-          msgUpper === 'NAO' ||
-          msgUpper === 'N' ||
-          msgUpper.includes('NÃO PRECISA') ||
-          msgUpper.includes('NAO PRECISA')
-        ) {
-          const botMsg = 'Tá bom! Ana vai entrar em contato com você segunda-feira de manhã.'
-          await supabase.from('whatsapp_messages').insert({
-            lead_id: lead.id,
-            phone,
-            sender_type: 'catarina',
-            sender_name: 'Catarina',
-            content: botMsg,
-            direction: 'outbound',
-            created_at: new Date().toISOString(),
-          })
-          await sendZapiMessage(phone, botMsg)
-          await supabase
-            .from('whatsapp_sessions')
-            .update({ step: 99, updated_at: nowStr })
-            .eq('id', session.id)
-          await supabase
-            .from('leads')
-            .update({ status: 'Aguardando Consultor', atualizado_em: nowStr })
-            .eq('id', lead.id)
-        } else {
-          const botMsg = 'Qual informação você gostaria que eu anotasse para ela?'
-          await supabase.from('whatsapp_messages').insert({
-            lead_id: lead.id,
-            phone,
-            sender_type: 'catarina',
-            sender_name: 'Catarina',
-            content: botMsg,
-            direction: 'outbound',
-            created_at: new Date().toISOString(),
-          })
-          await sendZapiMessage(phone, botMsg)
-          await supabase
-            .from('whatsapp_sessions')
-            .update({ step: 91, updated_at: nowStr })
-            .eq('id', session.id)
-        }
-      } else if (session.step === 91) {
-        const botMsg = 'Perfeito! Anotei tudo. Ana vai receber com suas informações.'
-        await supabase.from('whatsapp_messages').insert({
-          lead_id: lead.id,
-          phone,
-          sender_type: 'catarina',
-          sender_name: 'Catarina',
-          content: botMsg,
-          direction: 'outbound',
-          created_at: new Date().toISOString(),
-        })
-        await sendZapiMessage(phone, botMsg)
-
-        const timestampStr = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-        const noteAddition = `\n[${timestampStr}] Info Extra Fim de Semana:\n${messageText}`
-        const newNotas = lead.notas ? lead.notas + '\n' + noteAddition : noteAddition
-
-        await supabase
-          .from('whatsapp_sessions')
-          .update({ step: 99, updated_at: nowStr })
-          .eq('id', session.id)
-        await supabase
-          .from('leads')
-          .update({ status: 'Aguardando Consultor', notas: newNotas, atualizado_em: nowStr })
-          .eq('id', lead.id)
-      }
-      return new Response('Weekend subflow handled', { status: 200 })
-    }
-
-    // Human Managed Flow
-    const isHumanManaged =
-      session.step === 99 || lead.status !== 'Novo Lead' || lead.consultor_id !== null
-
-    if (isHumanManaged) {
-      const now = new Date()
-      const lastCustomerMsgAt = session.updated_at
-        ? new Date(session.updated_at)
-        : new Date(session.created_at)
-      const diffMins = (now.getTime() - lastCustomerMsgAt.getTime()) / 60000
-
-      const lastHumanAt = session.last_human_interaction_at
-        ? new Date(session.last_human_interaction_at)
-        : new Date(0)
-
-      const { data: recentMsgs } = await supabase
-        .from('whatsapp_messages')
-        .select('created_at, sender_type')
-        .eq('lead_id', lead.id)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      let alreadySentInThisBlock = false
-      let lastAnaTime = lastHumanAt.getTime()
-      let lastStandbyTime = 0
-
-      if (recentMsgs) {
-        const lastStandbyMsg = recentMsgs.find(
-          (m: any) =>
-            (m.sender_type === 'assistant' || m.sender_type === 'catarina') && m.created_at,
-        )
-        if (lastStandbyMsg) {
-          lastStandbyTime = new Date(lastStandbyMsg.created_at).getTime()
-        }
-        const lastAnaMsg = recentMsgs.find(
-          (m: any) => (m.sender_type === 'user' || m.sender_type === 'ana') && m.created_at,
-        )
-        if (lastAnaMsg) {
-          lastAnaTime = Math.max(lastAnaTime, new Date(lastAnaMsg.created_at).getTime())
-        }
-        alreadySentInThisBlock = lastStandbyTime > lastAnaTime
-      }
-
-      if (diffMins >= 60 && lastAnaTime <= lastCustomerMsgAt.getTime()) {
-        if (!alreadySentInThisBlock) {
-          const botMsg = `Por favor, aguarde o retorno da Ana. Ela responderá em breve.`
-
-          const { error: insertCatarinaStandbyErr } = await supabase
-            .from('whatsapp_messages')
-            .insert({
-              lead_id: lead.id,
-              phone,
-              sender_type: 'catarina',
-              sender_name: 'Catarina',
-              content: botMsg,
-              direction: 'outbound',
-              created_at: new Date().toISOString(),
-            })
-
-          if (insertCatarinaStandbyErr)
-            console.error(
-              'Erro ao inserir mensagem da Catarina (Espera):',
-              insertCatarinaStandbyErr,
-            )
-
-          await sendZapiMessage(phone, botMsg)
-
-          const { data: cli } = await supabase
-            .from('clientes')
-            .select('id')
-            .eq('lead_id', lead.id)
-            .maybeSingle()
-          if (cli) {
-            await supabase.from('timeline_eventos').insert({
-              cliente_id: cli.id,
-              usuario_nome: 'Catarina',
-              acao: 'Mensagem de espera enviada pela Catarina (Atraso Humano)',
-              icone: '⏳',
-            })
-          }
-        }
-      }
-
-      await supabase
-        .from('whatsapp_sessions')
-        .update({
-          updated_at: nowStr,
-        })
+        .update({ updated_at: nowStr })
         .eq('id', session.id)
 
-      await supabase
+      if (sessionTouchErr) console.error('Erro ao atualizar sessão (inbound):', sessionTouchErr)
+    }
+
+    if (lead) {
+      const updatePayload: any = {
+        atualizado_em: nowStr,
+        status_atendimento: 'aguardando_resposta',
+      }
+
+      // Auto-advance brand-new leads to "Aguardando Consultor" so they appear
+      // in the team's manual pipeline. No AI response is sent.
+      if (lead.status === 'Novo Lead') {
+        updatePayload.status = 'Aguardando Consultor'
+      }
+
+      const { error: leadUpdateErr } = await supabase
         .from('leads')
-        .update({
-          atualizado_em: nowStr,
-          status_atendimento: 'aguardando_resposta',
-        })
+        .update(updatePayload)
         .eq('id', lead.id)
 
-      return new Response('Handed over', { status: 200 })
+      if (leadUpdateErr) console.error('Erro ao atualizar lead (inbound):', leadUpdateErr)
     }
 
-    // AI Flow
-    await supabase
-      .from('whatsapp_sessions')
-      .update({
-        updated_at: nowStr,
-      })
-      .eq('id', session.id)
-
-    const { data: pastMsgs } = await supabase
-      .from('whatsapp_messages')
-      .select('*')
-      .eq('lead_id', lead.id)
-      .order('created_at', { ascending: true })
-      .limit(100)
-
-    const systemPrompt = `Você é a Catarina, SDR (Sales Development Representative) e consultora virtual da fábrica de móveis de alto padrão Bender Haussform.
-Sua personalidade é "Elegância Acolhedora" - educada, empática, sofisticada, mas acessível. Você atua como parceira da Ana, nossa especialista comercial.
-
-Nossa fábrica e loja ficam localizadas em **Balneário Piçarras - SC**.
-Nossos principais serviços são:
-1. Projeto e fabricação própria de móveis sob medida.
-2. Fabricação de projetos de arquitetos, designers de interiores e projetistas.
-3. Fornecimento de móveis soltos (cadeiras, sofás, camas, etc.) compatibilizados com a estética do projeto sob medida.
-4. Serviço de Acompanhamento de Obras.
-
-Seu objetivo é fazer uma triagem inicial do cliente de forma conversacional.
-Você precisa descobrir as seguintes informações (faça UMA pergunta por vez, flua com a conversa, sem pressa para encerrar):
-1. O ambiente que deseja transformar.
-2. Como conheceu a Bender (Instagram, indicação, etc.).
-3. Em qual cidade ou bairro fica o imóvel.
-4. Status do imóvel (planta, reforma, pronto).
-5. Ideia de investimento estimado.
-
-Regras de Ouro:
-- VERIFIQUE O HISTÓRICO: O histórico da conversa está nas mensagens anteriores. Se você já falou com o cliente antes, NÃO se apresente novamente e retome o assunto de forma natural (ex: "Dando sequência ao que falávamos...").
-- PRIMEIRA MENSAGEM: Se não houver histórico de conversas, apresente-se amigavelmente. Ex: "Olá! Sou a Catarina, Consultora Virtual da Bender Haussform, de Balneário Piçarras - SC."
-- TRANSIÇÃO PARA A ANA: Quando for realizar o transbordo, NÃO se despeça nem diga que vai repassar para a Ana. Apenas forneça a última resposta natural ao cliente (ex: confirmando que entendeu) e marque "transbordo": true. O sistema adicionará automaticamente a mensagem de transbordo correta.
-- Trate o cliente pelo nome se souber (nome atual fornecido pelo WhatsApp: ${senderName}).
-- Seja natural, não pareça um formulário robótico. Reaja ao que o cliente diz.
-- Atendemos exclusivamente o litoral de SC e regiões próximas a Balneário Piçarras. Se o cliente for de uma cidade fora da área, informe educadamente, MAS NÃO ENCERRE o atendimento bruscamente.
-- NÃO ENCERRE O ATENDIMENTO CEDO DEMAIS. Só marque transbordo = true QUANDO:
-  a) O cliente pedir explicitamente para falar com um consultor/humano/Ana; OU
-  b) O assunto for assistência técnica/reparo; OU
-  c) Você já tiver finalizado a coleta de TODAS as informações principais (os 5 pontos de triagem) e for a hora de repassar para a Ana.
-- Retorne SEMPRE um JSON válido com a seguinte estrutura:
-{
-  "resposta": "Sua resposta aqui. Pode usar ||| para quebrar em múltiplas mensagens",
-  "transbordo": boolean,
-  "dados_extraidos": {
-    "ambiente": "string (ou null)",
-    "origem": "string (ou null)",
-    "localizacao": "string (ou null)",
-    "status_imovel": "string (ou null)",
-    "investimento": "string (ou null)",
-    "categoria": "Comercial | Já é Cliente | Fornecedor | Assistência | Currículo | Arquiteto Externo | Parceiro | Equipe | Outros Assuntos (Tente adivinhar qual é com base no assunto. Se incerto, use 'Comercial')"
-  }
-}
-IMPORTANTE: Em 'dados_extraidos', só preencha os campos com informações que o cliente acabou de fornecer nesta última mensagem (com exceção de 'categoria', que você pode inferir do contexto). Para informações antigas ou ainda não fornecidas, use null.
-
-Notas da administração sobre o Lead (Leve em consideração para o contexto):
-${lead.notas || 'Nenhuma nota adicional'}`
-
-    const messages: any[] = [{ role: 'system', content: systemPrompt }]
-
-    if (pastMsgs) {
-      for (const m of pastMsgs) {
-        if (m.sender_type === 'lead' || m.sender_type === 'cliente') {
-          messages.push({ role: 'user', content: m.content })
-        } else {
-          messages.push({ role: 'assistant', content: m.content })
-        }
-      }
-    }
-
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')
-
-    try {
-      if (!openaiKey) {
-        throw new Error('OPENAI_API_KEY não configurada nas variáveis de ambiente.')
-      }
-
-      const openai = new OpenAI({ apiKey: openaiKey })
-
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
-      })
-
-      const resultText = completion.choices[0].message.content
-      if (!resultText) throw new Error('Sem resposta da IA')
-
-      const result = JSON.parse(resultText)
-      const responseText = result.resposta || ''
-      const isTransbordo = result.transbordo === true
-      const dados = result.dados_extraidos || {}
-
-      await processResponse(supabase, lead, session, phone, responseText, isTransbordo, dados)
-
-      return new Response('OK', { status: 200 })
-    } catch (apiError: any) {
-      console.error('Erro na API da OpenAI ou processamento de IA:', apiError)
-
-      const isConfigError = apiError.message?.includes('OPENAI_API_KEY')
-
-      const fallbackResponse = isConfigError
-        ? `Desculpe, meu sistema está temporariamente indisponível. Por favor, tente enviar sua mensagem novamente em instantes.`
-        : `Tive uma falha técnica de conexão. Você pode tentar novamente ou aguardar a Ana falar com você.`
-
-      await processResponse(supabase, lead, session, phone, fallbackResponse, !isConfigError, {})
-      return new Response('OK', { status: 200 })
-    }
+    return new Response('Inbound logged (manual mode)', { status: 200 })
   } catch (e: any) {
     console.error('Erro geral no webhook:', e)
     return new Response('Error', { status: 500 })
   }
 })
-
-async function processResponse(
-  supabase: any,
-  lead: any,
-  session: any,
-  phone: string,
-  responseText: string,
-  isTransbordo: boolean,
-  dados: any,
-) {
-  let messagesToSend = responseText
-    .split('|||')
-    .map((m: string) => m.trim())
-    .filter(Boolean)
-
-  const now = new Date()
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000
-  const brTime = new Date(utc - 3600000 * 3)
-  const day = brTime.getDay()
-  const hour = brTime.getHours()
-
-  const isWeekend = day === 0 || day === 6 || (day === 5 && hour >= 18)
-
-  let nextStep = session.step
-  let nextStatus = lead.status
-
-  if (isTransbordo) {
-    if (isWeekend) {
-      nextStep = 90
-      messagesToSend.push(
-        'Vou passar para a Ana, nossa especialista. Como é fim de semana, ela vai entrar em contato com você segunda-feira de manhã. Tá bom?',
-      )
-      messagesToSend.push('Quer que eu anote algo mais para ela?')
-    } else {
-      nextStep = 99
-      nextStatus = 'Aguardando Consultor'
-      messagesToSend.push(
-        'Vou passar para a Ana, nossa especialista. Ela vai ligar para conversar sobre o projeto.',
-      )
-    }
-  } else if (session.step === 0) {
-    nextStep = 1
-  }
-
-  const validCategorias = [
-    'Comercial',
-    'Já é Cliente',
-    'Fornecedor',
-    'Assistência',
-    'Currículo',
-    'Arquiteto Externo',
-    'Parceiro',
-    'Equipe',
-    'Outros Assuntos',
-  ]
-  const catSugerida =
-    dados.categoria && validCategorias.includes(dados.categoria) ? dados.categoria : lead.categoria
-
-  const updatePayload: any = {
-    status: nextStatus,
-    atualizado_em: new Date().toISOString(),
-  }
-
-  if (isTransbordo) {
-    updatePayload.status_atendimento = 'aguardando_resposta'
-  }
-
-  if (catSugerida && catSugerida !== lead.categoria) {
-    updatePayload.categoria = catSugerida
-  }
-
-  if (dados.origem && dados.origem !== 'null') {
-    updatePayload.origem = `WhatsApp - ${String(dados.origem).substring(0, 50)}`
-  }
-
-  const { error: updateLeadErr } = await supabase
-    .from('leads')
-    .update(updatePayload)
-    .eq('id', lead.id)
-
-  if (updateLeadErr) console.error('Erro ao atualizar status/categoria do lead:', updateLeadErr)
-
-  if (nextStep !== session.step) {
-    const { error: updateSessionErr } = await supabase
-      .from('whatsapp_sessions')
-      .update({ step: nextStep, updated_at: new Date().toISOString() })
-      .eq('id', session.id)
-
-    if (updateSessionErr) console.error('Erro ao atualizar step da sessão:', updateSessionErr)
-  }
-
-  if (messagesToSend.length > 0) {
-    const finalContentToSave = messagesToSend.join('\n\n')
-    const { error: insertCatarinaErr } = await supabase.from('whatsapp_messages').insert({
-      lead_id: lead.id,
-      phone,
-      sender_type: 'catarina',
-      sender_name: 'Catarina',
-      content: finalContentToSave,
-      direction: 'outbound',
-      created_at: new Date().toISOString(),
-    })
-
-    if (insertCatarinaErr)
-      console.error('Erro ao inserir mensagem da Catarina (Resposta):', insertCatarinaErr)
-
-    const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
-    const zapiToken = Deno.env.get('ZAPI_TOKEN')
-
-    if (zapiInstance && zapiToken) {
-      const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
-
-      try {
-        for (let i = 0; i < messagesToSend.length; i++) {
-          const msg = messagesToSend[i]
-          const payload = {
-            phone,
-            message: msg,
-          }
-
-          const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            'Client-Token':
-              Deno.env.get('ZAPI_CLIENT_TOKEN') || 'Fcd7b503ddede4e319ddc7e79f96948daS',
-          }
-
-          const zapiRes = await fetch(zapiUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-          })
-
-          if (!zapiRes.ok) {
-            console.error('Erro na resposta do Z-API:', zapiRes.status, 'Payload:', payload)
-          }
-
-          if (i < messagesToSend.length - 1) {
-            let delay = 1500
-            if (isTransbordo && isWeekend && i === messagesToSend.length - 2) {
-              delay = 2000
-            }
-            await new Promise((resolve) => setTimeout(resolve, delay))
-          }
-        }
-      } catch (e) {
-        console.error('Falha de rede ao chamar Z-API:', e)
-      }
-    }
-  }
-}
