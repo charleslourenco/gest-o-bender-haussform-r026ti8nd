@@ -1,0 +1,57 @@
+import { supabase } from '@/lib/supabase/client'
+
+export interface ContaPagar {
+  id: string
+  user_id: string | null
+  fornecedor: string
+  descricao: string | null
+  categoria: string | null
+  valor: number
+  data_vencimento: string | null
+  data_pagamento: string | null
+  status_pagamento: string
+  codigo_barras: string | null
+  comprovante_url: string | null
+  meio_pagamento: string | null
+  antecipado: boolean | null
+  conta_bancaria_id: string | null
+  nota_fiscal_id: string | null
+  criado_em: string
+  atualizado_em: string
+}
+
+export async function fetchContasPagar(): Promise<{
+  data: ContaPagar[] | null
+  error: string | null
+}> {
+  const { data, error } = await supabase
+    .from('contas_pagar')
+    .select('*')
+    .order('criado_em', { ascending: false })
+  return { data: data as ContaPagar[] | null, error: error?.message || null }
+}
+
+export async function fetchContasPagarSemVencimento(): Promise<{
+  data: ContaPagar[] | null
+  error: string | null
+}> {
+  const { data, error } = await supabase
+    .from('contas_pagar')
+    .select('*')
+    .is('data_vencimento', null)
+    .order('criado_em', { ascending: false })
+  return { data: data as ContaPagar[] | null, error: error?.message || null }
+}
+
+export async function updateDataVencimento(
+  id: string,
+  dataVencimento: string,
+): Promise<{ data: ContaPagar | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('contas_pagar')
+    .update({ data_vencimento: dataVencimento, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+  return { data: data as ContaPagar | null, error: error?.message || null }
+}

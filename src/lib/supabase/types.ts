@@ -2752,6 +2752,18 @@ export type Database = {
         }
         Returns: string
       }
+      reprocess_missing_signed_documents: {
+        Args: never
+        Returns: {
+          cliente_id: string
+          documento_id: string
+          documentos_cliente_id: string
+          envelope_id: string
+          erro: string
+          estado: string
+          http_req_id: number
+        }[]
+      }
       try_finalize_signature: {
         Args: {
           p_cliente_id?: string
