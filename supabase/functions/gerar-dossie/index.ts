@@ -194,8 +194,15 @@ Deno.serve(async (req) => {
       CLIENTE_NOME: form.cliente?.nome || '',
       CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
       CPF_CLIENTE: form.cliente?.cpf || form.cpf || '',
-      CLIENTE_PROFISSAO: form.profissao || '',
-      CLIENTE_ESTADO_CIVIL: form.estado_civil || '',
+      TIPO_PESSOA:
+        (form as any).tipo_pessoa ||
+        ((form.cliente?.cpf || form.cpf || '').replace(/\D/g, '').length === 14 ? 'PJ' : 'PF'),
+      NOME_FANTASIA: (form as any).nome_fantasia || (form.cliente as any)?.nome_fantasia || '',
+      INSCRICAO_ESTADUAL:
+        (form as any).inscricao_estadual || (form.cliente as any)?.inscricao_estadual || '',
+      DATA_ABERTURA: formatDate((form as any).data_abertura || ''),
+      CLIENTE_PROFISSAO: (form as any).tipo_pessoa === 'PJ' ? '' : form.profissao || '',
+      CLIENTE_ESTADO_CIVIL: (form as any).tipo_pessoa === 'PJ' ? '' : form.estado_civil || '',
       CLIENTE_TELEFONE: form.cliente?.telefone || '',
       CLIENTE_EMAIL: form.cliente?.email || '',
       CLIENTE_CEP: form.cep || form.cliente?.cep || '',

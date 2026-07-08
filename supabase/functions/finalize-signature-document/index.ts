@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const COMPLETED_STATUSES = ['assinado', 'concluído', 'concluido', 'signed', 'completed']
+
+function isCompletedStatus(status: string | null | undefined): boolean {
+  return COMPLETED_STATUSES.includes((status || '').toLowerCase())
+}
+
 async function generatePdfMonkeyDocument(templateId: string, payload: any, apiKey: string) {
   const reqBody = {
     document: {
@@ -68,7 +74,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { documento_id, cliente_id } = await req.json()
+    const { documento_id, cliente_id, manual, envelope_id: bodyEnvelopeId } = await req.json()
 
     if (!documento_id) {
       throw new Error('documento_id é obrigatório (deve ser o arquivo_url do documento)')
@@ -79,35 +85,78 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    // Fetch the documentos_cliente record early so we can resolve envelope_id
+    const { data: docCliente } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('arquivo_url', documento_id)
+      .maybeSingle()
+
+    const envelopeId = bodyEnvelopeId || docCliente?.envelope_id
+
+    // ---- Idempotency: skip if document is already fully finalized ----
+    if (docCliente && isCompletedStatus(docCliente.status) && docCliente.arquivo_assinado_url) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Document already finalized — skipping duplicate processing',
+          idempotent: true,
+          url: docCliente.arquivo_assinado_url,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // ---- Signature reconciliation ----
+    // Primary source: assinantes table linked by envelope_id
+    let assinantes: any[] = []
+    if (envelopeId) {
+      const { data: assinantesData, error: assinantesError } = await supabase
+        .from('assinantes')
+        .select('*')
+        .eq('envelope_id', envelopeId)
+      if (assinantesError) throw assinantesError
+      assinantes = assinantesData || []
+    }
+
+    // Legacy/fallback source: assinaturas table linked by documento_id
     const { data: assinaturas, error: sigError } = await supabase
       .from('assinaturas')
       .select('*')
       .eq('documento_id', documento_id)
-
     if (sigError) throw sigError
 
-    const pendentesCount = assinaturas?.filter((sig) => sig.status === 'pendente').length || 0
-    if (pendentesCount > 0 || !assinaturas?.length) {
+    const assinaturasList = assinaturas || []
+
+    // Determine if fully signed (case-insensitive)
+    let fullySigned = false
+    let pendingCount = 0
+
+    if (assinantes.length > 0) {
+      pendingCount = assinantes.filter((a) => !isCompletedStatus(a.status)).length
+      fullySigned = pendingCount === 0
+    } else if (assinaturasList.length > 0) {
+      pendingCount = assinaturasList.filter((a) => !isCompletedStatus(a.status)).length
+      fullySigned = pendingCount === 0
+    }
+
+    if (!fullySigned) {
       return new Response(
-        JSON.stringify({ success: false, message: 'Aguardando demais assinaturas' }),
+        JSON.stringify({
+          success: false,
+          message: 'Aguardando conclusão de todos os assinantes',
+          pending: pendingCount,
+        }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         },
       )
     }
 
-    const { data: docCliente } = await supabase
-      .from('documentos_cliente')
-      .select('*')
-      .eq('arquivo_url', documento_id)
-      .single()
-
     let finalFilePath = documento_id
     let uploadBucket = 'bender_clientes'
 
     let nomeCliente = 'Cliente'
-    let cltOrPjId = null
-    let cltOrPjType = ''
 
     if (docCliente && docCliente.template_id) {
       const { data: template } = await supabase
@@ -145,13 +194,6 @@ Deno.serve(async (req: Request) => {
               val,
             )
           }
-          const formatNumber = (val: number) => {
-            if (!val && val !== 0) return '0,00'
-            return new Intl.NumberFormat('pt-BR', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(val)
-          }
           const formatDate = (dateStr: string) => {
             if (!dateStr) return ''
             const [y, m, d] = dateStr.split('-')
@@ -164,7 +206,6 @@ Deno.serve(async (req: Request) => {
               .from('produtos_servicos_projeto')
               .select('*')
               .eq('formulario_comercial_id', form.id)
-
             if (projProdutos && projProdutos.length > 0) {
               produtos = projProdutos
             }
@@ -218,6 +259,8 @@ Deno.serve(async (req: Request) => {
             if (cep) str += `, ${cep}`
             return str.replace(/^, /, '').trim()
           }
+
+          const signersForPayload = assinantes.length > 0 ? assinantes : assinaturasList
 
           const placeholders: any = {
             NOME_CLIENTE: form.cliente?.nome || '',
@@ -311,26 +354,32 @@ Deno.serve(async (req: Request) => {
               meio: p.meio || form.metodo_pagamento || 'Não informado',
             })),
             is_assinado: true,
-            assinaturas: assinaturas.map((sig) => {
+            assinaturas: signersForPayload.map((sig: any) => {
               let dataFormatada = 'N/A'
-              if (sig.data_assinatura) {
-                const d = new Date(sig.data_assinatura)
+              const rawDate = sig.assinado_em || sig.data_assinatura
+              if (rawDate) {
+                const d = new Date(rawDate)
                 const pad = (n: number) => n.toString().padStart(2, '0')
                 dataFormatada = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
               }
+              const signerName =
+                sig.nome_completo || sig.signatario_nome || sig.nome || 'Signatário'
+              const signerCpf = sig.cpf || sig.signatario_cpf || 'N/A'
+              const signerEmail = sig.email || sig.signatario_email || 'N/A'
+              const signerTipo = sig.papel || sig.signatario_tipo || 'signatario'
               return {
-                nome: sig.signatario_nome,
-                signatario_nome: sig.signatario_nome,
-                tipo: sig.signatario_tipo,
-                cpf: sig.signatario_cpf || 'N/A',
-                signatario_cpf: sig.signatario_cpf || 'N/A',
-                email: sig.signatario_email || 'N/A',
+                nome: signerName,
+                signatario_nome: signerName,
+                tipo: signerTipo,
+                cpf: signerCpf,
+                signatario_cpf: signerCpf,
+                email: signerEmail,
                 data: dataFormatada,
                 data_assinatura: dataFormatada,
-                ip: sig.ip_assinatura || 'N/A',
-                codigo: sig.codigo_confirmacao,
-                codigo_confirmacao: sig.codigo_confirmacao,
-                assinatura_imagem: sig.assinatura_imagem,
+                ip: sig.ip_address || sig.ip_assinatura || 'N/A',
+                codigo: sig.codigo_verificacao || sig.codigo_confirmacao,
+                codigo_confirmacao: sig.codigo_verificacao || sig.codigo_confirmacao,
+                assinatura_imagem: sig.assinatura_base64 || sig.assinatura_imagem,
               }
             }),
           }
@@ -352,7 +401,7 @@ Deno.serve(async (req: Request) => {
               .replace(/[^a-zA-Z0-9]/g, '_')
             const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
 
-            finalFilePath = `contratos/${cliente_id}/${fileName}`
+            finalFilePath = `contratos/${cliente_id || docCliente.cliente_id}/${fileName}`
 
             const { error: uploadError } = await supabase.storage
               .from(uploadBucket)
@@ -365,54 +414,94 @@ Deno.serve(async (req: Request) => {
               .update({
                 arquivo_assinado_url: finalFilePath,
                 status: 'Assinado',
+                atualizado_em: new Date().toISOString(),
               })
               .eq('id', docCliente.id)
           } catch (e: any) {
-            await supabase
-              .from('logs_ia')
-              .insert({
-                acao: 'finalize_signature_pdfmonkey_error',
-                detalhes: { error: e.message },
-              })
+            await supabase.from('logs_ia').insert({
+              acao: 'finalize_signature_pdfmonkey_error',
+              detalhes: { error: e.message, documento_id },
+            })
             throw e
           }
+        } else {
+          // No form found: mark as signed using original arquivo_url
+          if (docCliente) {
+            finalFilePath = docCliente.arquivo_url || documento_id
+            await supabase
+              .from('documentos_cliente')
+              .update({
+                status: 'Assinado',
+                arquivo_assinado_url: finalFilePath,
+                atualizado_em: new Date().toISOString(),
+              })
+              .eq('id', docCliente.id)
+          }
+        }
+      } else {
+        // Template without external_template_id: mark as signed
+        if (docCliente) {
+          finalFilePath = docCliente.arquivo_url || documento_id
+          await supabase
+            .from('documentos_cliente')
+            .update({
+              status: 'Assinado',
+              arquivo_assinado_url: finalFilePath,
+              atualizado_em: new Date().toISOString(),
+            })
+            .eq('id', docCliente.id)
         }
       }
     } else {
-      const firstSig = assinaturas?.[0]
-      if (firstSig?.clt_id) {
-        cltOrPjId = firstSig.clt_id
-        cltOrPjType = 'clt'
-        nomeCliente = 'Colaborador'
-      } else if (firstSig?.pj_id) {
-        cltOrPjId = firstSig.pj_id
-        cltOrPjType = 'pj'
-        nomeCliente = 'Parceiro'
-      }
-      // Manual/uploaded documents: mark as signed without PDF regeneration
+      // Manual/uploaded documents: mark as signed using the original arquivo_url
       if (docCliente) {
+        finalFilePath = docCliente.arquivo_url || documento_id
         await supabase
           .from('documentos_cliente')
-          .update({ status: 'Assinado' })
+          .update({
+            status: 'Assinado',
+            arquivo_assinado_url: finalFilePath,
+            atualizado_em: new Date().toISOString(),
+          })
           .eq('id', docCliente.id)
       }
     }
 
-    // Check envelope completion: if this doc belongs to an envelope, verify all docs are signed
-    if (docCliente?.envelope_id) {
+    // Check envelope completion
+    if (envelopeId) {
       const { data: envDocs } = await supabase
         .from('documentos_cliente')
-        .select('id, status')
-        .eq('envelope_id', docCliente.envelope_id)
+        .select('id, status, arquivo_assinado_url')
+        .eq('envelope_id', envelopeId)
 
       const allDone =
-        envDocs && envDocs.length > 0 && envDocs.every((d: any) => d.status === 'Assinado')
+        envDocs &&
+        envDocs.length > 0 &&
+        envDocs.every((d: any) => isCompletedStatus(d.status) || !!d.arquivo_assinado_url)
+
       if (allDone) {
         await supabase
           .from('envelopes_assinatura')
           .update({ status: 'concluido', concluido_em: new Date().toISOString() })
-          .eq('id', docCliente.envelope_id)
+          .eq('id', envelopeId)
+
+        // Mark all assinantes as completed if not already
+        await supabase
+          .from('assinantes')
+          .update({ status: 'Assinado' })
+          .eq('envelope_id', envelopeId)
+          .neq('status', 'Assinado')
       }
+    }
+
+    if (docCliente?.cliente_id) {
+      try {
+        await supabase.from('timeline_eventos').insert({
+          cliente_id: docCliente.cliente_id,
+          usuario_nome: manual ? 'Usuário (Ação Manual)' : 'Sistema (Automático)',
+          acao: `${manual ? 'Reprocessamento de PDF solicitado' : 'Finalização automática'} do documento assinado: ${docCliente?.template_nome || docCliente?.tipo || documento_id}`,
+        })
+      } catch (_logErr) {}
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
@@ -420,7 +509,7 @@ Deno.serve(async (req: Request) => {
       const { data: fileData, error: downloadError } = await supabase.storage
         .from(uploadBucket)
         .download(finalFilePath)
-      let attachments = []
+      let attachments: any[] = []
 
       if (!downloadError && fileData) {
         const arrayBuffer = await fileData.arrayBuffer()
@@ -434,10 +523,7 @@ Deno.serve(async (req: Request) => {
         const fileNameParts = finalFilePath.split('/')
         const name = fileNameParts[fileNameParts.length - 1]
 
-        attachments.push({
-          filename: name,
-          content: base64Content,
-        })
+        attachments.push({ filename: name, content: base64Content })
       }
 
       const { data: urlData } = await supabase.storage
@@ -445,8 +531,11 @@ Deno.serve(async (req: Request) => {
         .createSignedUrl(finalFilePath, 315360000)
       const signedUrl = urlData?.signedUrl || ''
 
-      for (const sig of assinaturas || []) {
-        if (sig.signatario_email) {
+      const signersForEmail = assinantes.length > 0 ? assinantes : assinaturasList
+      for (const sig of signersForEmail) {
+        const email = sig.email || sig.signatario_email
+        const nome = sig.nome_completo || sig.signatario_nome || 'Signatário'
+        if (email) {
           try {
             await fetch('https://api.resend.com/emails', {
               method: 'POST',
@@ -456,12 +545,12 @@ Deno.serve(async (req: Request) => {
               },
               body: JSON.stringify({
                 from: 'Bender Haussform <projetos@benderhaussform.com>',
-                to: [sig.signatario_email],
-                subject: `Documento Assinado Finalizado: ${sig.documento_nome}`,
+                to: [email],
+                subject: `Documento Assinado Finalizado: ${docCliente?.template_nome || docCliente?.tipo || 'Documento'}`,
                 html: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-                    <h2 style="color: #333;">Olá, ${sig.signatario_nome}</h2>
-                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${sig.documento_nome}</strong> foi concluído com sucesso. O documento final está anexado a este e-mail.</p>
+                    <h2 style="color: #333;">Olá, ${nome}</h2>
+                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${docCliente?.template_nome || docCliente?.tipo || 'Documento'}</strong> foi concluído com sucesso. O documento final está anexado a este e-mail.</p>
                     <div style="text-align: center; margin: 30px 0;">
                       <a href="${signedUrl}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
                     </div>
@@ -470,7 +559,7 @@ Deno.serve(async (req: Request) => {
                 attachments: attachments.length > 0 ? attachments : undefined,
               }),
             })
-          } catch (emailErr) {}
+          } catch (_emailErr) {}
         }
       }
     }
@@ -479,7 +568,7 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error.message, success: false }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

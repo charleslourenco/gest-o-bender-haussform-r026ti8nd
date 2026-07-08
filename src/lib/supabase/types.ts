@@ -327,14 +327,17 @@ export type Database = {
           complemento: string | null
           cpf: string | null
           criado_em: string
+          data_abertura: string | null
           data_nascimento: string | null
           email: string
           endereco_obra: string | null
           estado: string | null
           id: string
+          inscricao_estadual: string | null
           lead_id: string | null
           metragem_total: number | null
           nome: string
+          nome_fantasia: string | null
           numero: string | null
           profissao: string | null
           referencia_bancaria: string | null
@@ -342,6 +345,7 @@ export type Database = {
           status: string
           telefone: string
           tipo_imovel: string | null
+          tipo_pessoa: string | null
           usuario_id: string | null
         }
         Insert: {
@@ -352,14 +356,17 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          data_abertura?: string | null
           data_nascimento?: string | null
           email: string
           endereco_obra?: string | null
           estado?: string | null
           id?: string
+          inscricao_estadual?: string | null
           lead_id?: string | null
           metragem_total?: number | null
           nome: string
+          nome_fantasia?: string | null
           numero?: string | null
           profissao?: string | null
           referencia_bancaria?: string | null
@@ -367,6 +374,7 @@ export type Database = {
           status?: string
           telefone: string
           tipo_imovel?: string | null
+          tipo_pessoa?: string | null
           usuario_id?: string | null
         }
         Update: {
@@ -377,14 +385,17 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          data_abertura?: string | null
           data_nascimento?: string | null
           email?: string
           endereco_obra?: string | null
           estado?: string | null
           id?: string
+          inscricao_estadual?: string | null
           lead_id?: string | null
           metragem_total?: number | null
           nome?: string
+          nome_fantasia?: string | null
           numero?: string | null
           profissao?: string | null
           referencia_bancaria?: string | null
@@ -392,6 +403,7 @@ export type Database = {
           status?: string
           telefone?: string
           tipo_imovel?: string | null
+          tipo_pessoa?: string | null
           usuario_id?: string | null
         }
         Relationships: [
@@ -1430,6 +1442,7 @@ export type Database = {
       formulario_comercial: {
         Row: {
           ambientes: Json | null
+          arquivado: boolean | null
           atualizado_em: string
           bairro: string | null
           cep: string | null
@@ -1437,6 +1450,7 @@ export type Database = {
           complemento: string | null
           cpf: string | null
           criado_em: string
+          data_abertura: string | null
           data_nascimento: string | null
           data_pagamento: string | null
           data_prevista_entrega: string | null
@@ -1447,11 +1461,13 @@ export type Database = {
           estado_civil: string | null
           etapa_atual: number | null
           id: string
+          inscricao_estadual: string | null
           itens: Json | null
           lead_id: string
           metodo_pagamento: string | null
           municipio: string | null
           nome_cliente: string | null
+          nome_fantasia: string | null
           numero: string | null
           obra_bairro: string | null
           obra_cep: string | null
@@ -1466,11 +1482,13 @@ export type Database = {
           profissao: string | null
           rua: string | null
           status_analise_projeto: string | null
+          tipo_pessoa: string | null
           user_id: string
           valor_total: number | null
         }
         Insert: {
           ambientes?: Json | null
+          arquivado?: boolean | null
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null
@@ -1478,6 +1496,7 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          data_abertura?: string | null
           data_nascimento?: string | null
           data_pagamento?: string | null
           data_prevista_entrega?: string | null
@@ -1488,11 +1507,13 @@ export type Database = {
           estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
+          inscricao_estadual?: string | null
           itens?: Json | null
           lead_id: string
           metodo_pagamento?: string | null
           municipio?: string | null
           nome_cliente?: string | null
+          nome_fantasia?: string | null
           numero?: string | null
           obra_bairro?: string | null
           obra_cep?: string | null
@@ -1507,11 +1528,13 @@ export type Database = {
           profissao?: string | null
           rua?: string | null
           status_analise_projeto?: string | null
+          tipo_pessoa?: string | null
           user_id?: string
           valor_total?: number | null
         }
         Update: {
           ambientes?: Json | null
+          arquivado?: boolean | null
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null
@@ -1519,6 +1542,7 @@ export type Database = {
           complemento?: string | null
           cpf?: string | null
           criado_em?: string
+          data_abertura?: string | null
           data_nascimento?: string | null
           data_pagamento?: string | null
           data_prevista_entrega?: string | null
@@ -1529,11 +1553,13 @@ export type Database = {
           estado_civil?: string | null
           etapa_atual?: number | null
           id?: string
+          inscricao_estadual?: string | null
           itens?: Json | null
           lead_id?: string
           metodo_pagamento?: string | null
           municipio?: string | null
           nome_cliente?: string | null
+          nome_fantasia?: string | null
           numero?: string | null
           obra_bairro?: string | null
           obra_cep?: string | null
@@ -1548,6 +1574,7 @@ export type Database = {
           profissao?: string | null
           rua?: string | null
           status_analise_projeto?: string | null
+          tipo_pessoa?: string | null
           user_id?: string
           valor_total?: number | null
         }
@@ -2689,6 +2716,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_edge_auth_headers: { Args: never; Returns: Json }
       get_timeline_eventos: {
         Args: { p_cliente_id: string }
         Returns: {
@@ -2717,11 +2745,21 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_signature_completed: { Args: { p_status: string }; Returns: boolean }
       project_item_names: {
         Args: {
           psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
         }
         Returns: string
+      }
+      try_finalize_signature: {
+        Args: {
+          p_cliente_id?: string
+          p_documento_id: string
+          p_envelope_id?: string
+          p_manual?: boolean
+        }
+        Returns: undefined
       }
     }
     Enums: {

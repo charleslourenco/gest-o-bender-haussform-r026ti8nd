@@ -177,11 +177,21 @@ Deno.serve(async (req: Request) => {
 
       const clienteNome = form.nome_cliente || form.cliente?.nome || 'Cliente não informado'
       const cpf = form.cpf || form.cliente?.cpf || 'Não informado'
+      const tipo_pessoa =
+        (form as any).tipo_pessoa ||
+        (form.cliente as any)?.tipo_pessoa ||
+        (cpf.replace(/\D/g, '').length === 14 ? 'PJ' : 'PF')
+      const nome_fantasia =
+        (form as any).nome_fantasia || (form.cliente as any)?.nome_fantasia || ''
+      const inscricao_estadual =
+        (form as any).inscricao_estadual || (form.cliente as any)?.inscricao_estadual || ''
+      const data_abertura =
+        (form as any).data_abertura || (form.cliente as any)?.data_abertura || null
       const data_nascimento = form.data_nascimento || form.cliente?.data_nascimento || null
       const email = form.cliente?.email || 'Não informado'
       const telefone = form.cliente?.telefone || 'Não informado'
-      const profissao = form.profissao || 'Não informado'
-      const estado_civil = form.estado_civil || 'Não informado'
+      const profissao = tipo_pessoa === 'PJ' ? '' : form.profissao || 'Não informado'
+      const estado_civil = tipo_pessoa === 'PJ' ? '' : form.estado_civil || 'Não informado'
       const end_cep = form.cep || form.cliente?.cep || 'Não informado'
       const end_rua = form.rua || form.cliente?.endereco_obra || 'Não informado'
       const end_numero = form.numero || form.cliente?.numero || 'S/N'
@@ -302,6 +312,10 @@ Deno.serve(async (req: Request) => {
         CLIENTE_NOME: clienteNome,
         CLIENTE_CPF_CNPJ: cpf,
         CPF_CLIENTE: cpf,
+        TIPO_PESSOA: tipo_pessoa,
+        NOME_FANTASIA: nome_fantasia || 'Não informado',
+        INSCRICAO_ESTADUAL: inscricao_estadual || 'Não informado',
+        DATA_ABERTURA: formatDate(data_abertura),
         CLIENTE_DATA_NASCIMENTO: formatDate(data_nascimento),
         CLIENTE_PROFISSAO: profissao,
         CLIENTE_ESTADO_CIVIL: estado_civil,
