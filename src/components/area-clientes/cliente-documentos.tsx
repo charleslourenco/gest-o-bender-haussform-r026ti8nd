@@ -47,7 +47,12 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
   }
 
   const selectableDocs = docs.filter(
-    (d) => d.status !== 'processando' && d.status !== 'Assinado' && !d.envelope_id,
+    (d) =>
+      d.status !== 'processando' &&
+      d.status !== 'Assinado' &&
+      d.status !== 'concluido' &&
+      d.status !== 'erro_assinatura' &&
+      !d.envelope_id,
   )
   const allSelected =
     selectableDocs.length > 0 && selectableDocs.every((d) => selectedDocIds.has(d.id))
@@ -431,6 +436,31 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
     }
   }
 
+  const handleRetrySignature = async (doc: any) => {
+    toast.loading('Reestampando assinaturas no documento...', { id: 'retry-sig' })
+    try {
+      const body = {
+        documento_id: doc.arquivo_url,
+        cliente_id: dossie.cliente_id,
+        envelope_id: doc.envelope_id,
+        manual: true,
+      }
+
+      const { data, error } = await supabase.functions.invoke('finalize-signature-document', {
+        body,
+      })
+
+      if (error) throw new Error(error.message || 'Falha ao reprocessar assinatura')
+      if (data && !data.success && !data.idempotent)
+        throw new Error(data.error || data.message || 'Erro no processamento')
+
+      toast.success('Assinaturas reestampadas com sucesso!', { id: 'retry-sig' })
+      loadDocs()
+    } catch (e: any) {
+      toast.error(`Falha: ${e.message}`, { id: 'retry-sig' })
+    }
+  }
+
   const handlePreviewFile = async (url: string) => {
     try {
       const signedUrl = await getSignedUrl(url)
@@ -646,6 +676,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       disabled={
                         doc.status === 'processando' ||
                         doc.status === 'Assinado' ||
+                        doc.status === 'concluido' ||
+                        doc.status === 'erro_assinatura' ||
                         !!doc.envelope_id
                       }
                       className="shrink-0"
@@ -670,6 +702,8 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                           )
                         ) : doc.status === 'erro_geracao' ? (
                           <span className="text-red-600">❌ Erro ao gerar PDF.</span>
+                        ) : doc.status === 'erro_assinatura' ? (
+                          <span className="text-red-600">❌ Erro ao estampar assinaturas.</span>
                         ) : (
                           <span className="text-muted-foreground">{doc.status}</span>
                         )}
@@ -703,6 +737,17 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                         className="text-red-600 border-red-200 hover:bg-red-50 mr-2"
                       >
                         Tentar Novamente
+                      </Button>
+                    )}
+
+                    {doc.status === 'erro_assinatura' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRetrySignature(doc)}
+                        className="text-red-600 border-red-200 hover:bg-red-50 mr-2"
+                      >
+                        Reestampar Assinaturas
                       </Button>
                     )}
 

@@ -486,11 +486,12 @@ export type Database = {
           conta_bancaria_id: string | null
           criado_em: string
           data_pagamento: string | null
-          data_vencimento: string
+          data_vencimento: string | null
           descricao: string | null
           fornecedor: string
           id: string
           meio_pagamento: string | null
+          nota_fiscal_id: string | null
           status_pagamento: string
           user_id: string | null
           valor: number
@@ -504,11 +505,12 @@ export type Database = {
           conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
-          data_vencimento: string
+          data_vencimento?: string | null
           descricao?: string | null
           fornecedor: string
           id?: string
           meio_pagamento?: string | null
+          nota_fiscal_id?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor: number
@@ -522,11 +524,12 @@ export type Database = {
           conta_bancaria_id?: string | null
           criado_em?: string
           data_pagamento?: string | null
-          data_vencimento?: string
+          data_vencimento?: string | null
           descricao?: string | null
           fornecedor?: string
           id?: string
           meio_pagamento?: string | null
+          nota_fiscal_id?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor?: number
@@ -537,6 +540,13 @@ export type Database = {
             columns: ['conta_bancaria_id']
             isOneToOne: false
             referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_pagar_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'notas_fiscais'
             referencedColumns: ['id']
           },
         ]

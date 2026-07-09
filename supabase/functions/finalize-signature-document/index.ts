@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { stampAndSaveDocument, markSignatureError } from '../_shared/pdf-stamp.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -425,45 +426,57 @@ Deno.serve(async (req: Request) => {
             throw e
           }
         } else {
-          // No form found: mark as signed using original arquivo_url
+          // No form found: stamp original PDF with visual signatures
           if (docCliente) {
-            finalFilePath = docCliente.arquivo_url || documento_id
-            await supabase
-              .from('documentos_cliente')
-              .update({
-                status: 'Assinado',
-                arquivo_assinado_url: finalFilePath,
-                atualizado_em: new Date().toISOString(),
-              })
-              .eq('id', docCliente.id)
+            try {
+              finalFilePath = await stampAndSaveDocument(
+                supabase,
+                docCliente,
+                assinantes,
+                assinaturasList,
+                cliente_id || docCliente.cliente_id,
+                uploadBucket,
+              )
+            } catch (stampErr: any) {
+              await markSignatureError(supabase, docCliente, stampErr.message)
+              throw stampErr
+            }
           }
         }
       } else {
-        // Template without external_template_id: mark as signed
+        // Template without external_template_id: stamp original PDF
         if (docCliente) {
-          finalFilePath = docCliente.arquivo_url || documento_id
-          await supabase
-            .from('documentos_cliente')
-            .update({
-              status: 'Assinado',
-              arquivo_assinado_url: finalFilePath,
-              atualizado_em: new Date().toISOString(),
-            })
-            .eq('id', docCliente.id)
+          try {
+            finalFilePath = await stampAndSaveDocument(
+              supabase,
+              docCliente,
+              assinantes,
+              assinaturasList,
+              cliente_id || docCliente.cliente_id,
+              uploadBucket,
+            )
+          } catch (stampErr: any) {
+            await markSignatureError(supabase, docCliente, stampErr.message)
+            throw stampErr
+          }
         }
       }
     } else {
-      // Manual/uploaded documents: mark as signed using the original arquivo_url
+      // Manual/uploaded documents: stamp PDF with visual signatures
       if (docCliente) {
-        finalFilePath = docCliente.arquivo_url || documento_id
-        await supabase
-          .from('documentos_cliente')
-          .update({
-            status: 'Assinado',
-            arquivo_assinado_url: finalFilePath,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq('id', docCliente.id)
+        try {
+          finalFilePath = await stampAndSaveDocument(
+            supabase,
+            docCliente,
+            assinantes,
+            assinaturasList,
+            cliente_id || docCliente.cliente_id,
+            uploadBucket,
+          )
+        } catch (stampErr: any) {
+          await markSignatureError(supabase, docCliente, stampErr.message)
+          throw stampErr
+        }
       }
     }
 
