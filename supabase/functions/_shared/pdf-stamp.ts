@@ -1,190 +1,205 @@
-import { PDFDocument, StandardFonts, rgb } from 'npm:pdf-lib@1.17.1'
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'npm:pdf-lib@1'
 
-const PAGE_WIDTH = 595.28
-const PAGE_HEIGHT = 841.89
-const MARGIN = 50
-const BLOCK_HEIGHT = 140
-const BLOCK_SPACING = 20
-
-function isPdfFile(filePath: string | null | undefined): boolean {
-  if (!filePath) return false
-  return filePath.toLowerCase().split('?')[0].endsWith('.pdf')
+export interface StampMetadata {
+  nome?: string | null
+  cpf?: string | null
+  ip?: string | null
+  data?: string | null
+  email?: string | null
 }
 
-function formatTimestamp(dateStr: string | null | undefined): string {
-  if (!dateStr) return 'N/A'
-  const d = new Date(dateStr)
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+export interface StampSignature {
+  base64?: string | null
+  mimeType?: string | null
 }
 
-async function stampPdfWithSignatures(
-  supabaseClient: any,
-  bucket: string,
-  filePath: string,
-  signers: any[],
-): Promise<Uint8Array> {
-  const { data: fileData, error: downloadError } = await supabaseClient.storage
-    .from(bucket)
-    .download(filePath)
+const DEFAULT_FONT = StandardFonts.Helvetica
+const DEFAULT_FONT_BOLD = StandardFonts.HelveticaBold
 
-  if (downloadError || !fileData) {
-    throw new Error(`Failed to download original PDF: ${downloadError?.message || 'no data'}`)
+function stripDataUri(dataUri: string): { data: string; mime: string } {
+  const trimmed = dataUri.trim()
+  const match = trimmed.match(/^data:([a-zA-Z0-9/+.-]+);base64,(.*)$/)
+  if (match) {
+    return { data: match[2], mime: match[1] }
   }
+  return { data: trimmed, mime: 'image/png' }
+}
 
-  const pdfDoc = await PDFDocument.load(await fileData.arrayBuffer(), { ignoreEncryption: true })
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-
-  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-  let y = PAGE_HEIGHT - 60
-
-  const drawText = (text: string, x: number, yy: number, f: any, sz = 10) => {
-    try {
-      page.drawText(text, { x, y: yy, size: sz, font: f })
-    } catch (_e) {
-      // skip on encoding error
-    }
+function decodeBase64(b64: string): Uint8Array {
+  const clean = b64.replace(/\s/g, '')
+  const binary = atob(clean)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
   }
+  return bytes
+}
 
-  drawText('Página de Assinaturas', MARGIN, y, fontBold, 18)
-  y -= 10
-  page.drawLine({
-    start: { x: MARGIN, y },
-    end: { x: PAGE_WIDTH - MARGIN, y },
-    thickness: 1,
-    color: rgb(0.8, 0.8, 0.8),
-  })
-  y -= 40
-
-  for (const signer of signers) {
-    if (y - BLOCK_HEIGHT < MARGIN) {
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
-      y = PAGE_HEIGHT - 60
-    }
-
-    page.drawRectangle({
-      x: MARGIN,
-      y: y - BLOCK_HEIGHT,
-      width: PAGE_WIDTH - 2 * MARGIN,
-      height: BLOCK_HEIGHT,
-      borderColor: rgb(0.7, 0.7, 0.7),
-      borderWidth: 0.5,
-    })
-
-    if (signer.assinatura_base64) {
+async function embedSignatureImage(
+  pdfDoc: PDFDocument,
+  signature: StampSignature | null | undefined,
+): Promise<{ embed: any; width: number; height: number } | null> {
+  if (!signature || !signature.base64) return null
+  try {
+    const { data, mime } = stripDataUri(signature.base64)
+    const bytes = decodeBase64(data)
+    let embed: any
+    if (mime.includes('png')) {
+      embed = await pdfDoc.embedPng(bytes)
+    } else if (mime.includes('jpeg') || mime.includes('jpg')) {
+      embed = await pdfDoc.embedJpg(bytes)
+    } else {
+      // Try PNG first, then JPG
       try {
-        const base64 = signer.assinatura_base64.replace(/^data:image\/\w+;base64,/, '')
-        const imageBytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-        let img
-        try {
-          img = await pdfDoc.embedPng(imageBytes)
-        } catch (_pngErr) {
-          img = await pdfDoc.embedJpg(imageBytes)
-        }
-        const imgWidth = 200
-        const imgHeight = Math.min(90, img.height * (imgWidth / img.width))
-        page.drawImage(img, {
-          x: MARGIN + 10,
-          y: y - imgHeight - 25,
-          width: imgWidth,
-          height: imgHeight,
-        })
-      } catch (_imgErr) {
-        // skip image on error
+        embed = await pdfDoc.embedPng(bytes)
+      } catch {
+        embed = await pdfDoc.embedJpg(bytes)
       }
     }
-
-    const textX = MARGIN + 230
-    let textY = y - 25
-    const drawInfoLine = (label: string, value: string | null | undefined, isBold = false) => {
-      drawText(`${label}: ${value || 'N/A'}`, textX, textY, isBold ? fontBold : font)
-      textY -= 18
+    const maxWidth = 200
+    const maxHeight = 80
+    const scale = Math.min(maxWidth / embed.width, maxHeight / embed.height, 1)
+    return {
+      embed,
+      width: embed.width * scale,
+      height: embed.height * scale,
     }
-
-    drawInfoLine('Nome', signer.nome_completo || signer.signatario_nome, true)
-    drawInfoLine('CPF', signer.cpf || signer.signatario_cpf)
-    drawInfoLine('IP', signer.ip_address || signer.ip_assinatura)
-    drawInfoLine('Data', formatTimestamp(signer.assinado_em || signer.data_assinatura))
-    if (signer.codigo_verificacao || signer.codigo_confirmacao) {
-      drawInfoLine('Código', signer.codigo_verificacao || signer.codigo_confirmacao)
-    }
-
-    y -= BLOCK_HEIGHT + BLOCK_SPACING
+  } catch (err) {
+    console.error('pdf-stamp: failed to embed signature image', err)
+    return null
   }
-
-  return await pdfDoc.save()
 }
 
-export async function stampAndSaveDocument(
-  supabaseClient: any,
-  docCliente: any,
-  assinantes: any[],
-  assinaturasList: any[],
-  clienteId: string | null,
-  bucket: string,
-): Promise<string> {
-  const originalPath = docCliente?.arquivo_url || ''
-  if (!originalPath) throw new Error('Document has no arquivo_url to stamp')
-
-  if (!isPdfFile(originalPath)) {
-    await supabaseClient
-      .from('documentos_cliente')
-      .update({
-        status: 'concluido',
-        arquivo_assinado_url: originalPath,
-        atualizado_em: new Date().toISOString(),
-      })
-      .eq('id', docCliente.id)
-    return originalPath
-  }
-
-  const signers = assinantes.length > 0 ? assinantes : assinaturasList
-  if (signers.length === 0) throw new Error('No signers found for stamping')
-
-  const stampedBytes = await stampPdfWithSignatures(supabaseClient, bucket, originalPath, signers)
-
-  const safeNome = (docCliente.template_nome || docCliente.tipo || 'Documento')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]/g, '_')
-  const stampedPath = `contratos/${clienteId || docCliente.cliente_id}/Assinado_${safeNome}.pdf`
-
-  const { error: uploadError } = await supabaseClient.storage
-    .from(bucket)
-    .upload(stampedPath, stampedBytes, { contentType: 'application/pdf', upsert: true })
-
-  if (uploadError) throw uploadError
-
-  await supabaseClient
-    .from('documentos_cliente')
-    .update({
-      arquivo_assinado_url: stampedPath,
-      status: 'concluido',
-      atualizado_em: new Date().toISOString(),
-    })
-    .eq('id', docCliente.id)
-
-  return stampedPath
-}
-
-export async function markSignatureError(
-  supabaseClient: any,
-  docCliente: any,
-  errorMsg: string,
-): Promise<void> {
-  if (!docCliente) return
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return new Date().toLocaleString('pt-BR')
   try {
-    await supabaseClient
-      .from('documentos_cliente')
-      .update({ status: 'erro_assinatura', atualizado_em: new Date().toISOString() })
-      .eq('id', docCliente.id)
-
-    await supabaseClient.from('logs_ia').insert({
-      acao: 'finalize_signature_stamp_error',
-      detalhes: { error: errorMsg, documento_id: docCliente.id },
-    })
-  } catch (_e) {
-    // ignore secondary errors
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  } catch {
+    return dateStr
   }
+}
+
+function drawStampBlock(
+  page: PDFPage,
+  font: PDFFont,
+  fontBold: PDFFont,
+  meta: StampMetadata,
+  signatureImg: { embed: any; width: number; height: number } | null,
+  startX: number,
+  startY: number,
+): number {
+  const lineGap = 14
+  const padding = 12
+  let cursorY = startY
+  const labelColor = rgb(0.38, 0.38, 0.38)
+  const valueColor = rgb(0.12, 0.12, 0.12)
+  const accentColor = rgb(0.06, 0.34, 0.62)
+
+  page.drawRectangle({
+    x: startX,
+    y: startY - 4,
+    width: 320,
+    height: 4,
+    color: accentColor,
+  })
+
+  cursorY -= padding
+  page.drawText('Documento assinado eletronicamente', {
+    x: startX,
+    y: cursorY,
+    size: 9,
+    font: fontBold,
+    color: accentColor,
+  })
+  cursorY -= lineGap
+
+  if (signatureImg) {
+    try {
+      page.drawImage(signatureImg.embed, {
+        x: startX,
+        y: cursorY - signatureImg.height + 10,
+        width: signatureImg.width,
+        height: signatureImg.height,
+      })
+      cursorY -= signatureImg.height + 6
+    } catch (err) {
+      console.error('pdf-stamp: failed to draw signature image', err)
+    }
+  }
+
+  const rows: Array<[string, string]> = []
+  if (meta.nome) rows.push(['Nome:', meta.nome])
+  if (meta.cpf) rows.push(['CPF:', meta.cpf])
+  if (meta.email) rows.push(['E-mail:', meta.email])
+  if (meta.ip) rows.push(['IP:', meta.ip])
+  rows.push(['Data:', formatDate(meta.data)])
+
+  for (const [label, value] of rows) {
+    page.drawText(label, {
+      x: startX,
+      y: cursorY,
+      size: 8,
+      font: fontBold,
+      color: labelColor,
+    })
+    const labelWidth = fontBold.widthOfTextAtSize(label, 8) + 4
+    const truncated = value.length > 48 ? value.slice(0, 45) + '...' : value
+    page.drawText(truncated, {
+      x: startX + labelWidth,
+      y: cursorY,
+      size: 8,
+      font,
+      color: valueColor,
+    })
+    cursorY -= lineGap
+  }
+
+  cursorY -= 2
+  page.drawText('Assinatura válida nos termos da Lei nº 14.063/2020.', {
+    x: startX,
+    y: cursorY,
+    size: 7,
+    font,
+    color: labelColor,
+  })
+
+  return cursorY
+}
+
+export async function stampPdfWithSignature(
+  pdfBytes: Uint8Array,
+  meta: StampMetadata,
+  signature: StampSignature | null | undefined,
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
+  const font = await pdfDoc.embedFont(DEFAULT_FONT)
+  const fontBold = await pdfDoc.embedFont(DEFAULT_FONT_BOLD)
+  const signatureImg = await embedSignatureImage(pdfDoc, signature)
+
+  const pages = pdfDoc.getPages()
+  const lastPage = pages[pages.length - 1]
+  const { width } = lastPage.getSize()
+
+  const stampWidth = 320
+  const startX = Math.max(width - stampWidth - 36, 36)
+  const startY = 120
+
+  drawStampBlock(lastPage, font, fontBold, meta, signatureImg, startX, startY)
+
+  return await pdfDoc.save({ useObjectStreams: true })
+}
+
+export function buildSignatureFromSources(
+  base64FromAssinantes?: string | null,
+  imagemFromAssinaturas?: string | null,
+): StampSignature | null {
+  if (base64FromAssinantes && base64FromAssinantes.trim().length > 0) {
+    return { base64: base64FromAssinantes, mimeType: 'image/png' }
+  }
+  if (imagemFromAssinaturas && imagemFromAssinaturas.trim().length > 0) {
+    return { base64: imagemFromAssinaturas, mimeType: 'image/png' }
+  }
+  return null
 }

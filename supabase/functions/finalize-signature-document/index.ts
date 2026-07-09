@@ -1,72 +1,232 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'npm:@supabase/supabase-js@2'
-import { stampAndSaveDocument, markSignatureError } from '../_shared/pdf-stamp.ts'
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import {
+  stampPdfWithSignature,
+  buildSignatureFromSources,
+  type StampMetadata,
+} from '../_shared/pdf-stamp.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SERVICE_ROLE_KEY =
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY') ?? ''
+const STORAGE_BUCKET = 'bender-clientes'
+
+interface FinalizePayload {
+  documento_id?: string
+  cliente_id?: string
+  envelope_id?: string
+  manual?: boolean
 }
 
-const COMPLETED_STATUSES = ['assinado', 'concluído', 'concluido', 'signed', 'completed']
-
-function isCompletedStatus(status: string | null | undefined): boolean {
-  return COMPLETED_STATUSES.includes((status || '').toLowerCase())
+interface AssinanteRow {
+  assinatura_base64: string | null
+  nome_completo: string
+  cpf: string | null
+  email: string | null
+  ip_address: string | null
+  assinado_em: string | null
 }
 
-async function generatePdfMonkeyDocument(templateId: string, payload: any, apiKey: string) {
-  const reqBody = {
-    document: {
-      document_template_id: templateId,
-      payload: payload,
-      status: 'pending',
-    },
+interface AssinaturaRow {
+  assinatura_imagem: string | null
+  signatario_nome: string
+  signatario_cpf: string | null
+  signatario_email: string | null
+  ip_assinatura: string | null
+  data_assinatura: string | null
+}
+
+interface DocumentoClienteRow {
+  id: string
+  arquivo_url: string | null
+  arquivo_assinado_url: string | null
+  cliente_id: string | null
+  envelope_id: string | null
+  template_nome: string | null
+  status: string
+}
+
+function getPathFromUrl(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    return u.pathname.split(`/${STORAGE_BUCKET}/`)[1] ?? null
+  } catch {
+    // Not a URL — assume it's already a path
+    return url.startsWith(`/${STORAGE_BUCKET}/`) ? url.slice(`/${STORAGE_BUCKET}/`.length) : url
+  }
+}
+
+async function downloadPdf(supabase: any, path: string): Promise<Uint8Array | null> {
+  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(path)
+  if (error || !data) {
+    console.error('finalize: download error', error)
+    return null
+  }
+  const buf = await data.arrayBuffer()
+  return new Uint8Array(buf)
+}
+
+async function uploadSignedPdf(
+  supabase: any,
+  path: string,
+  bytes: Uint8Array,
+): Promise<string | null> {
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, bytes, { contentType: 'application/pdf', upsert: true })
+  if (error) {
+    console.error('finalize: upload error', error)
+    return null
+  }
+  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+  return pub?.publicUrl ?? null
+}
+
+async function findDocument(
+  supabase: any,
+  payload: FinalizePayload,
+): Promise<DocumentoClienteRow | null> {
+  let query = supabase.from('documentos_cliente').select('*')
+
+  if (payload.envelope_id) {
+    query = query.eq('envelope_id', payload.envelope_id)
+  } else if (payload.documento_id) {
+    query = query.eq('id', payload.documento_id)
+  } else if (payload.cliente_id) {
+    query = query
+      .eq('cliente_id', payload.cliente_id)
+      .order('criado_em', { ascending: false })
+      .limit(1)
+  } else {
+    return null
   }
 
-  const res = await fetch('https://api.pdfmonkey.io/api/v1/documents', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(reqBody),
+  const { data, error } = await query.limit(1).maybeSingle()
+  if (error) {
+    console.error('finalize: find document error', error)
+    return null
+  }
+  return (data as DocumentoClienteRow) ?? null
+}
+
+async function gatherSignatures(
+  supabase: any,
+  documento: DocumentoClienteRow,
+  payload: FinalizePayload,
+): Promise<{ signature: ReturnType<typeof buildSignatureFromSources>; meta: StampMetadata }> {
+  let assinante: AssinanteRow | null = null
+  let assinatura: AssinaturaRow | null = null
+
+  if (documento.envelope_id || payload.envelope_id) {
+    const envelopeId = documento.envelope_id ?? payload.envelope_id
+    const { data: assinanteData } = await supabase
+      .from('assinantes')
+      .select('assinatura_base64, nome_completo, cpf, email, ip_address, assinado_em')
+      .eq('envelope_id', envelopeId)
+      .eq('status', 'assinado')
+      .order('assinado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    assinante = (assinanteData as AssinanteRow) ?? null
+  }
+
+  if (documento.id) {
+    const { data: assinaturaData } = await supabase
+      .from('assinaturas')
+      .select(
+        'assinatura_imagem, signatario_nome, signatario_cpf, signatario_email, ip_assinatura, data_assinatura',
+      )
+      .or(`documento_id.eq.${documento.id}`)
+      .order('data_assinatura', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    assinatura = (assinaturaData as AssinaturaRow) ?? null
+  }
+
+  const signature = buildSignatureFromSources(
+    assinante?.assinatura_base64 ?? null,
+    assinatura?.assinatura_imagem ?? null,
+  )
+
+  const meta: StampMetadata = {
+    nome: assinante?.nome_completo ?? assinatura?.signatario_nome ?? null,
+    cpf: assinante?.cpf ?? assinatura?.signatario_cpf ?? null,
+    email: assinante?.email ?? assinatura?.signatario_email ?? null,
+    ip: assinante?.ip_address ?? assinatura?.ip_assinatura ?? null,
+    data: assinante?.assinado_em ?? assinatura?.data_assinatura ?? null,
+  }
+
+  return { signature, meta }
+}
+
+export async function finalizeDocument(
+  payload: FinalizePayload,
+): Promise<{ success: boolean; url: string | null; error?: string }> {
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+    return { success: false, url: null, error: 'Missing Supabase credentials' }
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false },
   })
 
-  if (!res.ok) {
-    const errorText = await res.text()
-    throw new Error(`PDFMonkey API error: ${res.status} - ${errorText}`)
+  const documento = await findDocument(supabase, payload)
+  if (!documento) {
+    return { success: false, url: null, error: 'Document not found' }
   }
 
-  const data = await res.json()
-  const docId = data.document.id
+  const sourcePath = getPathFromUrl(documento.arquivo_assinado_url ?? documento.arquivo_url)
+  if (!sourcePath) {
+    return { success: false, url: null, error: 'No source PDF path available' }
+  }
 
-  let downloadUrl = null
-  for (let i = 0; i < 15; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    const checkRes = await fetch(`https://api.pdfmonkey.io/api/v1/documents/${docId}`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
+  const pdfBytes = await downloadPdf(supabase, sourcePath)
+  if (!pdfBytes) {
+    return { success: false, url: null, error: 'Failed to download source PDF' }
+  }
+
+  const { signature, meta } = await gatherSignatures(supabase, documento, payload)
+
+  let stampedBytes: Uint8Array
+  try {
+    stampedBytes = await stampPdfWithSignature(pdfBytes, meta, signature)
+  } catch (err) {
+    console.error('finalize: stamp error', err)
+    return { success: false, url: null, error: 'Failed to stamp PDF' }
+  }
+
+  const signedPath = sourcePath.replace(/\.pdf$/i, '') + '-assinado.pdf'
+  const publicUrl = await uploadSignedPdf(supabase, signedPath, stampedBytes)
+  if (!publicUrl) {
+    return { success: false, url: null, error: 'Failed to upload signed PDF' }
+  }
+
+  const { error: updateError } = await supabase
+    .from('documentos_cliente')
+    .update({
+      arquivo_assinado_url: publicUrl,
+      status: 'Assinado',
+      atualizado_em: new Date().toISOString(),
     })
-    if (!checkRes.ok) continue
-    const checkData = await checkRes.json()
-    if (checkData.document.status === 'success') {
-      downloadUrl = checkData.document.download_url
-      break
-    } else if (checkData.document.status === 'failure') {
-      throw new Error(`PDFMonkey generation failed for document ${docId}`)
+    .eq('id', documento.id)
+
+  if (updateError) {
+    console.error('finalize: update document error', updateError)
+  }
+
+  if (documento.envelope_id) {
+    const { error: envError } = await supabase
+      .from('envelopes_assinatura')
+      .update({ status: 'concluido', concluido_em: new Date().toISOString() })
+      .eq('id', documento.envelope_id)
+    if (envError) {
+      console.error('finalize: update envelope error', envError)
     }
   }
 
-  if (!downloadUrl) {
-    throw new Error('Timeout waiting for PDFMonkey document generation')
-  }
-
-  const pdfRes = await fetch(downloadUrl)
-  if (!pdfRes.ok) {
-    throw new Error('Failed to download generated PDF from PDFMonkey')
-  }
-
-  return await pdfRes.arrayBuffer()
+  return { success: true, url: publicUrl }
 }
 
 Deno.serve(async (req: Request) => {
@@ -75,515 +235,18 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { documento_id, cliente_id, manual, envelope_id: bodyEnvelopeId } = await req.json()
+    const body: FinalizePayload = await req.json().catch(() => ({}))
+    const result = await finalizeDocument(body)
 
-    if (!documento_id) {
-      throw new Error('documento_id é obrigatório (deve ser o arquivo_url do documento)')
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Fetch the documentos_cliente record early so we can resolve envelope_id
-    const { data: docCliente } = await supabase
-      .from('documentos_cliente')
-      .select('*')
-      .eq('arquivo_url', documento_id)
-      .maybeSingle()
-
-    const envelopeId = bodyEnvelopeId || docCliente?.envelope_id
-
-    // ---- Idempotency: skip if document is already fully finalized ----
-    if (docCliente && isCompletedStatus(docCliente.status) && docCliente.arquivo_assinado_url) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Document already finalized — skipping duplicate processing',
-          idempotent: true,
-          url: docCliente.arquivo_assinado_url,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    // ---- Signature reconciliation ----
-    // Primary source: assinantes table linked by envelope_id
-    let assinantes: any[] = []
-    if (envelopeId) {
-      const { data: assinantesData, error: assinantesError } = await supabase
-        .from('assinantes')
-        .select('*')
-        .eq('envelope_id', envelopeId)
-      if (assinantesError) throw assinantesError
-      assinantes = assinantesData || []
-    }
-
-    // Legacy/fallback source: assinaturas table linked by documento_id
-    const { data: assinaturas, error: sigError } = await supabase
-      .from('assinaturas')
-      .select('*')
-      .eq('documento_id', documento_id)
-    if (sigError) throw sigError
-
-    const assinaturasList = assinaturas || []
-
-    // Determine if fully signed (case-insensitive)
-    let fullySigned = false
-    let pendingCount = 0
-
-    if (assinantes.length > 0) {
-      pendingCount = assinantes.filter((a) => !isCompletedStatus(a.status)).length
-      fullySigned = pendingCount === 0
-    } else if (assinaturasList.length > 0) {
-      pendingCount = assinaturasList.filter((a) => !isCompletedStatus(a.status)).length
-      fullySigned = pendingCount === 0
-    }
-
-    if (!fullySigned) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: 'Aguardando conclusão de todos os assinantes',
-          pending: pendingCount,
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
-    }
-
-    let finalFilePath = documento_id
-    let uploadBucket = 'bender_clientes'
-
-    let nomeCliente = 'Cliente'
-
-    if (docCliente && docCliente.template_id) {
-      const { data: template } = await supabase
-        .from('templates')
-        .select('*')
-        .eq('id', docCliente.template_id)
-        .single()
-
-      if (template?.external_template_id) {
-        let form: any = null
-        if (docCliente.projeto_id) {
-          const { data: formData } = await supabase
-            .from('formulario_comercial')
-            .select('*, cliente:clientes(*)')
-            .eq('id', docCliente.projeto_id)
-            .single()
-          if (formData) form = formData
-        }
-
-        if (!form && docCliente.cliente_id) {
-          const { data: formData } = await supabase
-            .from('formulario_comercial')
-            .select('*, cliente:clientes(*)')
-            .eq('cliente_id', docCliente.cliente_id)
-            .order('atualizado_em', { ascending: false })
-            .limit(1)
-            .single()
-          if (formData) form = formData
-        }
-
-        if (form) {
-          const formatCurrency = (val: number) => {
-            if (!val && val !== 0) return 'R$ 0,00'
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-              val,
-            )
-          }
-          const formatDate = (dateStr: string) => {
-            if (!dateStr) return ''
-            const [y, m, d] = dateStr.split('-')
-            return `${d}/${m}/${y}`
-          }
-
-          let produtos = []
-          if (form.id) {
-            const { data: projProdutos } = await supabase
-              .from('produtos_servicos_projeto')
-              .select('*')
-              .eq('formulario_comercial_id', form.id)
-            if (projProdutos && projProdutos.length > 0) {
-              produtos = projProdutos
-            }
-          }
-
-          if (!produtos || produtos.length === 0) {
-            produtos = (form.produtos_servicos as any[]) || []
-          }
-          if (!produtos || produtos.length === 0) {
-            produtos = (form.itens as any[]) || []
-          }
-          if (!produtos || produtos.length === 0) {
-            produtos = (form.ambientes as any[]) || []
-          }
-
-          const subtotalProdutos = Array.isArray(produtos)
-            ? produtos.reduce(
-                (acc: number, p: any) =>
-                  acc +
-                  (Number(p.valor_total) ||
-                    (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
-                0,
-              )
-            : 0
-          const descontoProdutos = Number(form.desconto) || 0
-          const valorTotal = subtotalProdutos - descontoProdutos
-          const pagamentos = (form.pagamentos as any) || {}
-          const parcelas = form.parcelas || pagamentos.parcelado || []
-
-          const dataExtensoFormatter = new Intl.DateTimeFormat('pt-BR', {
-            dateStyle: 'long',
-            timeZone: 'America/Sao_Paulo',
-          })
-
-          const buildAddress = (
-            rua: string,
-            num: string,
-            comp: string,
-            bairro: string,
-            cidade: string,
-            estado: string,
-            cep: string,
-          ) => {
-            let str = ''
-            if (rua) str += rua
-            if (num) str += `, ${num}`
-            if (comp) str += ` - ${comp}`
-            if (bairro) str += `, ${bairro}`
-            if (cidade) str += `, ${cidade}`
-            if (estado) str += ` - ${estado}`
-            if (cep) str += `, ${cep}`
-            return str.replace(/^, /, '').trim()
-          }
-
-          const signersForPayload = assinantes.length > 0 ? assinantes : assinaturasList
-
-          const placeholders: any = {
-            NOME_CLIENTE: form.cliente?.nome || '',
-            CLIENTE_NOME: form.cliente?.nome || '',
-            CLIENTE_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
-            CPF_CLIENTE: form.cliente?.cpf || form.cpf || '',
-            CLI_NOME: form.cliente?.nome || '',
-            CLI_CPF_CNPJ: form.cliente?.cpf || form.cpf || '',
-            CLI_NOME_COMPLETO: form.cliente?.nome || '',
-            CLI_CPF: form.cliente?.cpf || form.cpf || '',
-            CLI_ENDERECO_COMPLETO: buildAddress(
-              form.cliente?.rua || form.rua || '',
-              form.cliente?.numero || form.numero || '',
-              form.cliente?.complemento || form.complemento || '',
-              form.cliente?.bairro || form.bairro || '',
-              form.cliente?.cidade || form.municipio || '',
-              form.cliente?.estado || form.estado || '',
-              form.cliente?.cep || form.cep || '',
-            ),
-            CLI_PROFISSAO: form.cliente?.profissao || form.profissao || '',
-            CLI_ESTADO_CIVIL: form.estado_civil || '',
-            CLI_EMAIL: form.cliente?.email || '',
-            CLI_TELEFONE: form.cliente?.telefone || '',
-            CLI_ENDERECO_OBRA: buildAddress(
-              form.obra_rua || '',
-              form.obra_numero || '',
-              form.obra_complemento || '',
-              form.obra_bairro || '',
-              form.obra_municipio || '',
-              form.obra_estado || '',
-              form.obra_cep || '',
-            ),
-            OBRA_CEP: form.obra_cep || '',
-            OBRA_RUA: form.obra_rua || '',
-            OBRA_NUMERO: form.obra_numero || '',
-            OBRA_COMPLEMENTO: form.obra_complemento || '',
-            OBRA_CIDADE: form.obra_municipio || '',
-            OBRA_ESTADO: form.obra_estado || '',
-            SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
-            SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalProdutos),
-            VALOR_DESCONTO: formatCurrency(descontoProdutos),
-            VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
-            DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
-            DESCONTO: formatCurrency(descontoProdutos),
-            TOTAL_GERAL: formatCurrency(valorTotal),
-            TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
-            TOTAL_PRODUTOS: formatCurrency(valorTotal),
-            VALOR_TOTAL: formatCurrency(valorTotal),
-            VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
-            VALOR_TOTAL_CONTRATO: formatCurrency(valorTotal),
-            METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || '',
-            NUMERO_PARCELAS: parcelas.length || 1,
-            VALOR_PARCELA:
-              parcelas.length > 0
-                ? formatCurrency(Number(parcelas[0].valor || parcelas[0].valor_parcela) || 0)
-                : formatCurrency(valorTotal),
-            FORMA_PAGAMENTO: pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado',
-            CLAUSULA_PAGAMENTO_NARRATIVA:
-              pagamentos.narrativa || form.especificacoes || 'Não informado',
-            DATA_PREVISTA_ENTREGA_IMOVEL: formatDate(form.data_prevista_entrega || ''),
-            DATA_ENTREGA: formatDate(form.data_prevista_entrega || ''),
-            DATA_CONTRATO_EXTENSO: dataExtensoFormatter.format(new Date()),
-            DATA_ACESSO_MOVEL: formatDate((form.datas as any)?.medida || ''),
-            DATA_ASSINATURA_CONTRATO: formatDate(new Date().toISOString().split('T')[0]),
-            DATA_VENDA: formatDate(
-              (form.datas as any)?.data_venda || new Date().toISOString().split('T')[0],
-            ),
-            NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
-            produtos: produtos.map((p: any) => {
-              const quantidade = Number(p.qtd || p.quantidade) || 1
-              const valorUnitario = Number(p.valor_unitario) || 0
-              const vTotal = Number(p.valor_total) || valorUnitario * quantidade
-              return {
-                environment: p.ambiente || p.nome_produto || p.nome || '',
-                description: p.descricao || p.nome_produto || p.nome || '',
-                quantity: quantidade,
-                unit_value: formatCurrency(valorUnitario),
-                total_value: formatCurrency(vTotal),
-                ambiente: p.ambiente || p.nome_produto || p.nome || '',
-                descricao: p.descricao || p.nome_produto || p.nome || '',
-                quantidade: String(quantidade),
-                valor_unitario: formatCurrency(valorUnitario),
-                valor_total: formatCurrency(vTotal),
-              }
-            }),
-            parcelas: parcelas.map((p: any, i: number) => ({
-              numero: i + 1,
-              data: formatDate(p.data),
-              valor: Number(p.valor || p.valor_parcela) || 0,
-              valor_moeda: formatCurrency(Number(p.valor || p.valor_parcela) || 0),
-              meio: p.meio || form.metodo_pagamento || 'Não informado',
-            })),
-            is_assinado: true,
-            assinaturas: signersForPayload.map((sig: any) => {
-              let dataFormatada = 'N/A'
-              const rawDate = sig.assinado_em || sig.data_assinatura
-              if (rawDate) {
-                const d = new Date(rawDate)
-                const pad = (n: number) => n.toString().padStart(2, '0')
-                dataFormatada = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-              }
-              const signerName =
-                sig.nome_completo || sig.signatario_nome || sig.nome || 'Signatário'
-              const signerCpf = sig.cpf || sig.signatario_cpf || 'N/A'
-              const signerEmail = sig.email || sig.signatario_email || 'N/A'
-              const signerTipo = sig.papel || sig.signatario_tipo || 'signatario'
-              return {
-                nome: signerName,
-                signatario_nome: signerName,
-                tipo: signerTipo,
-                cpf: signerCpf,
-                signatario_cpf: signerCpf,
-                email: signerEmail,
-                data: dataFormatada,
-                data_assinatura: dataFormatada,
-                ip: sig.ip_address || sig.ip_assinatura || 'N/A',
-                codigo: sig.codigo_verificacao || sig.codigo_confirmacao,
-                codigo_confirmacao: sig.codigo_verificacao || sig.codigo_confirmacao,
-                assinatura_imagem: sig.assinatura_base64 || sig.assinatura_imagem,
-              }
-            }),
-          }
-
-          const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
-          if (!pdfMonkeyApiKey) throw new Error('PDFMONKEY_API_KEY secret is missing')
-
-          try {
-            const pdfBytes = await generatePdfMonkeyDocument(
-              template.external_template_id,
-              placeholders,
-              pdfMonkeyApiKey,
-            )
-
-            nomeCliente = form.cliente?.nome || 'Cliente'
-            const safeNome = nomeCliente
-              .normalize('NFD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .replace(/[^a-zA-Z0-9]/g, '_')
-            const fileName = `${docCliente?.tipo || 'Documento'}_Assinado_${safeNome}.pdf`
-
-            finalFilePath = `contratos/${cliente_id || docCliente.cliente_id}/${fileName}`
-
-            const { error: uploadError } = await supabase.storage
-              .from(uploadBucket)
-              .upload(finalFilePath, pdfBytes, { contentType: 'application/pdf', upsert: true })
-
-            if (uploadError) throw uploadError
-
-            await supabase
-              .from('documentos_cliente')
-              .update({
-                arquivo_assinado_url: finalFilePath,
-                status: 'Assinado',
-                atualizado_em: new Date().toISOString(),
-              })
-              .eq('id', docCliente.id)
-          } catch (e: any) {
-            await supabase.from('logs_ia').insert({
-              acao: 'finalize_signature_pdfmonkey_error',
-              detalhes: { error: e.message, documento_id },
-            })
-            throw e
-          }
-        } else {
-          // No form found: stamp original PDF with visual signatures
-          if (docCliente) {
-            try {
-              finalFilePath = await stampAndSaveDocument(
-                supabase,
-                docCliente,
-                assinantes,
-                assinaturasList,
-                cliente_id || docCliente.cliente_id,
-                uploadBucket,
-              )
-            } catch (stampErr: any) {
-              await markSignatureError(supabase, docCliente, stampErr.message)
-              throw stampErr
-            }
-          }
-        }
-      } else {
-        // Template without external_template_id: stamp original PDF
-        if (docCliente) {
-          try {
-            finalFilePath = await stampAndSaveDocument(
-              supabase,
-              docCliente,
-              assinantes,
-              assinaturasList,
-              cliente_id || docCliente.cliente_id,
-              uploadBucket,
-            )
-          } catch (stampErr: any) {
-            await markSignatureError(supabase, docCliente, stampErr.message)
-            throw stampErr
-          }
-        }
-      }
-    } else {
-      // Manual/uploaded documents: stamp PDF with visual signatures
-      if (docCliente) {
-        try {
-          finalFilePath = await stampAndSaveDocument(
-            supabase,
-            docCliente,
-            assinantes,
-            assinaturasList,
-            cliente_id || docCliente.cliente_id,
-            uploadBucket,
-          )
-        } catch (stampErr: any) {
-          await markSignatureError(supabase, docCliente, stampErr.message)
-          throw stampErr
-        }
-      }
-    }
-
-    // Check envelope completion
-    if (envelopeId) {
-      const { data: envDocs } = await supabase
-        .from('documentos_cliente')
-        .select('id, status, arquivo_assinado_url')
-        .eq('envelope_id', envelopeId)
-
-      const allDone =
-        envDocs &&
-        envDocs.length > 0 &&
-        envDocs.every((d: any) => isCompletedStatus(d.status) || !!d.arquivo_assinado_url)
-
-      if (allDone) {
-        await supabase
-          .from('envelopes_assinatura')
-          .update({ status: 'concluido', concluido_em: new Date().toISOString() })
-          .eq('id', envelopeId)
-
-        // Mark all assinantes as completed if not already
-        await supabase
-          .from('assinantes')
-          .update({ status: 'Assinado' })
-          .eq('envelope_id', envelopeId)
-          .neq('status', 'Assinado')
-      }
-    }
-
-    if (docCliente?.cliente_id) {
-      try {
-        await supabase.from('timeline_eventos').insert({
-          cliente_id: docCliente.cliente_id,
-          usuario_nome: manual ? 'Usuário (Ação Manual)' : 'Sistema (Automático)',
-          acao: `${manual ? 'Reprocessamento de PDF solicitado' : 'Finalização automática'} do documento assinado: ${docCliente?.template_nome || docCliente?.tipo || documento_id}`,
-        })
-      } catch (_logErr) {}
-    }
-
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-    if (RESEND_API_KEY) {
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from(uploadBucket)
-        .download(finalFilePath)
-      let attachments: any[] = []
-
-      if (!downloadError && fileData) {
-        const arrayBuffer = await fileData.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
-        let binaryString = ''
-        for (let i = 0; i < uint8Array.length; i++) {
-          binaryString += String.fromCharCode(uint8Array[i])
-        }
-        const base64Content = btoa(binaryString)
-
-        const fileNameParts = finalFilePath.split('/')
-        const name = fileNameParts[fileNameParts.length - 1]
-
-        attachments.push({ filename: name, content: base64Content })
-      }
-
-      const { data: urlData } = await supabase.storage
-        .from(uploadBucket)
-        .createSignedUrl(finalFilePath, 315360000)
-      const signedUrl = urlData?.signedUrl || ''
-
-      const signersForEmail = assinantes.length > 0 ? assinantes : assinaturasList
-      for (const sig of signersForEmail) {
-        const email = sig.email || sig.signatario_email
-        const nome = sig.nome_completo || sig.signatario_nome || 'Signatário'
-        if (email) {
-          try {
-            await fetch('https://api.resend.com/emails', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${RESEND_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                from: 'Bender Haussform <projetos@benderhaussform.com>',
-                to: [email],
-                subject: `Documento Assinado Finalizado: ${docCliente?.template_nome || docCliente?.tipo || 'Documento'}`,
-                html: `
-                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-                    <h2 style="color: #333;">Olá, ${nome}</h2>
-                    <p style="color: #555; line-height: 1.5;">O processo de assinatura do documento <strong>${docCliente?.template_nome || docCliente?.tipo || 'Documento'}</strong> foi concluído com sucesso. O documento final está anexado a este e-mail.</p>
-                    <div style="text-align: center; margin: 30px 0;">
-                      <a href="${signedUrl}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Baixar Documento Final</a>
-                    </div>
-                  </div>
-                `,
-                attachments: attachments.length > 0 ? attachments : undefined,
-              }),
-            })
-          } catch (_emailErr) {}
-        }
-      }
-    }
-
-    return new Response(JSON.stringify({ success: true, url: finalFilePath }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify(result), {
+      status: result.success ? 200 : 500,
+      headers: { 'Content-Type': 'application/json', Connection: 'keep-alive', ...corsHeaders },
     })
-  } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message, success: false }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  } catch (err) {
+    console.error('finalize: unexpected error', err)
+    return new Response(JSON.stringify({ success: false, url: null, error: 'Unexpected error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', Connection: 'keep-alive', ...corsHeaders },
     })
   }
 })
