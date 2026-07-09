@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Trash2, Mail, Link as LinkIcon, Plus, FileText } from 'lucide-react'
+import { Loader2, Trash2, Mail, Link as LinkIcon, Plus, FileText, CheckCircle } from 'lucide-react'
 
 interface SignatureModalProps {
   docs: any[]
@@ -47,6 +47,7 @@ export function SignatureModal({
     telefone: '',
   })
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [finalizing, setFinalizing] = useState(false)
 
   const roles = [
     'Cliente',
@@ -132,6 +133,30 @@ export function SignatureModal({
     }
     return Object.values(groups)
   }, [signatures, isEnvelope])
+
+  const allSigned =
+    isEnvelope &&
+    !!envelope &&
+    signatures.length > 0 &&
+    signatures.every((s) => s.status === 'assinado')
+
+  const handleFinalizeEnvelope = async () => {
+    if (!envelope) return
+    setFinalizing(true)
+    try {
+      const { error } = await supabase
+        .from('envelopes_assinatura')
+        .update({ status: 'assinado', concluido_em: new Date().toISOString() })
+        .eq('id', envelope.id)
+      if (error) throw error
+      toast.success('Envelope finalizado! Gerando PDFs assinados...')
+      setEnvelope({ ...envelope, status: 'assinado' })
+    } catch (e: any) {
+      toast.error('Erro ao finalizar envelope: ' + e.message)
+    } finally {
+      setFinalizing(false)
+    }
+  }
 
   const handleAddSignature = async () => {
     if (!form.nome || !form.email) {
@@ -460,6 +485,30 @@ export function SignatureModal({
               </div>
             )}
           </div>
+
+          {allSigned && envelope?.status !== 'assinado' && (
+            <Button
+              onClick={handleFinalizeEnvelope}
+              disabled={finalizing}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
+            >
+              {finalizing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Finalizar Envelope e Gerar PDFs Assinados
+            </Button>
+          )}
+
+          {envelope?.status === 'assinado' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+              <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
+              <p className="text-sm font-medium text-green-700">
+                Envelope finalizado. Os PDFs assinados estão sendo gerados.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

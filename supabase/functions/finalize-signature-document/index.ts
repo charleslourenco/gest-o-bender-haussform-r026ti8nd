@@ -53,7 +53,6 @@ function getPathFromUrl(url: string | null): string | null {
     const u = new URL(url)
     return u.pathname.split(`/${STORAGE_BUCKET}/`)[1] ?? null
   } catch {
-    // Not a URL — assume it's already a path
     return url.startsWith(`/${STORAGE_BUCKET}/`) ? url.slice(`/${STORAGE_BUCKET}/`.length) : url
   }
 }
@@ -88,39 +87,56 @@ async function findDocument(
   supabase: any,
   payload: FinalizePayload,
 ): Promise<DocumentoClienteRow | null> {
-  let query = supabase.from('documentos_cliente').select('*')
+  if (payload.documento_id) {
+    const { data: byUrl, error: errUrl } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('arquivo_url', payload.documento_id)
+      .limit(1)
+      .maybeSingle()
+    if (errUrl) console.error('finalize: find by arquivo_url error', errUrl)
+    if (byUrl) return byUrl as DocumentoClienteRow
+
+    const { data: byId, error: errId } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('id', payload.documento_id)
+      .limit(1)
+      .maybeSingle()
+    if (errId) console.error('finalize: find by id error', errId)
+    if (byId) return byId as DocumentoClienteRow
+
+    return null
+  }
 
   if (payload.envelope_id) {
-    query = query.eq('envelope_id', payload.envelope_id)
-  } else if (payload.documento_id) {
-    query = query.eq('id', payload.documento_id)
-  } else if (payload.cliente_id) {
-    query = query
-      .eq('cliente_id', payload.cliente_id)
-      .order('criado_em', { ascending: false })
+    const { data, error } = await supabase
+      .from('documentos_cliente')
+      .select('*')
+      .eq('envelope_id', payload.envelope_id)
       .limit(1)
-  } else {
-    return null
+      .maybeSingle()
+    if (error) console.error('finalize: find by envelope error', error)
+    return (data as DocumentoClienteRow) ?? null
   }
 
-  const { data, error } = await query.limit(1).maybeSingle()
-  if (error) {
-    console.error('finalize: find document error', error)
-    return null
-  }
-  return (data as DocumentoClienteRow) ?? null
+  return null
 }
 
 async function gatherSignatures(
   supabase: any,
   documento: DocumentoClienteRow,
   payload: FinalizePayload,
-): Promise<{ signature: ReturnType<typeof buildSignatureFromSources>; meta: StampMetadata }> {
+): Promise<{
+  signature: ReturnType<typeof buildSignatureFromSources>
+  meta: StampMetadata
+}> {
   let assinante: AssinanteRow | null = null
   let assinatura: AssinaturaRow | null = null
 
-  if (documento.envelope_id || payload.envelope_id) {
-    const envelopeId = documento.envelope_id ?? payload.envelope_id
+  const envelopeId = documento.envelope_id ?? payload.envelope_id
+
+  if (envelopeId) {
     const { data: assinanteData } = await supabase
       .from('assinantes')
       .select('assinatura_base64, nome_completo, cpf, email, ip_address, assinado_em')
@@ -132,13 +148,21 @@ async function gatherSignatures(
     assinante = (assinanteData as AssinanteRow) ?? null
   }
 
-  if (documento.id) {
+  const documentoIdentifiers: string[] = []
+  if (documento.arquivo_url) {
+    documentoIdentifiers.push(documento.arquivo_url)
+  }
+  if (documento.id && !documentoIdentifiers.includes(documento.id)) {
+    documentoIdentifiers.push(documento.id)
+  }
+
+  if (documentoIdentifiers.length > 0) {
     const { data: assinaturaData } = await supabase
       .from('assinaturas')
       .select(
         'assinatura_imagem, signatario_nome, signatario_cpf, signatario_email, ip_assinatura, data_assinatura',
       )
-      .or(`documento_id.eq.${documento.id}`)
+      .in('documento_id', documentoIdentifiers)
       .order('data_assinatura', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -161,6 +185,29 @@ async function gatherSignatures(
   return { signature, meta }
 }
 
+async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise<void> {
+  const { data: envDocs, error } = await supabase
+    .from('documentos_cliente')
+    .select('arquivo_assinado_url')
+    .eq('envelope_id', envelopeId)
+
+  if (error || !envDocs) return
+
+  const allProcessed = envDocs.every(
+    (d: any) => d.arquivo_assinado_url && d.arquivo_assinado_url !== '',
+  )
+  if (!allProcessed) return
+
+  const { error: envError } = await supabase
+    .from('envelopes_assinatura')
+    .update({ status: 'concluido', concluido_em: new Date().toISOString() })
+    .eq('id', envelopeId)
+
+  if (envError) {
+    console.error('finalize: complete envelope error', envError)
+  }
+}
+
 export async function finalizeDocument(
   payload: FinalizePayload,
 ): Promise<{ success: boolean; url: string | null; error?: string }> {
@@ -175,6 +222,10 @@ export async function finalizeDocument(
   const documento = await findDocument(supabase, payload)
   if (!documento) {
     return { success: false, url: null, error: 'Document not found' }
+  }
+
+  if (!payload.manual && documento.arquivo_assinado_url) {
+    return { success: true, url: documento.arquivo_assinado_url }
   }
 
   const sourcePath = getPathFromUrl(documento.arquivo_assinado_url ?? documento.arquivo_url)
@@ -217,13 +268,7 @@ export async function finalizeDocument(
   }
 
   if (documento.envelope_id) {
-    const { error: envError } = await supabase
-      .from('envelopes_assinatura')
-      .update({ status: 'concluido', concluido_em: new Date().toISOString() })
-      .eq('id', documento.envelope_id)
-    if (envError) {
-      console.error('finalize: update envelope error', envError)
-    }
+    await maybeCompleteEnvelope(supabase, documento.envelope_id)
   }
 
   return { success: true, url: publicUrl }
@@ -240,13 +285,21 @@ Deno.serve(async (req: Request) => {
 
     return new Response(JSON.stringify(result), {
       status: result.success ? 200 : 500,
-      headers: { 'Content-Type': 'application/json', Connection: 'keep-alive', ...corsHeaders },
+      headers: {
+        'Content-Type': 'application/json',
+        Connection: 'keep-alive',
+        ...corsHeaders,
+      },
     })
   } catch (err) {
     console.error('finalize: unexpected error', err)
     return new Response(JSON.stringify({ success: false, url: null, error: 'Unexpected error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json', Connection: 'keep-alive', ...corsHeaders },
+      headers: {
+        'Content-Type': 'application/json',
+        Connection: 'keep-alive',
+        ...corsHeaders,
+      },
     })
   }
 })

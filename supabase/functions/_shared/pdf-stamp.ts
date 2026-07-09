@@ -8,23 +8,22 @@ export interface StampMetadata {
   data: string | null
 }
 
+export type SignatureData = Uint8Array | null
+
 export function buildSignatureFromSources(
-  base64Source: string | null,
-  imageBase64: string | null,
-): Uint8Array | null {
-  const sources = [base64Source, imageBase64]
-  for (const source of sources) {
+  assinaturaBase64: string | null,
+  assinaturaImagem: string | null,
+): SignatureData {
+  for (const source of [assinaturaBase64, assinaturaImagem]) {
     if (!source) continue
     try {
-      const cleaned = source.replace(/^data:image\/[\w+]+;base64,/, '')
-      const binary = atob(cleaned)
+      const base64Data = source.includes(',') ? (source.split(',')[1] ?? source) : source
+      const binary = atob(base64Data)
       const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i)
-      }
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
       return bytes
-    } catch (err) {
-      console.error('buildSignature: decode error', err)
+    } catch {
+      continue
     }
   }
   return null
@@ -33,59 +32,74 @@ export function buildSignatureFromSources(
 export async function stampPdfWithSignature(
   pdfBytes: Uint8Array,
   meta: StampMetadata,
-  signature: Uint8Array | null,
+  signature: SignatureData,
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes)
-  const pages = pdfDoc.getPages()
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const lastPage = pages[pages.length - 1]
-  const { width: pageWidth, height: pageHeight } = lastPage.getSize()
+  const fontSize = 7
+  const lineHeight = fontSize + 3
 
-  if (signature && signature.length > 0) {
+  const lines = [
+    `Assinado eletronicamente por: ${meta.nome ?? '—'}`,
+    `CPF: ${meta.cpf ?? '—'}`,
+    `E-mail: ${meta.email ?? '—'}`,
+    `IP: ${meta.ip ?? '—'}`,
+    `Data: ${meta.data ? new Date(meta.data).toLocaleString('pt-BR') : '—'}`,
+  ]
+
+  let image: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null
+  if (signature) {
     try {
-      let image
+      image = await pdfDoc.embedPng(signature)
+    } catch {
       try {
-        image = await pdfDoc.embedPng(signature)
-      } catch {
         image = await pdfDoc.embedJpg(signature)
+      } catch {
+        image = null
       }
-      const imgWidth = 160
-      const imgHeight = (image.height / image.width) * imgWidth
-      lastPage.drawImage(image, {
-        x: pageWidth - imgWidth - 40,
-        y: 40,
-        width: imgWidth,
-        height: imgHeight,
-      })
-    } catch (err) {
-      console.error('stampPdf: embed signature image error', err)
     }
   }
 
-  const lines: Array<[string, string | null]> = [
-    ['Assinado por', meta.nome],
-    ['CPF', meta.cpf],
-    ['Email', meta.email],
-    ['IP', meta.ip],
-    ['Data', meta.data],
-  ]
+  for (const page of pdfDoc.getPages()) {
+    const { width } = page.getSize()
+    const boxWidth = 260
+    const imgH = image ? 40 : 0
+    const boxHeight = lines.length * lineHeight + imgH + 12
+    const x = width - boxWidth - 15
+    const y = 15
 
-  let yText = pageHeight - 20
-  for (const [label, value] of lines) {
-    if (!value) continue
-    try {
-      const text = `${label}: ${value}`
-      lastPage.drawText(text, {
-        x: 40,
-        y: yText,
-        size: 7,
-        font,
-        color: rgb(0.4, 0.4, 0.4),
+    page.drawRectangle({
+      x,
+      y,
+      width: boxWidth,
+      height: boxHeight,
+      color: rgb(0.96, 0.96, 0.96),
+      opacity: 0.85,
+      borderColor: rgb(0.7, 0.7, 0.7),
+      borderWidth: 0.5,
+    })
+
+    if (image) {
+      const imgW = 80
+      const scaledH = (image.height / image.width) * imgW
+      page.drawImage(image, {
+        x: x + 10,
+        y: y + boxHeight - scaledH - 8,
+        width: imgW,
+        height: scaledH,
       })
-      yText -= 10
-    } catch (err) {
-      console.error('stampPdf: draw text error', err)
     }
+
+    const textY = image ? y + boxHeight - imgH - 12 : y + boxHeight - 12
+    lines.forEach((line, i) => {
+      page.drawText(line, {
+        x: x + 10,
+        y: textY - i * lineHeight,
+        size: fontSize,
+        font,
+        color: rgb(0.15, 0.15, 0.15),
+      })
+    })
   }
 
   return new Uint8Array(await pdfDoc.save())
