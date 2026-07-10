@@ -87,7 +87,7 @@ export function MontadorSelect({
     if (pendingAllocation.prevCards.length > 0) {
       await supabase
         .from('produtos_servicos_projeto')
-        .update({ status_analise: 'pendencias' })
+        .update({ status_analise: 'pendencia' })
         .in('id', pendingAllocation.prevCards)
     }
 
