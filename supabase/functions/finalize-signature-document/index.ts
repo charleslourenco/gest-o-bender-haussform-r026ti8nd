@@ -254,6 +254,13 @@ export async function finalizeDocument(
     return { success: false, url: null, error: 'Document not found' }
   }
 
+  // Workflow separation: PDF Monkey documents linked to envelopes_assinatura
+  // must not be overwritten by manual re-stamping requests — those are handled
+  // exclusively by the envelope trigger flow.
+  if (payload.manual && documento.envelope_id && documento.arquivo_assinado_url) {
+    return { success: true, url: documento.arquivo_assinado_url }
+  }
+
   if (!payload.manual && documento.arquivo_assinado_url) {
     return { success: true, url: documento.arquivo_assinado_url }
   }

@@ -659,10 +659,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                   ? elapsedLocal > 120000
                   : elapsedServer > 180000 && elapsedServer < 86400000)
 
-              const urlToPreview =
-                allAssinados && doc.arquivo_assinado_url
-                  ? doc.arquivo_assinado_url
-                  : doc.arquivo_url
+              const urlToPreview = doc.arquivo_assinado_url || doc.arquivo_url
 
               return (
                 <div
@@ -801,7 +798,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       </Button>
                     )}
 
-                    {doc.status !== 'processando' && allAssinados && doc.arquivo_assinado_url && (
+                    {doc.status !== 'processando' && doc.arquivo_assinado_url && (
                       <Button
                         variant="default"
                         size="sm"

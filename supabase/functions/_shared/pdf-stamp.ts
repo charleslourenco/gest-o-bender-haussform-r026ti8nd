@@ -8,6 +8,24 @@ export interface StampMetadata {
   data: string | null
 }
 
+export function formatBrTimestamp(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  try {
+    const date = new Date(dateStr)
+    return date.toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
 export type SignatureData = Uint8Array | null
 
 export function buildSignatureFromSources(
@@ -44,7 +62,7 @@ export async function stampPdfWithSignature(
     `CPF: ${meta.cpf ?? '—'}`,
     `E-mail: ${meta.email ?? '—'}`,
     `IP: ${meta.ip ?? '—'}`,
-    `Data: ${meta.data ? new Date(meta.data).toLocaleString('pt-BR') : '—'}`,
+    `Data: ${formatBrTimestamp(meta.data)}`,
   ]
 
   let image: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null
