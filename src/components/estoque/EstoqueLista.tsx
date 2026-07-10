@@ -290,11 +290,13 @@ export function EstoqueLista() {
   )
 
   const [isNormalizing, setIsNormalizing] = useState(false)
+  const [normalizeProgress, setNormalizeProgress] = useState(0)
 
   const handleNormalizeBatch = async () => {
     const unnormalized = items.filter((i) => !i.metadados_normalizados)
     if (unnormalized.length === 0) return
     setIsNormalizing(true)
+    setNormalizeProgress(0)
     try {
       toast({
         title: 'Normalizando...',
@@ -302,6 +304,9 @@ export function EstoqueLista() {
       })
 
       const batchSize = 50
+      const totalBatches = Math.ceil(unnormalized.length / batchSize)
+      let processedBatches = 0
+
       for (let i = 0; i < unnormalized.length; i += batchSize) {
         const batch = unnormalized.slice(i, i + batchSize)
         const descricoes = batch.map((b) => b.nome)
@@ -330,6 +335,9 @@ export function EstoqueLista() {
               .eq('id', batch[j].id)
           }
         }
+
+        processedBatches++
+        setNormalizeProgress(Math.round((processedBatches / totalBatches) * 100))
       }
 
       toast({ title: 'Sucesso', description: 'Nomenclaturas normalizadas com sucesso.' })
@@ -338,6 +346,7 @@ export function EstoqueLista() {
       toast({ title: 'Erro na Normalização', description: e.message, variant: 'destructive' })
     } finally {
       setIsNormalizing(false)
+      setNormalizeProgress(0)
     }
   }
 
@@ -426,13 +435,29 @@ export function EstoqueLista() {
               ativar a conciliação automática completa.
             </p>
           </div>
-          <Button
-            onClick={handleNormalizeBatch}
-            disabled={isNormalizing}
-            className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
-          >
-            {isNormalizing ? 'Processando...' : 'Normalizar Estoque'}
-          </Button>
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <Button
+              onClick={handleNormalizeBatch}
+              disabled={isNormalizing}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isNormalizing ? 'Processando...' : 'Normalizar Estoque'}
+            </Button>
+            {isNormalizing && (
+              <div className="w-48">
+                <div className="flex items-center justify-between text-xs text-blue-700 dark:text-blue-300 mb-1">
+                  <span>Progresso</span>
+                  <span>{normalizeProgress}%</span>
+                </div>
+                <div className="h-2 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 dark:bg-blue-400 transition-all duration-300 rounded-full"
+                    style={{ width: `${normalizeProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

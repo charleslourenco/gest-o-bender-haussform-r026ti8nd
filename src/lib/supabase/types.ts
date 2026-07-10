@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       acompanhamentos: {
         Row: {
+          arquivado_acompanhamento: boolean
           codigo_projeto: string | null
           data_atualizacao: string
           data_criacao: string
@@ -24,6 +25,7 @@ export type Database = {
           tipo_acompanhamento: string | null
         }
         Insert: {
+          arquivado_acompanhamento?: boolean
           codigo_projeto?: string | null
           data_atualizacao?: string
           data_criacao?: string
@@ -37,6 +39,7 @@ export type Database = {
           tipo_acompanhamento?: string | null
         }
         Update: {
+          arquivado_acompanhamento?: boolean
           codigo_projeto?: string | null
           data_atualizacao?: string
           data_criacao?: string
@@ -1702,6 +1705,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          arquivado_comercial: boolean
           atualizado_em: string
           categoria: string
           consultor_id: string | null
@@ -1721,6 +1725,7 @@ export type Database = {
           telefone: string
         }
         Insert: {
+          arquivado_comercial?: boolean
           atualizado_em?: string
           categoria?: string
           consultor_id?: string | null
@@ -1740,6 +1745,7 @@ export type Database = {
           telefone: string
         }
         Update: {
+          arquivado_comercial?: boolean
           atualizado_em?: string
           categoria?: string
           consultor_id?: string | null
@@ -2287,6 +2293,8 @@ export type Database = {
       produtos_servicos_projeto: {
         Row: {
           analista_id: string | null
+          arquivado_montagem: boolean
+          arquivado_producao: boolean
           atualizado_em: string
           cliente_id: string | null
           codigo_rastreio: string | null
@@ -2306,6 +2314,8 @@ export type Database = {
         }
         Insert: {
           analista_id?: string | null
+          arquivado_montagem?: boolean
+          arquivado_producao?: boolean
           atualizado_em?: string
           cliente_id?: string | null
           codigo_rastreio?: string | null
@@ -2325,6 +2335,8 @@ export type Database = {
         }
         Update: {
           analista_id?: string | null
+          arquivado_montagem?: boolean
+          arquivado_producao?: boolean
           atualizado_em?: string
           cliente_id?: string | null
           codigo_rastreio?: string | null

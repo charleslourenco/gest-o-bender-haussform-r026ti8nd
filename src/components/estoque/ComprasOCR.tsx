@@ -198,7 +198,10 @@ export function ComprasOCR() {
           matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
 
           for (const item of matchedItems) {
-            if (item.status === 'matched' && item.item_id) {
+            if (
+              (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
+              item.item_id
+            ) {
               const existing = existingItems.find((i) => i.id === item.item_id)
               if (existing) {
                 await supabase

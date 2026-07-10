@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/client'
 import { fetchAliases } from './estoque-aliases'
 
+export const CONFIDENCE_THRESHOLD = 85
+
 export interface MatchedItem {
   produto: string
   quantidade: number
@@ -10,6 +12,7 @@ export interface MatchedItem {
   item_id: string | null
   source: 'alias' | 'exact' | 'none'
   confianca: 'ALTA' | 'MEDIA' | 'BAIXA'
+  score: number
 }
 
 function normalizeString(s: string | null | undefined): string {
@@ -45,6 +48,70 @@ function checkAttributes(meta: any, item: any): boolean {
     if (mm !== im && !mm.includes(im) && !im.includes(mm)) return false
   }
   return true
+}
+
+function calculateSimilarityScore(nome: string, meta: any, item: any): number {
+  let score = 0
+  const maxScore = 100
+
+  const coreNorm = normalizeString(meta?.nome_padronizado || nome)
+  const itemNorm = normalizeString(item.nome)
+
+  if (coreNorm === itemNorm) {
+    score += 45
+  } else if (coreNorm && (coreNorm.includes(itemNorm) || itemNorm.includes(coreNorm))) {
+    score += 35
+  } else {
+    const coreOcr = getCoreName(nome)
+    const itemCore = getCoreName(item.nome)
+    if (coreOcr === itemCore && coreOcr.length > 5) {
+      score += 30
+    } else if (coreOcr.length > 5 && (coreOcr.includes(itemCore) || itemCore.includes(coreOcr))) {
+      score += 20
+    } else {
+      return 0
+    }
+  }
+
+  if (meta?.espessura_mm && item.espessura_mm) {
+    if (Number(meta.espessura_mm) === Number(item.espessura_mm)) {
+      score += 15
+    } else {
+      score -= 20
+    }
+  } else if (meta?.espessura_mm || item.espessura_mm) {
+    score += 5
+  }
+
+  if (meta?.cor && item.cor) {
+    const mc = normalizeString(meta.cor)
+    const ic = normalizeString(item.cor)
+    if (mc === ic) {
+      score += 20
+    } else if (mc.includes(ic) || ic.includes(mc)) {
+      score += 12
+    } else {
+      score -= 15
+    }
+  } else if (meta?.cor || item.cor) {
+    score += 8
+  }
+
+  if (meta?.marca && item.marca) {
+    const mm = normalizeString(meta.marca)
+    const im = normalizeString(item.marca)
+    if (mm === im) {
+      score += 20
+    } else if (mm.includes(im) || im.includes(mm)) {
+      score += 10
+    } else {
+      score -= 10
+    }
+  } else if (meta?.marca || item.marca) {
+    score += 8
+  }
+
+  return Math.max(0, Math.min(maxScore, score))
 }
 
 export async function normalizeItems(descricoes: string[]): Promise<any[]> {
@@ -88,7 +155,6 @@ export async function matchInvoiceItems(
       metadados_normalizados: meta,
     }
 
-    // 1. Alias exact match (user-defined memory)
     const aliasItemId = aliasesMap.get(nome)
     if (aliasItemId) {
       const matched = existingItems.find((i) => i.id === aliasItemId)
@@ -99,45 +165,71 @@ export async function matchInvoiceItems(
           item_id: matched.id,
           source: 'alias',
           confianca: 'ALTA',
+          score: 100,
         }
       }
     }
 
-    // 2. Exact match on normalized name + primary attributes
+    let bestMatch: any = null
+    let bestScore = 0
+
     if (meta?.nome_padronizado) {
-      const coreNorm = normalizeString(meta.nome_padronizado)
-      const exact = existingItems.find(
-        (i) => normalizeString(i.nome) === coreNorm && checkAttributes(meta, i),
-      )
-      if (exact) {
-        return { ...base, status: 'matched', item_id: exact.id, source: 'exact', confianca: 'ALTA' }
+      for (const existing of existingItems) {
+        if (!checkAttributes(meta, existing)) continue
+        const score = calculateSimilarityScore(nome, meta, existing)
+        if (score > bestScore) {
+          bestScore = score
+          bestMatch = existing
+        }
       }
 
-      const coreOcr = getCoreName(nome)
-      if (coreOcr.length > 5) {
-        const coreMatch = existingItems.find((i) => {
-          const iCore = getCoreName(i.nome)
-          return iCore === coreOcr && checkAttributes(meta, i)
-        })
-        if (coreMatch) {
-          return {
-            ...base,
-            status: 'matched',
-            item_id: coreMatch.id,
-            source: 'exact',
-            confianca: 'MEDIA',
+      if (!bestMatch) {
+        const coreOcr = getCoreName(nome)
+        if (coreOcr.length > 5) {
+          for (const existing of existingItems) {
+            const iCore = getCoreName(existing.nome)
+            if (iCore === coreOcr && checkAttributes(meta, existing)) {
+              const score = 70
+              if (score > bestScore) {
+                bestScore = score
+                bestMatch = existing
+              }
+            }
           }
         }
       }
     }
 
-    // 3. No reliable match — pending review
+    if (bestMatch && bestScore >= CONFIDENCE_THRESHOLD) {
+      const confianca = bestScore >= 95 ? 'ALTA' : 'MEDIA'
+      return {
+        ...base,
+        status: 'matched',
+        item_id: bestMatch.id,
+        source: 'exact',
+        confianca,
+        score: bestScore,
+      }
+    }
+
+    if (bestMatch && bestScore >= 60) {
+      return {
+        ...base,
+        status: 'pendente_revisao',
+        item_id: bestMatch.id,
+        source: 'exact',
+        confianca: 'BAIXA',
+        score: bestScore,
+      }
+    }
+
     return {
       ...base,
       status: 'pendente_revisao',
       item_id: null,
       source: 'none',
       confianca: 'BAIXA',
+      score: bestScore,
     }
   })
 }

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, AlertTriangle, Check, Search } from 'lucide-react'
+import { Loader2, AlertTriangle, Check, Search, Percent } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
@@ -124,9 +124,17 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
             <div className="flex flex-col gap-2 mb-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-sm dark:text-slate-200">{item.produto}</span>
-                <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800">
-                  Verificar
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  {item.score !== undefined && item.score > 0 && (
+                    <Badge variant="outline" className="text-[10px] flex items-center gap-0.5">
+                      <Percent className="w-2.5 h-2.5" />
+                      {item.score}%
+                    </Badge>
+                  )}
+                  <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800">
+                    Verificar
+                  </Badge>
+                </div>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
                 <span>Qtd: {item.quantidade}</span>
