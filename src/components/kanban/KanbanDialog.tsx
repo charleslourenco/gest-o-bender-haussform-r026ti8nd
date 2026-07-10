@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
@@ -47,7 +48,8 @@ export function KanbanDialog({
   usersMap: Record<string, { nome: string; foto_perfil: string | null }>
   onAssignAnalyst: (cardId: string, analystId: string | null) => void
 }) {
-  const isMontagem = typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
+  const location = useLocation()
+  const isMontagem = location.pathname.includes('/montagem')
   const { toast } = useToast()
 
   const [montadores, setMontadores] = useState<any[]>([])

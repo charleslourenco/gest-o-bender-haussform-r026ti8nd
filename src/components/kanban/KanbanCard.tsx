@@ -1,6 +1,7 @@
 import { Badge } from '@/components/ui/badge'
 import { CardData } from './types'
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { Wrench, Clock, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,10 +17,10 @@ export function KanbanCard({
   onClick: () => void
   onDragStart: (e: React.DragEvent, id: string) => void
 }) {
-  const isMontagem = typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
-  const isAnaliseTecnica =
-    typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
-  const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
+  const location = useLocation()
+  const isMontagem = location.pathname.includes('/montagem')
+  const isAnaliseTecnica = location.pathname.includes('/analise-tecnica')
+  const isProducao = location.pathname.includes('/producao')
   const [montadores, setMontadores] = useState<string[]>([])
   const [timeInColumn, setTimeInColumn] = useState<string>('')
 

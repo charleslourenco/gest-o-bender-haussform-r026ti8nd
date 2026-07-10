@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { useKanbanData, getClienteNome, type KanbanItem } from '@/hooks/use-kanban-data'
+import {
+  updateCardStatus,
+  deleteCard as deleteCardAction,
+  assignAnalyst as assignAnalystAction,
+} from '@/lib/kanban-actions'
 import { Badge } from '@/components/ui/badge'
 import {
   Loader2,
@@ -35,9 +42,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Scissors, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -48,6 +52,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type Item = KanbanItem
+
 interface ColumnDef {
   id: string
   title: string
@@ -57,45 +63,6 @@ interface KanbanBoardProps {
   title: string
   columns: ColumnDef[]
 }
-
-interface Item {
-  id: string
-  nome_produto: string
-  codigo_rastreio: string | null
-  qtd: number
-  status_analise: string
-  cliente: { nome: string } | null
-  cliente_id?: string | null
-  criado_em: string
-  analista_id: string | null
-  formulario: { user_id: string } | null
-  alocacao_montagem?: { montador_id: string }[]
-  terceirizado_validado?: boolean
-  outsourced_checked?: boolean
-  is_outsourced?: boolean
-}
-
-const ALL_STATUS_OPTIONS = [
-  { id: 'iniciar', title: 'Iniciar' },
-  { id: 'aguardando_liberacao', title: 'Aguardando liberação' },
-  { id: 'medida_fina', title: 'Medida Fina' },
-  { id: 'reuniao_analise', title: 'Reunião de Análise' },
-  { id: 'caderno_tecnico', title: 'Caderno Técnico' },
-  { id: 'alteracao_projeto', title: 'Alteração de projeto' },
-  { id: 'lista_materiais', title: 'Lista de Materiais' },
-  { id: 'aguardando_plano_corte', title: 'Aguardando Plano de Corte' },
-  { id: 'router', title: 'Router' },
-  { id: 'coladeira', title: 'Coladeira' },
-  { id: 'bancada', title: 'Bancada' },
-  { id: 'embalagem', title: 'Embalagem' },
-  { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
-  { id: 'transporte', title: 'Transporte' },
-  { id: 'montagem', title: 'Montagem' },
-  { id: 'item_terceirizado', title: 'Item Terceirizado' },
-  { id: 'pendencia', title: 'Pendência' },
-  { id: 'assistencia', title: 'Assistência' },
-  { id: 'concluido', title: 'Concluído' },
-]
 
 function TimeInColumn({
   cardId,
@@ -151,33 +118,28 @@ function TimeInColumn({
 }
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
-  const [items, setItems] = useState<Item[]>([])
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
-  const PAGE_SIZE = 30
-  const pageRef = useRef(0)
+  const location = useLocation()
+  const isMontagemRoute = location.pathname.includes('/montagem')
+  const isAnaliseTecnica = location.pathname.includes('/analise-tecnica')
+  const isProducao = location.pathname.includes('/producao')
 
-  useEffect(() => {
-    pageRef.current = page
-  }, [page])
-
-  const [loading, setLoading] = useState(true)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    items,
+    setItems,
+    loading,
+    isLoadingMore,
+    error,
+    hasMore,
+    usersMap,
+    allUsers,
+    allMontadores,
+    fetchItems,
+    refreshItems,
+  } = useKanbanData(columns, { fetchMontadores: isMontagemRoute })
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAnalyst, setSelectedAnalyst] = useState('all')
   const [selectedConsultant, setSelectedConsultant] = useState('all')
-  const [usersMap, setUsersMap] = useState<Record<string, any>>({})
-  const [allUsers, setAllUsers] = useState<any[]>([])
-  const [allMontadores, setAllMontadores] = useState<any[]>([])
-
-  const isMontagemRoute =
-    typeof window !== 'undefined' && window.location.pathname.includes('/montagem')
-  const isAnaliseTecnica =
-    typeof window !== 'undefined' && window.location.pathname.includes('/analise-tecnica')
-  const isProducao = typeof window !== 'undefined' && window.location.pathname.includes('/producao')
-
   const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores' | 'montadores'>(
     'kanban',
   )
@@ -186,6 +148,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
   const [showCreateAvulsoForValidation, setShowCreateAvulsoForValidation] = useState(false)
   const [dragOverColId, setDragOverColId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleTabChange = (e: any) => setActiveView(e.detail)
+    window.addEventListener('kanban_tab_change', handleTabChange)
+    return () => window.removeEventListener('kanban_tab_change', handleTabChange)
+  }, [])
 
   const handleOpenValidation = (id: string) => {
     setValidatingCardId(id)
@@ -263,181 +231,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           .from('produtos_servicos_projeto')
           .update({ status_analise: newStatusId, atualizado_em: new Date().toISOString() })
           .eq('id', itemId)
-
-        const { error: updateErr } = await supabase
-          .from('produtos_servicos_projeto')
-          .update({ status_analise: finalStatus, atualizado_em: new Date().toISOString() })
-          .eq('id', itemId)
-
-        if (updateErr) throw updateErr
-
-        if (newStatusId === 'lista_materiais') {
-          toast.success(
-            'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
-          )
-        }
+        await updateCardStatus(itemId, finalStatus)
+        toast.success('Card transferido automaticamente para Produção (Aguardando Plano de Corte).')
       } else {
-        const { error: updateErr } = await supabase
-          .from('produtos_servicos_projeto')
-          .update({ status_analise: newStatusId, atualizado_em: new Date().toISOString() })
-          .eq('id', itemId)
-
-        if (updateErr) throw updateErr
-        toast.success('Status atualizado com sucesso!')
+        await updateCardStatus(itemId, newStatusId, { isMontagem: isMontagemRoute })
+        if (isMontagemRoute && newStatusId === 'concluido') {
+          toast.success('Card concluído! Montadores liberados automaticamente.')
+        } else {
+          toast.success('Status atualizado com sucesso!')
+        }
       }
     } catch (err: any) {
       toast.error('Erro ao atualizar status: ' + err.message)
-      fetchItems()
-    }
-  }
-
-  const columnsKey = JSON.stringify(columns)
-
-  useEffect(() => {
-    fetchItems()
-
-    const handleKanbanUpdated = () => fetchCurrentLoadedItems()
-    const handleTabChange = (e: any) => setActiveView(e.detail)
-    window.addEventListener('kanban_updated', handleKanbanUpdated)
-    window.addEventListener('kanban_tab_change', handleTabChange)
-
-    const channel = supabase
-      .channel('kanban_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'produtos_servicos_projeto',
-        },
-        () => {
-          fetchCurrentLoadedItems()
-        },
-      )
-      .subscribe()
-
-    return () => {
-      window.removeEventListener('kanban_updated', handleKanbanUpdated)
-      window.removeEventListener('kanban_tab_change', handleTabChange)
-      supabase.removeChannel(channel)
-    }
-  }, [columnsKey])
-
-  const fetchItems = async (isLoadMore = false) => {
-    try {
-      if (isLoadMore) {
-        setIsLoadingMore(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
-
-      const columnIds = columns.map((c) => c.id)
-      const currentPage = isLoadMore ? page + 1 : 0
-      const from = currentPage * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-
-      let query = supabase.from('produtos_servicos_projeto').select(
-        `
-          id, 
-          nome_produto, 
-          codigo_rastreio, 
-          qtd, 
-          status_analise, 
-          criado_em,
-          analista_id,
-          cliente_id,
-          terceirizado_validado,
-          outsourced_checked,
-          is_outsourced,
-          cliente:clientes(nome),
-          formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
-          alocacao_montagem(montador_id)
-        `,
-        { count: 'exact' },
-      )
-
-      if (columnIds.length > 0) {
-        query = query.in('status_analise', columnIds)
-      }
-
-      query = query.order('criado_em', { ascending: false })
-      query = query.range(from, to)
-
-      const { data, count, error: err } = await query
-
-      if (err) throw err
-
-      if (isMontagemRoute && !isLoadMore) {
-        const { data: montData } = await supabase
-          .from('montadores')
-          .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
-        if (montData) setAllMontadores(montData)
-      }
-
-      const validItems = (data as unknown as Item[]) || []
-
-      if (isLoadMore) {
-        setItems((prev) => {
-          const newItems = validItems.filter((fi) => !prev.some((pi) => pi?.id === fi.id))
-          return [...prev, ...newItems]
-        })
-        setPage(currentPage)
-      } else {
-        setItems(validItems)
-        setPage(0)
-      }
-
-      if (count !== null && to + 1 >= count) {
-        setHasMore(false)
-      } else if (validItems.length < PAGE_SIZE) {
-        setHasMore(false)
-      } else {
-        setHasMore(true)
-      }
-    } catch (err: any) {
-      console.error('Erro ao carregar dados do Kanban:', err)
-      setError(err.message || 'Erro ao carregar dados do Kanban.')
-    } finally {
-      setLoading(false)
-      setIsLoadingMore(false)
-    }
-  }
-
-  const fetchCurrentLoadedItems = async () => {
-    try {
-      const columnIds = columns.map((c) => c.id)
-      let query = supabase.from('produtos_servicos_projeto').select(`
-          id, 
-          nome_produto, 
-          codigo_rastreio, 
-          qtd, 
-          status_analise, 
-          criado_em,
-          analista_id,
-          cliente_id,
-          terceirizado_validado,
-          outsourced_checked,
-          is_outsourced,
-          cliente:clientes(nome),
-          formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
-          alocacao_montagem(montador_id)
-        `)
-
-      if (columnIds.length > 0) {
-        query = query.in('status_analise', columnIds)
-      }
-
-      query = query.order('criado_em', { ascending: false })
-
-      const limit = (pageRef.current + 1) * PAGE_SIZE
-      const { data, error: err } = await query.limit(limit)
-
-      if (!err && data) {
-        setItems(data as unknown as Item[])
-      }
-    } catch (e) {
-      console.error(e)
+      refreshItems()
     }
   }
 
@@ -447,39 +253,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const uniqueConsultants = Array.from(
     new Set(items.map((i) => i.formulario?.user_id).filter(Boolean)),
   ) as string[]
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('id, nome, foto_perfil')
-        .eq('status', true)
-        .order('nome')
-      if (data) {
-        const map: Record<string, any> = {}
-        data.forEach((u) => {
-          map[u.id] = u
-        })
-        setUsersMap(map)
-        setAllUsers(data)
-      }
-    }
-    fetchUsers()
-  }, [])
-
-  const getClienteNome = (item: any) => {
-    if (!item) return null
-    const nome = Array.isArray(item?.cliente) ? item.cliente[0]?.nome : item?.cliente?.nome
-    if (nome) return nome
-
-    if (item?.formulario) {
-      const form = Array.isArray(item.formulario) ? item.formulario[0] : item.formulario
-      const formCli = Array.isArray(form?.cliente) ? form.cliente[0]?.nome : form?.cliente?.nome
-      if (formCli) return formCli
-      if (form?.nome_cliente) return form.nome_cliente
-    }
-    return null
-  }
 
   const filteredItems = (items ?? []).filter((item) => {
     if (!item) return false
@@ -511,7 +284,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       return
     }
     e.dataTransfer.setData('itemId', item.id)
-    // Pequeno delay para a classe visual ser aplicada apenas no elemento arrastado, não no ghost
     setTimeout(() => {
       if (e.target instanceof HTMLElement) {
         e.target.classList.add('opacity-50', 'ring-2', 'ring-steel-blue')
@@ -566,7 +338,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const container = scrollContainerRef.current
     const rect = container.getBoundingClientRect()
     const x = e.clientX - rect.left
-    const scrollThreshold = 100 // px from edge
+    const scrollThreshold = 100
     const maxScrollSpeed = 15
 
     let speed = 0
@@ -620,15 +392,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const handleDeleteCard = async (id: string) => {
     if (!confirm('Deseja realmente excluir este card?')) return
     try {
-      const { data, error } = await supabase
-        .from('produtos_servicos_projeto')
-        .delete()
-        .eq('id', id)
-        .select('id')
-      if (error) throw error
-      if (!data || data.length === 0) {
-        throw new Error('Sem permissão para excluir este card ou card não encontrado.')
-      }
+      await deleteCardAction(id)
       toast.success('Card excluído com sucesso!')
       setItems((prev) => prev.filter((i) => i?.id !== id))
     } catch (err: any) {
@@ -638,11 +402,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   const handleAssignAnalyst = async (id: string, analystId: string | null) => {
     try {
-      const { error } = await supabase
-        .from('produtos_servicos_projeto')
-        .update({ analista_id: analystId, atualizado_em: new Date().toISOString() })
-        .eq('id', id)
-      if (error) throw error
+      await assignAnalystAction(id, analystId)
       toast.success('Responsável atualizado com sucesso!')
       setItems((prev) => prev.map((i) => (i?.id === id ? { ...i, analista_id: analystId } : i)))
     } catch (err: any) {
@@ -667,7 +427,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       isAutoTransition = true
     }
 
-    // Optimistic UI update
     setItems((prev) =>
       prev.map((i) => (i?.id === itemId ? { ...i, status_analise: finalStatus } : i)),
     )
@@ -678,31 +437,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           .from('produtos_servicos_projeto')
           .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
           .eq('id', itemId)
-
-        const { error: updateErr } = await supabase
-          .from('produtos_servicos_projeto')
-          .update({ status_analise: finalStatus, atualizado_em: new Date().toISOString() })
-          .eq('id', itemId)
-
-        if (updateErr) throw updateErr
-
-        if (columnId === 'lista_materiais') {
-          toast.success(
-            'Card transferido automaticamente para Produção (Aguardando Plano de Corte).',
-          )
-        }
+        await updateCardStatus(itemId, finalStatus)
+        toast.success('Card transferido automaticamente para Produção (Aguardando Plano de Corte).')
       } else {
-        const { error: updateErr } = await supabase
-          .from('produtos_servicos_projeto')
-          .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
-          .eq('id', itemId)
-
-        if (updateErr) throw updateErr
-        toast.success('Card movido com sucesso!')
+        await updateCardStatus(itemId, columnId, { isMontagem: isMontagemRoute })
+        if (isMontagemRoute && columnId === 'concluido') {
+          toast.success('Card concluído! Montadores liberados automaticamente.')
+        } else {
+          toast.success('Card movido com sucesso!')
+        }
       }
     } catch (err: any) {
       toast.error('Erro ao mover o card: ' + err.message)
-      fetchItems() // revert optimistic update on error
+      refreshItems()
     }
   }
 
@@ -1144,11 +891,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             </div>
           </div>
           <div className="flex flex-row flex-nowrap items-center gap-2 justify-end min-w-0">
-            <Input
+            <input
               placeholder="Buscar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-8 w-[150px] min-w-0 text-xs"
+              className="bg-white/10 border border-white/20 text-white placeholder:text-white/50 h-8 w-[150px] min-w-0 text-xs px-3 rounded-md focus:outline-none"
             />
             <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
               <SelectTrigger className="bg-white/10 border-white/20 text-white h-8 w-[140px] text-xs whitespace-nowrap">

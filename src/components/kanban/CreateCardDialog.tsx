@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import {
   Dialog,
@@ -24,6 +25,7 @@ export function CreateCardDialog({
   onCreated?: () => void
   initialIsOutsourced?: boolean
 }) {
+  const location = useLocation()
   const [loading, setLoading] = useState(false)
   const [clienteNome, setClienteNome] = useState('')
   const [produtoNome, setProdutoNome] = useState('')
@@ -112,11 +114,9 @@ export function CreateCardDialog({
 
       // 3. Inserir Card
       let defaultStatus = 'iniciar'
-      if (typeof window !== 'undefined') {
-        const path = window.location.pathname
-        if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
-        else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
-      }
+      const path = location.pathname
+      if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
+      else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
 
       const { error } = await supabase.from('produtos_servicos_projeto').insert({
         cliente_id: clienteId,
