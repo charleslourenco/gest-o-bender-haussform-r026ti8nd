@@ -70,21 +70,50 @@ export function ComprasOCR() {
   }
 
   const handleViewNota = async (nota: any) => {
-    if (!nota.arquivo_url) return
-    toast({ title: 'Gerando link de acesso...' })
-    const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
-    if (error || !url) {
+    if (!nota.arquivo_url) {
       toast({
-        title: 'Erro ao acessar arquivo',
-        description: error || 'Não foi possível gerar o link.',
+        title: 'Erro ao acessar o arquivo da nota fiscal',
+        description: 'Verifique se o arquivo foi enviado corretamente.',
         variant: 'destructive',
       })
       return
     }
+
     const isPdf = nota.arquivo_url.toLowerCase().endsWith('.pdf')
+
+    // Open a blank window synchronously BEFORE any await to avoid popup blockers
+    let popupWindow: Window | null = null
     if (isPdf) {
-      window.open(url, '_blank')
+      popupWindow = window.open('', '_blank')
+      if (popupWindow) {
+        popupWindow.document.write(
+          '<html><head><title>Carregando...</title></head><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#666;"><p>Gerando link de acesso...</p></body></html>',
+        )
+      }
+    }
+
+    toast({ title: 'Gerando link de acesso...' })
+    const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
+
+    if (error || !url) {
+      if (popupWindow) popupWindow.close()
+      toast({
+        title: 'Erro ao acessar o arquivo da nota fiscal',
+        description: 'Verifique se o arquivo foi enviado corretamente.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (isPdf) {
+      if (popupWindow) {
+        popupWindow.location.href = url
+      } else {
+        // Popup was blocked — attempt direct open as fallback
+        window.open(url, '_blank')
+      }
     } else {
+      if (popupWindow) popupWindow.close()
       setViewingUrl(url)
       setViewingTitle(`Nota: ${nota.numero_nota || nota.fornecedor}`)
     }
