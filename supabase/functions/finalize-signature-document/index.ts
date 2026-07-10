@@ -10,7 +10,7 @@ import {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY =
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY') ?? ''
-const STORAGE_BUCKET = 'bender-clientes'
+const STORAGE_BUCKET = 'bender_clientes'
 
 interface FinalizePayload {
   documento_id?: string
@@ -49,11 +49,41 @@ interface DocumentoClienteRow {
 
 function getPathFromUrl(url: string | null): string | null {
   if (!url) return null
+
+  // Already a relative path (no protocol) — normalize and return.
+  if (!url.startsWith('http')) {
+    const prefix = `${STORAGE_BUCKET}/`
+    return url.startsWith(prefix) ? url.slice(prefix.length) : url
+  }
+
   try {
     const u = new URL(url)
-    return u.pathname.split(`/${STORAGE_BUCKET}/`)[1] ?? null
+
+    // Format: /storage/v1/object/public|sign/<bucket>/<path>
+    const objectMatch = u.pathname.match(
+      new RegExp(`/storage/v1/object/(?:public|sign)/${STORAGE_BUCKET}/(.+)$`),
+    )
+    if (objectMatch) {
+      return decodeURIComponent(objectMatch[1])
+    }
+
+    // Format: /storage/v1/render/<bucket>/<path>
+    const renderMatch = u.pathname.match(new RegExp(`/storage/v1/render/${STORAGE_BUCKET}/(.+)$`))
+    if (renderMatch) {
+      return decodeURIComponent(renderMatch[1])
+    }
+
+    // Fallback: any occurrence of /<bucket>/<path>
+    const bucketIdx = u.pathname.indexOf(`/${STORAGE_BUCKET}/`)
+    if (bucketIdx !== -1) {
+      return decodeURIComponent(u.pathname.slice(bucketIdx + `/${STORAGE_BUCKET}/`.length))
+    }
+
+    return null
   } catch {
-    return url.startsWith(`/${STORAGE_BUCKET}/`) ? url.slice(`/${STORAGE_BUCKET}/`.length) : url
+    // Not a valid URL — try raw string split as last resort.
+    const parts = url.split(`/${STORAGE_BUCKET}/`)
+    return parts.length > 1 ? parts[parts.length - 1] : null
   }
 }
 
