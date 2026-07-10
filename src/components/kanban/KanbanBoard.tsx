@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Plus,
   Wrench,
+  Archive,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -27,6 +28,7 @@ import { KanbanHeader } from './KanbanHeader'
 import { MontadorSelect } from './MontadorSelect'
 import { CreateCardDialog } from './CreateCardDialog'
 import { MontadoresTab } from '@/pages/MontadoresTab'
+import { arquivarProducao, arquivarMontagem } from '@/services/arquivamento'
 import {
   Select,
   SelectContent,
@@ -135,7 +137,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     allMontadores,
     fetchItems,
     refreshItems,
-  } = useKanbanData(columns, { fetchMontadores: isMontagemRoute })
+  } = useKanbanData(columns, {
+    fetchMontadores: isMontagemRoute,
+    archiveFlag: isProducao
+      ? 'arquivado_producao'
+      : isMontagemRoute
+        ? 'arquivado_montagem'
+        : undefined,
+  })
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAnalyst, setSelectedAnalyst] = useState('all')
@@ -400,6 +409,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
+  const handleArchiveCard = async (id: string) => {
+    try {
+      if (isProducao) {
+        await arquivarProducao(id)
+      } else if (isMontagemRoute) {
+        await arquivarMontagem(id)
+      }
+      toast.success('Card arquivado com sucesso!')
+      setItems((prev) => prev.filter((i) => i?.id !== id))
+    } catch (err: any) {
+      toast.error('Erro ao arquivar: ' + err.message)
+    }
+  }
+
   const handleAssignAnalyst = async (id: string, analystId: string | null) => {
     try {
       await assignAnalystAction(id, analystId)
@@ -578,6 +601,24 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       : 'top-2 text-steel-blue/30 bg-white rounded',
                   )}
                 >
+                  {col.id === columns[columns.length - 1].id && (isProducao || isMontagemRoute) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleArchiveCard(item.id)
+                      }}
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        isAnaliseTecnica || isProducao || isMontagemRoute
+                          ? 'hover:text-amber-400 hover:bg-amber-400/10'
+                          : 'hover:text-amber-500 hover:bg-amber-50',
+                      )}
+                      title="Arquivar"
+                    >
+                      <Archive className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {

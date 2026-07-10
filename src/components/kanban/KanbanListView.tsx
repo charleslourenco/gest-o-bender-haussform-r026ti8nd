@@ -46,9 +46,11 @@ const ALL_STAGES = [
 export function KanbanListView({
   searchQuery = '',
   columns = [],
+  archiveFlag,
 }: {
   searchQuery?: string
   columns?: KanbanColumn[]
+  archiveFlag?: string
 }) {
   const location = useLocation()
   const isMontagem = location.pathname.includes('/montagem')
@@ -94,6 +96,10 @@ export function KanbanListView({
           'status_analise',
           columns.map((c) => c.id),
         )
+      }
+
+      if (archiveFlag) {
+        query = query.eq(archiveFlag as any, false)
       }
 
       query = query.order('criado_em', { ascending: false }).range(from, to)
@@ -143,6 +149,10 @@ export function KanbanListView({
         'status_analise',
         columns.map((c) => c.id),
       )
+    }
+
+    if (archiveFlag) {
+      query = query.eq(archiveFlag as any, false)
     }
 
     const { data, error } = await query.order('criado_em', { ascending: false }).limit(limit)

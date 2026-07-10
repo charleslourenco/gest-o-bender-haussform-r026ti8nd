@@ -17,6 +17,7 @@ interface Props {
   draggingId: string | null
   onEdit: (lead: Lead) => void
   onDelete: (lead: Lead) => void
+  onArchive?: (lead: Lead) => void
   isCollapsed: boolean
   onToggleCollapse: () => void
   onStatusChange: (id: string, newStatus: string) => void
@@ -37,6 +38,7 @@ export function KanbanColumn({
   draggingId,
   onEdit,
   onDelete,
+  onArchive,
   isCollapsed,
   onToggleCollapse,
   onStatusChange,
@@ -128,6 +130,7 @@ export function KanbanColumn({
             onDragEnd={onDragEnd}
             onEdit={() => onEdit(lead)}
             onDelete={() => onDelete(lead)}
+            onArchive={onArchive ? () => onArchive(lead) : undefined}
             onStatusChange={onStatusChange}
             columns={columns}
           />

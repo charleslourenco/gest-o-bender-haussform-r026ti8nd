@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
+import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { RegistrarRetalhoModal } from '@/components/estoque/RegistrarRetalhoModal'
 import { RegistrarChapaModal } from '@/components/estoque/RegistrarChapaModal'
 import { RegistrarFitaRoloModal } from '@/components/estoque/RegistrarFitaRoloModal'
@@ -14,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { LayoutTemplate, ScissorsLineDashed, Disc, Ruler } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const COLUMNS = [
   { id: 'aguardando_plano_corte', title: 'Aguardando plano de corte' },
@@ -27,6 +29,7 @@ const COLUMNS = [
 export default function Producao() {
   const [activeTab, setActiveTab] = useState('kanban')
   const [search, setSearch] = useState('')
+  const [showArquivados, setShowArquivados] = useState(false)
   const [isTypeSelectionOpen, setIsTypeSelectionOpen] = useState(false)
   const [isRetalhoModalOpen, setIsRetalhoModalOpen] = useState(false)
   const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
@@ -51,24 +54,53 @@ export default function Producao() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-steel-blue/10 shrink-0 z-30">
+        <Button
+          variant={showArquivados ? 'outline' : 'default'}
+          size="sm"
+          onClick={() => setShowArquivados(false)}
+          className={cn(!showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+        >
+          Kanban
+        </Button>
+        <Button
+          variant={showArquivados ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowArquivados(true)}
+          className={cn(showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+        >
+          Arquivados
+        </Button>
+      </div>
+
       <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
-        <KanbanBoard title="Produção" columns={COLUMNS} />
+        {showArquivados ? (
+          <KanbanArquivados archiveFlag="arquivado_producao" />
+        ) : (
+          <>
+            <KanbanBoard title="Produção" columns={COLUMNS} />
 
-        {activeTab === 'lista' && (
-          <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
-            <KanbanListView searchQuery={search} columns={COLUMNS} />
-          </div>
+            {activeTab === 'lista' && (
+              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
+                <KanbanListView
+                  searchQuery={search}
+                  columns={COLUMNS}
+                  archiveFlag="arquivado_producao"
+                />
+              </div>
+            )}
+
+            <div className="absolute bottom-6 right-6 z-20">
+              <Button
+                onClick={() => setIsTypeSelectionOpen(true)}
+                className="rounded-full shadow-lg h-14 px-6 bg-steel-blue hover:bg-dark-denim text-white"
+              >
+                <ScissorsLineDashed className="w-5 h-5 mr-2" />
+                Registrar Sobra
+              </Button>
+            </div>
+          </>
         )}
-
-        <div className="absolute bottom-6 right-6 z-20">
-          <Button
-            onClick={() => setIsTypeSelectionOpen(true)}
-            className="rounded-full shadow-lg h-14 px-6 bg-steel-blue hover:bg-dark-denim text-white"
-          >
-            <ScissorsLineDashed className="w-5 h-5 mr-2" />
-            Registrar Sobra
-          </Button>
-        </div>
       </div>
 
       <Dialog open={isTypeSelectionOpen} onOpenChange={setIsTypeSelectionOpen}>

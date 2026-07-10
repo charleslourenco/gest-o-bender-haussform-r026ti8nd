@@ -9,6 +9,7 @@ import {
   Handshake,
   HardHat,
   User,
+  Archive,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -26,6 +27,7 @@ interface Props {
   onDragEnd: (e: React.DragEvent) => void
   onEdit: () => void
   onDelete: () => void
+  onArchive?: () => void
   onStatusChange: (id: string, newStatus: string) => void
   columns: string[]
 }
@@ -64,6 +66,7 @@ export function KanbanCard({
   onDragEnd,
   onEdit,
   onDelete,
+  onArchive,
   onStatusChange,
   columns,
 }: Props) {
@@ -131,15 +134,29 @@ export function KanbanCard({
           )}
           <span className="line-clamp-2">{lead.nome}</span>
         </h4>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="text-muted-foreground hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0 -mt-1 -mr-1">
+          {onArchive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onArchive()
+              }}
+              className="text-muted-foreground hover:text-amber-600 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Arquivar"
+            >
+              <Archive className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="text-muted-foreground hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="mb-2.5" onClick={(e) => e.stopPropagation()}>

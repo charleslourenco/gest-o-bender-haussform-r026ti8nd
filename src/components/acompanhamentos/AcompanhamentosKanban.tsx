@@ -3,10 +3,11 @@ import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, Archive } from 'lucide-react'
 import { AcompanhamentoAvulsoModal } from './AcompanhamentoAvulsoModal'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
+import { arquivarAcompanhamento } from '@/services/arquivamento'
 
 const COLUMNS = [
   'INÍCIO',
@@ -103,9 +104,20 @@ export function AcompanhamentosKanban() {
     const { data, error } = await supabase
       .from('acompanhamentos')
       .select('*, responsaveis_acompanhamentos(nome)')
+      .eq('arquivado_acompanhamento' as any, false)
       .order('data_criacao', { ascending: false })
 
     if (!error && data) setCards(data)
+  }
+
+  const handleArchive = async (cardId: string) => {
+    try {
+      await arquivarAcompanhamento(cardId)
+      toast({ description: 'Acompanhamento arquivado com sucesso!' })
+      fetchCards()
+    } catch (e: any) {
+      toast({ description: e.message, variant: 'destructive' })
+    }
   }
 
   useEffect(() => {
@@ -228,9 +240,23 @@ export function AcompanhamentosKanban() {
                           <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
                             {card?.codigo_projeto || 'N/A'}
                           </span>
-                          <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                            {card?.quantidade_itens || 0} iten(s)
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                              {card?.quantidade_itens || 0} iten(s)
+                            </span>
+                            {col === 'FINALIZAÇÃO' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleArchive(card.id)
+                                }}
+                                className="text-muted-foreground hover:text-amber-600 p-0.5 transition-colors"
+                                title="Arquivar"
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <h4 className="font-semibold text-sm mb-1 leading-tight">
                           {card?.nome_cliente || 'Sem cliente'}

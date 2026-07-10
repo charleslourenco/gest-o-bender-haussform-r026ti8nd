@@ -50,8 +50,12 @@ export function getClienteNome(item: any): string | null {
   return null
 }
 
-export function useKanbanData(columns: KanbanColumnDef[], opts?: { fetchMontadores?: boolean }) {
+export function useKanbanData(
+  columns: KanbanColumnDef[],
+  opts?: { fetchMontadores?: boolean; archiveFlag?: string },
+) {
   const fetchMontadores = opts?.fetchMontadores ?? false
+  const archiveFlag = opts?.archiveFlag
   const [items, setItems] = useState<KanbanItem[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -83,6 +87,7 @@ export function useKanbanData(columns: KanbanColumnDef[], opts?: { fetchMontador
           .from('produtos_servicos_projeto')
           .select(ITEM_SELECT, { count: 'exact' })
         if (columnIds.length > 0) query = query.in('status_analise', columnIds)
+        if (archiveFlag) query = query.eq(archiveFlag as any, false)
         query = query.order('criado_em', { ascending: false }).range(from, to)
         const { data, count, error: err } = await query
         if (err) throw err
@@ -125,6 +130,7 @@ export function useKanbanData(columns: KanbanColumnDef[], opts?: { fetchMontador
       const columnIds = columns.map((c) => c.id)
       let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
       if (columnIds.length > 0) query = query.in('status_analise', columnIds)
+      if (archiveFlag) query = query.eq(archiveFlag as any, false)
       query = query.order('criado_em', { ascending: false })
       const limit = (pageRef.current + 1) * PAGE_SIZE
       const { data, error: err } = await query.limit(limit)

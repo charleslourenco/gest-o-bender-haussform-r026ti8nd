@@ -24,6 +24,7 @@ export function AcompanhamentosLista() {
     const { data } = await supabase
       .from('acompanhamentos')
       .select('*, responsaveis_acompanhamentos(nome)')
+      .eq('arquivado_acompanhamento' as any, false)
       .order('data_criacao', { ascending: false })
     if (data) setItems(data)
   }

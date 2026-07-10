@@ -4,6 +4,7 @@ export const fetchLeads = async () => {
   const { data, error } = await supabase
     .from('leads')
     .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+    .eq('arquivado_comercial' as any, false)
     .order('ordem', { ascending: true })
   if (error) throw error
   return data

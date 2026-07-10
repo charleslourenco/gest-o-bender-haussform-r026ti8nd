@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
+import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 const COLUMNS = [
   { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
@@ -15,6 +18,7 @@ const COLUMNS = [
 export default function Montagem() {
   const [activeTab, setActiveTab] = useState('kanban')
   const [search, setSearch] = useState('')
+  const [showArquivados, setShowArquivados] = useState(false)
 
   useEffect(() => {
     const handleTab = (e: any) => setActiveTab(e.detail)
@@ -31,13 +35,42 @@ export default function Montagem() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50 animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
-      <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
-        <KanbanBoard title="Montagem" columns={COLUMNS} />
+      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-steel-blue/10 shrink-0 z-30">
+        <Button
+          variant={showArquivados ? 'outline' : 'default'}
+          size="sm"
+          onClick={() => setShowArquivados(false)}
+          className={cn(!showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+        >
+          Kanban
+        </Button>
+        <Button
+          variant={showArquivados ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowArquivados(true)}
+          className={cn(showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+        >
+          Arquivados
+        </Button>
+      </div>
 
-        {activeTab === 'lista' && (
-          <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
-            <KanbanListView searchQuery={search} columns={COLUMNS} />
-          </div>
+      <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
+        {showArquivados ? (
+          <KanbanArquivados archiveFlag="arquivado_montagem" />
+        ) : (
+          <>
+            <KanbanBoard title="Montagem" columns={COLUMNS} />
+
+            {activeTab === 'lista' && (
+              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
+                <KanbanListView
+                  searchQuery={search}
+                  columns={COLUMNS}
+                  archiveFlag="arquivado_montagem"
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

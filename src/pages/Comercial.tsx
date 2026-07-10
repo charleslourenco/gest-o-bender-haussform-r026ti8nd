@@ -9,8 +9,10 @@ import {
   List as ListIcon,
   BarChart3,
   MessageCircle,
+  Archive,
 } from 'lucide-react'
 import { ConversasView } from '@/components/comercial/ConversasView'
+import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
@@ -254,6 +256,14 @@ export default function Comercial() {
               <MessageCircle className="w-4 h-4 mr-2" />
               Conversas
             </TabsTrigger>
+            <TabsTrigger
+              value="arquivados"
+              onClick={() => setActiveTab('arquivados')}
+              className="py-1.5 px-3 rounded-md transition-colors"
+            >
+              <Archive className="w-4 h-4 mr-2" />
+              Arquivados
+            </TabsTrigger>
           </TabsList>
         </div>
         <div
@@ -305,6 +315,15 @@ export default function Comercial() {
         >
           <div className="flex-1 overflow-hidden bg-card rounded-xl shadow-sm border flex">
             <ConversasView toolbarPortal={toolbarNode} isActive={activeTab === 'conversas'} />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="arquivados"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <div className="flex-1 overflow-auto bg-card rounded-xl shadow-sm border">
+            <LeadsArquivados />
           </div>
         </TabsContent>
       </div>

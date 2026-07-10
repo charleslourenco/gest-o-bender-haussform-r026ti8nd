@@ -5,6 +5,7 @@ import { LeadModal } from './LeadModal'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
 import { fetchLeads, fetchUsers, createLead, updateLead, deleteLead } from '@/services/comercial'
+import { arquivarLead } from '@/services/arquivamento'
 import { useToast } from '@/hooks/use-toast'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
@@ -149,6 +150,16 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     }
   }
 
+  const handleArchiveLead = async (id: string) => {
+    try {
+      await arquivarLead(id)
+      toast({ description: 'Lead arquivado com sucesso!' })
+      loadData()
+    } catch (e: any) {
+      toast({ description: e.message, variant: 'destructive' })
+    }
+  }
+
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
     setDragOverCol(null)
@@ -173,6 +184,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     () =>
       leads.filter((l) => {
         if (!l.kanban_ativo) return false
+        if ((l as any).arquivado_comercial) return false
         const matchS =
           l.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
           l.email.toLowerCase().includes(debouncedSearch.toLowerCase())
@@ -324,6 +336,11 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
                     setFormOpen(true)
                   }}
                   onDelete={(l) => setLeadToDelete(l)}
+                  onArchive={
+                    col === 'Vendido' || col === 'Perdido'
+                      ? (lead) => handleArchiveLead(lead.id)
+                      : undefined
+                  }
                   onStatusChange={handleStatusChange}
                   columns={COLUMNS}
                   onAddLead={

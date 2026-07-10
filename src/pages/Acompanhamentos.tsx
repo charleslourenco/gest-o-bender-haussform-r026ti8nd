@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AcompanhamentosKanban } from '@/components/acompanhamentos/AcompanhamentosKanban'
 import { AcompanhamentosLista } from '@/components/acompanhamentos/AcompanhamentosLista'
 import { AcompanhamentosResponsaveis } from '@/components/acompanhamentos/AcompanhamentosResponsaveis'
+import { AcompanhamentosArquivados } from '@/components/acompanhamentos/AcompanhamentosArquivados'
 import { ClipboardCheck } from 'lucide-react'
 
 export default function Acompanhamentos() {
@@ -42,6 +43,7 @@ export default function Acompanhamentos() {
         <TabsList className="w-fit mb-4 shrink-0">
           <TabsTrigger value="kanban">Quadro Kanban</TabsTrigger>
           <TabsTrigger value="lista">Lista de Projetos</TabsTrigger>
+          <TabsTrigger value="arquivados">Arquivados</TabsTrigger>
           {isAdmin && <TabsTrigger value="responsaveis">Gestão de Responsáveis</TabsTrigger>}
         </TabsList>
 
@@ -57,6 +59,13 @@ export default function Acompanhamentos() {
           className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
         >
           <AcompanhamentosLista />
+        </TabsContent>
+
+        <TabsContent
+          value="arquivados"
+          className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
+        >
+          <AcompanhamentosArquivados />
         </TabsContent>
 
         {isAdmin && (
