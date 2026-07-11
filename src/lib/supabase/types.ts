@@ -718,27 +718,33 @@ export type Database = {
       }
       documentos_equipe: {
         Row: {
+          arquivo_assinado_url: string | null
           arquivo_url: string
           clt_id: string | null
           criado_em: string | null
+          envelope_id: string | null
           id: string
           nome: string
           pj_id: string | null
           tipo: string | null
         }
         Insert: {
+          arquivo_assinado_url?: string | null
           arquivo_url: string
           clt_id?: string | null
           criado_em?: string | null
+          envelope_id?: string | null
           id?: string
           nome: string
           pj_id?: string | null
           tipo?: string | null
         }
         Update: {
+          arquivo_assinado_url?: string | null
           arquivo_url?: string
           clt_id?: string | null
           criado_em?: string | null
+          envelope_id?: string | null
           id?: string
           nome?: string
           pj_id?: string | null
@@ -750,6 +756,13 @@ export type Database = {
             columns: ['clt_id']
             isOneToOne: false
             referencedRelation: 'equipe_clt'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documentos_equipe_envelope_id_fkey'
+            columns: ['envelope_id']
+            isOneToOne: false
+            referencedRelation: 'envelopes_assinatura'
             referencedColumns: ['id']
           },
           {

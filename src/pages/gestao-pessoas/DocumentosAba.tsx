@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2, Download, Upload, PenTool, FileSignature } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { EquipeSignatureModal } from './equipe-signature-modal'
+import { downloadFromStorage } from '@/lib/download'
 
 interface Props {
   entityId: string
@@ -108,19 +109,30 @@ export function DocumentosAba({ entityId, entityType, entityNome, entityEmail, e
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const handleDownload = (path: string) => {
-    const { data } = supabase.storage.from('documentos_equipe').getPublicUrl(path)
-    if (data?.publicUrl) window.open(data.publicUrl, '_blank')
+  const handleDownload = async (path: string, nome: string) => {
+    const result = await downloadFromStorage(path, nome || 'documento', 'documentos_equipe')
+    if (!result.success) {
+      toast({
+        title: 'Não foi possível baixar o arquivo',
+        description:
+          'Verifique suas extensões/ad-blocker para o domínio sistema-bender.goskip.app e tente novamente.',
+        variant: 'destructive',
+      })
+    }
   }
 
-  const handleDownloadSigned = (doc: any) => {
+  const handleDownloadSigned = async (doc: any) => {
     if (!doc.arquivo_assinado_url) return
-    let url = doc.arquivo_assinado_url
-    if (!url.startsWith('http')) {
-      const { data } = supabase.storage.from('documentos_equipe').getPublicUrl(url)
-      url = data?.publicUrl || url
+    const nome = `Assinado_${doc.nome || 'documento'}.pdf`
+    const result = await downloadFromStorage(doc.arquivo_assinado_url, nome, 'documentos_equipe')
+    if (!result.success) {
+      toast({
+        title: 'Não foi possível baixar o PDF assinado',
+        description:
+          'Verifique suas extensões/ad-blocker para o domínio sistema-bender.goskip.app e tente novamente.',
+        variant: 'destructive',
+      })
     }
-    window.open(url, '_blank')
   }
 
   const handleRemove = async (id: string, path: string) => {
@@ -185,7 +197,7 @@ export function DocumentosAba({ entityId, entityType, entityNome, entityEmail, e
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleDownload(d.arquivo_url)}
+                  onClick={() => handleDownload(d.arquivo_url, d.nome)}
                   title="Baixar Arquivo"
                 >
                   <Download className="w-4 h-4 mr-1" /> Baixar
