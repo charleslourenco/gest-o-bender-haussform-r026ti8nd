@@ -74,10 +74,14 @@ export function KanbanCard({
 
   if (!card) return null
 
-  const clienteNome = card.clientes?.nome || 'Cliente N/A'
-  const codigoExibicao = card.codigo_rastreio
+  const clienteNome =
+    card.cliente?.nome ||
+    card.clientes?.nome ||
+    card.formulario_comercial?.nome_cliente ||
+    'Cliente N/A'
+  const codigoExibicao = card?.codigo_rastreio
     ? `#${card.codigo_rastreio}`
-    : `#${card.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`
+    : `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`
 
   return (
     <div

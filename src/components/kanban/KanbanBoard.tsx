@@ -767,7 +767,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         />
                       )}
                       {isMontagemRoute &&
-                        item?.alocacao_montagem &&
+                        Array.isArray(item?.alocacao_montagem) &&
                         item.alocacao_montagem.length > 0 && (
                           <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             <Wrench className="w-2.5 h-2.5" />
@@ -844,7 +844,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   </Select>
 
                   {isMontagemRoute && (
-                    <MontadorSelect item={item} montadores={allMontadores} onUpdate={fetchItems} />
+                    <MontadorSelect
+                      item={item}
+                      montadores={allMontadores || []}
+                      onUpdate={fetchItems}
+                    />
                   )}
                 </div>
               </div>

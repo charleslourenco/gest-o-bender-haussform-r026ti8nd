@@ -33,12 +33,16 @@ export function MontadorSelect({
   montadores: any[]
   onUpdate: () => void
 }) {
-  const alocacoesCard = item.alocacao_montagem?.map((a: any) => a.montador_id) || []
+  const alocacoesCard = Array.isArray(item?.alocacao_montagem)
+    ? item.alocacao_montagem.map((a: any) => a?.montador_id).filter(Boolean)
+    : []
   const [pendingAllocation, setPendingAllocation] = useState<{
     montadorId: string
     montadorNome: string
     prevCards: any[]
   } | null>(null)
+
+  if (!item?.id) return null
 
   const handleToggleMontador = async (montadorId: string, checked: boolean) => {
     if (!checked) {
@@ -53,12 +57,14 @@ export function MontadorSelect({
     const montador = montadores.find((m) => m.id === montadorId)
     if (!montador) return
 
-    const currentCardClientId = item.cliente_id
-    const conflictingAllocations =
-      montador.alocacao_montagem?.filter(
-        (a: any) =>
-          a.produtos_servicos_projeto?.cliente_id !== currentCardClientId && a.card_id !== item.id,
-      ) || []
+    const currentCardClientId = item?.cliente_id ?? null
+    const conflictingAllocations = Array.isArray(montador?.alocacao_montagem)
+      ? montador.alocacao_montagem.filter(
+          (a: any) =>
+            a?.produtos_servicos_projeto?.cliente_id !== currentCardClientId &&
+            a?.card_id !== item?.id,
+        )
+      : []
 
     if (conflictingAllocations.length > 0) {
       setPendingAllocation({
@@ -102,7 +108,7 @@ export function MontadorSelect({
           <Button
             variant="outline"
             role="combobox"
-            className="h-8 text-[11px] border-steel-blue/20 bg-emerald-500/10 text-white hover:bg-emerald-500/20 hover:text-white w-full justify-between focus:ring-0 focus:ring-offset-0 px-2"
+            className="h-8 text-[11px] border-steel-blue/20 bg-emerald-500/20 text-emerald-900 hover:bg-emerald-500/30 hover:text-emerald-900 dark:bg-emerald-500/10 dark:text-white dark:hover:bg-emerald-500/20 dark:hover:text-white w-full justify-between focus:ring-0 focus:ring-offset-0 px-2"
           >
             <div className="flex items-center gap-1.5 truncate">
               <Wrench className="w-3 h-3 shrink-0" />
@@ -115,7 +121,7 @@ export function MontadorSelect({
             <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-50 bg-white">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-50 bg-popover text-popover-foreground border border-border">
           <Command>
             <CommandInput placeholder="Buscar montador..." className="text-xs h-8" />
             <CommandList>
@@ -127,10 +133,10 @@ export function MontadorSelect({
                   const isChecked = alocacoesCard.includes(m.id)
                   const isBusyWithOtherClient =
                     !isChecked &&
-                    m.alocacao_montagem?.some(
-                      (a: any) => a.produtos_servicos_projeto?.cliente_id !== item.cliente_id,
+                    Array.isArray(m?.alocacao_montagem) &&
+                    m.alocacao_montagem.some(
+                      (a: any) => a?.produtos_servicos_projeto?.cliente_id !== item?.cliente_id,
                     )
-
                   return (
                     <CommandItem
                       key={m.id}

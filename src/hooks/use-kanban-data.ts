@@ -99,7 +99,10 @@ export function useKanbanData(
           if (montData) setAllMontadores(montData)
         }
 
-        const validItems = (data as unknown as KanbanItem[]) || []
+        const validItems = ((data as unknown as KanbanItem[]) || []).map((item) => ({
+          ...item,
+          alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+        }))
         if (isLoadMore) {
           setItems((prev) => [
             ...prev,
@@ -122,7 +125,7 @@ export function useKanbanData(
         setIsLoadingMore(false)
       }
     },
-    [columnsKey, fetchMontadores],
+    [columnsKey, fetchMontadores, archiveFlag],
   )
 
   const refreshItems = useCallback(async () => {
@@ -134,11 +137,17 @@ export function useKanbanData(
       query = query.order('criado_em', { ascending: false })
       const limit = (pageRef.current + 1) * PAGE_SIZE
       const { data, error: err } = await query.limit(limit)
-      if (!err && data) setItems(data as unknown as KanbanItem[])
+      if (!err && data) {
+        const normalized = (data as unknown as KanbanItem[]).map((item) => ({
+          ...item,
+          alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+        }))
+        setItems(normalized)
+      }
     } catch (e) {
       console.error(e)
     }
-  }, [columnsKey])
+  }, [columnsKey, archiveFlag])
 
   useEffect(() => {
     fetchItems()

@@ -18,6 +18,7 @@ export interface CardData {
   codigo_rastreio?: string | null
   analista_id?: string | null
   clientes?: { nome: string } | null
+  cliente?: { nome: string } | null
   formulario_comercial?: {
     usuario_id: string | null
     nome_cliente?: string | null

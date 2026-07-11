@@ -79,7 +79,7 @@ export function MontadoresTab() {
   }
 
   const filtered = montadores.filter((m) =>
-    m.nome_completo.toLowerCase().includes(search.toLowerCase()),
+    (m?.nome_completo || '').toLowerCase().includes(search.toLowerCase()),
   )
 
   return (
@@ -125,12 +125,12 @@ export function MontadoresTab() {
               </TableRow>
             ) : (
               filtered.map((m) => {
-                const alocacoes = m.alocacao_montagem || []
+                const alocacoes = Array.isArray(m?.alocacao_montagem) ? m.alocacao_montagem : []
                 const isAlocado = alocacoes.length > 0
                 const clientes = Array.from(
                   new Set(
                     alocacoes
-                      .map((a: any) => a.produtos_servicos_projeto?.clientes?.nome)
+                      .map((a: any) => a?.produtos_servicos_projeto?.clientes?.nome)
                       .filter(Boolean),
                   ),
                 )
