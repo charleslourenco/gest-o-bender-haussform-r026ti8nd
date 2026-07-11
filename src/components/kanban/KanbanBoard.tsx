@@ -116,7 +116,9 @@ function TimeInColumn({
   }, [cardId, status, criado_em])
 
   if (!timeStr) return null
-  return <span className="text-[10px] text-white/80 font-medium leading-none">{timeStr}</span>
+  return (
+    <span className="text-[10px] text-muted-foreground font-medium leading-none">{timeStr}</span>
+  )
 }
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
@@ -295,14 +297,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     e.dataTransfer.setData('itemId', item.id)
     setTimeout(() => {
       if (e.target instanceof HTMLElement) {
-        e.target.classList.add('opacity-50', 'ring-2', 'ring-steel-blue')
+        e.target.classList.add('opacity-50', 'ring-2', 'ring-primary')
       }
     }, 0)
   }
 
   const handleDragEnd = (e: React.DragEvent) => {
     if (e.target instanceof HTMLElement) {
-      e.target.classList.remove('opacity-50', 'ring-2', 'ring-steel-blue')
+      e.target.classList.remove('opacity-50', 'ring-2', 'ring-primary')
     }
   }
 
@@ -479,20 +481,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   if (loading && items.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-12">
-        <Loader2 className="h-10 w-10 animate-spin text-steel-blue mb-4" />
-        <p className="text-midnight-navy/60 font-medium">Carregando quadro...</p>
+        <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground font-medium">Carregando quadro...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-12 text-center bg-off-white">
-        <div className="bg-red-50 p-4 rounded-full mb-4">
-          <AlertCircle className="h-10 w-10 text-red-500" />
+      <div className="flex h-full flex-col items-center justify-center p-12 text-center bg-background">
+        <div className="bg-destructive/10 p-4 rounded-full mb-4">
+          <AlertCircle className="h-10 w-10 text-destructive" />
         </div>
-        <h3 className="mb-2 text-xl font-bold text-midnight-navy">Erro ao carregar Kanban</h3>
-        <p className="text-sm text-midnight-navy/70 max-w-md">{error}</p>
+        <h3 className="mb-2 text-xl font-bold text-foreground">Erro ao carregar Kanban</h3>
+        <p className="text-sm text-muted-foreground max-w-md">{error}</p>
       </div>
     )
   }
@@ -508,13 +510,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             isAnaliseTecnica
               ? 'max-h-full w-[320px] min-w-[320px] rounded-lg'
               : isMontagemRoute || isProducao
-                ? 'w-[320px] min-w-[320px] rounded-xl border border-steel-blue/20'
-                : 'w-[260px] min-w-[260px] rounded-xl border border-steel-blue/20',
+                ? 'w-[320px] min-w-[320px] rounded-xl border border-border'
+                : 'w-[260px] min-w-[260px] rounded-xl border border-border',
             dragOverColId === col.id
-              ? 'bg-steel-blue/20 ring-2 ring-steel-blue/50'
+              ? 'bg-accent/50 ring-2 ring-primary/50'
               : isAnaliseTecnica
-                ? 'bg-slate-100'
-                : 'bg-pale-cornflower/30',
+                ? 'bg-muted/30'
+                : 'bg-muted/30',
           )}
           onDragOver={(e) => handleDragOver(e, col.id)}
           onDragLeave={handleDragLeave}
@@ -522,14 +524,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         >
           <div
             className={cn(
-              'flex items-center justify-between border-b border-steel-blue/10 px-4 py-3 sticky top-0 z-10 shadow-sm shrink-0',
-              isAnaliseTecnica
-                ? 'bg-slate-200/60 rounded-t-lg'
-                : 'bg-pale-cornflower/60 rounded-t-xl',
+              'flex items-center justify-between border-b border-border px-4 py-3 sticky top-0 z-10 shadow-sm shrink-0',
+              isAnaliseTecnica ? 'bg-muted/50 rounded-t-lg' : 'bg-muted/50 rounded-t-xl',
             )}
           >
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-midnight-navy text-sm uppercase tracking-wider">
+              <h3 className="font-semibold text-foreground text-sm uppercase tracking-wider">
                 {col.title}
               </h3>
               {isAnaliseTecnica && col.id === 'iniciar' && (
@@ -539,7 +539,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     e.stopPropagation()
                     window.dispatchEvent(new CustomEvent('open_criar_card_avulso'))
                   }}
-                  className="bg-white text-midnight-navy text-[10px] font-semibold px-2 py-0.5 rounded border border-steel-blue/20 hover:bg-slate-50 transition-colors shadow-sm inline-flex items-center"
+                  className="bg-card text-foreground text-[10px] font-semibold px-2 py-0.5 rounded border border-input hover:bg-muted/50 transition-colors shadow-sm inline-flex items-center"
                   title="Criar card avulso"
                 >
                   <Plus className="w-3 h-3 mr-1" />
@@ -547,7 +547,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 </button>
               )}
             </div>
-            <Badge variant="secondary" className="bg-white text-steel-blue font-bold shadow-sm">
+            <Badge variant="secondary" className="bg-card text-primary font-bold shadow-sm">
               {colItems.length}
             </Badge>
           </div>
@@ -570,22 +570,22 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao || isMontagemRoute
                     ? cn(
-                        'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border-2',
+                        'bg-card text-card-foreground p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border-2',
                         item?.is_outsourced
                           ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                          : 'border-transparent dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                          : 'border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                       )
                     : cn(
                         'rounded-lg shadow-sm hover:shadow-md flex flex-col border-2',
                         isAnaliseTecnica
                           ? cn(
-                              'bg-[#1A3D63] text-white p-1.5 gap-1',
+                              'bg-card text-card-foreground p-1.5 gap-1',
                               item?.is_outsourced
                                 ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                                : 'border-white/10 hover:border-white/30 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                                : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
                             )
                           : cn(
-                              'bg-white border-steel-blue/20 hover:border-steel-blue/50 p-3 gap-2',
+                              'bg-card border-border hover:border-primary/50 p-3 gap-2 text-card-foreground',
                               item?.is_outsourced
                                 ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
                                 : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
@@ -597,8 +597,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   className={cn(
                     'absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
                     isAnaliseTecnica || isProducao || isMontagemRoute
-                      ? 'top-1 text-white/30 bg-[#1A3D63] rounded'
-                      : 'top-2 text-steel-blue/30 bg-white rounded',
+                      ? 'top-1 text-muted-foreground/50 bg-card rounded'
+                      : 'top-2 text-muted-foreground/50 bg-card rounded',
                   )}
                 >
                   {col.id === columns[columns.length - 1].id && (isProducao || isMontagemRoute) && (
@@ -611,8 +611,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       className={cn(
                         'p-1 rounded transition-colors',
                         isAnaliseTecnica || isProducao || isMontagemRoute
-                          ? 'hover:text-amber-400 hover:bg-amber-400/10'
-                          : 'hover:text-amber-500 hover:bg-amber-50',
+                          ? 'hover:text-amber-600 hover:bg-amber-600/10'
+                          : 'hover:text-amber-600 hover:bg-amber-600/10',
                       )}
                       title="Arquivar"
                     >
@@ -628,8 +628,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     className={cn(
                       'p-1 rounded transition-colors',
                       isAnaliseTecnica || isProducao || isMontagemRoute
-                        ? 'hover:text-red-400 hover:bg-red-400/10'
-                        : 'hover:text-red-500 hover:bg-red-50',
+                        ? 'hover:text-destructive hover:bg-destructive/10'
+                        : 'hover:text-destructive hover:bg-destructive/10',
                     )}
                     title="Excluir card"
                   >
@@ -650,14 +650,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     <>
                       <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-xs font-medium">
                         {item?.codigo_rastreio && (
-                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border text-white bg-white/10 border-white/20 shrink-0 leading-none">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border text-primary bg-muted/50 border-border shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
                         )}
                         <span className="truncate">{getClienteNome(item) || 'Avulso'}</span>
                       </div>
                       <h4
-                        className="font-semibold leading-tight text-white/90 text-xs mt-1 truncate"
+                        className="font-semibold leading-tight text-card-foreground text-xs mt-1 truncate"
                         title={item?.nome_produto ?? 'Sem nome'}
                       >
                         {item?.nome_produto ?? 'Sem nome'}
@@ -667,7 +667,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     <div className="flex flex-col gap-1 mt-0.5">
                       <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
                         {item?.codigo_rastreio && (
-                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-white/20 text-white bg-white/10 shrink-0 leading-none">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none">
                             {item.codigo_rastreio}
                           </span>
                         )}
@@ -676,7 +676,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         </span>
                       </div>
                       <h4
-                        className="font-semibold leading-tight text-[#F6FAFD] text-xs truncate"
+                        className="font-semibold leading-tight text-card-foreground text-xs truncate"
                         title={item?.nome_produto ?? 'Sem nome'}
                       >
                         {item?.nome_produto ?? 'Sem nome'}
@@ -697,12 +697,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-semibold leading-tight text-midnight-navy text-sm">
+                      <h4 className="font-semibold leading-tight text-foreground text-sm">
                         {item?.nome_produto ?? 'Sem nome'}
                       </h4>
                       {item?.codigo_rastreio && (
                         <div className="mt-1">
-                          <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-steel-blue bg-pale-cornflower border-steel-blue/20 leading-none">
+                          <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-primary bg-muted/50 border-border leading-none">
                             {item.codigo_rastreio}
                           </span>
                         </div>
@@ -716,13 +716,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     className={cn(
                       'flex flex-col font-medium border-t',
                       isAnaliseTecnica
-                        ? 'border-white/10 text-white/70 pt-1 gap-0.5 text-[10px]'
-                        : 'border-steel-blue/10 text-midnight-navy/70 pt-2 gap-1 text-xs',
+                        ? 'border-border text-muted-foreground pt-1 gap-0.5 text-[10px]'
+                        : 'border-border text-muted-foreground pt-2 gap-1 text-xs',
                     )}
                   >
                     {!isAnaliseTecnica && getClienteNome(item) && (
-                      <div className="flex items-center gap-1 truncate text-midnight-navy/90">
-                        <User className="h-3 w-3 shrink-0 text-steel-blue" />
+                      <div className="flex items-center gap-1 truncate text-foreground">
+                        <User className="h-3 w-3 shrink-0 text-primary" />
                         <span className="truncate">{getClienteNome(item)}</span>
                       </div>
                     )}
@@ -731,7 +731,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         <Package
                           className={cn(
                             'h-3 w-3 shrink-0',
-                            isAnaliseTecnica ? 'text-white/50' : 'text-steel-blue',
+                            isAnaliseTecnica ? 'text-muted-foreground' : 'text-primary',
                           )}
                         />
                         <span>Qtd: {item?.qtd ?? 0}</span>
@@ -739,7 +739,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       <div
                         className={cn(
                           'flex items-center gap-1',
-                          isAnaliseTecnica ? 'text-white/50' : 'text-midnight-navy/50',
+                          isAnaliseTecnica ? 'text-muted-foreground' : 'text-muted-foreground',
                         )}
                       >
                         <CalendarClock className="h-3 w-3 shrink-0" />
@@ -766,15 +766,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       {isMontagemRoute &&
                         item?.alocacao_montagem &&
                         item.alocacao_montagem.length > 0 && (
-                          <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                          <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                             <Wrench className="w-2.5 h-2.5" />
                             <span>{item.alocacao_montagem.length} Alocado(s)</span>
                           </div>
                         )}
                     </div>
                     <div className="flex items-center gap-1 text-[10px]">
-                      <Package className="h-3 w-3 shrink-0 text-white/50" />
-                      <span className="text-white/80">Qtd: {item?.qtd ?? 0}</span>
+                      <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <span className="text-muted-foreground">Qtd: {item?.qtd ?? 0}</span>
                     </div>
                   </div>
                 )}
@@ -783,10 +783,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   className={cn(
                     'border-t flex flex-col',
                     isProducao || isMontagemRoute
-                      ? 'border-white/10 pt-1.5 gap-1'
+                      ? 'border-border pt-1.5 gap-1'
                       : isAnaliseTecnica
-                        ? 'border-white/10 pt-1.5 gap-1'
-                        : 'border-steel-blue/10 pt-2 gap-1.5',
+                        ? 'border-border pt-1.5 gap-1'
+                        : 'border-border pt-2 gap-1.5',
                   )}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
@@ -796,16 +796,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       value={item?.status_analise ?? ''}
                       onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
                     >
-                      <SelectTrigger className="h-6 text-[10px] w-full bg-white/10 border-white/20 text-white focus:ring-0 focus:ring-offset-0 px-2">
+                      <SelectTrigger className="h-6 text-[10px] w-full bg-muted/30 border-input text-foreground focus:ring-1 focus:ring-ring px-2">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1A3D63] border-white/20 text-white max-h-[300px]">
+                      <SelectContent className="max-h-[300px]">
                         {columns.map((c) => (
-                          <SelectItem
-                            key={c.id}
-                            value={c.id}
-                            className="text-[10px] py-1 text-white/80 focus:bg-white/10 focus:text-white"
-                          >
+                          <SelectItem key={c.id} value={c.id} className="text-[10px] py-1">
                             {c.title}
                           </SelectItem>
                         ))}
@@ -821,41 +817,23 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   >
                     <SelectTrigger
                       className={cn(
-                        'h-6 text-[10px] px-2 w-full focus:ring-0 focus:ring-offset-0',
+                        'h-6 text-[10px] px-2 w-full focus:ring-1 focus:ring-ring',
                         isAnaliseTecnica || isProducao || isMontagemRoute
-                          ? 'bg-white/10 border-white/20 text-white'
-                          : 'border-steel-blue/20 bg-pale-cornflower/20 text-midnight-navy',
+                          ? 'bg-muted/30 border-input text-foreground'
+                          : 'border-input bg-muted/30 text-foreground',
                       )}
                     >
                       <SelectValue placeholder="Atribuir responsável..." />
                     </SelectTrigger>
-                    <SelectContent
-                      className={cn(
-                        (isAnaliseTecnica || isProducao || isMontagemRoute) &&
-                          'bg-[#1A3D63] border-white/20 text-white',
-                      )}
-                    >
+                    <SelectContent>
                       <SelectItem
                         value="unassigned"
-                        className={cn(
-                          'text-[10px] py-1',
-                          isAnaliseTecnica || isProducao || isMontagemRoute
-                            ? 'text-white/60 focus:bg-white/10 focus:text-white'
-                            : 'text-muted-foreground',
-                        )}
+                        className="text-[10px] py-1 text-muted-foreground"
                       >
                         Não atribuído
                       </SelectItem>
                       {allUsers.map((u) => (
-                        <SelectItem
-                          key={u.id}
-                          value={u.id}
-                          className={cn(
-                            'text-[10px] py-1',
-                            (isAnaliseTecnica || isProducao || isMontagemRoute) &&
-                              'focus:bg-white/10 focus:text-white',
-                          )}
-                        >
+                        <SelectItem key={u.id} value={u.id} className="text-[10px] py-1">
                           {u.nome}
                         </SelectItem>
                       ))}
@@ -870,8 +848,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             ))}
 
             {colItems.length === 0 && (
-              <div className="flex-1 min-h-[120px] h-full flex items-center justify-center rounded-lg border-2 border-dashed border-steel-blue/20 bg-white/40 pointer-events-none">
-                <p className="text-sm font-medium text-steel-blue/50">Solte os cards aqui</p>
+              <div className="flex-1 min-h-[120px] h-full flex items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 pointer-events-none">
+                <p className="text-sm font-medium text-muted-foreground">Solte os cards aqui</p>
               </div>
             )}
           </div>
@@ -884,25 +862,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       className={cn(
         'flex h-full flex-col overflow-hidden shadow-sm',
         isAnaliseTecnica || isMontagemRoute
-          ? 'bg-off-white rounded-none border-0'
-          : 'bg-off-white rounded-lg border border-steel-blue/10',
+          ? 'bg-background rounded-none border-0'
+          : 'bg-background rounded-lg border border-border',
       )}
     >
       {isAnaliseTecnica ? (
-        <div className="flex flex-row flex-nowrap items-center justify-between bg-[#0A1931] px-6 py-3 shrink-0 gap-4 mt-0 mx-0 rounded-none w-full">
+        <div className="flex flex-row flex-nowrap items-center justify-between bg-card border-b border-border px-6 py-3 shrink-0 gap-4 mt-0 mx-0 rounded-none w-full">
           <div className="flex flex-row flex-nowrap items-center gap-4">
             <div className="flex items-center gap-2 whitespace-nowrap">
-              <FileSearch className="h-5 w-5 text-emerald-400" />
-              <h1 className="text-white font-bold text-lg">Análise Técnica</h1>
+              <FileSearch className="h-5 w-5 text-primary" />
+              <h1 className="text-foreground font-bold text-lg">Análise Técnica</h1>
             </div>
-            <div className="flex bg-white/10 p-0.5 rounded-lg whitespace-nowrap">
+            <div className="flex bg-muted p-0.5 rounded-lg whitespace-nowrap">
               <button
                 onClick={() => setActiveView('kanban')}
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'kanban'
-                    ? 'bg-white text-[#0A1931] shadow'
-                    : 'text-white hover:bg-white/20',
+                    ? 'bg-card text-foreground shadow'
+                    : 'text-muted-foreground hover:bg-muted',
                 )}
               >
                 Kanban
@@ -912,8 +890,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'lista'
-                    ? 'bg-white text-[#0A1931] shadow'
-                    : 'text-white hover:bg-white/20',
+                    ? 'bg-card text-foreground shadow'
+                    : 'text-muted-foreground hover:bg-muted',
                 )}
               >
                 Lista
@@ -923,8 +901,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 className={cn(
                   'px-3 py-1 rounded-md text-xs font-medium transition-colors',
                   activeView === 'indicadores'
-                    ? 'bg-white text-[#0A1931] shadow'
-                    : 'text-white hover:bg-white/20',
+                    ? 'bg-card text-foreground shadow'
+                    : 'text-muted-foreground hover:bg-muted',
                 )}
               >
                 Indicadores
@@ -936,30 +914,23 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               placeholder="Buscar..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/10 border border-white/20 text-white placeholder:text-white/50 h-8 w-[150px] min-w-0 text-xs px-3 rounded-md focus:outline-none"
+              className="bg-muted/30 border border-input text-foreground placeholder:text-muted-foreground h-8 w-[150px] min-w-0 text-xs px-3 rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
             />
             <Select value={selectedAnalyst} onValueChange={setSelectedAnalyst}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white h-8 w-[140px] text-xs whitespace-nowrap">
+              <SelectTrigger className="bg-muted/30 border-input text-foreground h-8 w-[140px] text-xs whitespace-nowrap">
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
-              <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
-                <SelectItem value="all" className="focus:bg-white/10 focus:text-white text-xs">
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">
                   Todos
                 </SelectItem>
-                <SelectItem
-                  value="unassigned"
-                  className="focus:bg-white/10 focus:text-white text-xs"
-                >
+                <SelectItem value="unassigned" className="text-xs">
                   Não atribuído
                 </SelectItem>
                 {uniqueAnalysts.map(
                   (id) =>
                     usersMap[id] && (
-                      <SelectItem
-                        key={id}
-                        value={id}
-                        className="focus:bg-white/10 focus:text-white text-xs"
-                      >
+                      <SelectItem key={id} value={id} className="text-xs">
                         {usersMap[id].nome}
                       </SelectItem>
                     ),
@@ -967,21 +938,17 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               </SelectContent>
             </Select>
             <Select value={selectedConsultant} onValueChange={setSelectedConsultant}>
-              <SelectTrigger className="bg-white/10 border-white/20 text-white h-8 w-[140px] text-xs whitespace-nowrap">
+              <SelectTrigger className="bg-muted/30 border-input text-foreground h-8 w-[140px] text-xs whitespace-nowrap">
                 <SelectValue placeholder="Consultor" />
               </SelectTrigger>
-              <SelectContent className="bg-[#1A3D63] border-white/20 text-white">
-                <SelectItem value="all" className="focus:bg-white/10 focus:text-white text-xs">
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">
                   Todos
                 </SelectItem>
                 {uniqueConsultants.map(
                   (id) =>
                     usersMap[id] && (
-                      <SelectItem
-                        key={id}
-                        value={id}
-                        className="focus:bg-white/10 focus:text-white text-xs"
-                      >
+                      <SelectItem key={id} value={id} className="text-xs">
                         {usersMap[id].nome}
                       </SelectItem>
                     ),
@@ -991,7 +958,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           </div>
         </div>
       ) : (
-        <div className={cn(isMontagemRoute ? '' : 'border-b border-steel-blue/10 bg-white')}>
+        <div className={cn(isMontagemRoute ? '' : 'border-b border-border bg-card')}>
           <KanbanHeader
             title={title}
             searchQuery={searchQuery}
@@ -1006,7 +973,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           />
           {!isMontagemRoute && (
             <div className="px-6 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
-              <p className="text-midnight-navy/60 text-sm">
+              <p className="text-muted-foreground text-sm">
                 Arraste os cards entre as colunas para atualizar o status.
               </p>
             </div>
@@ -1025,12 +992,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             {renderColumns()}
           </div>
           {hasMore && (
-            <div className="p-4 flex justify-center shrink-0 border-t border-steel-blue/10 bg-off-white">
+            <div className="p-4 flex justify-center shrink-0 border-t border-border bg-background">
               <Button
                 variant="outline"
                 onClick={() => fetchItems(true)}
                 disabled={isLoadingMore}
-                className="bg-white text-steel-blue border-steel-blue/20 hover:bg-steel-blue/5"
+                className="bg-card text-primary border-input hover:bg-muted/50"
               >
                 {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Carregar Mais
@@ -1041,17 +1008,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'lista' && (
-        <div className="flex-1 p-6 overflow-hidden flex flex-col bg-off-white animate-in fade-in duration-300">
-          <div className="bg-white rounded-xl border border-steel-blue/10 shadow-sm flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 p-6 overflow-hidden flex flex-col bg-background animate-in fade-in duration-300">
+          <div className="bg-card rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col">
             <div className="overflow-x-auto w-full flex-1">
               <Table>
-                <TableHeader className="bg-[#0A1931]">
-                  <TableRow className="hover:bg-[#0A1931]">
-                    <TableHead className="text-white font-semibold">Ambiente</TableHead>
-                    <TableHead className="text-white font-semibold">Data</TableHead>
-                    <TableHead className="text-white font-semibold">Status</TableHead>
-                    <TableHead className="text-white font-semibold">Responsável</TableHead>
-                    <TableHead className="text-white font-semibold text-right">Ações</TableHead>
+                <TableHeader className="bg-card">
+                  <TableRow className="hover:bg-card border-border">
+                    <TableHead className="text-foreground font-semibold">Ambiente</TableHead>
+                    <TableHead className="text-foreground font-semibold">Data</TableHead>
+                    <TableHead className="text-foreground font-semibold">Status</TableHead>
+                    <TableHead className="text-foreground font-semibold">Responsável</TableHead>
+                    <TableHead className="text-foreground font-semibold text-right">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1066,11 +1035,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       item ? (
                         <TableRow
                           key={item.id}
-                          className="bg-white text-[#1A3D63] hover:bg-slate-50 border-b border-slate-100 transition-colors"
+                          className="bg-card text-card-foreground hover:bg-muted/50 border-b border-border transition-colors"
                         >
                           <TableCell>
                             <div className="flex flex-col gap-1 items-start">
-                              <span className="text-[10px] text-steel-blue font-medium mb-0.5">
+                              <span className="text-[10px] text-primary font-medium mb-0.5">
                                 {getClienteNome(item) || 'Avulso'}
                               </span>
                               <span className="font-semibold leading-tight">
@@ -1078,7 +1047,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                               </span>
                               <div className="flex items-center gap-2">
                                 {item?.codigo_rastreio && (
-                                  <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-steel-blue/20 bg-pale-cornflower/20 text-steel-blue">
+                                  <span className="inline-block text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border border-border bg-muted/50 text-primary">
                                     {item.codigo_rastreio}
                                   </span>
                                 )}
@@ -1110,7 +1079,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                               value={item?.status_analise ?? ''}
                               onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
                             >
-                              <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                              <SelectTrigger className="h-8 text-xs w-[180px] border-input text-foreground focus:ring-1 focus:ring-ring">
                                 <SelectValue placeholder="Status" />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px]">
@@ -1130,7 +1099,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                                 handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
                               }
                             >
-                              <SelectTrigger className="h-8 text-xs w-[180px] border-slate-200 text-[#1A3D63] focus:ring-0 focus:ring-offset-0">
+                              <SelectTrigger className="h-8 text-xs w-[180px] border-input text-foreground focus:ring-1 focus:ring-ring">
                                 <SelectValue placeholder="Responsável" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1151,7 +1120,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                           <TableCell className="text-right">
                             <button
                               onClick={() => item?.id && handleDeleteCard(item.id)}
-                              className="p-2 rounded-md hover:bg-red-50 text-red-500 transition-colors inline-flex items-center justify-center"
+                              className="p-2 rounded-md hover:bg-destructive/10 text-destructive transition-colors inline-flex items-center justify-center"
                               title="Excluir item"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1165,12 +1134,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               </Table>
             </div>
             {hasMore && (
-              <div className="p-4 flex justify-center shrink-0 border-t border-slate-200 bg-white">
+              <div className="p-4 flex justify-center shrink-0 border-t border-border bg-card">
                 <Button
                   variant="outline"
                   onClick={() => fetchItems(true)}
                   disabled={isLoadingMore}
-                  className="bg-white text-[#1A3D63] border-[#1A3D63]/20 hover:bg-[#1A3D63]/5"
+                  className="bg-card text-foreground border-input hover:bg-muted/50"
                 >
                   {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Carregar Mais
@@ -1182,12 +1151,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'indicadores' && (
-        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-off-white animate-in fade-in duration-300">
-          <div className="bg-white p-8 rounded-xl border border-steel-blue/10 shadow-sm max-w-md text-center">
-            <h3 className="text-xl font-bold text-midnight-navy mb-2">
+        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-background animate-in fade-in duration-300">
+          <div className="bg-card p-8 rounded-xl border border-border shadow-sm max-w-md text-center">
+            <h3 className="text-xl font-bold text-foreground mb-2">
               Indicadores em desenvolvimento
             </h3>
-            <p className="text-midnight-navy/60">
+            <p className="text-muted-foreground">
               Acompanhe métricas, gargalos e a performance da equipe de análise técnica em tempo
               real. Em breve.
             </p>
@@ -1196,7 +1165,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       )}
 
       {activeView === 'montadores' && (
-        <div className="flex-1 overflow-auto bg-white m-6 rounded-xl shadow-sm border border-steel-blue/10 p-6 animate-in fade-in duration-300">
+        <div className="flex-1 overflow-auto bg-card m-6 rounded-xl shadow-sm border border-border p-6 animate-in fade-in duration-300">
           <MontadoresTab />
         </div>
       )}

@@ -64,15 +64,15 @@ export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-[#1A3D63]/70 font-medium">Carregando...</div>
+    return <div className="p-8 text-center text-muted-foreground font-medium">Carregando...</div>
   }
 
   return (
     <div className="p-4 h-full overflow-auto">
-      <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-card rounded-md shadow-sm border border-border overflow-hidden">
         <Table>
-          <TableHeader className="bg-[#0A1931]">
-            <TableRow className="hover:bg-[#0A1931]">
+          <TableHeader className="bg-card">
+            <TableRow className="hover:bg-card border-border">
               <TableHead className="text-white font-semibold">Código</TableHead>
               <TableHead className="text-white font-semibold">Cliente</TableHead>
               <TableHead className="text-white font-semibold">Ambiente</TableHead>
@@ -84,7 +84,7 @@ export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
           <TableBody>
             {items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Nenhum item arquivado.
                 </TableCell>
               </TableRow>
@@ -92,7 +92,7 @@ export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
               items.map((item) => (
                 <TableRow
                   key={item.id}
-                  className="bg-white hover:bg-slate-50 text-[#1A3D63] border-b border-slate-100"
+                  className="bg-card hover:bg-muted/50 text-card-foreground border-b border-border"
                 >
                   <TableCell className="font-medium whitespace-nowrap">
                     {item?.codigo_rastreio || '-'}
@@ -108,7 +108,7 @@ export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleUnarchive(item.id)}
-                      className="text-steel-blue hover:text-steel-blue/80 hover:bg-steel-blue/5"
+                      className="text-primary hover:text-primary/80 hover:bg-primary/5"
                     >
                       <RotateCcw className="w-4 h-4 mr-1" />
                       Desarquivar

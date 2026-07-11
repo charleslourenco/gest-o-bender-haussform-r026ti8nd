@@ -135,18 +135,18 @@ export function AnaliseProjetoKanbanBoard() {
     items: filteredProjects.filter((p) => p.status_analise_projeto === col.id),
   }))
 
-  if (loading) return <div className="p-8 text-slate-400">Carregando...</div>
+  if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-slate-50/50 dark:bg-transparent">
+    <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-background">
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex gap-4 p-6 h-full w-max items-stretch">
           {columnsData.map((col) => (
             <div
               key={col.id}
               className={cn(
-                'flex flex-col w-[340px] bg-slate-100/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0 h-full',
-                dragOverCol === col.id && 'bg-slate-100 dark:bg-slate-800 border-primary/50',
+                'flex flex-col w-[340px] bg-muted/30 rounded-xl border border-border shrink-0 h-full',
+                dragOverCol === col.id && 'bg-accent/50 border-primary/50',
               )}
               onDragOver={(e) => {
                 e.preventDefault()
@@ -155,16 +155,14 @@ export function AnaliseProjetoKanbanBoard() {
               onDragLeave={() => setDragOverCol(null)}
               onDrop={(e) => handleDrop(e, col.id)}
             >
-              <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-100 dark:bg-slate-800/80 rounded-t-xl">
-                <h3 className="font-semibold text-sm text-slate-700 dark:text-slate-200">
-                  {col.title}
-                </h3>
-                <span className="bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-xs px-2 py-0.5 rounded-full font-medium shadow-sm border border-slate-200 dark:border-slate-800">
+              <div className="p-3 border-b border-border flex items-center justify-between bg-muted/50 rounded-t-xl">
+                <h3 className="font-semibold text-sm text-foreground">{col.title}</h3>
+                <span className="bg-card text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium shadow-sm border border-border">
                   {col.items.length}
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {col.items.map((project) => {
                   let consultantName = 'Consultor não encontrado'
                   if (
@@ -231,8 +229,8 @@ export function AnaliseProjetoKanbanBoard() {
                         'p-4 rounded-lg shadow-sm border-2 cursor-pointer transition-all group relative',
                         isAlert
                           ? 'bg-orange-50 text-orange-950 border-orange-200 hover:border-orange-300 dark:bg-orange-950/20 dark:text-orange-300 dark:border-orange-500/50 dark:shadow-[0_0_15px_rgba(249,115,22,0.3)] dark:hover:border-orange-400'
-                          : 'bg-card text-card-foreground border-border hover:border-slate-300 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:border-cyan-400',
-                        draggingId === project.id && 'opacity-50 ring-2 ring-blue-500',
+                          : 'bg-card text-card-foreground border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:border-cyan-400',
+                        draggingId === project.id && 'opacity-50 ring-2 ring-primary',
                       )}
                     >
                       <AlertDialog>
@@ -260,7 +258,7 @@ export function AnaliseProjetoKanbanBoard() {
                                 e.stopPropagation()
                                 handleDeleteProject(project.id)
                               }}
-                              className="bg-red-600 hover:bg-red-700 text-white border-none"
+                              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
                             >
                               Excluir
                             </AlertDialogAction>

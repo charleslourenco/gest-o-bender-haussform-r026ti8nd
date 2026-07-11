@@ -153,44 +153,42 @@ export function KanbanDialog({
   return (
     <>
       <Dialog open={!!selectedCard} onOpenChange={(o) => !o && setSelectedCard(null)}>
-        <DialogContent className="bg-midnight-navy text-off-white border-steel-blue sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-card text-card-foreground border-border sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-pale-cornflower text-xl">Detalhes do Item</DialogTitle>
+            <DialogTitle className="text-primary text-xl">Detalhes do Item</DialogTitle>
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <span className="text-xs text-steel-blue uppercase font-semibold">Produto</span>
+                <span className="text-xs text-primary uppercase font-semibold">Produto</span>
                 <p className="font-medium mt-1">{selectedCard.nome_produto}</p>
               </div>
               <div>
-                <span className="text-xs text-steel-blue uppercase font-semibold">Cliente</span>
-                <p className="font-medium mt-1 text-pale-cornflower">
+                <span className="text-xs text-primary uppercase font-semibold">Cliente</span>
+                <p className="font-medium mt-1 text-muted-foreground">
                   {selectedCard.clientes?.nome || 'N/A'}
                 </p>
               </div>
               <div>
-                <span className="text-xs text-steel-blue uppercase font-semibold">Quantidade</span>
+                <span className="text-xs text-primary uppercase font-semibold">Quantidade</span>
                 <p className="font-medium mt-1">{selectedCard.qtd}</p>
               </div>
               <div>
-                <span className="text-xs text-steel-blue uppercase font-semibold">
-                  Status Atual
-                </span>
-                <p className="font-medium mt-1 text-pale-cornflower">{colTitle}</p>
+                <span className="text-xs text-primary uppercase font-semibold">Status Atual</span>
+                <p className="font-medium mt-1 text-muted-foreground">{colTitle}</p>
               </div>
             </div>
 
             <div>
-              <span className="text-xs text-steel-blue uppercase font-semibold">Descrição</span>
-              <div className="text-sm bg-dark-denim p-3 rounded-lg mt-1 min-h-[80px] border border-steel-blue/30 whitespace-pre-wrap text-off-white/90">
+              <span className="text-xs text-primary uppercase font-semibold">Descrição</span>
+              <div className="text-sm bg-muted/50 p-3 rounded-lg mt-1 min-h-[80px] border border-border whitespace-pre-wrap text-card-foreground">
                 {selectedCard.descricao || 'Nenhuma descrição fornecida.'}
               </div>
             </div>
 
             {!isMontagem && (
-              <div className="bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20">
-                <span className="text-xs text-steel-blue uppercase font-semibold block mb-2">
+              <div className="bg-muted/30 p-3 rounded-lg border border-border">
+                <span className="text-xs text-primary uppercase font-semibold block mb-2">
                   Responsável (Analista)
                 </span>
                 <Select
@@ -199,10 +197,10 @@ export function KanbanDialog({
                     onAssignAnalyst(selectedCard.id, val === 'unassigned' ? null : val)
                   }
                 >
-                  <SelectTrigger className="w-full bg-midnight-navy border-steel-blue text-off-white">
+                  <SelectTrigger className="w-full bg-background border-input text-foreground">
                     <SelectValue placeholder="Selecione um responsável" />
                   </SelectTrigger>
-                  <SelectContent className="bg-dark-denim border-steel-blue text-off-white">
+                  <SelectContent>
                     <SelectItem value="unassigned">Não atribuído</SelectItem>
                     {Object.entries(usersMap).map(([id, user]) => (
                       <SelectItem key={id} value={id}>
@@ -215,8 +213,8 @@ export function KanbanDialog({
             )}
 
             {isMontagem && (
-              <div className="bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20 space-y-3">
-                <span className="text-xs text-steel-blue uppercase font-semibold block">
+              <div className="bg-muted/30 p-3 rounded-lg border border-border space-y-3">
+                <span className="text-xs text-primary uppercase font-semibold block">
                   Equipe de Montagem
                 </span>
                 <Popover>
@@ -224,7 +222,7 @@ export function KanbanDialog({
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="w-full justify-between bg-midnight-navy border-steel-blue text-off-white hover:bg-steel-blue/20 hover:text-white"
+                      className="w-full justify-between bg-background border-input text-foreground hover:bg-muted/50 hover:text-foreground"
                     >
                       {alocacoesCard.length > 0
                         ? `${alocacoesCard.length} montador(es) alocado(s)`
@@ -232,9 +230,9 @@ export function KanbanDialog({
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-dark-denim border-steel-blue">
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-popover border-border">
                     <Command className="bg-transparent">
-                      <CommandInput placeholder="Buscar montador..." className="text-off-white" />
+                      <CommandInput placeholder="Buscar montador..." className="text-foreground" />
                       <CommandList>
                         <CommandEmpty>Nenhum montador encontrado.</CommandEmpty>
                         <CommandGroup>
@@ -253,14 +251,14 @@ export function KanbanDialog({
                                 key={m.id}
                                 value={m.nome_completo}
                                 onSelect={() => handleToggleMontador(m.id, !isChecked)}
-                                className="text-off-white data-[selected='true']:bg-steel-blue/40 data-[selected='true']:text-white cursor-pointer"
+                                className="text-foreground data-[selected='true']:bg-accent data-[selected='true']:text-accent-foreground cursor-pointer"
                               >
                                 <div
                                   className={cn(
                                     'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border',
                                     isChecked
                                       ? 'bg-emerald-500 border-emerald-500'
-                                      : 'border-steel-blue opacity-50',
+                                      : 'border-border opacity-50',
                                   )}
                                 >
                                   <Check
@@ -272,7 +270,7 @@ export function KanbanDialog({
                                 </div>
                                 <span className="flex-1">{m.nome_completo}</span>
                                 {isBusyWithOtherClient && (
-                                  <span className="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded ml-2 whitespace-nowrap">
+                                  <span className="text-[10px] bg-orange-500/20 text-orange-500 px-2 py-0.5 rounded ml-2 whitespace-nowrap">
                                     Ocupado
                                   </span>
                                 )}
@@ -293,7 +291,7 @@ export function KanbanDialog({
                       return (
                         <Badge
                           key={id}
-                          className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border-emerald-500/30 font-normal"
+                          className="bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border-emerald-500/30 font-normal"
                         >
                           {m.nome_completo}
                         </Badge>
@@ -304,9 +302,9 @@ export function KanbanDialog({
               </div>
             )}
 
-            <div className="flex justify-between items-center bg-dark-denim/50 p-3 rounded-lg border border-steel-blue/20">
+            <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border">
               <div>
-                <span className="text-xs text-steel-blue uppercase font-semibold block">
+                <span className="text-xs text-primary uppercase font-semibold block">
                   Consultor Original
                 </span>
                 <p className="font-medium mt-1 text-sm">
@@ -316,10 +314,10 @@ export function KanbanDialog({
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-xs text-steel-blue uppercase font-semibold block">
+                <span className="text-xs text-primary uppercase font-semibold block">
                   Criado em
                 </span>
-                <p className="text-sm text-off-white/80 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {new Date(selectedCard.criado_em).toLocaleDateString('pt-BR')}
                 </p>
               </div>
@@ -332,10 +330,10 @@ export function KanbanDialog({
         open={!!pendingAllocation}
         onOpenChange={(open) => !open && setPendingAllocation(null)}
       >
-        <AlertDialogContent className="bg-midnight-navy text-off-white border-steel-blue">
+        <AlertDialogContent className="bg-card text-card-foreground border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Autorizar Realocação?</AlertDialogTitle>
-            <AlertDialogDescription className="text-pale-cornflower">
+            <AlertDialogDescription className="text-muted-foreground">
               O montador <strong>{pendingAllocation?.montadorNome}</strong> já está alocado em outro
               cliente.
               <br />
@@ -345,7 +343,7 @@ export function KanbanDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-steel-blue text-off-white hover:bg-steel-blue/20 hover:text-white">
+            <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-muted hover:text-foreground">
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction

@@ -129,7 +129,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
       const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', id)
 
       if (error) throw error
-      toast({ title: 'Item excluído' })
+      toast({ title: 'Item excluída' })
       window.dispatchEvent(new CustomEvent('kanban_refresh'))
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -184,16 +184,16 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
 
   return (
     <div className="p-6 h-full max-w-full overflow-y-auto">
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm min-w-[900px] overflow-hidden">
+      <div className="rounded-xl border border-border bg-card shadow-sm min-w-[900px] overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-50 sticky top-0 z-10 shadow-sm">
-            <TableRow>
-              <TableHead className="w-[140px] font-semibold text-slate-700">Código</TableHead>
-              <TableHead className="font-semibold text-slate-700">Cliente</TableHead>
-              <TableHead className="font-semibold text-slate-700">Ambiente</TableHead>
-              <TableHead className="w-[220px] font-semibold text-slate-700">Status</TableHead>
-              <TableHead className="w-[200px] font-semibold text-slate-700">Responsável</TableHead>
-              <TableHead className="w-[80px] text-center font-semibold text-slate-700">
+          <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm">
+            <TableRow className="border-border">
+              <TableHead className="w-[140px] font-semibold text-foreground">Código</TableHead>
+              <TableHead className="font-semibold text-foreground">Cliente</TableHead>
+              <TableHead className="font-semibold text-foreground">Ambiente</TableHead>
+              <TableHead className="w-[220px] font-semibold text-foreground">Status</TableHead>
+              <TableHead className="w-[200px] font-semibold text-foreground">Responsável</TableHead>
+              <TableHead className="w-[80px] text-center font-semibold text-foreground">
                 Ações
               </TableHead>
             </TableRow>
@@ -201,7 +201,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
           <TableBody>
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
+                <TableRow key={i} className="border-border">
                   <TableCell>
                     <Skeleton className="h-4 w-24" />
                   </TableCell>
@@ -223,25 +223,25 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                 </TableRow>
               ))
             ) : items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-500">
+              <TableRow className="border-border">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Nenhum item encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((item) => (
-                <TableRow key={item.id} className="hover:bg-slate-50/50">
-                  <TableCell className="font-medium text-slate-900">
+                <TableRow key={item.id} className="hover:bg-muted/50 border-border">
+                  <TableCell className="font-medium text-foreground">
                     {item.codigo_rastreio || '-'}
                   </TableCell>
                   <TableCell
-                    className="text-slate-600 truncate max-w-[200px]"
+                    className="text-muted-foreground truncate max-w-[200px]"
                     title={item.cliente?.nome}
                   >
                     {item.cliente?.nome || '-'}
                   </TableCell>
                   <TableCell
-                    className="text-slate-600 truncate max-w-[200px]"
+                    className="text-muted-foreground truncate max-w-[200px]"
                     title={item.nome_produto}
                   >
                     {item.nome_produto || '-'}
@@ -272,7 +272,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unassigned" className="text-slate-400 italic">
+                        <SelectItem value="unassigned" className="text-muted-foreground italic">
                           Sem responsável
                         </SelectItem>
                         {users.map((u) => (
@@ -288,7 +288,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                         onClick={() => handleSolicitarCompra(item)}
                         title="Solicitar Compra"
                       >
@@ -297,7 +297,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDelete(item.id)}
                         title="Excluir"
                       >

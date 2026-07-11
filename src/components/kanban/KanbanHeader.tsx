@@ -75,31 +75,30 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   if (title === 'Montagem') {
     return (
       <div className="w-full flex flex-col">
-        {/* Top bar: Background color #0A1931 containing the module title */}
-        <div className="flex items-center justify-between w-full bg-[#0A1931] text-white px-6 py-4">
+        <div className="flex items-center justify-between w-full bg-card border-b border-border text-card-foreground px-6 py-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-emerald-400" />
-              <h1 className="text-xl font-bold text-white tracking-tight">Montagem</h1>
+              <Wrench className="w-6 h-6 text-primary" />
+              <h1 className="text-xl font-bold text-foreground tracking-tight">Montagem</h1>
             </div>
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto ml-4">
-              <TabsList className="bg-white/10 border-none h-9">
+              <TabsList className="bg-muted border-none h-9">
                 <TabsTrigger
                   value="kanban"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Quadro Kanban
                 </TabsTrigger>
                 <TabsTrigger
                   value="lista"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Lista
                 </TabsTrigger>
                 <TabsTrigger
                   value="montadores"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Gestão de Montadores
                 </TabsTrigger>
@@ -108,22 +107,21 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
           </div>
         </div>
 
-        {/* Action Row: A row immediately below the blue header for filters and primary action buttons */}
-        <div className="flex items-center justify-between w-full bg-white border-b border-steel-blue/10 px-6 py-3 shadow-sm">
+        <div className="flex items-center justify-between w-full bg-card border-b border-border px-6 py-3 shadow-sm">
           <div className="flex items-center gap-2">
             <div className="relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-steel-blue/50" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="pl-9 bg-white border-steel-blue/20 text-midnight-navy placeholder:text-steel-blue/50 h-9 w-64"
+                className="pl-9 bg-background border-input text-foreground placeholder:text-muted-foreground h-9 w-64"
               />
             </div>
             <Button
               variant="outline"
               size="icon"
-              className="text-steel-blue border-steel-blue/20 hover:bg-steel-blue/5 h-9 w-9 shrink-0"
+              className="text-primary border-input hover:bg-muted/50 h-9 w-9 shrink-0"
             >
               <Filter className="w-4 h-4" />
             </Button>
@@ -131,7 +129,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setIsCreateOpen(true)}
-              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0 shadow-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 whitespace-nowrap shrink-0 shadow-sm"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Card Avulso
@@ -147,31 +145,30 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   if (title === 'Produção') {
     return (
       <div className="w-full px-4 pt-0 mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {/* Left Side Grouping */}
+        <div className="flex flex-row items-center justify-between w-full bg-card border-b border-border text-card-foreground px-4 py-3 mb-4 mt-0 rounded-md flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2">
-              <Hammer className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Produção</h2>
+              <Hammer className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Produção</h2>
             </div>
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-              <TabsList className="bg-white/10 border-none h-9">
+              <TabsList className="bg-muted border-none h-9">
                 <TabsTrigger
                   value="kanban"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Kanban
                 </TabsTrigger>
                 <TabsTrigger
                   value="lista"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Lista
                 </TabsTrigger>
                 <TabsTrigger
                   value="indicadores"
-                  className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
                   Indicadores
                 </TabsTrigger>
@@ -179,21 +176,20 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
             </Tabs>
           </div>
 
-          {/* Right Side Grouping */}
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-28 lg:w-40"
+                className="pl-9 bg-muted/30 border-input text-foreground placeholder:text-muted-foreground h-9 w-28 lg:w-40"
               />
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10 h-9 w-9 shrink-0"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground h-9 w-9 shrink-0"
             >
               <Filter className="w-4 h-4" />
             </Button>
@@ -206,7 +202,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
             </Button>
             <Button
               onClick={() => setIsCreateOpen(true)}
-              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Card Avulso
@@ -219,35 +215,33 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
     )
   }
 
-  // Specific header layout for Análise Técnica
   if (title === 'Análise Técnica') {
     return (
       <div className="w-full px-4 pt-0 mt-0">
-        <div className="bg-[#0A1931] text-white px-4 py-3 mb-4 mt-0 rounded-md flex flex-row flex-nowrap items-center justify-between w-full whitespace-nowrap">
-          {/* Left Side Group */}
+        <div className="bg-card border-b border-border text-card-foreground px-4 py-3 mb-4 mt-0 rounded-md flex flex-row flex-nowrap items-center justify-between w-full whitespace-nowrap">
           <div className="flex flex-row items-center gap-6">
             <div className="flex items-center gap-2">
-              <FileSearch className="w-5 h-5 text-white" />
-              <h2 className="text-lg font-bold text-white">Análise Técnica</h2>
+              <FileSearch className="w-5 h-5 text-foreground" />
+              <h2 className="text-lg font-bold text-foreground">Análise Técnica</h2>
             </div>
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-              <TabsList className="bg-white/10 border-none h-9">
+              <TabsList className="bg-muted border-none h-9">
                 <TabsTrigger
                   value="kanban"
-                  className="data-[state=active]:bg-steel-blue data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
                 >
                   Kanban
                 </TabsTrigger>
                 <TabsTrigger
                   value="lista"
-                  className="data-[state=active]:bg-steel-blue data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
                 >
                   Lista
                 </TabsTrigger>
                 <TabsTrigger
                   value="indicadores"
-                  className="data-[state=active]:bg-steel-blue data-[state=active]:text-white text-white/70"
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
                 >
                   Indicadores
                 </TabsTrigger>
@@ -255,7 +249,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
             </Tabs>
           </div>
 
-          {/* Right Side Group */}
           <div className="flex flex-row items-center gap-4">
             {pendingPurchasesCount !== null && pendingPurchasesCount > 0 && (
               <div
@@ -267,24 +260,24 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               </div>
             )}
             <div className="relative w-48 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={handleSearchChange}
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/40 h-9 w-full"
+                className="pl-9 bg-muted/30 border-input text-foreground placeholder:text-muted-foreground h-9 w-full"
               />
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10 h-9 w-9 shrink-0"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground h-9 w-9 shrink-0"
             >
               <Filter className="w-4 h-4" />
             </Button>
             <Button
               onClick={() => window.dispatchEvent(new CustomEvent('open_criar_card_avulso'))}
-              className="bg-steel-blue hover:bg-steel-blue/90 text-white h-9 whitespace-nowrap shrink-0"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 whitespace-nowrap shrink-0"
             >
               <Plus className="w-4 h-4 mr-2" />
               Criar Card Avulso
@@ -296,12 +289,12 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6 bg-white border-b border-steel-blue/10">
+    <div className="flex flex-col gap-4 p-6 bg-card border-b border-border">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-midnight-navy">{title}</h2>
+        <h2 className="text-xl font-bold text-foreground">{title}</h2>
         <Button
           onClick={() => setIsCreateOpen(true)}
-          className="bg-steel-blue hover:bg-steel-blue/90 text-white"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <Plus className="w-4 h-4 mr-2" />
           Criar Card Avulso
@@ -310,12 +303,12 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
 
       <div className="flex flex-col sm:flex-row gap-4 w-full">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-navy/40" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Buscar de forma unificada..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 bg-off-white border-steel-blue/20"
+            className="pl-9 bg-background border-input"
           />
         </div>
       </div>

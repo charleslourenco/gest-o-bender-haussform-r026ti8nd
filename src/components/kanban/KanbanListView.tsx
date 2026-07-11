@@ -273,15 +273,17 @@ export function KanbanListView({
   })
 
   if (loading && cards.length === 0) {
-    return <div className="p-8 text-center text-[#1A3D63]/70 font-medium">Carregando itens...</div>
+    return (
+      <div className="p-8 text-center text-muted-foreground font-medium">Carregando itens...</div>
+    )
   }
 
   return (
     <div className="p-4">
-      <div className="bg-white rounded-md shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-card rounded-md shadow-sm border border-border overflow-hidden">
         <Table>
-          <TableHeader className="bg-[#0A1931]">
-            <TableRow className="hover:bg-[#0A1931]">
+          <TableHeader className="bg-card">
+            <TableRow className="hover:bg-card border-border">
               {isAnaliseTecnica ? (
                 <TableHead className="text-white font-semibold">Identificação</TableHead>
               ) : (
@@ -310,8 +312,9 @@ export function KanbanListView({
               <TableRow>
                 <TableCell
                   colSpan={isAnaliseTecnica ? 5 : 7}
-                  className="text-center py-8 text-slate-500"
+                  className="text-center py-8 text-muted-foreground"
                 >
+                  {' '}
                   Nenhum item encontrado.
                 </TableCell>
               </TableRow>
@@ -321,30 +324,32 @@ export function KanbanListView({
                 return (
                   <TableRow
                     key={card.id}
-                    className="bg-white hover:bg-slate-50 text-[#1A3D63] border-b border-slate-100 transition-colors"
+                    className="bg-card hover:bg-muted/50 text-card-foreground border-b border-border transition-colors"
                   >
                     {isAnaliseTecnica ? (
                       <TableCell className="font-medium w-full max-w-0">
                         <div className="flex items-center gap-3 text-sm">
-                          <span className="whitespace-nowrap shrink-0 text-slate-500">
+                          <span className="whitespace-nowrap shrink-0 text-muted-foreground">
                             {card?.codigo_rastreio || '-'}
                           </span>
-                          <span className="text-slate-300 shrink-0">|</span>
-                          <span className="truncate font-semibold text-[#1A3D63]">
+                          <span className="text-muted-foreground shrink-0">|</span>
+                          <span className="truncate font-semibold text-card-foreground">
                             {clienteNome || 'Avulso'}
                           </span>
-                          <span className="text-slate-300 shrink-0">|</span>
-                          <span className="truncate text-slate-600">
+                          <span className="text-muted-foreground shrink-0">|</span>
+                          <span className="truncate text-muted-foreground">
                             {card?.nome_produto ?? 'Sem nome'}
                           </span>
                         </div>
                       </TableCell>
                     ) : (
                       <>
-                        <TableCell className="font-medium whitespace-nowrap">
+                        <TableCell className="font-medium whitespace-nowrap text-card-foreground">
                           {card?.codigo_rastreio || '-'}
                         </TableCell>
-                        <TableCell className="font-medium">{clienteNome || 'Avulso'}</TableCell>
+                        <TableCell className="font-medium text-card-foreground">
+                          {clienteNome || 'Avulso'}
+                        </TableCell>
                         <TableCell>{card?.nome_produto ?? 'Sem nome'}</TableCell>
                       </>
                     )}
@@ -356,7 +361,7 @@ export function KanbanListView({
                         value={card?.status_analise || 'iniciar'}
                         onValueChange={(val) => card?.id && updateStatus(card.id, val)}
                       >
-                        <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
+                        <SelectTrigger className="w-full h-8 bg-background text-foreground border-input focus:ring-ring">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -386,7 +391,7 @@ export function KanbanListView({
                           value={card?.analista_id || 'unassigned'}
                           onValueChange={(val) => card?.id && updateAnalista(card.id, val)}
                         >
-                          <SelectTrigger className="w-full h-8 bg-white text-[#1A3D63] border-slate-200 focus:ring-steel-blue">
+                          <SelectTrigger className="w-full h-8 bg-background text-foreground border-input focus:ring-ring">
                             <SelectValue placeholder="Não atribuído" />
                           </SelectTrigger>
                           <SelectContent>
@@ -417,12 +422,12 @@ export function KanbanListView({
           </TableBody>
         </Table>
         {hasMore && (
-          <div className="p-4 flex justify-center border-t border-slate-200">
+          <div className="p-4 flex justify-center border-t border-border">
             <Button
               variant="outline"
               onClick={() => fetchCards(true)}
               disabled={isLoadingMore}
-              className="bg-white text-[#1A3D63] border-[#1A3D63]/20 hover:bg-[#1A3D63]/5"
+              className="bg-card text-foreground border-input hover:bg-muted/50"
             >
               {isLoadingMore && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Carregar Mais

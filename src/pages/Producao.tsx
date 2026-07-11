@@ -53,13 +53,15 @@ export default function Producao() {
   }, [])
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
-      <div className="flex items-center gap-2 px-4 py-2 bg-white border-b border-steel-blue/10 shrink-0 z-30">
+    <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+      <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30">
         <Button
           variant={showArquivados ? 'outline' : 'default'}
           size="sm"
           onClick={() => setShowArquivados(false)}
-          className={cn(!showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+          className={cn(
+            !showArquivados && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+          )}
         >
           Kanban
         </Button>
@@ -67,7 +69,7 @@ export default function Producao() {
           variant={showArquivados ? 'default' : 'outline'}
           size="sm"
           onClick={() => setShowArquivados(true)}
-          className={cn(showArquivados && 'bg-steel-blue hover:bg-dark-denim text-white')}
+          className={cn(showArquivados && 'bg-primary hover:bg-primary/90 text-primary-foreground')}
         >
           Arquivados
         </Button>
@@ -81,7 +83,7 @@ export default function Producao() {
             <KanbanBoard title="Produção" columns={COLUMNS} />
 
             {activeTab === 'lista' && (
-              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-slate-50 z-10 overflow-auto animate-in fade-in duration-200">
+              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200">
                 <KanbanListView
                   searchQuery={search}
                   columns={COLUMNS}
@@ -93,7 +95,7 @@ export default function Producao() {
             <div className="absolute bottom-6 right-6 z-20">
               <Button
                 onClick={() => setIsTypeSelectionOpen(true)}
-                className="rounded-full shadow-lg h-14 px-6 bg-steel-blue hover:bg-dark-denim text-white"
+                className="rounded-full shadow-lg h-14 px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <ScissorsLineDashed className="w-5 h-5 mr-2" />
                 Registrar Sobra

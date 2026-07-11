@@ -82,58 +82,58 @@ export default function AnaliseTecnicaDetalhe() {
   }, [filtroCliente, filtroConsultor, dateRange])
 
   return (
-    <div className="h-full flex flex-col bg-[#0B1B2E] animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
-      <div className="px-6 py-4 bg-[#1A3D63] border-b border-slate-800 flex items-center justify-between shadow-sm z-10 shrink-0">
+    <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+      <div className="px-6 py-4 bg-card border-b border-border flex items-center justify-between shadow-sm z-10 shrink-0">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate('/analise-tecnica')}
-            className="h-8 w-8 text-slate-300 hover:text-white hover:bg-white/10"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="h-10 w-10 bg-green-500/10 rounded-lg flex items-center justify-center border border-green-500/20">
-            <LayoutDashboard className="h-5 w-5 text-green-400" />
+          <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center border border-border">
+            <LayoutDashboard className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-2">
               Análise Técnica
             </h1>
-            <h2 className="text-sm text-slate-400">
+            <h2 className="text-sm text-muted-foreground">
               Projeto {clientName ? `- ${clientName}` : ''}
             </h2>
           </div>
         </div>
         <Button
           onClick={() => setShowCriarModal(true)}
-          className="bg-green-600 hover:bg-green-700 text-white border border-green-500/50 shadow-sm"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground border border-border shadow-sm"
         >
           <Plus className="w-4 h-4 mr-2" />
           Criar card avulso
         </Button>
       </div>
 
-      <div className="px-6 py-3 bg-[#132A46] border-b border-slate-800 flex flex-wrap gap-4 items-center shrink-0">
+      <div className="px-6 py-3 bg-muted/30 border-b border-border flex flex-wrap gap-4 items-center shrink-0">
         <div className="flex-1 min-w-[200px] max-w-[300px]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por cliente..."
               value={filtroCliente}
               onChange={(e) => setFiltroCliente(e.target.value)}
-              className="pl-9 bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-400 w-full h-9 focus-visible:ring-blue-500/50"
+              className="pl-9 bg-background border-input text-foreground placeholder:text-muted-foreground w-full h-9 focus-visible:ring-ring"
             />
           </div>
         </div>
         <div className="flex-1 min-w-[200px] max-w-[300px]">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por consultor..."
               value={filtroConsultor}
               onChange={(e) => setFiltroConsultor(e.target.value)}
-              className="pl-9 bg-[#0B1B2E] border-slate-700 text-white placeholder:text-slate-400 w-full h-9 focus-visible:ring-blue-500/50"
+              className="pl-9 bg-background border-input text-foreground placeholder:text-muted-foreground w-full h-9 focus-visible:ring-ring"
             />
           </div>
         </div>
@@ -143,8 +143,8 @@ export default function AnaliseTecnicaDetalhe() {
               <Button
                 variant="outline"
                 className={cn(
-                  'w-full justify-start text-left font-normal bg-[#0B1B2E] border-slate-700 text-white hover:bg-[#1A3D63] hover:text-white h-9 focus-visible:ring-blue-500/50',
-                  !dateRange?.from && 'text-slate-400',
+                  'w-full justify-start text-left font-normal bg-background border-input text-foreground hover:bg-muted/50 hover:text-foreground h-9 focus-visible:ring-ring',
+                  !dateRange?.from && 'text-muted-foreground',
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -161,7 +161,7 @@ export default function AnaliseTecnicaDetalhe() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-[#1A3D63] border-slate-700" align="start">
+            <PopoverContent className="w-auto p-0 bg-popover border-border" align="start">
               <Calendar
                 initialFocus
                 mode="range"
@@ -170,7 +170,6 @@ export default function AnaliseTecnicaDetalhe() {
                 onSelect={(range: any) => setDateRange(range || { from: undefined, to: undefined })}
                 numberOfMonths={2}
                 locale={ptBR}
-                className="text-white"
               />
             </PopoverContent>
           </Popover>

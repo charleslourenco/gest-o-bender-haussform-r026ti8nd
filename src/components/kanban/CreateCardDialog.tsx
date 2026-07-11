@@ -211,7 +211,7 @@ export function CreateCardDialog({
             <Button
               type="submit"
               disabled={loading}
-              className="bg-steel-blue hover:bg-steel-blue/90 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {loading ? 'Salvando...' : 'Criar Card'}
             </Button>

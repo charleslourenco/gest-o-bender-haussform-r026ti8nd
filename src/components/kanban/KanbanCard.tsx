@@ -78,34 +78,33 @@ export function KanbanCard({
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
       className={cn(
+        'cursor-pointer hover:shadow-md transition-all flex flex-col border-2',
         isMontagem
-          ? 'bg-[#1A3D63] text-white p-2 rounded-md shadow-sm flex flex-col gap-1 w-full border-2 border-transparent cursor-pointer hover:shadow-md transition-all'
-          : 'rounded-lg shadow-sm cursor-pointer hover:shadow-md transition-all flex flex-col border-2',
+          ? 'bg-card text-card-foreground p-2 rounded-md shadow-sm gap-1 w-full border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400'
+          : 'rounded-lg shadow-sm hover:shadow-md gap-2',
         isMontagem && card.is_outsourced
-          ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] border-orange-500'
-          : isMontagem
-            ? 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400'
-            : '',
+          ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+          : '',
         !isMontagem && isAnaliseTecnica
           ? cn(
-              'bg-[#1A3D63] text-white p-1.5 gap-1',
+              'bg-card text-card-foreground p-1.5 gap-1 border-border',
               card.is_outsourced
-                ? 'border-orange-500 bg-orange-500/10 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                : 'border-white/10 hover:border-white/30 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+                ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                : 'hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
             )
           : !isMontagem && isProducao
             ? cn(
-                'bg-[#1A3D63] hover:border-white/40 p-2 gap-1 text-white',
+                'bg-card text-card-foreground hover:border-primary/50 p-2 gap-1 border-border',
                 card.is_outsourced
                   ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                  : 'border-white/20 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+                  : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
               )
             : !isMontagem
               ? cn(
-                  'bg-midnight-navy hover:border-pale-cornflower p-3 gap-2 text-white',
+                  'bg-card text-card-foreground hover:border-primary/50 p-3 gap-2 border-border',
                   card.is_outsourced
                     ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                    : 'border-steel-blue/40 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+                    : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
                 )
               : '',
       )}
@@ -113,7 +112,7 @@ export function KanbanCard({
       {isMontagem ? (
         <>
           <div className="flex flex-row items-baseline gap-1 w-full truncate text-xs font-medium">
-            <span className="truncate w-full">
+            <span className="truncate w-full text-card-foreground">
               {card?.codigo_rastreio
                 ? `#${card.codigo_rastreio}`
                 : `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
@@ -121,15 +120,17 @@ export function KanbanCard({
               {card?.clientes?.nome || 'Cliente N/A'}
             </span>
           </div>
-          <div className="truncate w-full text-xs font-semibold text-[#F6FAFD]">
+          <div className="truncate w-full text-xs font-semibold text-card-foreground">
             {card?.nome_produto || 'Sem nome'}
           </div>
           <div className="flex justify-between items-center w-full mt-1">
-            <div className="truncate w-full text-[10px] text-white/70">Qtd: {card?.qtd || 0}</div>
+            <div className="truncate w-full text-[10px] text-muted-foreground">
+              Qtd: {card?.qtd || 0}
+            </div>
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               {montadores.length > 0 && (
                 <div
-                  className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
+                  className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
                   title={`Montadores: ${montadores.join(', ')}`}
                 >
                   <Wrench className="w-2.5 h-2.5" />
@@ -142,15 +143,15 @@ export function KanbanCard({
       ) : isProducao ? (
         <div className="flex justify-between items-start w-full">
           <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
-            <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none text-white bg-white/10 shrink-0">
+            <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none text-primary bg-muted/50 shrink-0">
               {card?.codigo_rastreio ||
                 `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
             </span>
-            <span className="font-semibold text-[#F6FAFD] text-xs truncate">
+            <span className="font-semibold text-card-foreground text-xs truncate">
               {card?.nome_produto || 'Sem nome'}
             </span>
           </div>
-          <Badge className="text-[9px] py-0 px-1 leading-none bg-white/20 text-white shrink-0 ml-2">
+          <Badge className="text-[9px] py-0 px-1 leading-none bg-muted text-foreground shrink-0 ml-2">
             Qtd: {card?.qtd || 0}
           </Badge>
         </div>
@@ -159,19 +160,22 @@ export function KanbanCard({
           <div className="flex justify-between items-start w-full">
             <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
               {card?.codigo_rastreio && (
-                <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none border border-white/20 text-white bg-white/10 shrink-0">
+                <span className="font-mono font-bold px-1 py-0.5 rounded text-[9px] leading-none border border-border text-primary bg-muted/50 shrink-0">
                   {card.codigo_rastreio}
                 </span>
               )}
-              <span className="text-xs truncate" title={card?.clientes?.nome || 'Cliente N/A'}>
+              <span
+                className="text-xs truncate text-foreground"
+                title={card?.clientes?.nome || 'Cliente N/A'}
+              >
                 {card?.clientes?.nome || 'Cliente N/A'}
               </span>
             </div>
-            <Badge className="text-[9px] py-0 px-1 leading-none bg-white/20 text-white shrink-0 ml-2">
+            <Badge className="text-[9px] py-0 px-1 leading-none bg-muted text-foreground shrink-0 ml-2">
               Qtd: {card?.qtd || 0}
             </Badge>
           </div>
-          <div className="font-semibold text-[#F6FAFD] leading-tight text-xs mt-0.5">
+          <div className="font-semibold text-card-foreground leading-tight text-xs mt-0.5">
             {card?.nome_produto || 'Sem nome'}
           </div>
           {!card?.is_outsourced && !card?.outsourced_checked && (
@@ -179,7 +183,7 @@ export function KanbanCard({
               type="button"
               onClick={(e) => e.stopPropagation()}
               title="Terceirizado Pendente"
-              className="bg-orange-600 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-orange-700 transition-colors border border-orange-500/50"
+              className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors border border-amber-500/50"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
             </button>
@@ -188,15 +192,15 @@ export function KanbanCard({
       ) : (
         <>
           <div className="flex justify-between items-start">
-            <span className="font-mono font-bold px-1 py-0.5 rounded text-[10px] leading-none text-pale-cornflower bg-steel-blue/20">
+            <span className="font-mono font-bold px-1 py-0.5 rounded text-[10px] leading-none text-primary bg-muted/50">
               {card?.codigo_rastreio ||
                 `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`}
             </span>
-            <Badge className="text-[9px] py-0 px-1 leading-none bg-steel-blue">
+            <Badge className="text-[9px] py-0 px-1 leading-none bg-primary text-primary-foreground">
               Qtd: {card?.qtd || 0}
             </Badge>
           </div>
-          <div className="font-semibold text-[#F6FAFD] leading-tight text-sm mt-1">
+          <div className="font-semibold text-card-foreground leading-tight text-sm mt-1">
             {card?.nome_produto || 'Sem nome'}
           </div>
         </>
@@ -207,7 +211,7 @@ export function KanbanCard({
             <div
               className={cn(
                 'text-xs truncate max-w-[150px]',
-                isProducao ? 'text-white/70' : 'text-pale-cornflower/80',
+                isProducao ? 'text-muted-foreground' : 'text-muted-foreground',
               )}
             >
               {card.clientes?.nome || 'Cliente N/A'}
@@ -224,11 +228,11 @@ export function KanbanCard({
                 {usersMap[card.analista_id]?.foto_perfil ? (
                   <img
                     src={usersMap[card.analista_id].foto_perfil as string}
-                    className="w-4 h-4 rounded-full object-cover border border-steel-blue"
+                    className="w-4 h-4 rounded-full object-cover border border-border"
                     alt="Avatar"
                   />
                 ) : (
-                  <div className="w-4 h-4 rounded-full bg-steel-blue text-midnight-navy flex items-center justify-center text-[8px] font-bold">
+                  <div className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[8px] font-bold">
                     {usersMap[card.analista_id]?.nome?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 )}
@@ -237,7 +241,7 @@ export function KanbanCard({
 
             {isProducao && timeInColumn && (
               <div
-                className="flex items-center gap-0.5 text-[9px] leading-none text-white/70 bg-white/10 px-1 py-0.5 rounded"
+                className="flex items-center gap-0.5 text-[9px] leading-none text-muted-foreground bg-muted/50 px-1 py-0.5 rounded"
                 title={`Tempo nesta etapa`}
               >
                 <Clock className="w-2.5 h-2.5" />
