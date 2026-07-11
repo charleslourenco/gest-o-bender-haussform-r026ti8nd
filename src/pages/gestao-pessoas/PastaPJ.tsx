@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Save, Briefcase, FileText, PenTool } from 'lucide-react'
+import { ArrowLeft, Save, Briefcase, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentosAba } from './DocumentosAba'
-import { AssinaturasAba } from './AssinaturasAba'
 import { Textarea } from '@/components/ui/textarea'
 
 export function PastaPJ({ id }: { id: string | null }) {
@@ -99,9 +98,6 @@ export function PastaPJ({ id }: { id: string | null }) {
             </TabsTrigger>
             <TabsTrigger value="docs" disabled={!id} className="gap-2">
               <FileText className="w-4 h-4" /> Documentos
-            </TabsTrigger>
-            <TabsTrigger value="assinaturas" disabled={!id} className="gap-2">
-              <PenTool className="w-4 h-4" /> Assinaturas
             </TabsTrigger>
           </TabsList>
 
@@ -290,18 +286,12 @@ export function PastaPJ({ id }: { id: string | null }) {
                 value="docs"
                 className="bg-card border border-border rounded-xl p-6 shadow-sm flex-1"
               >
-                <DocumentosAba entityId={id} entityType="pj" />
-              </TabsContent>
-              <TabsContent
-                value="assinaturas"
-                className="bg-card border border-border rounded-xl p-6 shadow-sm flex-1"
-              >
-                <AssinaturasAba
+                <DocumentosAba
                   entityId={id}
                   entityType="pj"
-                  nome={f.razao_social}
-                  email={f.email}
-                  cpf={f.cnpj || f.socio_cpf}
+                  entityNome={f.razao_social}
+                  entityEmail={f.email}
+                  entityCpf={f.cnpj || f.socio_cpf}
                 />
               </TabsContent>
             </>

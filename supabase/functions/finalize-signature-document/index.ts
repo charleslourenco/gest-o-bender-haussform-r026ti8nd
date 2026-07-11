@@ -11,6 +11,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_ROLE_KEY =
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY') ?? ''
 const STORAGE_BUCKET = 'bender_clientes'
+const STORAGE_BUCKET_EQUIPE = 'documentos_equipe'
 
 interface FinalizePayload {
   documento_id?: string
@@ -37,58 +38,64 @@ interface AssinaturaRow {
   data_assinatura: string | null
 }
 
-interface DocumentoClienteRow {
+interface BaseDocumentRow {
   id: string
   arquivo_url: string | null
   arquivo_assinado_url: string | null
-  cliente_id: string | null
   envelope_id: string | null
-  template_nome: string | null
-  status: string
+  template_nome?: string | null
+  nome?: string | null
+  status?: string
+  cliente_id?: string | null
 }
 
-function getPathFromUrl(url: string | null): string | null {
+interface FoundDocument {
+  source: 'cliente' | 'equipe'
+  data: BaseDocumentRow
+  bucket: string
+}
+
+function getPathFromUrl(url: string | null, bucket: string = STORAGE_BUCKET): string | null {
   if (!url) return null
 
-  // Already a relative path (no protocol) — normalize and return.
   if (!url.startsWith('http')) {
-    const prefix = `${STORAGE_BUCKET}/`
+    const prefix = `${bucket}/`
     return url.startsWith(prefix) ? url.slice(prefix.length) : url
   }
 
   try {
     const u = new URL(url)
 
-    // Format: /storage/v1/object/public|sign/<bucket>/<path>
     const objectMatch = u.pathname.match(
-      new RegExp(`/storage/v1/object/(?:public|sign)/${STORAGE_BUCKET}/(.+)$`),
+      new RegExp(`/storage/v1/object/(?:public|sign)/${bucket}/(.+)$`),
     )
     if (objectMatch) {
       return decodeURIComponent(objectMatch[1])
     }
 
-    // Format: /storage/v1/render/<bucket>/<path>
-    const renderMatch = u.pathname.match(new RegExp(`/storage/v1/render/${STORAGE_BUCKET}/(.+)$`))
+    const renderMatch = u.pathname.match(new RegExp(`/storage/v1/render/${bucket}/(.+)$`))
     if (renderMatch) {
       return decodeURIComponent(renderMatch[1])
     }
 
-    // Fallback: any occurrence of /<bucket>/<path>
-    const bucketIdx = u.pathname.indexOf(`/${STORAGE_BUCKET}/`)
+    const bucketIdx = u.pathname.indexOf(`/${bucket}/`)
     if (bucketIdx !== -1) {
-      return decodeURIComponent(u.pathname.slice(bucketIdx + `/${STORAGE_BUCKET}/`.length))
+      return decodeURIComponent(u.pathname.slice(bucketIdx + `/${bucket}/`.length))
     }
 
     return null
   } catch {
-    // Not a valid URL — try raw string split as last resort.
-    const parts = url.split(`/${STORAGE_BUCKET}/`)
+    const parts = url.split(`/${bucket}/`)
     return parts.length > 1 ? parts[parts.length - 1] : null
   }
 }
 
-async function downloadPdf(supabase: any, path: string): Promise<Uint8Array | null> {
-  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).download(path)
+async function downloadPdf(
+  supabase: any,
+  bucket: string,
+  path: string,
+): Promise<Uint8Array | null> {
+  const { data, error } = await supabase.storage.from(bucket).download(path)
   if (error || !data) {
     console.error('finalize: download error', error)
     return null
@@ -99,24 +106,25 @@ async function downloadPdf(supabase: any, path: string): Promise<Uint8Array | nu
 
 async function uploadSignedPdf(
   supabase: any,
+  bucket: string,
   path: string,
   bytes: Uint8Array,
 ): Promise<string | null> {
   const { error } = await supabase.storage
-    .from(STORAGE_BUCKET)
+    .from(bucket)
     .upload(path, bytes, { contentType: 'application/pdf', upsert: true })
   if (error) {
     console.error('finalize: upload error', error)
     return null
   }
-  const { data: pub } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+  const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
   return pub?.publicUrl ?? null
 }
 
 async function findDocument(
   supabase: any,
   payload: FinalizePayload,
-): Promise<DocumentoClienteRow | null> {
+): Promise<FoundDocument | null> {
   if (payload.documento_id) {
     const { data: byUrl, error: errUrl } = await supabase
       .from('documentos_cliente')
@@ -124,8 +132,8 @@ async function findDocument(
       .eq('arquivo_url', payload.documento_id)
       .limit(1)
       .maybeSingle()
-    if (errUrl) console.error('finalize: find by arquivo_url error', errUrl)
-    if (byUrl) return byUrl as DocumentoClienteRow
+    if (errUrl) console.error('finalize: find cliente by arquivo_url error', errUrl)
+    if (byUrl) return { source: 'cliente', data: byUrl as BaseDocumentRow, bucket: STORAGE_BUCKET }
 
     const { data: byId, error: errId } = await supabase
       .from('documentos_cliente')
@@ -133,21 +141,66 @@ async function findDocument(
       .eq('id', payload.documento_id)
       .limit(1)
       .maybeSingle()
-    if (errId) console.error('finalize: find by id error', errId)
-    if (byId) return byId as DocumentoClienteRow
+    if (errId) console.error('finalize: find cliente by id error', errId)
+    if (byId) return { source: 'cliente', data: byId as BaseDocumentRow, bucket: STORAGE_BUCKET }
+
+    const { data: equipeById, error: errEquipeId } = await supabase
+      .from('documentos_equipe')
+      .select('*')
+      .eq('id', payload.documento_id)
+      .limit(1)
+      .maybeSingle()
+    if (errEquipeId) console.error('finalize: find equipe by id error', errEquipeId)
+    if (equipeById)
+      return {
+        source: 'equipe',
+        data: equipeById as BaseDocumentRow,
+        bucket: STORAGE_BUCKET_EQUIPE,
+      }
+
+    const { data: equipeByUrl, error: errEquipeUrl } = await supabase
+      .from('documentos_equipe')
+      .select('*')
+      .eq('arquivo_url', payload.documento_id)
+      .limit(1)
+      .maybeSingle()
+    if (errEquipeUrl) console.error('finalize: find equipe by arquivo_url error', errEquipeUrl)
+    if (equipeByUrl)
+      return {
+        source: 'equipe',
+        data: equipeByUrl as BaseDocumentRow,
+        bucket: STORAGE_BUCKET_EQUIPE,
+      }
 
     return null
   }
 
   if (payload.envelope_id) {
-    const { data, error } = await supabase
+    const { data: clienteData, error: clienteErr } = await supabase
       .from('documentos_cliente')
       .select('*')
       .eq('envelope_id', payload.envelope_id)
       .limit(1)
       .maybeSingle()
-    if (error) console.error('finalize: find by envelope error', error)
-    return (data as DocumentoClienteRow) ?? null
+    if (clienteErr) console.error('finalize: find cliente by envelope error', clienteErr)
+    if (clienteData)
+      return { source: 'cliente', data: clienteData as BaseDocumentRow, bucket: STORAGE_BUCKET }
+
+    const { data: equipeData, error: equipeErr } = await supabase
+      .from('documentos_equipe')
+      .select('*')
+      .eq('envelope_id', payload.envelope_id)
+      .limit(1)
+      .maybeSingle()
+    if (equipeErr) console.error('finalize: find equipe by envelope error', equipeErr)
+    if (equipeData)
+      return {
+        source: 'equipe',
+        data: equipeData as BaseDocumentRow,
+        bucket: STORAGE_BUCKET_EQUIPE,
+      }
+
+    return null
   }
 
   return null
@@ -155,7 +208,7 @@ async function findDocument(
 
 async function gatherSignatures(
   supabase: any,
-  documento: DocumentoClienteRow,
+  documento: BaseDocumentRow,
   payload: FinalizePayload,
 ): Promise<{
   signature: ReturnType<typeof buildSignatureFromSources>
@@ -216,14 +269,24 @@ async function gatherSignatures(
 }
 
 async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise<void> {
-  const { data: envDocs, error } = await supabase
+  const { data: clienteDocs, error: clienteErr } = await supabase
     .from('documentos_cliente')
     .select('arquivo_assinado_url')
     .eq('envelope_id', envelopeId)
 
-  if (error || !envDocs) return
+  if (clienteErr) console.error('finalize: check cliente envelope error', clienteErr)
 
-  const allProcessed = envDocs.every(
+  const { data: equipeDocs, error: equipeErr } = await supabase
+    .from('documentos_equipe')
+    .select('arquivo_assinado_url')
+    .eq('envelope_id', envelopeId)
+
+  if (equipeErr) console.error('finalize: check equipe envelope error', equipeErr)
+
+  const allDocs = [...(clienteDocs || []), ...(equipeDocs || [])]
+  if (allDocs.length === 0) return
+
+  const allProcessed = allDocs.every(
     (d: any) => d.arquivo_assinado_url && d.arquivo_assinado_url !== '',
   )
   if (!allProcessed) return
@@ -240,7 +303,7 @@ async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise
 
 export async function finalizeDocument(
   payload: FinalizePayload,
-): Promise<{ success: boolean; url: string | null; error?: string }> {
+): Promise<{ success: boolean; url: string | null; error?: string; idempotent?: boolean }> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return { success: false, url: null, error: 'Missing Supabase credentials' }
   }
@@ -249,28 +312,28 @@ export async function finalizeDocument(
     auth: { persistSession: false },
   })
 
-  const documento = await findDocument(supabase, payload)
-  if (!documento) {
+  const found = await findDocument(supabase, payload)
+  if (!found) {
     return { success: false, url: null, error: 'Document not found' }
   }
 
-  // Workflow separation: PDF Monkey documents linked to envelopes_assinatura
-  // must not be overwritten by manual re-stamping requests — those are handled
-  // exclusively by the envelope trigger flow.
+  const documento = found.data
+  const bucket = found.bucket
+
   if (payload.manual && documento.envelope_id && documento.arquivo_assinado_url) {
-    return { success: true, url: documento.arquivo_assinado_url }
+    return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
   }
 
   if (!payload.manual && documento.arquivo_assinado_url) {
-    return { success: true, url: documento.arquivo_assinado_url }
+    return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
   }
 
-  const sourcePath = getPathFromUrl(documento.arquivo_assinado_url ?? documento.arquivo_url)
+  const sourcePath = getPathFromUrl(documento.arquivo_assinado_url ?? documento.arquivo_url, bucket)
   if (!sourcePath) {
     return { success: false, url: null, error: 'No source PDF path available' }
   }
 
-  const pdfBytes = await downloadPdf(supabase, sourcePath)
+  const pdfBytes = await downloadPdf(supabase, bucket, sourcePath)
   if (!pdfBytes) {
     return { success: false, url: null, error: 'Failed to download source PDF' }
   }
@@ -286,22 +349,35 @@ export async function finalizeDocument(
   }
 
   const signedPath = sourcePath.replace(/\.pdf$/i, '') + '-assinado.pdf'
-  const publicUrl = await uploadSignedPdf(supabase, signedPath, stampedBytes)
+  const publicUrl = await uploadSignedPdf(supabase, bucket, signedPath, stampedBytes)
   if (!publicUrl) {
     return { success: false, url: null, error: 'Failed to upload signed PDF' }
   }
 
-  const { error: updateError } = await supabase
-    .from('documentos_cliente')
-    .update({
-      arquivo_assinado_url: publicUrl,
-      status: 'Assinado',
-      atualizado_em: new Date().toISOString(),
-    })
-    .eq('id', documento.id)
+  if (found.source === 'cliente') {
+    const { error: updateError } = await supabase
+      .from('documentos_cliente')
+      .update({
+        arquivo_assinado_url: publicUrl,
+        status: 'Assinado',
+        atualizado_em: new Date().toISOString(),
+      })
+      .eq('id', documento.id)
 
-  if (updateError) {
-    console.error('finalize: update document error', updateError)
+    if (updateError) {
+      console.error('finalize: update documentos_cliente error', updateError)
+    }
+  } else {
+    const { error: updateError } = await supabase
+      .from('documentos_equipe')
+      .update({
+        arquivo_assinado_url: publicUrl,
+      })
+      .eq('id', documento.id)
+
+    if (updateError) {
+      console.error('finalize: update documentos_equipe error', updateError)
+    }
   }
 
   if (documento.envelope_id) {
