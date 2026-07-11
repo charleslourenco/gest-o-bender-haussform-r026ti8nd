@@ -21,12 +21,22 @@ export function AcompanhamentosLista() {
   const { toast } = useToast()
 
   const fetchItems = async () => {
-    const { data } = await supabase
-      .from('acompanhamentos')
-      .select('*, responsaveis_acompanhamentos(nome)')
-      .eq('arquivado_acompanhamento' as any, false)
-      .order('data_criacao', { ascending: false })
-    if (data) setItems(data)
+    try {
+      const { data, error } = await supabase
+        .from('acompanhamentos')
+        .select('*, responsaveis_acompanhamentos(nome)')
+        .eq('arquivado_acompanhamento' as any, false)
+        .order('data_criacao', { ascending: false })
+      if (error) {
+        console.error('Error fetching acompanhamentos:', error)
+        setItems([])
+        return
+      }
+      setItems(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Unexpected error fetching acompanhamentos:', err)
+      setItems([])
+    }
   }
 
   useEffect(() => {
@@ -43,12 +53,20 @@ export function AcompanhamentosLista() {
     }
   }
 
-  const filtered = items.filter(
+  const filtered = (items || []).filter(
     (i) =>
-      i.nome_cliente?.toLowerCase().includes(search.toLowerCase()) ||
-      i.codigo_projeto?.toLowerCase().includes(search.toLowerCase()) ||
-      i.tipo_acompanhamento?.toLowerCase().includes(search.toLowerCase()) ||
-      i.responsaveis_acompanhamentos?.nome?.toLowerCase().includes(search.toLowerCase()),
+      i &&
+      (i?.nome_cliente?.toLowerCase().includes(search.toLowerCase()) ||
+        i?.codigo_projeto?.toLowerCase().includes(search.toLowerCase()) ||
+        i?.tipo_acompanhamento?.toLowerCase().includes(search.toLowerCase()) ||
+        (i?.responsaveis_acompanhamentos
+          ? (Array.isArray(i.responsaveis_acompanhamentos)
+              ? i.responsaveis_acompanhamentos[0]?.nome
+              : i.responsaveis_acompanhamentos?.nome
+            )
+              ?.toLowerCase()
+              .includes(search.toLowerCase())
+          : false)),
   )
 
   return (
@@ -77,32 +95,43 @@ export function AcompanhamentosLista() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium font-mono text-xs">
-                  {item.codigo_projeto}
-                </TableCell>
-                <TableCell>{item.nome_cliente}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">
-                  {item.tipo_acompanhamento}
-                </TableCell>
-                <TableCell className="text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
-                    {format(new Date(item.data_criacao), 'dd/MM/yyyy')}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{item.status_atual}</Badge>
-                </TableCell>
-                <TableCell>{item.responsaveis_acompanhamentos?.nome || '-'}</TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered
+              .filter((i) => i && i.id)
+              .map((item) => {
+                const responsavelNome = item?.responsaveis_acompanhamentos
+                  ? (Array.isArray(item.responsaveis_acompanhamentos)
+                      ? item.responsaveis_acompanhamentos[0]?.nome
+                      : item.responsaveis_acompanhamentos?.nome) || '-'
+                  : '-'
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium font-mono text-xs">
+                      {item?.codigo_projeto || 'N/A'}
+                    </TableCell>
+                    <TableCell>{item?.nome_cliente || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {item?.tipo_acompanhamento || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1.5">
+                        <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
+                        {item?.data_criacao
+                          ? format(new Date(item.data_criacao), 'dd/MM/yyyy')
+                          : '-'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{item?.status_atual || '-'}</Badge>
+                    </TableCell>
+                    <TableCell>{responsavelNome}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">

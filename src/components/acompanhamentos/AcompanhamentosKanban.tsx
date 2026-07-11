@@ -101,13 +101,23 @@ export function AcompanhamentosKanban() {
   }
 
   const fetchCards = async () => {
-    const { data, error } = await supabase
-      .from('acompanhamentos')
-      .select('*, responsaveis_acompanhamentos(nome)')
-      .eq('arquivado_acompanhamento' as any, false)
-      .order('data_criacao', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('acompanhamentos')
+        .select('*, responsaveis_acompanhamentos(nome)')
+        .eq('arquivado_acompanhamento' as any, false)
+        .order('data_criacao', { ascending: false })
 
-    if (!error && data) setCards(data)
+      if (error) {
+        console.error('Error fetching acompanhamentos:', error)
+        setCards([])
+        return
+      }
+      setCards(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Unexpected error fetching acompanhamentos:', err)
+      setCards([])
+    }
   }
 
   const handleArchive = async (cardId: string) => {
@@ -228,55 +238,62 @@ export function AcompanhamentosKanban() {
                     Solte os cards aqui
                   </div>
                 ) : (
-                  colCards.map((card) => (
-                    <Card
-                      key={card.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, card.id)}
-                      className="cursor-grab active:cursor-grabbing border-2 border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 transition-all duration-200 shadow-sm"
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
-                            {card?.codigo_projeto || 'N/A'}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                              {card?.quantidade_itens || 0} iten(s)
-                            </span>
-                            {col === 'FINALIZAÇÃO' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleArchive(card.id)
-                                }}
-                                className="text-muted-foreground hover:text-amber-600 p-0.5 transition-colors"
-                                title="Arquivar"
-                              >
-                                <Archive className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <h4 className="font-semibold text-[14px] mb-1 leading-tight">
-                          {card?.nome_cliente || 'Sem cliente'}
-                        </h4>
-                        <p
-                          className="text-[11px] text-muted-foreground mb-3 line-clamp-2"
-                          title={card?.tipo_acompanhamento || ''}
+                  colCards
+                    .filter((c) => c && c.id)
+                    .map((card) => {
+                      const responsavelNome = card?.responsaveis_acompanhamentos
+                        ? (Array.isArray(card.responsaveis_acompanhamentos)
+                            ? card.responsaveis_acompanhamentos[0]?.nome
+                            : card.responsaveis_acompanhamentos.nome) || 'Sem responsável'
+                        : 'Sem responsável'
+                      return (
+                        <Card
+                          key={card.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, card.id)}
+                          className="cursor-grab active:cursor-grabbing border-2 border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 transition-all duration-200 shadow-sm"
                         >
-                          {card?.tipo_acompanhamento || 'Sem descrição'}
-                        </p>
+                          <CardContent className="p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">
+                                {card?.codigo_projeto || 'N/A'}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+                                  {card?.quantidade_itens || 0} iten(s)
+                                </span>
+                                {col === 'FINALIZAÇÃO' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleArchive(card.id)
+                                    }}
+                                    className="text-muted-foreground hover:text-amber-600 p-0.5 transition-colors"
+                                    title="Arquivar"
+                                  >
+                                    <Archive className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <h4 className="font-semibold text-[14px] mb-1 leading-tight">
+                              {card?.nome_cliente || 'Sem cliente'}
+                            </h4>
+                            <p
+                              className="text-[11px] text-muted-foreground mb-3 line-clamp-2"
+                              title={card?.tipo_acompanhamento || ''}
+                            >
+                              {card?.tipo_acompanhamento || 'Sem descrição'}
+                            </p>
 
-                        <div className="flex items-center text-[11px] text-muted-foreground bg-muted/50 p-1.5 rounded-md">
-                          <Users className="w-3 h-3 mr-1.5 shrink-0" />
-                          <span className="truncate">
-                            {card?.responsaveis_acompanhamentos?.nome || 'Sem responsável'}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                            <div className="flex items-center text-[11px] text-muted-foreground bg-muted/50 p-1.5 rounded-md">
+                              <Users className="w-3 h-3 mr-1.5 shrink-0" />
+                              <span className="truncate">{responsavelNome}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })
                 )}
               </div>
             </div>

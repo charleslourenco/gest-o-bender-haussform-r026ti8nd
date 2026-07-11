@@ -9,20 +9,28 @@ import { AcompanhamentosArquivados } from '@/components/acompanhamentos/Acompanh
 import { ClipboardCheck } from 'lucide-react'
 
 export default function Acompanhamentos() {
-  const { user, permissions } = useAuth()
+  const { user, permissions, loading } = useAuth()
   const navigate = useNavigate()
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
-  const accessLevel = isSuperAdmin ? 'Admin' : permissions['Acompanhamentos']
+  const accessLevel = isSuperAdmin ? 'Admin' : permissions?.['Acompanhamentos']
 
   useEffect(() => {
-    if (!user) return
+    if (!user || loading) return
     if (!accessLevel || accessLevel === 'Sem Acesso' || accessLevel === 'Nenhum') {
       navigate('/dashboard', { replace: true })
     }
-  }, [user, accessLevel, navigate])
+  }, [user, loading, accessLevel, navigate])
 
-  if (!accessLevel || accessLevel === 'Sem Acesso' || accessLevel === 'Nenhum') {
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center h-full">
+        <div className="text-muted-foreground">Carregando...</div>
+      </div>
+    )
+  }
+
+  if (!user || !accessLevel || accessLevel === 'Sem Acesso' || accessLevel === 'Nenhum') {
     return null
   }
 
