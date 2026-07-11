@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
+import { ResponsavelSelect } from './ResponsavelSelect'
 
 export function AcompanhamentosLista() {
   const [items, setItems] = useState<any[]>([])
@@ -123,7 +124,17 @@ export function AcompanhamentosLista() {
                     <TableCell>
                       <Badge variant="outline">{item?.status_atual || '-'}</Badge>
                     </TableCell>
-                    <TableCell>{responsavelNome}</TableCell>
+                    <TableCell>
+                      <div className="min-w-[160px]">
+                        <ResponsavelSelect
+                          acompanhamentoId={item.id}
+                          responsavelId={item?.responsavel_id ?? null}
+                          responsavelNome={responsavelNome === '-' ? null : responsavelNome}
+                          onUpdate={fetchItems}
+                          variant="inline"
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
                         <Trash2 className="w-4 h-4 text-destructive" />

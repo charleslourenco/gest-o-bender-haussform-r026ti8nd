@@ -2738,6 +2738,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      gerar_codigo_acompanhamento: { Args: { p_nome: string }; Returns: string }
       get_edge_auth_headers: { Args: never; Returns: Json }
       get_timeline_eventos: {
         Args: { p_cliente_id: string }

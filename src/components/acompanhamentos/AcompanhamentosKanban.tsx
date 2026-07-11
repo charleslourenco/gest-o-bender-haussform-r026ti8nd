@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Users, Archive } from 'lucide-react'
+import { Plus, Archive } from 'lucide-react'
 import { AcompanhamentoAvulsoModal } from './AcompanhamentoAvulsoModal'
+import { ResponsavelSelect } from './ResponsavelSelect'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
 import { arquivarAcompanhamento } from '@/services/arquivamento'
@@ -244,7 +245,7 @@ export function AcompanhamentosKanban() {
                       const responsavelNome = card?.responsaveis_acompanhamentos
                         ? (Array.isArray(card.responsaveis_acompanhamentos)
                             ? card.responsaveis_acompanhamentos[0]?.nome
-                            : card.responsaveis_acompanhamentos.nome) || 'Sem responsável'
+                            : card.responsaveis_acompanhamentos?.nome) || 'Sem responsável'
                         : 'Sem responsável'
                       return (
                         <Card
@@ -286,9 +287,19 @@ export function AcompanhamentosKanban() {
                               {card?.tipo_acompanhamento || 'Sem descrição'}
                             </p>
 
-                            <div className="flex items-center text-[11px] text-muted-foreground bg-muted/50 p-1.5 rounded-md">
-                              <Users className="w-3 h-3 mr-1.5 shrink-0" />
-                              <span className="truncate">{responsavelNome}</span>
+                            <div
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ResponsavelSelect
+                                acompanhamentoId={card.id}
+                                responsavelId={card?.responsavel_id ?? null}
+                                responsavelNome={
+                                  responsavelNome === 'Sem responsável' ? null : responsavelNome
+                                }
+                                onUpdate={fetchCards}
+                                variant="card"
+                              />
                             </div>
                           </CardContent>
                         </Card>
