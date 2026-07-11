@@ -20,6 +20,18 @@ export interface ContaPagar {
   atualizado_em: string
 }
 
+export interface ContaPagarUpdate {
+  descricao?: string | null
+  valor?: number
+  data_vencimento?: string | null
+  fornecedor?: string
+  categoria?: string | null
+  status_pagamento?: string
+  meio_pagamento?: string | null
+  antecipado?: boolean | null
+  conta_bancaria_id?: string | null
+}
+
 export async function fetchContasPagar(): Promise<{
   data: ContaPagar[] | null
   error: string | null
@@ -54,4 +66,22 @@ export async function updateDataVencimento(
     .select()
     .single()
   return { data: data as ContaPagar | null, error: error?.message || null }
+}
+
+export async function updateContaPagar(
+  id: string,
+  updates: ContaPagarUpdate,
+): Promise<{ data: ContaPagar | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('contas_pagar')
+    .update({ ...updates, atualizado_em: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+  return { data: data as ContaPagar | null, error: error?.message || null }
+}
+
+export async function deleteContaPagar(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from('contas_pagar').delete().eq('id', id)
+  return { error: error?.message || null }
 }

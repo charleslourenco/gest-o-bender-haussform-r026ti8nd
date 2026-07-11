@@ -12,9 +12,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Group, CheckCircle2, Paperclip } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Group, CheckCircle2, Paperclip, MoreVertical, Pencil } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { AgruparContasDialog } from '@/components/financeiro/AgruparContasDialog'
+import { EditarContaDialog } from '@/components/financeiro/EditarContaDialog'
 import { supabase } from '@/lib/supabase/client'
 import { getInvoiceSignedUrl } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
@@ -38,7 +45,7 @@ export interface ExtendedTransaction {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const s = status.toLowerCase()
+  const s = (status || '').toLowerCase()
   if (s === 'pago')
     return (
       <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800">
@@ -60,7 +67,7 @@ function StatusBadge({ status }: { status: string }) {
         Agrupado
       </Badge>
     )
-  return <Badge variant="secondary">{status}</Badge>
+  return <Badge variant="secondary">{status || '-'}</Badge>
 }
 
 function fmtDate(d: string | null) {
@@ -77,6 +84,9 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   const [selReceber, setSelReceber] = useState<string[]>([])
   const [showAgrupar, setShowAgrupar] = useState(false)
   const [marking, setMarking] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editTipo, setEditTipo] = useState<'pagar' | 'receber'>('pagar')
+  const [editConta, setEditConta] = useState<any>(null)
   const { toast } = useToast()
 
   const pagar = useMemo(() => transactions.filter((t) => t.type === 'despesa'), [transactions])
@@ -99,8 +109,14 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   }
 
   const canSelPagar = (t: ExtendedTransaction) =>
-    !['pago', 'agrupado'].includes(t.status.toLowerCase())
-  const canSelReceber = (t: ExtendedTransaction) => t.status.toLowerCase() !== 'pago'
+    !['pago', 'agrupado'].includes((t.status || '').toLowerCase())
+  const canSelReceber = (t: ExtendedTransaction) => (t.status || '').toLowerCase() !== 'pago'
+
+  function openEdit(tipo: 'pagar' | 'receber', conta: any) {
+    setEditTipo(tipo)
+    setEditConta(conta)
+    setEditOpen(true)
+  }
 
   async function markPaid(
     table: 'contas_pagar' | 'contas_receber',
@@ -170,6 +186,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
               <TableHead>Vencimento</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10">Anexo</TableHead>
+              <TableHead className="w-10">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -183,7 +200,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
                     />
                   )}
                 </TableCell>
-                <TableCell className="font-medium text-sm">{t.entityName}</TableCell>
+                <TableCell className="font-medium text-sm">{t.entityName || '-'}</TableCell>
                 <TableCell className="text-sm text-gray-500 max-w-[180px] truncate">
                   {t.description || '-'}
                 </TableCell>
@@ -193,7 +210,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
                   <TableCell className="text-sm">{t.source?.numero_parcela || '-'}</TableCell>
                 )}
                 <TableCell className="text-right font-bold text-sm">
-                  {formatCurrency(t.amount)}
+                  {formatCurrency(Number(t.amount) || 0)}
                 </TableCell>
                 <TableCell className="text-sm">{fmtDate(t.dueDate)}</TableCell>
                 <TableCell>
@@ -210,6 +227,22 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
                       <Paperclip className="w-4 h-4" />
                     </Button>
                   )}
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => openEdit(isPagar ? 'pagar' : 'receber', t.source)}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" /> Editar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -279,6 +312,13 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
         onOpenChange={setShowAgrupar}
         selectedTransactions={selPagarTx}
         onSuccess={handleGrouped}
+      />
+      <EditarContaDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        tipo={editTipo}
+        conta={editConta}
+        onSuccess={onRefresh}
       />
     </div>
   )
