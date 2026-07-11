@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import { ExtendedTransaction } from '@/components/financeiro/FinanceiroMovimentacoes'
+import type { ExtendedTransaction } from '@/components/financeiro/FinanceiroMovimentacoes'
 
 interface AgruparContasDialogProps {
   open: boolean

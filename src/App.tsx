@@ -75,7 +75,14 @@ const App = () => (
                 <Route path="/usuarios" element={<Users />} />
                 <Route path="/clientes" element={<AreaClientes />} />
                 <Route path="/clientes/:id" element={<AreaClientes />} />
-                <Route path="/financeiro" element={<Financeiro />} />
+                <Route
+                  path="/financeiro"
+                  element={
+                    <ErrorBoundary>
+                      <Financeiro />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route
                   path="/analise-tecnica"
                   element={

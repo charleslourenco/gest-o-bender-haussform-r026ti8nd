@@ -71,6 +71,7 @@ export default function Financeiro() {
         meioPagamento: p.meio_pagamento,
         antecipado: p.antecipado,
         comprovanteUrl: p.comprovante_url,
+        notaFiscalId: p.nota_fiscal_id,
       }))
 
       setTransactions(

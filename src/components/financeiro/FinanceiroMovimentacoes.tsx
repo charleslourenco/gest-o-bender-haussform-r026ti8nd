@@ -1,73 +1,255 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Group, Plus } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Group, CheckCircle2, Paperclip } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { AgruparContasDialog } from '@/components/financeiro/AgruparContasDialog'
-import { ContasPagarTable } from '@/components/financeiro/ContasPagarTable'
-import { NovaContaPagarSheet } from '@/components/financeiro/NovaContaPagarSheet'
-import { NovaContaReceberSheet } from '@/components/financeiro/NovaContaReceberSheet'
 import { supabase } from '@/lib/supabase/client'
+import { getInvoiceSignedUrl } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
 
 export interface ExtendedTransaction {
   id: string
-  tipo: 'pagar' | 'receber'
-  fornecedor?: string
-  descricao: string | null
-  categoria: string | null
-  valor: number
-  data_vencimento: string | null
-  data_pagamento: string | null
-  status_pagamento: string
-  comprovante_url: string | null
-  nota_fiscal_id: string | null
+  type: 'receita' | 'despesa'
+  description: string | null
+  category: string | null
+  amount: number
+  dueDate: string | null
+  paidDate: string | null
+  status: string
+  source: any
+  createdAt: string
+  entityName: string
+  meioPagamento?: string | null
+  antecipado?: boolean | null
+  comprovanteUrl?: string | null
+  notaFiscalId?: string | null
 }
 
-export function FinanceiroMovimentacoes() {
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
+function StatusBadge({ status }: { status: string }) {
+  const s = status.toLowerCase()
+  if (s === 'pago')
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800">
+        Pago
+      </Badge>
+    )
+  if (s === 'aguardando')
+    return (
+      <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800">
+        Aguardando
+      </Badge>
+    )
+  if (s === 'agrupado')
+    return (
+      <Badge
+        variant="outline"
+        className="text-blue-600 border-blue-300 dark:text-blue-400 dark:border-blue-800"
+      >
+        Agrupado
+      </Badge>
+    )
+  return <Badge variant="secondary">{status}</Badge>
+}
+
+function fmtDate(d: string | null) {
+  return d ? new Date(d).toLocaleDateString('pt-BR') : '-'
+}
+
+interface Props {
+  transactions: ExtendedTransaction[]
+  onRefresh: () => void
+}
+
+export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
+  const [selPagar, setSelPagar] = useState<string[]>([])
+  const [selReceber, setSelReceber] = useState<string[]>([])
   const [showAgrupar, setShowAgrupar] = useState(false)
-  const [showNovaPagar, setShowNovaPagar] = useState(false)
-  const [showNovaReceber, setShowNovaReceber] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [marking, setMarking] = useState(false)
   const { toast } = useToast()
+
+  const pagar = useMemo(() => transactions.filter((t) => t.type === 'despesa'), [transactions])
+  const receber = useMemo(() => transactions.filter((t) => t.type === 'receita'), [transactions])
+  const selPagarTx = useMemo(() => pagar.filter((t) => selPagar.includes(t.id)), [pagar, selPagar])
+
+  const toggle = (id: string, sel: string[], set: (v: string[]) => void) =>
+    set(sel.includes(id) ? sel.filter((i) => i !== id) : [...sel, id])
+
+  const toggleAll = (
+    items: ExtendedTransaction[],
+    sel: string[],
+    set: (v: string[]) => void,
+    canSel: (t: ExtendedTransaction) => boolean,
+  ) => {
+    const selectable = items.filter(canSel)
+    set(
+      sel.length === selectable.length && selectable.length > 0 ? [] : selectable.map((t) => t.id),
+    )
+  }
+
+  const canSelPagar = (t: ExtendedTransaction) =>
+    !['pago', 'agrupado'].includes(t.status.toLowerCase())
+  const canSelReceber = (t: ExtendedTransaction) => t.status.toLowerCase() !== 'pago'
+
+  async function markPaid(
+    table: 'contas_pagar' | 'contas_receber',
+    ids: string[],
+    clear: () => void,
+  ) {
+    setMarking(true)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const { error } = await supabase
+        .from(table)
+        .update({ status_pagamento: 'pago', data_pagamento: today })
+        .in('id', ids)
+      if (error) throw error
+      toast({ title: 'Sucesso', description: `${ids.length} conta(s) marcada(s) como paga.` })
+      clear()
+      onRefresh()
+    } catch {
+      toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
+    } finally {
+      setMarking(false)
+    }
+  }
+
+  async function viewComp(url: string) {
+    const { url: signed, error } = await getInvoiceSignedUrl(url)
+    if (error || !signed) {
+      toast({ title: 'Erro ao acessar arquivo', variant: 'destructive' })
+      return
+    }
+    window.open(signed, '_blank')
+  }
 
   function handleGrouped() {
     setShowAgrupar(false)
-    setSelectedIds([])
-    setRefreshKey((prev) => prev + 1)
+    setSelPagar([])
+    onRefresh()
     toast({ title: 'Contas agrupadas com sucesso!' })
+  }
+
+  function renderTable(
+    items: ExtendedTransaction[],
+    sel: string[],
+    setSel: (v: string[]) => void,
+    canSel: (t: ExtendedTransaction) => boolean,
+    isPagar: boolean,
+  ) {
+    if (items.length === 0)
+      return <p className="text-center py-8 text-sm text-gray-500">Nenhum lançamento encontrado.</p>
+    const selectable = items.filter(canSel)
+    const allSel = selectable.length > 0 && sel.length === selectable.length
+    return (
+      <div className="rounded-md border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allSel}
+                  onCheckedChange={() => toggleAll(items, sel, setSel, canSel)}
+                />
+              </TableHead>
+              <TableHead>{isPagar ? 'Fornecedor' : 'Cliente'}</TableHead>
+              <TableHead className="max-w-[180px]">Descrição</TableHead>
+              {isPagar ? <TableHead>Categoria</TableHead> : <TableHead>Parcela</TableHead>}
+              <TableHead className="text-right">Valor</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-10">Anexo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((t) => (
+              <TableRow key={t.id} data-state={sel.includes(t.id) ? 'selected' : undefined}>
+                <TableCell>
+                  {canSel(t) && (
+                    <Checkbox
+                      checked={sel.includes(t.id)}
+                      onCheckedChange={() => toggle(t.id, sel, setSel)}
+                    />
+                  )}
+                </TableCell>
+                <TableCell className="font-medium text-sm">{t.entityName}</TableCell>
+                <TableCell className="text-sm text-gray-500 max-w-[180px] truncate">
+                  {t.description || '-'}
+                </TableCell>
+                {isPagar ? (
+                  <TableCell className="text-sm">{t.category || '-'}</TableCell>
+                ) : (
+                  <TableCell className="text-sm">{t.source?.numero_parcela || '-'}</TableCell>
+                )}
+                <TableCell className="text-right font-bold text-sm">
+                  {formatCurrency(t.amount)}
+                </TableCell>
+                <TableCell className="text-sm">{fmtDate(t.dueDate)}</TableCell>
+                <TableCell>
+                  <StatusBadge status={t.status} />
+                </TableCell>
+                <TableCell>
+                  {t.comprovanteUrl && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => viewComp(t.comprovanteUrl!)}
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="pagar">
         <TabsList>
-          <TabsTrigger value="pagar">Contas a Pagar</TabsTrigger>
-          <TabsTrigger value="receber">Contas a Receber</TabsTrigger>
+          <TabsTrigger value="pagar">Contas a Pagar ({pagar.length})</TabsTrigger>
+          <TabsTrigger value="receber">Contas a Receber ({receber.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="pagar">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Contas a Pagar</CardTitle>
               <div className="flex gap-2">
-                {selectedIds.length >= 2 && (
-                  <Button variant="outline" size="sm" onClick={() => setShowAgrupar(true)}>
-                    <Group className="w-4 h-4 mr-1" /> Agrupar ({selectedIds.length})
+                {selPagar.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={marking}
+                    onClick={() => markPaid('contas_pagar', selPagar, () => setSelPagar([]))}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar Pago ({selPagar.length})
                   </Button>
                 )}
-                <Button size="sm" onClick={() => setShowNovaPagar(true)}>
-                  <Plus className="w-4 h-4 mr-1" /> Nova Conta
-                </Button>
+                {selPagar.length >= 2 && (
+                  <Button variant="outline" size="sm" onClick={() => setShowAgrupar(true)}>
+                    <Group className="w-4 h-4 mr-1" /> Agrupar ({selPagar.length})
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
-              <ContasPagarTable
-                selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                refreshKey={refreshKey}
-              />
+              {renderTable(pagar, selPagar, setSelPagar, canSelPagar, true)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -75,12 +257,19 @@ export function FinanceiroMovimentacoes() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Contas a Receber</CardTitle>
-              <Button size="sm" onClick={() => setShowNovaReceber(true)}>
-                <Plus className="w-4 h-4 mr-1" /> Nova Conta
-              </Button>
+              {selReceber.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={marking}
+                  onClick={() => markPaid('contas_receber', selReceber, () => setSelReceber([]))}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar Pago ({selReceber.length})
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <ContasReceberList />
+              {renderTable(receber, selReceber, setSelReceber, canSelReceber, false)}
             </CardContent>
           </Card>
         </TabsContent>
@@ -88,49 +277,9 @@ export function FinanceiroMovimentacoes() {
       <AgruparContasDialog
         open={showAgrupar}
         onOpenChange={setShowAgrupar}
-        selectedIds={selectedIds}
-        onGrouped={handleGrouped}
+        selectedTransactions={selPagarTx}
+        onSuccess={handleGrouped}
       />
-      <NovaContaPagarSheet open={showNovaPagar} onOpenChange={setShowNovaPagar} />
-      <NovaContaReceberSheet open={showNovaReceber} onOpenChange={setShowNovaReceber} />
-    </div>
-  )
-}
-
-function ContasReceberList() {
-  const [contas, setContas] = useState<any[]>([])
-
-  useEffect(() => {
-    supabase
-      .from('contas_receber')
-      .select('*')
-      .order('criado_em', { ascending: false })
-      .then(({ data }) => setContas(data || []))
-  }, [])
-
-  if (contas.length === 0) {
-    return <p className="text-center py-4 text-sm text-gray-500">Nenhuma conta a receber.</p>
-  }
-
-  return (
-    <div className="space-y-2">
-      {contas.map((conta) => (
-        <div key={conta.id} className="border rounded-lg p-3 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-sm">{conta.descricao || 'Conta a Receber'}</p>
-            <p className="text-xs text-gray-500">
-              {conta.numero_parcela} • Venc:{' '}
-              {conta.data_vencimento
-                ? new Date(conta.data_vencimento).toLocaleDateString('pt-BR')
-                : '-'}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="font-bold text-sm">{formatCurrency(conta.valor)}</p>
-            <span className="text-xs text-gray-500">{conta.status_pagamento}</span>
-          </div>
-        </div>
-      ))}
     </div>
   )
 }
