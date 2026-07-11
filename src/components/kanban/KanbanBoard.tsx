@@ -648,16 +648,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 >
                   {isProducao || isMontagemRoute ? (
                     <>
-                      <div className="flex flex-row items-baseline gap-1.5 w-full truncate text-xs font-medium">
-                        {item?.codigo_rastreio && (
-                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border text-primary bg-muted/50 border-border shrink-0 leading-none">
-                            {item.codigo_rastreio}
-                          </span>
-                        )}
-                        <span className="truncate">{getClienteNome(item) || 'Avulso'}</span>
-                      </div>
+                      {item?.codigo_rastreio && (
+                        <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none w-fit">
+                          {item.codigo_rastreio}
+                        </span>
+                      )}
+                      <span
+                        className="text-xs truncate text-foreground"
+                        title={getClienteNome(item) || 'Avulso'}
+                      >
+                        {getClienteNome(item) || 'Avulso'}
+                      </span>
                       <h4
-                        className="font-semibold leading-tight text-card-foreground text-xs mt-1 truncate"
+                        className="font-semibold leading-tight text-card-foreground text-xs truncate"
                         title={item?.nome_produto ?? 'Sem nome'}
                       >
                         {item?.nome_produto ?? 'Sem nome'}
