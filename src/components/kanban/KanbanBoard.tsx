@@ -570,10 +570,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
                   isProducao || isMontagemRoute
                     ? cn(
-                        'bg-card text-card-foreground p-2 rounded-md shadow-sm w-full flex flex-col gap-1.5 border-2',
+                        'bg-card text-card-foreground p-1.5 rounded-md shadow-sm hover:shadow-md transition-all duration-200 w-full flex flex-col gap-1.5 border-2',
                         item?.is_outsourced
-                          ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                          : 'border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                          ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] hover:border-orange-400 dark:hover:border-orange-400'
+                          : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
                       )
                     : cn(
                         'rounded-lg shadow-sm hover:shadow-md flex flex-col border-2',

@@ -80,7 +80,7 @@ export function KanbanCard({
       className={cn(
         'cursor-pointer hover:shadow-md transition-all flex flex-col border-2',
         isMontagem
-          ? 'bg-card text-card-foreground p-2 rounded-md shadow-sm gap-1 w-full border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400'
+          ? 'bg-card text-card-foreground p-1.5 rounded-md shadow-sm gap-1 w-full border-2 border-border hover:border-primary/50 hover:shadow-md transition-all duration-200 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400'
           : 'rounded-lg shadow-sm hover:shadow-md gap-2',
         isMontagem && card.is_outsourced
           ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
@@ -94,9 +94,9 @@ export function KanbanCard({
             )
           : !isMontagem && isProducao
             ? cn(
-                'bg-card text-card-foreground hover:border-primary/50 p-2 gap-1 border-border',
+                'bg-card text-card-foreground hover:border-primary/50 hover:shadow-md transition-all duration-200 p-1.5 gap-1 border-2 border-border',
                 card.is_outsourced
-                  ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                  ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] hover:border-orange-400 dark:hover:border-orange-400'
                   : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
               )
             : !isMontagem

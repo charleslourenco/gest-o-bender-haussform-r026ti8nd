@@ -233,7 +233,7 @@ export function AcompanhamentosKanban() {
                       key={card.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, card.id)}
-                      className="cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors shadow-sm"
+                      className="cursor-grab active:cursor-grabbing border-2 border-border dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-md hover:border-primary/50 dark:hover:border-cyan-400 transition-all duration-200 shadow-sm"
                     >
                       <CardContent className="p-3">
                         <div className="flex justify-between items-start mb-2">
@@ -258,11 +258,11 @@ export function AcompanhamentosKanban() {
                             )}
                           </div>
                         </div>
-                        <h4 className="font-semibold text-sm mb-1 leading-tight">
+                        <h4 className="font-semibold text-[14px] mb-1 leading-tight">
                           {card?.nome_cliente || 'Sem cliente'}
                         </h4>
                         <p
-                          className="text-xs text-muted-foreground mb-3 line-clamp-2"
+                          className="text-[11px] text-muted-foreground mb-3 line-clamp-2"
                           title={card?.tipo_acompanhamento || ''}
                         >
                           {card?.tipo_acompanhamento || 'Sem descrição'}
