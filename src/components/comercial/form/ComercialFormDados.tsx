@@ -146,6 +146,19 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           0,
         ) - (data.desconto || 0)
 
+      if (data.forma_pagamento === 'Parcelado' && data.pagamento_parcelado?.length > 0) {
+        const somaParcelas = data.pagamento_parcelado.reduce(
+          (acc: number, p: any) => acc + (Number(p.valor) || 0),
+          0,
+        )
+        if (Math.abs(somaParcelas - valorTotal) > 0.01) {
+          toast.error(
+            `A soma das parcelas (R$ ${somaParcelas.toFixed(2)}) não corresponde ao valor total (R$ ${valorTotal.toFixed(2)}). Ajuste as parcelas ou clique em "Recalcular Parcelas Iguais" antes de salvar.`,
+          )
+          return
+        }
+      }
+
       const ambientesUnicos = Array.from(
         new Set(data.produtos.map((p: any) => p.descricao || 'Geral')),
       )
@@ -280,6 +293,38 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           if (newRequests.length > 0) {
             await supabase.from('solicitacoes_compra').insert(newRequests)
           }
+        }
+      }
+
+      if (formId) {
+        const parcelasParaReceber =
+          data.forma_pagamento === 'Parcelado' && data.pagamento_parcelado?.length > 0
+            ? data.pagamento_parcelado
+            : [
+                {
+                  data: data.data_venda || new Date().toISOString().split('T')[0],
+                  valor: valorTotal,
+                  meio: data.pagamento_a_vista_meio || 'PIX',
+                },
+              ]
+
+        await supabase.from('contas_receber').delete().eq('formulario_comercial_id', formId)
+
+        const contasReceberInserts = parcelasParaReceber.map((p: any, i: number) => ({
+          cliente_id: dossie.cliente_id,
+          formulario_comercial_id: formId,
+          user_id: authData.user?.id,
+          numero_parcela: `${i + 1}/${parcelasParaReceber.length}`,
+          data_vencimento: p.data,
+          valor: p.valor,
+          status_pagamento: 'aguardando',
+          meio_pagamento: p.meio || 'PIX',
+          descricao: `Parcela ${i + 1}/${parcelasParaReceber.length} - ${data.nome || ''}`,
+          categoria: 'Venda',
+        }))
+
+        if (contasReceberInserts.length > 0) {
+          await supabase.from('contas_receber').insert(contasReceberInserts)
         }
       }
 

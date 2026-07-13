@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   FormState,
   maskPhoneStrict,
@@ -455,16 +454,26 @@ export function SectionPagamento({ data, update }: Props) {
     'Cheque',
   ]
 
-  const applyParcels = (length: number, forceTotal?: number) => {
-    const calcTotal = forceTotal !== undefined ? forceTotal : total
-    const val = Number((calcTotal / length).toFixed(2))
-    const rem = calcTotal - val * length
+  const buildDefaultParcela = (index: number) => {
     const baseDate = data.data_venda ? new Date(data.data_venda + 'T12:00:00Z') : new Date()
+    const pDate = new Date(baseDate.getTime())
+    pDate.setDate(pDate.getDate() + 30 * (index + 1))
+    return {
+      id: Math.random().toString(36).substring(2),
+      data: pDate.toISOString().split('T')[0],
+      valor: 0,
+      meio: 'PIX',
+    }
+  }
 
+  const equalizeParcels = () => {
+    const length = Math.max(1, data.pagamento_parcelado.length)
+    const val = Number((total / length).toFixed(2))
+    const rem = total - val * length
+    const baseDate = data.data_venda ? new Date(data.data_venda + 'T12:00:00Z') : new Date()
     const arr = Array.from({ length }).map((_, i) => {
       const pDate = new Date(baseDate.getTime())
       pDate.setDate(pDate.getDate() + 30 * (i + 1))
-
       return {
         id: data.pagamento_parcelado[i]?.id || Math.random().toString(36).substring(2),
         data: data.pagamento_parcelado[i]?.data || pDate.toISOString().split('T')[0],
@@ -475,21 +484,35 @@ export function SectionPagamento({ data, update }: Props) {
     update('pagamento_parcelado', arr)
   }
 
-  const updateParcelaCount = (e: any) => {
-    const count = Math.max(1, parseInt(e.target.value) || 1)
-    applyParcels(count)
+  const addParcela = () => {
+    update('pagamento_parcelado', [
+      ...data.pagamento_parcelado,
+      buildDefaultParcela(data.pagamento_parcelado.length),
+    ])
   }
 
-  const prevTotalRef = React.useRef(total)
-
-  React.useEffect(() => {
-    if (prevTotalRef.current !== total) {
-      if (data.forma_pagamento === 'Parcelado' && data.pagamento_parcelado.length > 0) {
-        applyParcels(data.pagamento_parcelado.length, total)
-      }
-      prevTotalRef.current = total
+  const removeParcela = () => {
+    if (data.pagamento_parcelado.length > 1) {
+      update('pagamento_parcelado', data.pagamento_parcelado.slice(0, -1))
     }
-  }, [total])
+  }
+
+  const updateParcelaCount = (e: any) => {
+    const count = Math.max(1, parseInt(e.target.value) || 1)
+    const current = data.pagamento_parcelado.length
+    if (count === current) return
+    if (count > current) {
+      const newArr = [...data.pagamento_parcelado]
+      for (let i = current; i < count; i++) newArr.push(buildDefaultParcela(i))
+      update('pagamento_parcelado', newArr)
+    } else {
+      update('pagamento_parcelado', data.pagamento_parcelado.slice(0, count))
+    }
+  }
+
+  const somaParcelas = data.pagamento_parcelado.reduce((acc, p) => acc + (Number(p.valor) || 0), 0)
+  const diferencaParcelas = Number((total - somaParcelas).toFixed(2))
+  const parcelasValidas = Math.abs(diferencaParcelas) < 0.01
 
   const upParc = (id: string, f: string, v: any) => {
     const isFirstAndDate = f === 'data' && data.pagamento_parcelado[0]?.id === id
@@ -530,7 +553,14 @@ export function SectionPagamento({ data, update }: Props) {
             checked={data.forma_pagamento === 'Parcelado'}
             onChange={() => {
               update('forma_pagamento', 'Parcelado')
-              applyParcels(Math.max(1, data.pagamento_parcelado.length))
+              if (!data.pagamento_parcelado || data.pagamento_parcelado.length === 0) {
+                update('pagamento_parcelado', [
+                  {
+                    ...buildDefaultParcela(0),
+                    valor: total,
+                  },
+                ])
+              }
             }}
           />{' '}
           Parcelado
@@ -561,7 +591,7 @@ export function SectionPagamento({ data, update }: Props) {
             <div className="flex items-center">
               <button
                 type="button"
-                onClick={() => applyParcels(Math.max(1, data.pagamento_parcelado.length - 1))}
+                onClick={removeParcela}
                 className="w-10 h-10 flex items-center justify-center bg-off-white border-2 border-r-0 border-steel-blue rounded-l-[4px] text-midnight-navy hover:bg-steel-blue hover:text-off-white transition-colors text-lg font-bold"
               >
                 -
@@ -575,7 +605,7 @@ export function SectionPagamento({ data, update }: Props) {
               />
               <button
                 type="button"
-                onClick={() => applyParcels(data.pagamento_parcelado.length + 1)}
+                onClick={addParcela}
                 className="w-10 h-10 flex items-center justify-center bg-off-white border-2 border-l-0 border-steel-blue rounded-r-[4px] text-midnight-navy hover:bg-steel-blue hover:text-off-white transition-colors text-lg font-bold"
               >
                 +
@@ -583,12 +613,32 @@ export function SectionPagamento({ data, update }: Props) {
             </div>
             <button
               type="button"
-              onClick={() => applyParcels(data.pagamento_parcelado.length)}
+              onClick={equalizeParcels}
               className="bg-steel-blue text-off-white px-4 py-2 rounded text-sm whitespace-nowrap hover:bg-dark-denim transition-colors h-10 font-medium"
             >
-              Recalcular Valores
+              Recalcular Parcelas Iguais
             </button>
           </div>
+          {!parcelasValidas && (
+            <div className="bg-red-100 border-2 border-red-500 text-red-800 px-4 py-3 rounded-[8px] text-sm font-semibold flex items-center justify-between gap-4">
+              <span>
+                ⚠️ A soma das parcelas (R$ {somaParcelas.toFixed(2)}) não corresponde ao valor total
+                (R$ {total.toFixed(2)}). Diferença: R$ {Math.abs(diferencaParcelas).toFixed(2)}.
+              </span>
+              <button
+                type="button"
+                onClick={equalizeParcels}
+                className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold whitespace-nowrap hover:bg-red-700 transition-colors"
+              >
+                Igualar
+              </button>
+            </div>
+          )}
+          {parcelasValidas && data.pagamento_parcelado.length > 0 && (
+            <div className="bg-emerald-50 border-2 border-emerald-500 text-emerald-800 px-4 py-2 rounded-[8px] text-xs font-semibold">
+              ✓ Soma das parcelas corresponde ao valor total.
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse bg-off-white min-w-[500px]">
               <thead>
