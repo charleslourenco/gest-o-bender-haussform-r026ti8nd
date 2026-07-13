@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Search, FolderOpen, Users, ChevronRight } from 'lucide-react'
+import { Search, FolderOpen, Users, ChevronRight, UserPlus } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { ClienteFormModal } from '@/components/area-clientes/cliente-form-modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +38,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   const [dossies, setDossies] = useState<Dossie[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [formOpen, setFormOpen] = useState(false)
 
   useEffect(() => {
     fetchDossies()
@@ -93,6 +95,10 @@ export function ClientesList({ onSelect }: ClientesListProps) {
               className="pl-9 bg-background border-border"
             />
           </div>
+          <Button onClick={() => setFormOpen(true)} className="shrink-0">
+            <UserPlus className="w-4 h-4 mr-2" />
+            Novo Cliente
+          </Button>
         </div>
 
         <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
@@ -165,6 +171,8 @@ export function ClientesList({ onSelect }: ClientesListProps) {
             </TableBody>
           </Table>
         </div>
+
+        <ClienteFormModal open={formOpen} onOpenChange={setFormOpen} onSaved={fetchDossies} />
       </div>
     </div>
   )
