@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Trash2 } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDados'
 import { ClienteDocumentos } from './cliente-documentos'
 import { Timeline } from './timeline'
+import { ClienteDeleteDialog } from './cliente-delete-dialog'
+import { toast } from 'sonner'
 
 export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const activeTab = searchParams.get('tab') || 'dados'
   const [dossie, setDossie] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -77,23 +80,35 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in flex flex-col h-full overflow-hidden">
-      <div className="flex gap-4 border-b pb-4 shrink-0">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">{dossie.cliente?.nome || '-'}</h1>
-          <p className="text-muted-foreground text-sm">
-            Vendedor: {dossie.vendedorNome} | Valor da Venda:{' '}
-            {valTot > 0
-              ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                  valTot,
-                )
-              : '-'}{' '}
-            | Data:{' '}
-            {dossie.criado_em ? new Date(dossie.criado_em).toLocaleDateString('pt-BR') : '-'}
-          </p>
+      <div className="flex items-center justify-between gap-4 border-b pb-4 shrink-0">
+        <div className="flex gap-4 items-center min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold truncate">{dossie.cliente?.nome || '-'}</h1>
+            <p className="text-muted-foreground text-sm">
+              Vendedor: {dossie.vendedorNome} | Valor da Venda:{' '}
+              {valTot > 0
+                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    valTot,
+                  )
+                : '-'}{' '}
+              | Data:{' '}
+              {dossie.criado_em ? new Date(dossie.criado_em).toLocaleDateString('pt-BR') : '-'}
+            </p>
+          </div>
         </div>
+        <ClienteDeleteDialog
+          clienteId={dossie.cliente_id}
+          clienteNome={dossie.cliente?.nome}
+          onDeleted={() => {
+            toast.success('Cliente excluído com sucesso.')
+            navigate('/clientes')
+          }}
+          triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
+          triggerVariant="button"
+        />
       </div>
 
       <Tabs

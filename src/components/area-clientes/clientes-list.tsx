@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { ClienteDeleteDialog } from './cliente-delete-dialog'
 
 interface Cliente {
   id: string
@@ -177,13 +178,28 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                       {format(new Date(dossie.criado_em), "dd 'de' MMM, yyyy", { locale: ptBR })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="group-hover:text-primary group-hover:bg-primary/10"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <ClienteDeleteDialog
+                          clienteId={dossie.cliente_id}
+                          clienteNome={dossie.cliente?.nome}
+                          onDeleted={() => {
+                            toast.success('Cliente excluído com sucesso.')
+                            fetchDossies()
+                          }}
+                          triggerClassName="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="group-hover:text-primary group-hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onSelect(dossie.id)
+                          }}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
