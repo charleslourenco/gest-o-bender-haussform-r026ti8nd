@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { maskCpfCnpj, isValidCpfCnpj, detectTipoPessoa } from '@/lib/cpf-cnpj'
 import { FormState, defaultState } from './FormUtils'
 import {
   SectionPessoal,
@@ -15,15 +16,6 @@ import {
 export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: () => void }) {
   const [data, setData] = useState<FormState>(defaultState)
   const [saving, setSaving] = useState(false)
-
-  const maskCpf = (v: string) => {
-    let r = v.replace(/\D/g, '')
-    if (r.length > 11) r = r.substring(0, 11)
-    r = r.replace(/(\d{3})(\d)/, '$1.$2')
-    r = r.replace(/(\d{3})(\d)/, '$1.$2')
-    r = r.replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-    return r
-  }
 
   const maskPhone = (v: string) => {
     let r = v.replace(/\D/g, '')
@@ -51,7 +43,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         nome: cli.nome || '',
         email: cli.email || '',
         telefone: cli.telefone ? maskPhone(cli.telefone) : '',
-        cpf: form.cpf || cli.cpf ? maskCpf(form.cpf || cli.cpf) : '',
+        cpf: form.cpf || cli.cpf ? maskCpfCnpj(form.cpf || cli.cpf) : '',
         data_nascimento: form.data_nascimento || '',
         profissao: form.profissao || '',
         estado_civil: form.estado_civil || 'Solteiro',
@@ -103,7 +95,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
   const update = (f: keyof FormState, v: any) => {
     let value = v
-    if (f === 'cpf' && typeof v === 'string') value = maskCpf(v)
+    if (f === 'cpf' && typeof v === 'string') value = maskCpfCnpj(v)
     if (f === 'telefone' && typeof v === 'string') value = maskPhone(v)
     setData((p) => ({ ...p, [f]: value }))
   }
@@ -134,8 +126,13 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
   }
 
   const handleSave = async () => {
-    if (!data.cpf || data.telefone.replace(/\D/g, '').length < 10) {
-      toast.error('Preencha CPF e Telefone válido antes de salvar.')
+    if (!data.cpf || !isValidCpfCnpj(data.cpf)) {
+      toast.error('CPF/CNPJ inválido. Verifique o documento informado.')
+      return
+    }
+
+    if (data.telefone.replace(/\D/g, '').length < 10) {
+      toast.error('Preencha um telefone válido.')
       return
     }
 
@@ -153,8 +150,11 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         new Set(data.produtos.map((p: any) => p.descricao || 'Geral')),
       )
 
+      const tipoPessoa = detectTipoPessoa(data.cpf) || 'PF'
+
       const payload: any = {
         cpf: data.cpf || null,
+        tipo_pessoa: tipoPessoa,
         data_nascimento: data.data_nascimento || null,
         profissao: data.profissao || null,
         estado_civil: data.estado_civil || null,
@@ -290,6 +290,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
           email: data.email,
           telefone: data.telefone,
           cpf: data.cpf,
+          tipo_pessoa: tipoPessoa,
         })
         .eq('id', dossie.cliente_id)
 

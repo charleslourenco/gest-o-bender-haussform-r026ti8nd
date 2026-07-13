@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Search, FolderOpen, Users, ChevronRight, UserPlus } from 'lucide-react'
+import { Search, FolderOpen, Users, ChevronRight, UserPlus, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { ClienteFormModal } from '@/components/area-clientes/cliente-form-modal'
+import { useAuth } from '@/hooks/use-auth'
+import { createNewClientFlow } from '@/services/cliente-form'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,10 +37,24 @@ interface ClientesListProps {
 }
 
 export function ClientesList({ onSelect }: ClientesListProps) {
+  const { user } = useAuth()
   const [dossies, setDossies] = useState<Dossie[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+
+  const handleNewClient = async () => {
+    setCreating(true)
+    try {
+      const dossieId = await createNewClientFlow(user?.id || '')
+      toast.success('Cliente criado! Preencha o formulário comercial.')
+      onSelect(dossieId)
+    } catch (e: any) {
+      toast.error('Erro ao criar cliente: ' + e.message)
+    } finally {
+      setCreating(false)
+    }
+  }
 
   useEffect(() => {
     fetchDossies()
@@ -95,8 +111,12 @@ export function ClientesList({ onSelect }: ClientesListProps) {
               className="pl-9 bg-background border-border"
             />
           </div>
-          <Button onClick={() => setFormOpen(true)} className="shrink-0">
-            <UserPlus className="w-4 h-4 mr-2" />
+          <Button onClick={handleNewClient} disabled={creating} className="shrink-0">
+            {creating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <UserPlus className="w-4 h-4 mr-2" />
+            )}
             Novo Cliente
           </Button>
         </div>
@@ -171,8 +191,6 @@ export function ClientesList({ onSelect }: ClientesListProps) {
             </TableBody>
           </Table>
         </div>
-
-        <ClienteFormModal open={formOpen} onOpenChange={setFormOpen} onSaved={fetchDossies} />
       </div>
     </div>
   )

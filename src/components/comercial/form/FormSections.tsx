@@ -1,12 +1,12 @@
 import React from 'react'
 import {
   FormState,
-  maskCPF,
   maskPhoneStrict,
   maskCEP,
   formatCurrencyInput,
   addBusinessDays,
 } from './FormUtils'
+import { maskCpfCnpj } from '@/lib/cpf-cnpj'
 import { Plus, Trash2, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -25,7 +25,9 @@ export function SectionPessoal({ data, update }: Props) {
       <h2 className="font-bold text-[18px] mb-[12px]">SEÇÃO 1 — DADOS PESSOAIS</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[16px]">
         <div>
-          <label className="block text-[14px] font-semibold mb-[4px]">Nome completo *</label>
+          <label className="block text-[14px] font-semibold mb-[4px]">
+            Nome Completo / Razão Social *
+          </label>
           <input
             type="text"
             className={inputClass}
@@ -34,12 +36,13 @@ export function SectionPessoal({ data, update }: Props) {
           />
         </div>
         <div>
-          <label className="block text-[14px] font-semibold mb-[4px]">CPF *</label>
+          <label className="block text-[14px] font-semibold mb-[4px]">CPF / CNPJ *</label>
           <input
             type="text"
             className={inputClass}
             value={data.cpf}
-            onChange={(e) => update('cpf', maskCPF(e.target.value))}
+            onChange={(e) => update('cpf', maskCpfCnpj(e.target.value))}
+            placeholder="000.000.000-00 ou 00.000.000/0000-00"
           />
         </div>
         <div>
