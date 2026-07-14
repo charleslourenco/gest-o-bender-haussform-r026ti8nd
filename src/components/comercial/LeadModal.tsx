@@ -135,10 +135,10 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               </div>
               <div>
                 <label className="block text-foreground font-semibold text-[14px] mb-1.5">
-                  E-mail *
+                  E-mail{' '}
+                  <span className="text-muted-foreground font-normal text-[12px]">(opcional)</span>
                 </label>
                 <input
-                  required
                   type="email"
                   name="email"
                   defaultValue={lead?.email}
