@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
 import { Lead } from '@/types'
-import { gerarDocumentoCliente } from '@/services/gerar-documento-cliente'
 import { fetchLeadMessages } from '@/services/comercial'
 import { MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,7 +19,6 @@ interface Props {
 }
 
 export function LeadModal({ lead, users, onClose, onSave }: Props) {
-  const [isGenerating, setIsGenerating] = useState(false)
   const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
 
@@ -88,38 +85,6 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTelefone(formatPhone(e.target.value))
-  }
-
-  const handleGerarDossie = async () => {
-    setIsGenerating(true)
-    toast.info('Iniciando geração do dossiê... Preparando 7 templates.')
-    toast.loading('Processando em paralelo...', { id: 'gerar-dossie' })
-
-    const clienteNome = lead?.nome || 'Cliente Desconhecido'
-    const vendedorNome = users.find((u) => u.id === lead?.consultor_id)?.nome || 'Não informado'
-
-    try {
-      const { data, error } = await gerarDocumentoCliente({
-        cliente_id: clienteNome,
-        dados_formulario: {
-          Cliente: clienteNome,
-          'Valor total': 'A Definir',
-          'Nome de quem vendeu': vendedorNome,
-        },
-      })
-
-      if (error) {
-        throw new Error(error.message || 'Erro desconhecido')
-      }
-
-      toast.success('Dossiê completo! 7/7 templates gerados. Baixe na Área de Clientes.', {
-        id: 'gerar-dossie',
-      })
-    } catch (error: any) {
-      toast.error(`Falha na geração: ${error.message}`, { id: 'gerar-dossie' })
-    } finally {
-      setIsGenerating(false)
-    }
   }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -365,16 +330,6 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
         {/* FOOTER ACTIONS */}
         <div className="flex justify-end gap-4 mt-6 pt-4 border-t shrink-0">
-          {lead && (
-            <button
-              type="button"
-              onClick={handleGerarDossie}
-              disabled={isGenerating}
-              className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 min-h-[44px] font-medium transition-colors duration-200 disabled:opacity-50"
-            >
-              {isGenerating ? 'Gerando...' : 'Gerar Dossiê'}
-            </button>
-          )}
           <button
             type="button"
             onClick={onClose}
