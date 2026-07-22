@@ -32,6 +32,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import type { ReactNode } from 'react'
 
 const formSchema = z.object({
   nome_item: z.string().min(2, 'Nome do item é obrigatório'),
@@ -41,11 +42,15 @@ const formSchema = z.object({
   unidade: z.string().min(1, 'Selecione uma unidade'),
   urgencia: z.string().min(1, 'Selecione a urgência'),
   observacoes: z.string().optional(),
+  cliente_id: z.string().optional().nullable(),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
-import type { ReactNode } from 'react'
+interface ClienteOption {
+  id: string
+  nome: string
+}
 
 interface Props {
   onCreated?: () => void
@@ -56,6 +61,8 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userNome, setUserNome] = useState('')
+  const [clientes, setClientes] = useState<ClienteOption[]>([])
+  const [loadingClientes, setLoadingClientes] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -75,6 +82,7 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
       unidade: 'un',
       urgencia: 'Média',
       observacoes: '',
+      cliente_id: '',
     },
   })
 
@@ -90,6 +98,27 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
     }
     if (open) fetchUserName()
   }, [open, user])
+
+  useEffect(() => {
+    const fetchClientes = async () => {
+      if (!open) return
+      setLoadingClientes(true)
+      try {
+        const { data, error } = await supabase
+          .from('clientes')
+          .select('id, nome')
+          .eq('status', 'Ativo')
+          .order('nome')
+        if (error) throw error
+        setClientes((data as ClienteOption[]) || [])
+      } catch {
+        setClientes([])
+      } finally {
+        setLoadingClientes(false)
+      }
+    }
+    if (open) fetchClientes()
+  }, [open])
 
   const onSubmit = async (values: FormValues) => {
     if (!user) return
@@ -108,6 +137,7 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
         link: values.link || null,
         urgencia: values.urgencia,
         status: 'Pendente',
+        cliente_id: values.cliente_id || null,
       })
 
       if (error) throw error
@@ -171,6 +201,36 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
                   <FormControl>
                     <Input placeholder="Ex: Dobradiça FGV, Fita de Borda..." {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="cliente_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente (opcional)</FormLabel>
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={(value) => field.onChange(value || '')}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={loadingClientes ? 'Carregando...' : 'Selecione um cliente'}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {clientes.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
