@@ -1,4 +1,4 @@
-import { Bell, LogOut, User as UserIcon } from 'lucide-react'
+import { Bell, LogOut, ShoppingBag, User as UserIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -20,12 +20,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { UserProfileDialog } from './UserProfileDialog'
-import { SolicitarCompraDialog } from './SolicitarCompraDialog'
+import { SolicitacaoCompraDialog } from './SolicitacaoCompraDialog'
 import { ThemeToggle } from './theme-toggle'
 
 export function Header() {
   const [empresa, setEmpresa] = useState<{ nome: string; logo_url: string | null } | null>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [pendingCompras, setPendingCompras] = useState(0)
   const { notificacoes, unreadCount: unreadNotifs, markAsRead, markAllAsRead } = useNotifications()
 
   const { user, signOut } = useAuth()
@@ -39,6 +40,30 @@ export function Header() {
     fetchEmpresa()
     window.addEventListener('branding_updated', fetchEmpresa)
     return () => window.removeEventListener('branding_updated', fetchEmpresa)
+  }, [])
+
+  useEffect(() => {
+    const fetchPendingCompras = async () => {
+      const { count } = await supabase
+        .from('solicitacoes_compra')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Pendente')
+      setPendingCompras(count || 0)
+    }
+    fetchPendingCompras()
+    const channel = supabase
+      .channel('solicitacoes_compra_badge')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'solicitacoes_compra' },
+        () => {
+          fetchPendingCompras()
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   useEffect(() => {
@@ -111,7 +136,23 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <SolicitarCompraDialog />
+        <SolicitacaoCompraDialog
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative text-muted-foreground hover:text-foreground hover:bg-muted"
+              title="Solicitações de Compra"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {pendingCompras > 0 && (
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 rounded-full bg-blue-600 text-white text-[10px] border-none">
+                  {pendingCompras}
+                </Badge>
+              )}
+            </Button>
+          }
+        />
 
         <ThemeToggle />
 

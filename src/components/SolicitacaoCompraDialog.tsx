@@ -45,11 +45,14 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
+import type { ReactNode } from 'react'
+
 interface Props {
   onCreated?: () => void
+  trigger?: ReactNode
 }
 
-export function SolicitacaoCompraDialog({ onCreated }: Props) {
+export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userNome, setUserNome] = useState('')
@@ -131,10 +134,12 @@ export function SolicitacaoCompraDialog({ onCreated }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" title="Nova Solicitação de Compra">
-          <ShoppingBag className="h-4 w-4 mr-1" />
-          Nova Solicitação
-        </Button>
+        {trigger ?? (
+          <Button size="sm" title="Nova Solicitação de Compra">
+            <ShoppingBag className="h-4 w-4 mr-1" />
+            Nova Solicitação
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
