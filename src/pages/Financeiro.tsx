@@ -11,7 +11,7 @@ import {
 import { FinanceiroDRE } from '@/components/financeiro/FinanceiroDRE'
 import { ContasBancariasTab } from '@/components/financeiro/ContasBancariasTab'
 import { useToast } from '@/hooks/use-toast'
-import { NovaContaPagarSheet } from '@/components/financeiro/NovaContaPagarSheet'
+import { NovaContaPagarDialog } from '@/components/financeiro/NovaContaPagarDialog'
 import { NovaContaReceberSheet } from '@/components/financeiro/NovaContaReceberSheet'
 import { Input } from '@/components/ui/input'
 
@@ -191,7 +191,7 @@ export default function Financeiro() {
 
         <div className="flex flex-wrap items-center justify-end gap-3 mb-4 w-full">
           <div className="[&_button]:!bg-red-600 [&_button]:!text-white [&_button:hover]:!bg-red-700 transition-colors rounded-md shadow-sm">
-            <NovaContaPagarSheet onRefresh={fetchData} />
+            <NovaContaPagarDialog onRefresh={fetchData} />
           </div>
           <div className="[&_button]:!bg-green-600 [&_button]:!text-white [&_button:hover]:!bg-green-700 transition-colors rounded-md shadow-sm">
             <NovaContaReceberSheet onRefresh={fetchData} />

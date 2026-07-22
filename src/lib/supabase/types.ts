@@ -1725,7 +1725,7 @@ export type Database = {
           criado_em: string
           criado_por_nome: string | null
           data_venda: string | null
-          email: string
+          email: string | null
           id: string
           kanban_ativo: boolean
           nome: string
@@ -1745,7 +1745,7 @@ export type Database = {
           criado_em?: string
           criado_por_nome?: string | null
           data_venda?: string | null
-          email: string
+          email?: string | null
           id?: string
           kanban_ativo?: boolean
           nome: string
@@ -1765,7 +1765,7 @@ export type Database = {
           criado_em?: string
           criado_por_nome?: string | null
           data_venda?: string | null
-          email?: string
+          email?: string | null
           id?: string
           kanban_ativo?: boolean
           nome?: string
