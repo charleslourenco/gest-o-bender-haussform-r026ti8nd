@@ -8,6 +8,13 @@ export interface StampMetadata {
   data: string | null
 }
 
+export type SignatureData = Uint8Array | null
+
+export interface SignatureEntry {
+  signature: SignatureData
+  meta: StampMetadata
+}
+
 export function formatBrTimestamp(dateStr: string | null): string {
   if (!dateStr) return '—'
   try {
@@ -25,8 +32,6 @@ export function formatBrTimestamp(dateStr: string | null): string {
     return dateStr
   }
 }
-
-export type SignatureData = Uint8Array | null
 
 export function buildSignatureFromSources(
   assinaturaBase64: string | null,
@@ -47,78 +52,128 @@ export function buildSignatureFromSources(
   return null
 }
 
-export async function stampPdfWithSignature(
-  pdfBytes: Uint8Array,
-  meta: StampMetadata,
+function buildTextLines(meta: StampMetadata): string[] {
+  return [
+    `Assinado eletronicamente por: ${meta.nome ?? '—'}`,
+    `CPF/CNPJ: ${meta.cpf ?? '—'}`,
+    `E-mail: ${meta.email ?? '—'}`,
+    `IP: ${meta.ip ?? '—'}`,
+    `Data: ${formatBrTimestamp(meta.data)}`,
+  ]
+}
+
+async function embedSignatureImage(
+  pdfDoc: PDFDocument,
   signature: SignatureData,
+): Promise<Awaited<ReturnType<typeof pdfDoc.embedPng>> | null> {
+  if (!signature) return null
+  try {
+    return await pdfDoc.embedPng(signature)
+  } catch {
+    try {
+      return await pdfDoc.embedJpg(signature)
+    } catch {
+      return null
+    }
+  }
+}
+
+export async function stampPdfWithSignatures(
+  pdfBytes: Uint8Array,
+  entries: SignatureEntry[],
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes)
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const fontSize = 7
   const lineHeight = fontSize + 3
 
-  const lines = [
-    `Assinado eletronicamente por: ${meta.nome ?? '—'}`,
-    `CPF: ${meta.cpf ?? '—'}`,
-    `E-mail: ${meta.email ?? '—'}`,
-    `IP: ${meta.ip ?? '—'}`,
-    `Data: ${formatBrTimestamp(meta.data)}`,
-  ]
+  const pages = pdfDoc.getPages()
+  const lastPage = pages[pages.length - 1]
+  const { width } = lastPage.getSize()
 
-  let image: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null
-  if (signature) {
-    try {
-      image = await pdfDoc.embedPng(signature)
-    } catch {
-      try {
-        image = await pdfDoc.embedJpg(signature)
-      } catch {
-        image = null
-      }
-    }
+  if (entries.length === 0) {
+    return new Uint8Array(await pdfDoc.save())
   }
 
-  for (const page of pdfDoc.getPages()) {
-    const { width } = page.getSize()
-    const boxWidth = 260
-    const imgH = image ? 40 : 0
-    const boxHeight = lines.length * lineHeight + imgH + 12
-    const x = width - boxWidth - 15
-    const y = 15
+  const images = await Promise.all(
+    entries.map((entry) => embedSignatureImage(pdfDoc, entry.signature)),
+  )
 
-    page.drawRectangle({
-      x,
-      y,
-      width: boxWidth,
-      height: boxHeight,
-      color: rgb(0.96, 0.96, 0.96),
-      opacity: 0.85,
-      borderColor: rgb(0.7, 0.7, 0.7),
-      borderWidth: 0.5,
-    })
+  const boxWidth = 260
+  const gap = 10
+  const cols = Math.min(2, Math.max(1, entries.length))
 
-    if (image) {
-      const imgW = 80
-      const scaledH = (image.height / image.width) * imgW
-      page.drawImage(image, {
-        x: x + 10,
-        y: y + boxHeight - scaledH - 8,
-        width: imgW,
-        height: scaledH,
+  const boxHeights = entries.map((entry, i) => {
+    const lines = buildTextLines(entry.meta)
+    const imgH = images[i] ? 40 : 0
+    return lines.length * lineHeight + imgH + 12
+  })
+
+  const totalColsWidth = cols * boxWidth + (cols - 1) * gap
+  const startX = Math.max(15, (width - totalColsWidth) / 2)
+
+  let currentY = 15
+  for (let rowStart = 0; rowStart < entries.length; rowStart += cols) {
+    const rowIndices: number[] = []
+    for (let c = 0; c < cols && rowStart + c < entries.length; c++) {
+      rowIndices.push(rowStart + c)
+    }
+    const maxBoxHeight = Math.max(...rowIndices.map((i) => boxHeights[i]))
+
+    for (let c = 0; c < rowIndices.length; c++) {
+      const i = rowIndices[c]
+      const entry = entries[i]
+      const image = images[i]
+      const x = startX + c * (boxWidth + gap)
+      const y = currentY
+      const boxHeight = boxHeights[i]
+      const lines = buildTextLines(entry.meta)
+      const imgH = image ? 40 : 0
+
+      lastPage.drawRectangle({
+        x,
+        y,
+        width: boxWidth,
+        height: boxHeight,
+        color: rgb(0.96, 0.96, 0.96),
+        opacity: 0.85,
+        borderColor: rgb(0.7, 0.7, 0.7),
+        borderWidth: 0.5,
+      })
+
+      if (image) {
+        const imgW = 80
+        const scaledH = (image.height / image.width) * imgW
+        lastPage.drawImage(image, {
+          x: x + 10,
+          y: y + boxHeight - scaledH - 8,
+          width: imgW,
+          height: scaledH,
+        })
+      }
+
+      const textY = image ? y + boxHeight - imgH - 12 : y + boxHeight - 12
+      lines.forEach((line, li) => {
+        lastPage.drawText(line, {
+          x: x + 10,
+          y: textY - li * lineHeight,
+          size: fontSize,
+          font,
+          color: rgb(0.15, 0.15, 0.15),
+        })
       })
     }
 
-    const textY = image ? y + boxHeight - imgH - 12 : y + boxHeight - 12
-    lines.forEach((line, i) => {
-      page.drawText(line, {
-        x: x + 10,
-        y: textY - i * lineHeight,
-        size: fontSize,
-        font,
-        color: rgb(0.15, 0.15, 0.15),
-      })
-    })
+    currentY += maxBoxHeight + gap
   }
 
   return new Uint8Array(await pdfDoc.save())
+}
+
+export async function stampPdfWithSignature(
+  pdfBytes: Uint8Array,
+  meta: StampMetadata,
+  signature: SignatureData,
+): Promise<Uint8Array> {
+  return stampPdfWithSignatures(pdfBytes, [{ signature, meta }])
 }

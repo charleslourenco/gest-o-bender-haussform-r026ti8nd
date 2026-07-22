@@ -1,10 +1,11 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import {
-  stampPdfWithSignature,
+  stampPdfWithSignatures,
   buildSignatureFromSources,
   type StampMetadata,
   type SignatureData,
+  type SignatureEntry,
 } from '../_shared/pdf-stamp.ts'
 
 const corsHeaders = {
@@ -219,22 +220,43 @@ async function gatherSignatures(
   supabase: any,
   documento: BaseDocumentRow,
   payload: FinalizePayload,
-): Promise<{ signature: SignatureData; meta: StampMetadata }> {
-  let assinante: AssinanteRow | null = null
-  let assinatura: AssinaturaRow | null = null
-
+): Promise<SignatureEntry[]> {
   const envelopeId = documento.envelope_id ?? payload.envelope_id
+  const map = new Map<string, SignatureEntry>()
+
+  const keyFor = (meta: StampMetadata): string => (meta.email ?? meta.nome ?? '').toLowerCase()
+
+  const consider = (assinante: AssinanteRow | null, assinatura: AssinaturaRow | null) => {
+    if (!assinante && !assinatura) return
+    const signature = buildSignatureFromSources(
+      assinante?.assinatura_base64 ?? null,
+      assinatura?.assinatura_imagem ?? null,
+    )
+    const meta: StampMetadata = {
+      nome: assinante?.nome_completo ?? assinatura?.signatario_nome ?? null,
+      cpf: assinante?.cpf ?? assinatura?.signatario_cpf ?? null,
+      email: assinante?.email ?? assinatura?.signatario_email ?? null,
+      ip: assinante?.ip_address ?? assinatura?.ip_assinatura ?? null,
+      data: assinante?.assinado_em ?? assinatura?.data_assinatura ?? null,
+    }
+    const key = keyFor(meta) || crypto.randomUUID()
+    const existing = map.get(key)
+    if (!existing) {
+      map.set(key, { signature, meta })
+    } else if (!existing.signature && signature) {
+      map.set(key, { signature, meta })
+    }
+  }
 
   if (envelopeId) {
-    const { data: assinanteData } = await supabase
+    const { data: assinantesData } = await supabase
       .from('assinantes')
       .select('assinatura_base64, nome_completo, cpf, email, ip_address, assinado_em')
       .eq('envelope_id', envelopeId)
       .eq('status', 'assinado')
-      .order('assinado_em', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    assinante = (assinanteData as AssinanteRow) ?? null
+      .order('assinado_em', { ascending: true })
+    const assinantes = (assinantesData ?? []) as AssinanteRow[]
+    for (const a of assinantes) consider(a, null)
   }
 
   const documentoIdentifiers: string[] = []
@@ -244,32 +266,19 @@ async function gatherSignatures(
   }
 
   if (documentoIdentifiers.length > 0) {
-    const { data: assinaturaData } = await supabase
+    const { data: assinaturasData } = await supabase
       .from('assinaturas')
       .select(
         'assinatura_imagem, signatario_nome, signatario_cpf, signatario_email, ip_assinatura, data_assinatura',
       )
       .in('documento_id', documentoIdentifiers)
-      .order('data_assinatura', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    assinatura = (assinaturaData as AssinaturaRow) ?? null
+      .eq('status', 'assinado')
+      .order('data_assinatura', { ascending: true })
+    const assinaturas = (assinaturasData ?? []) as AssinaturaRow[]
+    for (const a of assinaturas) consider(null, a)
   }
 
-  const signature = buildSignatureFromSources(
-    assinante?.assinatura_base64 ?? null,
-    assinatura?.assinatura_imagem ?? null,
-  )
-
-  const meta: StampMetadata = {
-    nome: assinante?.nome_completo ?? assinatura?.signatario_nome ?? null,
-    cpf: assinante?.cpf ?? assinatura?.signatario_cpf ?? null,
-    email: assinante?.email ?? assinatura?.signatario_email ?? null,
-    ip: assinante?.ip_address ?? assinatura?.ip_assinatura ?? null,
-    data: assinante?.assinado_em ?? assinatura?.data_assinatura ?? null,
-  }
-
-  return { signature, meta }
+  return Array.from(map.values())
 }
 
 async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise<void> {
@@ -330,11 +339,11 @@ async function processDocument(
     return { success: false, url: null, error: 'Failed to download source PDF' }
   }
 
-  const { signature, meta } = await gatherSignatures(supabase, documento, payload)
+  const entries = await gatherSignatures(supabase, documento, payload)
 
   let stampedBytes: Uint8Array
   try {
-    stampedBytes = await stampPdfWithSignature(pdfBytes, meta, signature)
+    stampedBytes = await stampPdfWithSignatures(pdfBytes, entries)
   } catch (err) {
     console.error('finalize: stamp error', err)
     return { success: false, url: null, error: 'Failed to stamp PDF' }
