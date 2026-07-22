@@ -1,322 +1,177 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
-import {
-  Check,
-  X,
-  Clock,
-  ExternalLink,
-  RefreshCw,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
-import { useTableScroll } from '@/hooks/use-table-scroll'
+import { RefreshCw, Clock, ShoppingBag } from 'lucide-react'
+import { SolicitacaoCompraDetailModal, SolicitacaoDetalhe } from './SolicitacaoCompraDetailModal'
+import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 
-type Solicitacao = {
-  id: string
-  usuario_id: string
-  nome_item: string
-  quantidade: number
-  unidade: string
-  link: string | null
-  cor: string | null
-  tamanho: string | null
-  modelo: string | null
-  motivo: string | null
-  urgencia: string
-  status: string
-  criado_em: string
-  cliente_id?: string | null
-  data_entrega_prevista?: string | null
-  fornecedor?: string | null
-  usuario?: { nome: string }
-  cliente?: { nome: string }
-}
+type Solicitacao = SolicitacaoDetalhe
 
 export function SolicitacoesCompra() {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([])
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [selected, setSelected] = useState<Solicitacao | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const { toast } = useToast()
-  const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight, checkScroll } =
-    useTableScroll()
 
-  const fetchSolicitacoes = async () => {
+  const fetchSolicitacoes = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('solicitacoes_compra')
-      .select(
-        `
-        *,
-        usuario:users(nome),
-        cliente:clientes(nome)
-      `,
-      )
-      .order('criado_em', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('solicitacoes_compra')
+        .select(
+          `
+          *,
+          usuario:users(nome),
+          cliente:clientes(nome)
+        `,
+        )
+        .order('criado_em', { ascending: false })
 
-    if (error) {
-      console.error(error)
+      if (error) throw error
+      setSolicitacoes((data as Solicitacao[]) || [])
+    } catch (err: any) {
       toast({
         title: 'Erro ao carregar',
-        description: 'Houve um erro ao buscar as solicitações.',
+        description: err.message || 'Houve um erro ao buscar as solicitações.',
         variant: 'destructive',
       })
-    } else if (data) {
-      setSolicitacoes(data as Solicitacao[])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchSolicitacoes()
-    checkAdmin()
-  }, [])
-
-  async function checkAdmin() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (user) {
-      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
-      setIsAdmin(!!data)
+    const channel = supabase
+      .channel('solicitacoes_compra_list')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'solicitacoes_compra' }, () =>
+        fetchSolicitacoes(),
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
     }
+  }, [fetchSolicitacoes])
+
+  const handleRowClick = (s: Solicitacao) => {
+    setSelected(s)
+    setDetailOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja apagar esta solicitação?')) return
-    await supabase.from('solicitacoes_compra').delete().eq('id', id)
-    fetchSolicitacoes()
-    toast({ title: 'Solicitação apagada' })
-  }
-
-  const handleUpdateStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('solicitacoes_compra')
-      .update({ status: newStatus })
-      .eq('id', id)
-
-    if (error) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível atualizar o status.',
-        variant: 'destructive',
-      })
-    } else {
-      toast({
-        title: 'Status atualizado',
-        description: `Solicitação marcada como ${newStatus}.`,
-      })
-      fetchSolicitacoes()
-    }
-  }
+  const pendingCount = solicitacoes.filter((s) => s.status === 'Pendente').length
 
   return (
     <Card className="h-full flex flex-col animate-in fade-in duration-300 min-h-0">
       <CardHeader className="flex-none flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Solicitações de Compra</CardTitle>
-          <CardDescription>Gerencie os pedidos de materiais feitos pela equipe</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            Solicitações de Compra
+            {pendingCount > 0 && (
+              <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-none animate-pulse">
+                {pendingCount} pendente{pendingCount > 1 ? 's' : ''}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>Clique em uma solicitação para ver todos os detalhes</CardDescription>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={fetchSolicitacoes}
-          disabled={loading}
-          title="Atualizar"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <SolicitacaoCompraDialog onCreated={fetchSolicitacoes} />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={fetchSolicitacoes}
+            disabled={loading}
+            title="Atualizar"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
-        <div className="flex-1 rounded-md border overflow-hidden flex flex-col min-h-0 relative group">
-          {canScrollLeft && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={scrollLeft}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-l-none rounded-r-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-l-0 transition-opacity"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          )}
-          {canScrollRight && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={scrollRight}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-r-none rounded-l-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-r-0 transition-opacity"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          )}
-          <div
-            ref={scrollRef}
-            onScroll={checkScroll}
-            className="overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-          >
-            <Table className="min-w-[1100px] relative">
-              <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
-                <TableRow>
-                  <TableHead className="whitespace-nowrap w-[90px] text-xs px-2 py-2">
-                    Data
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap w-[120px] text-xs px-2 py-2">
-                    Solicitante
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[180px]">Cliente</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[280px]">Item</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[110px]">Quantidade</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[120px]">Urgência</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[120px]">Status</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[130px]">Data de Criação</TableHead>
-                  <TableHead className="text-right whitespace-nowrap min-w-[160px]">
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {solicitacoes.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                      Nenhuma solicitação encontrada.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  solicitacoes.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="whitespace-nowrap text-xs px-2 py-2 text-muted-foreground">
-                        {new Date(s.criado_em).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs px-2 py-2 text-muted-foreground">
-                        {s.usuario?.nome || 'Desconhecido'}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-medium">
-                        {s.cliente?.nome || '-'}
-                      </TableCell>
-                      <TableCell className="min-w-[280px] max-w-[400px]">
-                        <p className="font-medium">{s.nome_item}</p>
-                        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-                          {s.modelo && <span>Mod: {s.modelo}</span>}
-                          {s.cor && <span>Cor: {s.cor}</span>}
-                          {s.tamanho && <span>Tam: {s.tamanho}</span>}
-                        </div>
-                        {s.motivo && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">"{s.motivo}"</p>
-                        )}
-                        {s.link && (
-                          <a
-                            href={s.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-primary hover:underline flex items-center mt-1 w-fit"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Acessar Link
-                          </a>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap font-medium">
+        <ScrollArea className="flex-1 min-h-0 rounded-md border">
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : solicitacoes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+              <ShoppingBag className="w-10 h-10 opacity-40" />
+              <p>Nenhuma solicitação encontrada.</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {solicitacoes.map((s) => {
+                const isPending = s.status === 'Pendente'
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => handleRowClick(s)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 group relative ${
+                      isPending ? 'bg-orange-50/60 dark:bg-orange-950/20' : ''
+                    }`}
+                  >
+                    {isPending && (
+                      <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
+                    )}
+                    <div className="w-[90px] shrink-0 text-xs text-muted-foreground">
+                      {new Date(s.criado_em).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                      })}
+                    </div>
+                    <div className="w-[140px] shrink-0 text-sm font-medium truncate">
+                      {s.usuario?.nome || 'Desconhecido'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{s.nome_item}</p>
+                      <p className="text-xs text-muted-foreground truncate">
                         {s.quantidade} {s.unidade}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            s.urgencia === 'Alta' ||
-                            s.urgencia === 'Urgente' ||
-                            s.urgencia === 'Crítica'
-                              ? 'destructive'
-                              : 'secondary'
-                          }
-                        >
-                          {s.urgencia}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            s.status === 'Pendente'
-                              ? 'outline'
-                              : s.status === 'Aprovado'
-                                ? 'default'
-                                : s.status === 'Comprado'
-                                  ? 'secondary'
-                                  : 'destructive'
-                          }
-                        >
-                          {s.status === 'Pendente' && <Clock className="w-3 h-3 mr-1" />}
-                          {s.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {new Date(s.criado_em).toLocaleString('pt-BR', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
-                        {s.status === 'Pendente' && (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleUpdateStatus(s.id, 'Rejeitado')}
-                              title="Recusar"
-                            >
-                              <X className="h-4 w-4 text-destructive" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpdateStatus(s.id, 'Aprovado')}
-                              title="Aprovar"
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                        {s.status === 'Aprovado' && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleUpdateStatus(s.id, 'Comprado')}
-                          >
-                            Marcar Comprado
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(s.id)}
-                            className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8 inline-flex align-middle"
-                            title="Apagar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                        {s.cliente?.nome ? ` · ${s.cliente.nome}` : ''}
+                      </p>
+                    </div>
+                    <div className="shrink-0">
+                      <Badge
+                        variant={
+                          s.status === 'Pendente'
+                            ? 'outline'
+                            : s.status === 'Aprovado'
+                              ? 'default'
+                              : s.status === 'Comprado'
+                                ? 'secondary'
+                                : 'destructive'
+                        }
+                        className={
+                          isPending
+                            ? 'border-orange-400 text-orange-600 dark:text-orange-400 bg-orange-100/50 dark:bg-orange-950/40'
+                            : ''
+                        }
+                      >
+                        {s.status === 'Pendente' && <Clock className="w-3 h-3 mr-1" />}
+                        {s.status}
+                      </Badge>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </ScrollArea>
       </CardContent>
+
+      <SolicitacaoCompraDetailModal
+        solicitacao={selected}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onStatusChanged={fetchSolicitacoes}
+      />
     </Card>
   )
 }
