@@ -26,9 +26,11 @@ interface FinalizePayload {
   cliente_id?: string
   envelope_id?: string
   manual?: boolean
+  force?: boolean
 }
 
 interface AssinanteRow {
+  id: string
   assinatura_base64: string | null
   nome_completo: string
   cpf: string | null
@@ -38,6 +40,7 @@ interface AssinanteRow {
 }
 
 interface AssinaturaRow {
+  id: string
   assinatura_imagem: string | null
   signatario_nome: string
   signatario_cpf: string | null
@@ -55,6 +58,7 @@ interface BaseDocumentRow {
   nome?: string | null
   status?: string
   cliente_id?: string | null
+  is_digital?: boolean | null
 }
 
 interface FoundDocument {
@@ -222,41 +226,31 @@ async function gatherSignatures(
   payload: FinalizePayload,
 ): Promise<SignatureEntry[]> {
   const envelopeId = documento.envelope_id ?? payload.envelope_id
-  const map = new Map<string, SignatureEntry>()
-
-  const keyFor = (meta: StampMetadata): string => (meta.email ?? meta.nome ?? '').toLowerCase()
-
-  const consider = (assinante: AssinanteRow | null, assinatura: AssinaturaRow | null) => {
-    if (!assinante && !assinatura) return
-    const signature = buildSignatureFromSources(
-      assinante?.assinatura_base64 ?? null,
-      assinatura?.assinatura_imagem ?? null,
-    )
-    const meta: StampMetadata = {
-      nome: assinante?.nome_completo ?? assinatura?.signatario_nome ?? null,
-      cpf: assinante?.cpf ?? assinatura?.signatario_cpf ?? null,
-      email: assinante?.email ?? assinatura?.signatario_email ?? null,
-      ip: assinante?.ip_address ?? assinatura?.ip_assinatura ?? null,
-      data: assinante?.assinado_em ?? assinatura?.data_assinatura ?? null,
-    }
-    const key = keyFor(meta) || crypto.randomUUID()
-    const existing = map.get(key)
-    if (!existing) {
-      map.set(key, { signature, meta })
-    } else if (!existing.signature && signature) {
-      map.set(key, { signature, meta })
-    }
-  }
+  const entries: SignatureEntry[] = []
+  const seenIds = new Set<string>()
 
   if (envelopeId) {
     const { data: assinantesData } = await supabase
       .from('assinantes')
-      .select('assinatura_base64, nome_completo, cpf, email, ip_address, assinado_em')
+      .select('id, assinatura_base64, nome_completo, cpf, email, ip_address, assinado_em')
       .eq('envelope_id', envelopeId)
       .eq('status', 'assinado')
       .order('assinado_em', { ascending: true })
-    const assinantes = (assinantesData ?? []) as AssinanteRow[]
-    for (const a of assinantes) consider(a, null)
+    for (const a of (assinantesData ?? []) as AssinanteRow[]) {
+      if (seenIds.has(a.id)) continue
+      seenIds.add(a.id)
+      const signature = buildSignatureFromSources(a.assinatura_base64, null)
+      entries.push({
+        signature,
+        meta: {
+          nome: a.nome_completo,
+          cpf: a.cpf,
+          email: a.email,
+          ip: a.ip_address,
+          data: a.assinado_em,
+        },
+      })
+    }
   }
 
   const documentoIdentifiers: string[] = []
@@ -269,19 +263,49 @@ async function gatherSignatures(
     const { data: assinaturasData } = await supabase
       .from('assinaturas')
       .select(
-        'assinatura_imagem, signatario_nome, signatario_cpf, signatario_email, ip_assinatura, data_assinatura',
+        'id, assinatura_imagem, signatario_nome, signatario_cpf, signatario_email, ip_assinatura, data_assinatura',
       )
       .in('documento_id', documentoIdentifiers)
       .eq('status', 'assinado')
       .order('data_assinatura', { ascending: true })
-    const assinaturas = (assinaturasData ?? []) as AssinaturaRow[]
-    for (const a of assinaturas) consider(null, a)
+    for (const a of (assinaturasData ?? []) as AssinaturaRow[]) {
+      if (seenIds.has(a.id)) continue
+      seenIds.add(a.id)
+      const signature = buildSignatureFromSources(null, a.assinatura_imagem)
+      entries.push({
+        signature,
+        meta: {
+          nome: a.signatario_nome,
+          cpf: a.signatario_cpf,
+          email: a.signatario_email,
+          ip: a.ip_assinatura,
+          data: a.data_assinatura,
+        },
+      })
+    }
   }
 
-  return Array.from(map.values())
+  return entries
 }
 
 async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise<void> {
+  const { data: assinantes, error: assinantesErr } = await supabase
+    .from('assinantes')
+    .select('id, status')
+    .eq('envelope_id', envelopeId)
+
+  if (assinantesErr) {
+    console.error('finalize: check assinantes for completion error', assinantesErr)
+    return
+  }
+
+  const totalAssinantes = assinantes?.length ?? 0
+  const signedAssinantes = (assinantes ?? []).filter((a: any) => a.status === 'assinado').length
+
+  if (totalAssinantes === 0 || signedAssinantes < totalAssinantes) {
+    return
+  }
+
   const { data: clienteDocs, error: clienteErr } = await supabase
     .from('documentos_cliente')
     .select('arquivo_assinado_url')
@@ -322,14 +346,20 @@ async function processDocument(
   const documento = found.data
   const bucket = found.bucket
 
-  if (payload.manual && documento.envelope_id && documento.arquivo_assinado_url) {
+  if (payload.force) {
+    // Force reprocessing: bypass idempotency to re-stamp with corrected signatures
+  } else if (payload.manual && documento.envelope_id && documento.arquivo_assinado_url) {
     return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
-  }
-  if (!payload.manual && documento.arquivo_assinado_url) {
+  } else if (!payload.manual && documento.arquivo_assinado_url) {
     return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
   }
 
-  const sourcePath = getPathFromUrl(documento.arquivo_assinado_url ?? documento.arquivo_url, bucket)
+  const sourcePath = getPathFromUrl(
+    payload.force
+      ? documento.arquivo_url
+      : (documento.arquivo_assinado_url ?? documento.arquivo_url),
+    bucket,
+  )
   if (!sourcePath) {
     return { success: false, url: null, error: 'No source PDF path available' }
   }

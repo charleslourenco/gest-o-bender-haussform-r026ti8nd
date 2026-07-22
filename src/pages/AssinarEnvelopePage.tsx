@@ -18,6 +18,7 @@ export default function AssinarEnvelopePage() {
   const [envelope, setEnvelope] = useState<any>(null)
   const [docs, setDocs] = useState<any[]>([])
   const [assinaturas, setAssinaturas] = useState<any[]>([])
+  const [assinantes, setAssinantes] = useState<any[]>([])
   const [assinante, setAssinante] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,6 +66,12 @@ export default function AssinarEnvelopePage() {
           .in('documento_id', docIds)
         setAssinaturas(sigs || [])
       }
+
+      const { data: assinantesData } = await supabase
+        .from('assinantes')
+        .select('*')
+        .eq('envelope_id', id)
+      setAssinantes(assinantesData || [])
 
       if (token) {
         const { data: assinanteData } = await supabase
@@ -231,6 +238,12 @@ export default function AssinarEnvelopePage() {
         .in('documento_id', docs.map((d) => d.arquivo_url).filter(Boolean))
       setAssinaturas(updatedSigs || [])
 
+      const { data: updatedAssinantes } = await supabase
+        .from('assinantes')
+        .select('*')
+        .eq('envelope_id', id)
+      setAssinantes(updatedAssinantes || [])
+
       const { data: updatedDocs } = await supabase
         .from('documentos_cliente')
         .select('*')
@@ -243,10 +256,13 @@ export default function AssinarEnvelopePage() {
       )
       const myAllSigned =
         myUpdatedSigs.length > 0 && myUpdatedSigs.every((s) => s.status === 'assinado')
-      const allSigned =
+      const allAssinantesSigned =
+        (updatedAssinantes || []).length > 0 &&
+        (updatedAssinantes || []).every((a) => a.status === 'assinado')
+      const allAssinaturasSigned =
         (updatedSigs || []).length > 0 && (updatedSigs || []).every((s) => s.status === 'assinado')
 
-      if (allSigned) {
+      if (allAssinantesSigned && allAssinaturasSigned) {
         await supabase
           .from('envelopes_assinatura')
           .update({ status: 'concluido', concluido_em: new Date().toISOString() })
@@ -282,7 +298,11 @@ export default function AssinarEnvelopePage() {
   }
 
   const isConcluido = envelope.status === 'concluido'
-  const allSigned = assinaturas.length > 0 && assinaturas.every((s) => s.status === 'assinado')
+  const allSigned =
+    assinantes.length > 0
+      ? assinantes.every((a) => a.status === 'assinado') &&
+        (assinaturas.length === 0 || assinaturas.every((s) => s.status === 'assinado'))
+      : assinaturas.length > 0 && assinaturas.every((s) => s.status === 'assinado')
   const myAllSigned =
     myAssinaturas.length > 0 && myAssinaturas.every((s) => s.status === 'assinado')
   const isFormValid =
@@ -310,6 +330,12 @@ export default function AssinarEnvelopePage() {
           <p className="text-muted-foreground text-sm mt-1">
             {docs.length} documento(s) para assinar
           </p>
+          {assinantes.length > 0 && (
+            <p className="text-muted-foreground text-sm mt-1">
+              Progresso: {assinantes.filter((a) => a.status === 'assinado').length} de{' '}
+              {assinantes.length} signatário(s) assinaram
+            </p>
+          )}
         </div>
 
         <Card className="shadow-lg border-border mb-6">

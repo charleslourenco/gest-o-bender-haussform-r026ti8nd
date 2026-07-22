@@ -17,7 +17,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Loader2, Trash2, Mail, Link as LinkIcon, Plus, FileText, CheckCircle } from 'lucide-react'
+import {
+  Loader2,
+  Trash2,
+  Mail,
+  Link as LinkIcon,
+  Plus,
+  FileText,
+  CheckCircle,
+  RefreshCw,
+} from 'lucide-react'
+import { reprocessEnvelopeDocuments } from '@/services/reprocess-documents'
 
 interface SignatureModalProps {
   docs: any[]
@@ -134,23 +144,42 @@ export function SignatureModal({
     return Object.values(groups)
   }, [signatures, isEnvelope])
 
+  const allAssinantesSigned =
+    isEnvelope && assinantesList.length > 0 && assinantesList.every((a) => a.status === 'assinado')
   const allSigned =
     isEnvelope &&
     !!envelope &&
     signatures.length > 0 &&
-    signatures.every((s) => s.status === 'assinado')
+    signatures.every((s) => s.status === 'assinado') &&
+    (assinantesList.length === 0 || allAssinantesSigned)
 
   const handleFinalizeEnvelope = async () => {
     if (!envelope) return
+
+    const { data: latestAssinantes } = await supabase
+      .from('assinantes')
+      .select('id, status')
+      .eq('envelope_id', envelope.id)
+
+    const totalAssinantes = latestAssinantes?.length ?? 0
+    const signedAssinantes = (latestAssinantes ?? []).filter((a) => a.status === 'assinado').length
+
+    if (totalAssinantes === 0 || signedAssinantes < totalAssinantes) {
+      toast.error(
+        `Apenas ${signedAssinantes} de ${totalAssinantes} signatários assinaram. Aguarde todas as assinaturas.`,
+      )
+      return
+    }
+
     setFinalizing(true)
     try {
       const { error } = await supabase
         .from('envelopes_assinatura')
-        .update({ status: 'assinado', concluido_em: new Date().toISOString() })
+        .update({ status: 'concluido', concluido_em: new Date().toISOString() })
         .eq('id', envelope.id)
       if (error) throw error
       toast.success('Envelope finalizado! Gerando PDFs assinados...')
-      setEnvelope({ ...envelope, status: 'assinado' })
+      setEnvelope({ ...envelope, status: 'concluido' })
     } catch (e: any) {
       toast.error('Erro ao finalizar envelope: ' + e.message)
     } finally {
@@ -348,6 +377,16 @@ export function SignatureModal({
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {isEnvelope && assinantesList.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-blue-700">
+                Progresso de Assinaturas:{' '}
+                {assinantesList.filter((a) => a.status === 'assinado').length} de{' '}
+                {assinantesList.length} signatário(s)
+              </p>
+            </div>
+          )}
+
           {isEnvelope && (
             <div className="bg-muted p-4 rounded-lg">
               <h4 className="font-semibold text-sm mb-2">Documentos no Envelope</h4>
@@ -486,7 +525,7 @@ export function SignatureModal({
             )}
           </div>
 
-          {allSigned && envelope?.status !== 'assinado' && (
+          {allSigned && envelope?.status !== 'concluido' && (
             <Button
               onClick={handleFinalizeEnvelope}
               disabled={finalizing}
@@ -501,12 +540,36 @@ export function SignatureModal({
             </Button>
           )}
 
-          {envelope?.status === 'assinado' && (
+          {envelope?.status === 'concluido' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
               <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
               <p className="text-sm font-medium text-green-700">
                 Envelope finalizado. Os PDFs assinados estão sendo gerados.
               </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={async () => {
+                  try {
+                    setFinalizing(true)
+                    await reprocessEnvelopeDocuments(envelope.id)
+                    toast.success('Reprocessamento iniciado!')
+                  } catch (e: any) {
+                    toast.error('Erro ao reprocessar: ' + e.message)
+                  } finally {
+                    setFinalizing(false)
+                  }
+                }}
+                disabled={finalizing}
+              >
+                {finalizing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Reprocessar Documentos
+              </Button>
             </div>
           )}
         </div>
