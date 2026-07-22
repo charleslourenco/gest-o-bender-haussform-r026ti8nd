@@ -646,6 +646,7 @@ export type Database = {
           criado_em: string
           envelope_id: string | null
           id: string
+          is_digital: boolean | null
           projeto_id: string | null
           status: string
           template_id: string | null
@@ -662,6 +663,7 @@ export type Database = {
           criado_em?: string
           envelope_id?: string | null
           id?: string
+          is_digital?: boolean | null
           projeto_id?: string | null
           status?: string
           template_id?: string | null
@@ -678,6 +680,7 @@ export type Database = {
           criado_em?: string
           envelope_id?: string | null
           id?: string
+          is_digital?: boolean | null
           projeto_id?: string | null
           status?: string
           template_id?: string | null
