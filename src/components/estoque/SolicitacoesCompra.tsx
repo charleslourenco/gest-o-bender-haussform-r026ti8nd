@@ -56,12 +56,14 @@ export function SolicitacoesCompra() {
   const fetchSolicitacoes = async () => {
     setLoading(true)
     const { data, error } = await supabase
-      .from('solicitacoes_compra' as any)
-      .select(`
+      .from('solicitacoes_compra')
+      .select(
+        `
         *,
         usuario:users(nome),
         cliente:clientes(nome)
-      `)
+      `,
+      )
       .order('criado_em', { ascending: false })
 
     if (error) {
@@ -101,7 +103,7 @@ export function SolicitacoesCompra() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const { error } = await supabase
-      .from('solicitacoes_compra' as any)
+      .from('solicitacoes_compra')
       .update({ status: newStatus })
       .eq('id', id)
 
@@ -164,39 +166,46 @@ export function SolicitacoesCompra() {
             onScroll={checkScroll}
             className="overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
           >
-            <Table className="min-w-[1200px] relative">
+            <Table className="min-w-[1100px] relative">
               <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Data</TableHead>
-                  <TableHead className="whitespace-nowrap">Solicitante</TableHead>
-                  <TableHead className="whitespace-nowrap">Cliente</TableHead>
-                  <TableHead className="whitespace-nowrap min-w-[200px]">Item / Detalhes</TableHead>
-                  <TableHead className="min-w-[150px] max-w-[250px]">Fornecedor</TableHead>
-                  <TableHead className="whitespace-nowrap">Qtd</TableHead>
-                  <TableHead className="whitespace-nowrap">Previsão</TableHead>
-                  <TableHead className="whitespace-nowrap">Urgência</TableHead>
-                  <TableHead className="whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
+                  <TableHead className="whitespace-nowrap w-[90px] text-xs px-2 py-2">
+                    Data
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap w-[120px] text-xs px-2 py-2">
+                    Solicitante
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[180px]">Cliente</TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[280px]">Item</TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[110px]">Quantidade</TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[120px]">Urgência</TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[120px]">Status</TableHead>
+                  <TableHead className="whitespace-nowrap min-w-[130px]">Data de Criação</TableHead>
+                  <TableHead className="text-right whitespace-nowrap min-w-[160px]">
+                    Ações
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {solicitacoes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       Nenhuma solicitação encontrada.
                     </TableCell>
                   </TableRow>
                 ) : (
                   solicitacoes.map((s) => (
                     <TableRow key={s.id}>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap text-xs px-2 py-2 text-muted-foreground">
                         {new Date(s.criado_em).toLocaleDateString('pt-BR')}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {s.usuario?.nome || 'Usuário Desconhecido'}
+                      <TableCell className="whitespace-nowrap text-xs px-2 py-2 text-muted-foreground">
+                        {s.usuario?.nome || 'Desconhecido'}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">{s.cliente?.nome || '-'}</TableCell>
-                      <TableCell className="min-w-[250px] max-w-[350px] whitespace-normal break-words">
+                      <TableCell className="whitespace-nowrap font-medium">
+                        {s.cliente?.nome || '-'}
+                      </TableCell>
+                      <TableCell className="min-w-[280px] max-w-[400px]">
                         <p className="font-medium">{s.nome_item}</p>
                         <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
                           {s.modelo && <span>Mod: {s.modelo}</span>}
@@ -218,18 +227,8 @@ export function SolicitacoesCompra() {
                           </a>
                         )}
                       </TableCell>
-                      <TableCell className="whitespace-normal break-words min-w-[150px] max-w-[250px]">
-                        {s.fornecedor || '-'}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="whitespace-nowrap font-medium">
                         {s.quantidade} {s.unidade}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {s.data_entrega_prevista
-                          ? new Date(s.data_entrega_prevista + 'T12:00:00Z').toLocaleDateString(
-                              'pt-BR',
-                            )
-                          : '-'}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -259,6 +258,15 @@ export function SolicitacoesCompra() {
                           {s.status === 'Pendente' && <Clock className="w-3 h-3 mr-1" />}
                           {s.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {new Date(s.criado_em).toLocaleString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         {s.status === 'Pendente' && (
