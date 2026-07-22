@@ -50,14 +50,15 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [qtdMeses, setQtdMeses] = useState('2')
 
   useEffect(() => {
-    if (!open)
-      return supabase
+    if (!open) {
+      supabase
         .from('contas_bancarias')
         .select('id, nome_exibicao, status')
         .order('nome_exibicao')
         .then(({ data }) => {
           if (data) setContas(data.filter((c: any) => c.status))
         })
+    }
   }, [open])
 
   const isValid = useMemo(() => {

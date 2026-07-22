@@ -42,14 +42,16 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
   const [contas, setContas] = useState<any[]>([])
 
   useEffect(() => {
-    if (!open)
-      return supabase
+    if (!open) {
+      supabase
         .from('clientes')
         .select('id, nome')
         .order('nome')
         .then(({ data }) => {
           if (data) setClientes(data)
         })
+      return
+    }
     supabase
       .from('contas_bancarias')
       .select('id, nome_exibicao, status')
