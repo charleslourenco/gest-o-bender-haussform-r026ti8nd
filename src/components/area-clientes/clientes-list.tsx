@@ -35,10 +35,13 @@ interface FilterOption {
 
 interface LeadRelation {
   id: string
-  data_venda: string | null
   consultor_id: string | null
   consultor: { id: string; nome: string } | null
-  formulario_comercial: { id: string; valor_total: number | null } | null
+  formulario_comercial: {
+    id: string
+    valor_total: number | null
+    data_venda: string | null
+  } | null
 }
 
 interface ClienteRow {
@@ -62,12 +65,19 @@ function normalizeLead(raw: any): LeadRelation | null {
   const form = Array.isArray(lead.formulario_comercial)
     ? lead.formulario_comercial[0]
     : lead.formulario_comercial
+  const datas = form?.datas as { data_venda?: string } | null | undefined
+  const dataVenda = datas?.data_venda || null
   return {
     id: lead.id,
-    data_venda: lead.data_venda,
     consultor_id: lead.consultor_id,
     consultor: consultor || null,
-    formulario_comercial: form || null,
+    formulario_comercial: form
+      ? {
+          id: form.id,
+          valor_total: form.valor_total,
+          data_venda: dataVenda,
+        }
+      : null,
   }
 }
 
@@ -127,9 +137,9 @@ export function ClientesList({ onSelect }: ClientesListProps) {
         let query = supabase.from('clientes').select(`
             id, nome, email, telefone,
             leads!lead_id(
-              id, data_venda, consultor_id,
+              id, consultor_id,
               consultor:users!leads_consultor_id_fkey(id, nome),
-              formulario_comercial!lead_id(id, valor_total)
+              formulario_comercial!lead_id(id, valor_total, datas)
             ),
             dossies(id, status, criado_em)
           `)
@@ -139,12 +149,6 @@ export function ClientesList({ onSelect }: ClientesListProps) {
         }
         if (consultorFilter !== 'all') {
           query = query.eq('leads.consultor_id', consultorFilter)
-        }
-        if (dataVendaDe) {
-          query = query.gte('leads.data_venda', dataVendaDe)
-        }
-        if (dataVendaAte) {
-          query = query.lte('leads.data_venda', `${dataVendaAte}T23:59:59`)
         }
 
         const { data, error } = await query.order('nome')
@@ -162,11 +166,19 @@ export function ClientesList({ onSelect }: ClientesListProps) {
         }))
 
         const withForm = normalized.filter((c) => c.leads?.formulario_comercial)
-        setClientesData(withForm)
+
+        const inPeriod = withForm.filter((c) => {
+          const dv = c.leads?.formulario_comercial?.data_venda
+          if (!dv) return true
+          if (dataVendaDe && dv < dataVendaDe) return false
+          if (dataVendaAte && dv > dataVendaAte) return false
+          return true
+        })
+        setClientesData(inPeriod)
 
         const formIds = new Set<string>()
         let total = 0
-        withForm.forEach((c) => {
+        inPeriod.forEach((c) => {
           const f = c.leads!.formulario_comercial!
           if (f.id && !formIds.has(f.id)) {
             formIds.add(f.id)
@@ -345,11 +357,15 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                         {cliente.leads?.consultor?.nome || '-'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {cliente.leads?.data_venda
-                          ? format(new Date(cliente.leads.data_venda), "dd 'de' MMM, yyyy", {
-                              locale: ptBR,
-                            })
-                          : '-'}
+                        {cliente.leads?.formulario_comercial?.data_venda
+                          ? format(
+                              new Date(
+                                cliente.leads.formulario_comercial.data_venda + 'T12:00:00Z',
+                              ),
+                              "dd 'de' MMM, yyyy",
+                              { locale: ptBR },
+                            )
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {cliente.leads?.formulario_comercial?.valor_total != null
