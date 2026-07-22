@@ -26,39 +26,60 @@ import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ClienteDeleteDialog } from './cliente-delete-dialog'
 import { VendasSummaryCard } from './vendas-summary-card'
-
-interface Cliente {
-  id: string
-  nome: string
-  email: string
-  telefone: string
-}
-
-interface Dossie {
-  id: string
-  cliente_id: string
-  status: string
-  criado_em: string
-  cliente?: Cliente
-}
+import { formatCurrency } from '@/lib/utils'
 
 interface FilterOption {
   id: string
   nome: string
 }
 
+interface LeadRelation {
+  id: string
+  data_venda: string | null
+  consultor_id: string | null
+  consultor: { id: string; nome: string } | null
+  formulario_comercial: { id: string; valor_total: number | null } | null
+}
+
+interface ClienteRow {
+  id: string
+  nome: string
+  email: string
+  telefone: string
+  leads: LeadRelation | null
+  dossies: { id: string; status: string; criado_em: string }[] | null
+}
+
 interface ClientesListProps {
   onSelect: (dossieId: string) => void
 }
 
+function normalizeLead(raw: any): LeadRelation | null {
+  if (!raw) return null
+  const lead = Array.isArray(raw) ? raw[0] : raw
+  if (!lead) return null
+  const consultor = Array.isArray(lead.consultor) ? lead.consultor[0] : lead.consultor
+  const form = Array.isArray(lead.formulario_comercial)
+    ? lead.formulario_comercial[0]
+    : lead.formulario_comercial
+  return {
+    id: lead.id,
+    data_venda: lead.data_venda,
+    consultor_id: lead.consultor_id,
+    consultor: consultor || null,
+    formulario_comercial: form || null,
+  }
+}
+
 export function ClientesList({ onSelect }: ClientesListProps) {
   const { user } = useAuth()
-  const [dossies, setDossies] = useState<Dossie[]>([])
+  const [clientesData, setClientesData] = useState<ClienteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [totalVendido, setTotalVendido] = useState(0)
   const [numVendas, setNumVendas] = useState(0)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const [clientes, setClientes] = useState<FilterOption[]>([])
   const [consultores, setConsultores] = useState<FilterOption[]>([])
@@ -103,65 +124,69 @@ export function ClientesList({ onSelect }: ClientesListProps) {
       setLoading(true)
       setSummaryLoading(true)
       try {
-        let leadsQuery = supabase.from('leads').select('id')
-        if (consultorFilter !== 'all') leadsQuery = leadsQuery.eq('consultor_id', consultorFilter)
-        if (dataVendaDe) leadsQuery = leadsQuery.gte('data_venda', dataVendaDe)
-        if (dataVendaAte) leadsQuery = leadsQuery.lte('data_venda', `${dataVendaAte}T23:59:59`)
-
-        const { data: filteredLeads, error: leadsError } = await leadsQuery
-        if (leadsError) throw leadsError
-
-        const leadIds = (filteredLeads || []).map((l) => l.id)
-
-        if (leadIds.length === 0) {
-          setDossies([])
-          setTotalVendido(0)
-          setNumVendas(0)
-          return
-        }
-
-        let clientesQuery = supabase.from('clientes').select('id').in('lead_id', leadIds)
-        if (clienteFilter !== 'all') clientesQuery = clientesQuery.eq('id', clienteFilter)
-
-        const [formRes, clientesRes] = await Promise.all([
-          supabase.from('formulario_comercial').select('valor_total').in('lead_id', leadIds),
-          clientesQuery,
-        ])
-
-        if (formRes.error) throw formRes.error
-        if (clientesRes.error) throw clientesRes.error
-
-        const totalVal = (formRes.data || []).reduce((sum, f) => sum + (f.valor_total || 0), 0)
-        setTotalVendido(totalVal)
-        setNumVendas(leadIds.length)
-        setSummaryLoading(false)
-
-        const clienteIds = (clientesRes.data || []).map((c) => c.id)
-        if (clienteIds.length === 0) {
-          setDossies([])
-          return
-        }
-
-        const { data: dossiesData, error: dossiesError } = await supabase
-          .from('dossies')
-          .select(`
-            id, cliente_id, status, criado_em,
-            cliente:clientes(id, nome, email, telefone)
+        let query = supabase.from('clientes').select(`
+            id, nome, email, telefone,
+            leads!lead_id(
+              id, data_venda, consultor_id,
+              consultor:users!leads_consultor_id_fkey(id, nome),
+              formulario_comercial!lead_id(id, valor_total)
+            ),
+            dossies(id, status, criado_em)
           `)
-          .in('cliente_id', clienteIds)
-          .order('criado_em', { ascending: false })
 
-        if (dossiesError) throw dossiesError
-        setDossies((dossiesData as any[]) || [])
+        if (clienteFilter !== 'all') {
+          query = query.eq('id', clienteFilter)
+        }
+        if (consultorFilter !== 'all') {
+          query = query.eq('leads.consultor_id', consultorFilter)
+        }
+        if (dataVendaDe) {
+          query = query.gte('leads.data_venda', dataVendaDe)
+        }
+        if (dataVendaAte) {
+          query = query.lte('leads.data_venda', `${dataVendaAte}T23:59:59`)
+        }
+
+        const { data, error } = await query.order('nome')
+        if (error) throw error
+
+        const rawData = (data as any[]) || []
+
+        const normalized: ClienteRow[] = rawData.map((c) => ({
+          id: c.id,
+          nome: c.nome,
+          email: c.email,
+          telefone: c.telefone,
+          leads: normalizeLead(c.leads),
+          dossies: Array.isArray(c.dossies) ? c.dossies : c.dossies ? [c.dossies] : [],
+        }))
+
+        const withForm = normalized.filter((c) => c.leads?.formulario_comercial)
+        setClientesData(withForm)
+
+        const formIds = new Set<string>()
+        let total = 0
+        withForm.forEach((c) => {
+          const f = c.leads!.formulario_comercial!
+          if (f.id && !formIds.has(f.id)) {
+            formIds.add(f.id)
+            total += f.valor_total || 0
+          }
+        })
+        setTotalVendido(total)
+        setNumVendas(formIds.size)
       } catch (e: any) {
         toast.error('Erro ao buscar dados: ' + e.message)
+        setClientesData([])
+        setTotalVendido(0)
+        setNumVendas(0)
       } finally {
         setLoading(false)
         setSummaryLoading(false)
       }
     }
     fetchFilteredData()
-  }, [clienteFilter, consultorFilter, dataVendaDe, dataVendaAte])
+  }, [clienteFilter, consultorFilter, dataVendaDe, dataVendaAte, refreshTrigger])
 
   const handleClearFilters = () => {
     setClienteFilter('all')
@@ -274,21 +299,22 @@ export function ClientesList({ onSelect }: ClientesListProps) {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Data de Criação</TableHead>
+                <TableHead>Consultor</TableHead>
+                <TableHead>Data Venda</TableHead>
+                <TableHead className="text-right">Valor Total</TableHead>
                 <TableHead className="w-[100px] text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                    Carregando dossiês...
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    Carregando clientes...
                   </TableCell>
                 </TableRow>
-              ) : dossies.length === 0 ? (
+              ) : clientesData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-40 text-center">
+                  <TableCell colSpan={6} className="h-40 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <Users className="w-8 h-8 mb-2 opacity-20" />
                       <p>Nenhum cliente encontrado com os filtros aplicados.</p>
@@ -296,60 +322,67 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                   </TableCell>
                 </TableRow>
               ) : (
-                dossies.map((dossie) => (
-                  <TableRow
-                    key={dossie.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors group"
-                    onClick={() => onSelect(dossie.id)}
-                  >
-                    <TableCell className="font-medium group-hover:text-primary transition-colors">
-                      {dossie.cliente?.nome || 'Sem nome'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-sm text-foreground">
-                          {dossie.cliente?.email || '-'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {dossie.cliente?.telefone || '-'}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground capitalize">
-                        {dossie.status.replace(/_/g, ' ')}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(dossie.criado_em), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ClienteDeleteDialog
-                          clienteId={dossie.cliente_id}
-                          clienteNome={dossie.cliente?.nome}
-                          onDeleted={() => {
-                            toast.success('Cliente excluído com sucesso.')
-                            setClienteFilter('all')
-                            setConsultorFilter('all')
-                          }}
-                          triggerClassName="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="group-hover:text-primary group-hover:bg-primary/10"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onSelect(dossie.id)
-                          }}
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                clientesData.map((cliente) => {
+                  const dossieId = cliente.dossies?.[0]?.id || cliente.id
+                  return (
+                    <TableRow
+                      key={cliente.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                      onClick={() => onSelect(dossieId)}
+                    >
+                      <TableCell className="font-medium group-hover:text-primary transition-colors">
+                        {cliente.nome || 'Sem nome'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-foreground">{cliente.email || '-'}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {cliente.telefone || '-'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {cliente.leads?.consultor?.nome || '-'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {cliente.leads?.data_venda
+                          ? format(new Date(cliente.leads.data_venda), "dd 'de' MMM, yyyy", {
+                              locale: ptBR,
+                            })
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {cliente.leads?.formulario_comercial?.valor_total != null
+                          ? formatCurrency(cliente.leads.formulario_comercial.valor_total)
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <ClienteDeleteDialog
+                            clienteId={cliente.id}
+                            clienteNome={cliente.nome}
+                            onDeleted={() => {
+                              toast.success('Cliente excluído com sucesso.')
+                              setRefreshTrigger((prev) => prev + 1)
+                            }}
+                            triggerClassName="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="group-hover:text-primary group-hover:bg-primary/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onSelect(dossieId)
+                            }}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
