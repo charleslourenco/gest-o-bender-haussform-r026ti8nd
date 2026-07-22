@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
-import { CircleArrowUp } from 'lucide-react'
+import { CircleArrowUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from '@/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CurrencyInput } from '@/components/ui/currency-input'
@@ -24,7 +25,7 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 
-export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void }) {
+export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
@@ -41,28 +42,26 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
   const [contas, setContas] = useState<any[]>([])
 
   useEffect(() => {
-    if (open) {
-      supabase
+    if (!open)
+      return supabase
         .from('clientes')
         .select('id, nome')
         .order('nome')
         .then(({ data }) => {
           if (data) setClientes(data)
         })
-      supabase
-        .from('contas_bancarias')
-        .select('id, nome_exibicao, status')
-        .order('nome_exibicao')
-        .then(({ data }) => {
-          if (data) setContas(data.filter((c) => c.status))
-        })
-    }
+    supabase
+      .from('contas_bancarias')
+      .select('id, nome_exibicao, status')
+      .order('nome_exibicao')
+      .then(({ data }) => {
+        if (data) setContas(data.filter((c: any) => c.status))
+      })
   }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
     try {
       const { error } = await supabase.from('contas_receber').insert({
         descricao,
@@ -81,9 +80,7 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
 
       toast({ title: 'Sucesso', description: 'Conta a receber cadastrada com sucesso.' })
       setOpen(false)
-      if (onRefresh) onRefresh()
-
-      // Reset fields
+      onRefresh?.()
       setDescricao('')
       setValor('')
       setDataVencimento('')
@@ -103,18 +100,21 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-colors duration-200">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white">
           <CircleArrowUp className="mr-2 h-4 w-4 text-white" />
           Nova Conta a Receber
         </Button>
-      </SheetTrigger>
-      <SheetContent className="overflow-y-auto sm:max-w-md w-full">
-        <SheetHeader>
-          <SheetTitle>Nova Conta a Receber</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Nova Conta a Receber</DialogTitle>
+          <DialogDescription>
+            Preencha os dados abaixo para cadastrar um novo recebimento.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label>Descrição</Label>
             <Input
@@ -124,7 +124,6 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
               placeholder="Ex: Projeto Cozinha"
             />
           </div>
-
           <div className="space-y-2">
             <Label>Cliente (Opcional)</Label>
             <Select value={clienteId} onValueChange={setClienteId}>
@@ -141,14 +140,13 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
               </SelectContent>
             </Select>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Valor (R$)</Label>
               <CurrencyInput
                 required
                 value={valor}
-                onValueChange={(val) => setValor(val ? val.toString() : '')}
+                onValueChange={(val: number | string) => setValor(val ? val.toString() : '')}
                 placeholder="R$ 0,00"
               />
             </div>
@@ -162,37 +160,36 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
               />
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label>Categoria</Label>
-            <Select value={categoria} onValueChange={setCategoria}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Venda de Projetos">Venda de Projetos</SelectItem>
-                <SelectItem value="Serviços">Serviços</SelectItem>
-                <SelectItem value="Outras Receitas">Outras Receitas</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={categoria} onValueChange={setCategoria}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Venda de Projetos">Venda de Projetos</SelectItem>
+                  <SelectItem value="Serviços">Serviços</SelectItem>
+                  <SelectItem value="Outras Receitas">Outras Receitas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Meio de Pagamento</Label>
+              <Select value={meioPagamento} onValueChange={setMeioPagamento}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pix">Pix</SelectItem>
+                  <SelectItem value="Boleto">Boleto</SelectItem>
+                  <SelectItem value="Transferência">Transferência</SelectItem>
+                  <SelectItem value="Cartão">Cartão</SelectItem>
+                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label>Meio de Pagamento</Label>
-            <Select value={meioPagamento} onValueChange={setMeioPagamento}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pix">Pix</SelectItem>
-                <SelectItem value="Boleto">Boleto</SelectItem>
-                <SelectItem value="Transferência">Transferência</SelectItem>
-                <SelectItem value="Cartão">Cartão</SelectItem>
-                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           <div className="space-y-2">
             <Label>Conta Bancária</Label>
             <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
@@ -209,23 +206,23 @@ export function NovaContaReceberSheet({ onRefresh }: { onRefresh?: () => void })
               </SelectContent>
             </Select>
           </div>
-
-          <SheetFooter className="pt-6">
-            <SheetClose asChild>
+          <DialogFooter className="pt-4">
+            <DialogClose asChild>
               <Button type="button" variant="outline">
                 Cancelar
               </Button>
-            </SheetClose>
+            </DialogClose>
             <Button
               type="submit"
               disabled={loading}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Salvando...' : 'Salvar'}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
