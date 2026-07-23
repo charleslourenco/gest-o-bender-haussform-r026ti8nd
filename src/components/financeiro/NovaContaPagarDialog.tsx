@@ -51,7 +51,6 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [qtdMeses, setQtdMeses] = useState('2')
   const [divisoes, setDivisoes] = useState<DivisaoRow[]>([])
   const [divisaoError, setDivisaoError] = useState<string | null>(null)
-  const [divisoes, setDivisoes] = useState<{ descricao: string; valor: string }[]>([])
 
   useEffect(() => {
     if (!open) {
