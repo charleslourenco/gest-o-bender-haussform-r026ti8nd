@@ -19,9 +19,11 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  Pencil,
   GitMerge,
   X,
+  MoreVertical,
+  Pencil,
+  Printer,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTableScroll } from '@/hooks/use-table-scroll'
@@ -39,6 +41,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export const CATEGORIAS_ESTOQUE = [
   'Ferragens',
@@ -60,6 +70,117 @@ export const CATEGORIAS_ESTOQUE = [
   'brocas/fresas/serras',
   'Parafusos',
 ]
+
+const CATEGORY_COLOR_MAP: Record<string, { bg: string; text: string; border: string }> = {
+  Ferragens: {
+    bg: 'bg-blue-100 dark:bg-blue-950/60',
+    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-blue-200 dark:border-blue-800/50',
+  },
+  Chapas: {
+    bg: 'bg-amber-100 dark:bg-amber-950/60',
+    text: 'text-amber-700 dark:text-amber-300',
+    border: 'border-amber-200 dark:border-amber-800/50',
+  },
+  Acessórios: {
+    bg: 'bg-purple-100 dark:bg-purple-950/60',
+    text: 'text-purple-700 dark:text-purple-300',
+    border: 'border-purple-200 dark:border-purple-800/50',
+  },
+  'Fitas de borda': {
+    bg: 'bg-pink-100 dark:bg-pink-950/60',
+    text: 'text-pink-700 dark:text-pink-300',
+    border: 'border-pink-200 dark:border-pink-800/50',
+  },
+  'Sistemas de fixação': {
+    bg: 'bg-cyan-100 dark:bg-cyan-950/60',
+    text: 'text-cyan-700 dark:text-cyan-300',
+    border: 'border-cyan-200 dark:border-cyan-800/50',
+  },
+  Serralheria: {
+    bg: 'bg-slate-200 dark:bg-slate-800/60',
+    text: 'text-slate-700 dark:text-slate-300',
+    border: 'border-slate-300 dark:border-slate-700/50',
+  },
+  Estofaria: {
+    bg: 'bg-rose-100 dark:bg-rose-950/60',
+    text: 'text-rose-700 dark:text-rose-300',
+    border: 'border-rose-200 dark:border-rose-800/50',
+  },
+  'Portas de alumínio e vidro': {
+    bg: 'bg-teal-100 dark:bg-teal-950/60',
+    text: 'text-teal-700 dark:text-teal-300',
+    border: 'border-teal-200 dark:border-teal-800/50',
+  },
+  Espelhos: {
+    bg: 'bg-indigo-100 dark:bg-indigo-950/60',
+    text: 'text-indigo-700 dark:text-indigo-300',
+    border: 'border-indigo-200 dark:border-indigo-800/50',
+  },
+  'Perfil puxador/puxador': {
+    bg: 'bg-orange-100 dark:bg-orange-950/60',
+    text: 'text-orange-700 dark:text-orange-300',
+    border: 'border-orange-200 dark:border-orange-800/50',
+  },
+  Iluminação: {
+    bg: 'bg-yellow-100 dark:bg-yellow-950/60',
+    text: 'text-yellow-700 dark:text-yellow-300',
+    border: 'border-yellow-200 dark:border-yellow-800/50',
+  },
+  'Colas/Adesivos/Solventes': {
+    bg: 'bg-lime-100 dark:bg-lime-950/60',
+    text: 'text-lime-700 dark:text-lime-300',
+    border: 'border-lime-200 dark:border-lime-800/50',
+  },
+  Insumos: {
+    bg: 'bg-green-100 dark:bg-green-950/60',
+    text: 'text-green-700 dark:text-green-300',
+    border: 'border-green-200 dark:border-green-800/50',
+  },
+  'Material elétrico': {
+    bg: 'bg-red-100 dark:bg-red-950/60',
+    text: 'text-red-700 dark:text-red-300',
+    border: 'border-red-200 dark:border-red-800/50',
+  },
+  'Uniformes e EPIs': {
+    bg: 'bg-emerald-100 dark:bg-emerald-950/60',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    border: 'border-emerald-200 dark:border-emerald-800/50',
+  },
+  'móveis soltos': {
+    bg: 'bg-violet-100 dark:bg-violet-950/60',
+    text: 'text-violet-700 dark:text-violet-300',
+    border: 'border-violet-200 dark:border-violet-800/50',
+  },
+  'brocas/fresas/serras': {
+    bg: 'bg-stone-200 dark:bg-stone-800/60',
+    text: 'text-stone-700 dark:text-stone-300',
+    border: 'border-stone-300 dark:border-stone-700/50',
+  },
+  Parafusos: {
+    bg: 'bg-sky-100 dark:bg-sky-950/60',
+    text: 'text-sky-700 dark:text-sky-300',
+    border: 'border-sky-200 dark:border-sky-800/50',
+  },
+}
+
+const DEFAULT_CATEGORY_COLOR = {
+  bg: 'bg-gray-100 dark:bg-slate-800/60',
+  text: 'text-gray-600 dark:text-slate-400',
+  border: 'border-gray-200 dark:border-slate-700/50',
+}
+
+function getCategoryColor(cat: string | null | undefined) {
+  if (!cat) return DEFAULT_CATEGORY_COLOR
+  return CATEGORY_COLOR_MAP[cat] || DEFAULT_CATEGORY_COLOR
+}
+
+function getQuantityColor(quantidade: number, estoqueMinimo: number): string {
+  if (quantidade === 0) return 'text-red-600 dark:text-red-400 font-semibold'
+  if (quantidade <= estoqueMinimo) return 'text-orange-600 dark:text-orange-400 font-semibold'
+  return 'text-green-600 dark:text-green-400 font-semibold'
+}
+
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
@@ -67,6 +188,45 @@ import { useToast } from '@/hooks/use-toast'
 import { GerarEtiquetaModal } from './GerarEtiquetaModal'
 import { EditItemModal } from './EditItemModal'
 import { MergeItemsModal } from './MergeItemsModal'
+
+function CategoryBadge({ category, onEdit }: { category: string; onEdit: (val: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const colors = getCategoryColor(category)
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border cursor-pointer hover:opacity-80 transition-opacity ${colors.bg} ${colors.text} ${colors.border}`}
+        >
+          {category || 'Sem categoria'}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-0" align="start">
+        <div className="p-2">
+          <Select
+            value={category || ''}
+            onValueChange={(val) => {
+              onEdit(val)
+              setOpen(false)
+            }}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Selecione a categoria" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              {CATEGORIAS_ESTOQUE.map((cat) => (
+                <SelectItem key={cat} value={cat} className="text-xs">
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
@@ -450,7 +610,6 @@ export function EstoqueLista() {
 
     const csvContent = [headers.join(';'), ...rows].join('\n')
 
-    // Add BOM for UTF-8 encoding
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -466,6 +625,15 @@ export function EstoqueLista() {
   }
 
   const itemsSemMetadados = items.filter((i) => !i.metadados_normalizados).length
+
+  const buildDetalhesText = (item: any): string => {
+    const parts: string[] = []
+    if (item.cor) parts.push(`Cor: ${item.cor}`)
+    if (item.espessura_mm) parts.push(`Esp: ${item.espessura_mm}mm`)
+    if (item.largura_mm) parts.push(`Larg: ${item.largura_mm}mm`)
+    if (item.comprimento_m) parts.push(`Comp: ${item.comprimento_m}m`)
+    return parts.join(' · ')
+  }
 
   return (
     <div className="h-full flex flex-col space-y-4 bg-white dark:bg-slate-950 p-6 rounded-xl border dark:border-slate-800 min-h-0">
@@ -610,22 +778,21 @@ export function EstoqueLista() {
           onScroll={checkScroll}
           className="overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
-          <Table className="min-w-[1200px] relative">
+          <Table className="min-w-[900px] relative">
             <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
               <TableRow>
                 {mergeMode && (
-                  <TableHead className="w-[110px] text-center whitespace-nowrap">Mesclar</TableHead>
+                  <TableHead className="w-[110px] text-center whitespace-nowrap px-2">
+                    Mesclar
+                  </TableHead>
                 )}
-                <TableHead className="w-[250px] min-w-[250px]">Item</TableHead>
-                <TableHead className="min-w-[120px] max-w-[200px]">Marca</TableHead>
-                <TableHead className="whitespace-nowrap">Detalhes</TableHead>
-                <TableHead className="whitespace-nowrap">Categoria</TableHead>
-                <TableHead className="min-w-[150px] max-w-[250px]">Fornecedor</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Quantidade</TableHead>
-                <TableHead className="text-right whitespace-nowrap">V. Unitário</TableHead>
-                <TableHead className="text-right whitespace-nowrap">V. Total</TableHead>
-                <TableHead className="text-center whitespace-nowrap">Status</TableHead>
-                <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
+                <TableHead className="w-[260px] min-w-[260px] px-2">Item</TableHead>
+                <TableHead className="min-w-[100px] max-w-[160px] px-2">Marca</TableHead>
+                <TableHead className="whitespace-nowrap px-2">Categoria</TableHead>
+                <TableHead className="min-w-[120px] max-w-[140px] px-2">Fornecedor</TableHead>
+                <TableHead className="text-right whitespace-nowrap px-2">Qtd</TableHead>
+                <TableHead className="text-right whitespace-nowrap px-2">Valor</TableHead>
+                <TableHead className="text-right whitespace-nowrap px-2 w-[50px]">⋮</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -637,11 +804,17 @@ export function EstoqueLista() {
                 )
                 const itemSobras = sobrasChapas.filter((s) => s.item_id === item.id)
                 const totalSobras = itemSobras.length
+                const detalhesText = buildDetalhesText(item)
+                const qtdColor = getQuantityColor(
+                  Number(item.quantidade || 0),
+                  Number(item.estoque_minimo || 0),
+                )
+                const fornecedorText = item.fornecedor || '-'
 
                 return (
                   <TableRow key={item.id}>
                     {mergeMode && (
-                      <TableCell className="text-center align-top pt-3">
+                      <TableCell className="text-center align-top pt-3 px-2">
                         <div className="flex flex-col items-center gap-1.5">
                           <label className="flex items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 cursor-pointer">
                             <Checkbox
@@ -663,13 +836,18 @@ export function EstoqueLista() {
                         </div>
                       </TableCell>
                     )}
-                    <TableCell className="font-medium align-top w-[250px] min-w-[250px]">
+                    <TableCell className="font-medium align-top px-2 w-[260px] min-w-[260px]">
                       <div
-                        className="mb-1"
+                        className="leading-snug"
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                       >
                         {item.nome}
                       </div>
+                      {detalhesText && (
+                        <div className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5 leading-tight">
+                          {detalhesText}
+                        </div>
+                      )}
                       <div className="flex flex-col gap-1 mt-1">
                         {itemAllocations.length > 0 && (
                           <div className="flex flex-wrap gap-1">
@@ -693,137 +871,86 @@ export function EstoqueLista() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-normal break-words min-w-[120px] max-w-[200px]">
+                    <TableCell className="whitespace-normal break-words min-w-[100px] max-w-[160px] px-2 text-sm">
                       {item.marca || '-'}
                     </TableCell>
-                    <TableCell>
-                      <div className="text-xs text-gray-500 dark:text-slate-400 space-y-0.5 whitespace-nowrap">
-                        {item.cor && (
-                          <div>
-                            <span className="font-medium">Cor:</span> {item.cor}
-                          </div>
-                        )}
-                        {item.espessura_mm && (
-                          <div>
-                            <span className="font-medium">Esp:</span> {item.espessura_mm}mm
-                          </div>
-                        )}
-                        {item.largura_mm && (
-                          <div>
-                            <span className="font-medium">Larg:</span> {item.largura_mm}mm
-                          </div>
-                        )}
-                        {item.comprimento_m && (
-                          <div>
-                            <span className="font-medium">Comp:</span> {item.comprimento_m}m
-                          </div>
-                        )}
-                        {!item.cor &&
-                          !item.espessura_mm &&
-                          !item.largura_mm &&
-                          !item.comprimento_m &&
-                          '-'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap px-2">
                       <div className="flex items-center gap-2">
-                        <Select
-                          value={item.categoria || ''}
-                          onValueChange={(val) => handleCategoryChange(item.id, val)}
-                        >
-                          <SelectTrigger className="w-[180px] h-8 text-xs border-transparent hover:border-gray-200 dark:hover:border-slate-700 bg-transparent shadow-none px-2 focus:ring-0">
-                            <SelectValue placeholder="Sem categoria" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CATEGORIAS_ESTOQUE.map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
-                              </SelectItem>
-                            ))}
-                            {item.categoria && !CATEGORIAS_ESTOQUE.includes(item.categoria) && (
-                              <SelectItem value={item.categoria} disabled className="text-gray-400">
-                                {item.categoria} (Antiga)
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <CategoryBadge
+                          category={item.categoria || ''}
+                          onEdit={(val) => handleCategoryChange(item.id, val)}
+                        />
                         {item.terceirizado && (
                           <Badge
                             variant="secondary"
-                            className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px]"
+                            className="bg-purple-100 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 text-[10px] px-1.5 py-0"
                           >
-                            Terceirizado
+                            Terc.
                           </Badge>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-normal break-words min-w-[150px] max-w-[250px]">
-                      {item.fornecedor || '-'}
+                    <TableCell className="px-2 min-w-[120px] max-w-[140px]">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className="block truncate text-sm cursor-default"
+                            style={{ maxWidth: 120 }}
+                          >
+                            {fornecedorText}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          <span className="max-w-xs">{fornecedorText}</span>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div>
-                        {item.quantidade}{' '}
-                        <span className="text-xs text-gray-500 dark:text-slate-400">
-                          {item.unidade}
+                    <TableCell className="text-right px-2">
+                      <span className={qtdColor}>{item.quantidade}</span>{' '}
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
+                        {item.unidade}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right px-2">
+                      <div className="flex flex-col items-end leading-tight">
+                        <span className="text-sm text-gray-700 dark:text-slate-300">
+                          {formatCurrency(item.valor_unitario)}
+                        </span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">
+                          {formatCurrency(item.quantidade * item.valor_unitario)}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(item.valor_unitario)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(item.quantidade * item.valor_unitario)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {item.quantidade <= item.estoque_minimo ? (
-                        <Badge
-                          variant="destructive"
-                          className="bg-amber-500/10 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30"
-                        >
-                          Estoque Baixo
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900"
-                        >
-                          Normal
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap align-top pt-3">
+                    <TableCell className="text-right whitespace-nowrap align-top pt-3 px-2 w-[50px]">
                       {!mergeMode && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setItemToEdit(item)}
-                            className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 h-8 w-8 mr-1"
-                            title="Editar"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setItemToAllocate(item)}
-                            className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
-                            title="Alocar e Gerar Etiqueta"
-                          >
-                            <Tags className="w-4 h-4" />
-                          </Button>
-                          {isAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(item.id)}
-                              className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                              title="Apagar"
+                              className="h-8 w-8 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <MoreVertical className="w-4 h-4" />
                             </Button>
-                          )}
-                        </>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => setItemToEdit(item)}>
+                              <Pencil className="w-4 h-4 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setItemToAllocate(item)}>
+                              <Tags className="w-4 h-4 mr-2" /> Alocar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setItemToAllocate(item)}>
+                              <Printer className="w-4 h-4 mr-2" /> Gerar Etiqueta
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleDelete(item.id)}
+                              className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </TableCell>
                   </TableRow>
@@ -832,7 +959,7 @@ export function EstoqueLista() {
               {filteredItems.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={mergeMode ? 11 : 10}
+                    colSpan={mergeMode ? 8 : 7}
                     className="text-center py-8 text-gray-500 dark:text-slate-400"
                   >
                     Nenhum item encontrado no estoque.
