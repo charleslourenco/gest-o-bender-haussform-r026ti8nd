@@ -2423,11 +2423,14 @@ export type Database = {
       }
       solicitacoes_compra: {
         Row: {
+          arquivado: boolean
           atualizado_em: string
           cliente_id: string | null
           cor: string | null
           criado_em: string
           data_entrega_prevista: string | null
+          editado_em: string | null
+          editado_por: string | null
           fornecedor: string | null
           id: string
           link: string | null
@@ -2442,11 +2445,14 @@ export type Database = {
           usuario_id: string
         }
         Insert: {
+          arquivado?: boolean
           atualizado_em?: string
           cliente_id?: string | null
           cor?: string | null
           criado_em?: string
           data_entrega_prevista?: string | null
+          editado_em?: string | null
+          editado_por?: string | null
           fornecedor?: string | null
           id?: string
           link?: string | null
@@ -2461,11 +2467,14 @@ export type Database = {
           usuario_id: string
         }
         Update: {
+          arquivado?: boolean
           atualizado_em?: string
           cliente_id?: string | null
           cor?: string | null
           criado_em?: string
           data_entrega_prevista?: string | null
+          editado_em?: string | null
+          editado_por?: string | null
           fornecedor?: string | null
           id?: string
           link?: string | null
