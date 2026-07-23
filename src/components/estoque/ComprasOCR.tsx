@@ -21,10 +21,10 @@ import { matchInvoiceItems, MatchedItem } from '@/services/estoque-matching'
 import { NotaReviewPanel } from './NotaReviewPanel'
 import {
   uploadInvoiceFile,
-  getInvoiceSignedUrl,
   attachInvoiceFile,
   validateInvoiceFile,
 } from '@/services/notas-fiscais-storage'
+import { openStorageFileInNewTab } from '@/lib/file-viewer'
 
 export function ComprasOCR() {
   const [isDragging, setIsDragging] = useState(false)
@@ -80,22 +80,21 @@ export function ComprasOCR() {
 
     setViewingNotaId(nota.id)
     try {
-      const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
+      const result = await openStorageFileInNewTab(nota.arquivo_url)
 
-      if (error || !url) {
+      if (!result.success) {
         toast({
           title: 'Erro ao carregar o arquivo',
-          description: error || 'Verifique se o caminho do arquivo está correto e tente novamente.',
+          description:
+            result.error || 'Verifique se o caminho do arquivo está correto e tente novamente.',
           variant: 'destructive',
         })
         return
       }
-
-      window.open(url, '_blank', 'noopener,noreferrer')
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar o arquivo',
-        description: err?.message || 'Não foi possível gerar o link de acesso à nota fiscal.',
+        description: err?.message || 'Não foi possível abrir a nota fiscal.',
         variant: 'destructive',
       })
     } finally {
