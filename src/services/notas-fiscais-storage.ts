@@ -56,13 +56,33 @@ function normalizeStoragePath(path: string): string {
 export async function getInvoiceSignedUrl(
   path: string,
 ): Promise<{ url: string; error: string | null }> {
+  if (!path) {
+    return { url: '', error: 'Caminho do arquivo não informado.' }
+  }
+
   const normalizedPath = normalizeStoragePath(path)
+  if (!normalizedPath) {
+    return { url: '', error: 'Caminho do arquivo inválido.' }
+  }
+
   const { data, error } = await supabase.storage
     .from(BUCKET_NAME)
     .createSignedUrl(normalizedPath, 3600)
 
-  if (error || !data?.signedUrl) {
-    return { url: '', error: error?.message || 'Falha ao gerar URL de acesso.' }
+  if (error) {
+    return {
+      url: '',
+      error:
+        error.message ||
+        'Não foi possível gerar o link de acesso ao arquivo (permissão ou caminho inválido).',
+    }
+  }
+
+  if (!data?.signedUrl) {
+    return {
+      url: '',
+      error: 'Não foi possível gerar o link de acesso ao arquivo.',
+    }
   }
 
   return { url: data.signedUrl, error: null }

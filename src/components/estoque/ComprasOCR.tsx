@@ -34,6 +34,7 @@ export function ComprasOCR() {
   const [attachingNotaId, setAttachingNotaId] = useState<string | null>(null)
   const [viewingUrl, setViewingUrl] = useState<string | null>(null)
   const [viewingTitle, setViewingTitle] = useState<string>('')
+  const [viewingNotaId, setViewingNotaId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -72,31 +73,41 @@ export function ComprasOCR() {
   const handleViewNota = async (nota: any) => {
     if (!nota.arquivo_url) {
       toast({
-        title: 'Erro ao acessar o arquivo da nota fiscal',
-        description: 'Verifique se o arquivo foi enviado corretamente.',
+        title: 'Arquivo não disponível',
+        description: 'Esta nota fiscal não possui arquivo vinculado.',
         variant: 'destructive',
       })
       return
     }
 
-    toast({ title: 'Gerando link de acesso...' })
-    const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
+    setViewingNotaId(nota.id)
+    try {
+      const { url, error } = await getInvoiceSignedUrl(nota.arquivo_url)
 
-    if (error || !url) {
+      if (error || !url) {
+        toast({
+          title: 'Erro ao carregar o arquivo',
+          description: error || 'Verifique se o caminho do arquivo está correto e tente novamente.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const isPdf = nota.arquivo_url.toLowerCase().endsWith('.pdf')
+      if (isPdf) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } else {
+        setViewingUrl(url)
+        setViewingTitle(`Nota: ${nota.numero_nota || nota.fornecedor}`)
+      }
+    } catch (err: any) {
       toast({
-        title: 'Não foi possível carregar a nota fiscal',
-        description: 'Verifique se o arquivo ainda existe no armazenamento.',
+        title: 'Erro ao carregar o arquivo',
+        description: err?.message || 'Não foi possível gerar o link de acesso à nota fiscal.',
         variant: 'destructive',
       })
-      return
-    }
-
-    const isPdf = nota.arquivo_url.toLowerCase().endsWith('.pdf')
-    if (isPdf) {
-      window.open(url, '_blank')
-    } else {
-      setViewingUrl(url)
-      setViewingTitle(`Nota: ${nota.numero_nota || nota.fornecedor}`)
+    } finally {
+      setViewingNotaId(null)
     }
   }
 
@@ -445,7 +456,11 @@ export function ComprasOCR() {
                               }}
                               title="Visualizar Nota"
                             >
-                              <Eye className="w-4 h-4" />
+                              {viewingNotaId === nota.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
                             </Button>
                           ) : (
                             <Button
