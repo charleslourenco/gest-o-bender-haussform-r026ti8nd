@@ -36,9 +36,7 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
         )
         .order('criado_em', { ascending: false })
 
-      if (!mostrarArquivados) {
-        query = query.eq('arquivado', false)
-      }
+      query = query.eq('arquivado', mostrarArquivados)
 
       const { data, error } = await query
 
