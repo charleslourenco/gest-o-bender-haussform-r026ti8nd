@@ -31,8 +31,7 @@ export function SolicitacoesCompra() {
           `
           *,
           usuario:users(nome),
-          cliente:clientes(nome),
-          editado_por_usuario:users!solicitacoes_compra_editado_por_fkey(nome)
+          cliente:clientes(nome)
         `,
         )
         .order('criado_em', { ascending: false })
