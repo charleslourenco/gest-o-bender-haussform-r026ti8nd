@@ -628,10 +628,13 @@ export function EstoqueLista() {
 
   const buildDetalhesText = (item: any): string => {
     const parts: string[] = []
+    if (item.marca) parts.push(`Marca: ${item.marca}`)
     if (item.cor) parts.push(`Cor: ${item.cor}`)
     if (item.espessura_mm) parts.push(`Esp: ${item.espessura_mm}mm`)
     if (item.largura_mm) parts.push(`Larg: ${item.largura_mm}mm`)
     if (item.comprimento_m) parts.push(`Comp: ${item.comprimento_m}m`)
+    if (item.grupo) parts.push(`Grupo: ${item.grupo}`)
+    if (item.classe) parts.push(`Classe: ${item.classe}`)
     return parts.join(' · ')
   }
 
@@ -787,7 +790,6 @@ export function EstoqueLista() {
                   </TableHead>
                 )}
                 <TableHead className="w-[260px] min-w-[260px] px-2">Item</TableHead>
-                <TableHead className="min-w-[100px] max-w-[160px] px-2">Marca</TableHead>
                 <TableHead className="whitespace-nowrap px-2">Categoria</TableHead>
                 <TableHead className="min-w-[120px] max-w-[140px] px-2">Fornecedor</TableHead>
                 <TableHead className="text-right whitespace-nowrap px-2">Qtd</TableHead>
@@ -871,9 +873,6 @@ export function EstoqueLista() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="whitespace-normal break-words min-w-[100px] max-w-[160px] px-2 text-sm">
-                      {item.marca || '-'}
-                    </TableCell>
                     <TableCell className="whitespace-nowrap px-2">
                       <div className="flex items-center gap-2">
                         <CategoryBadge
@@ -914,10 +913,10 @@ export function EstoqueLista() {
                     <TableCell className="text-right px-2">
                       <div className="flex flex-col items-end leading-tight">
                         <span className="text-sm text-gray-700 dark:text-slate-300">
-                          {formatCurrency(item.valor_unitario)}
+                          Unit: {formatCurrency(item.valor_unitario)}
                         </span>
                         <span className="text-xs text-gray-400 dark:text-slate-500">
-                          {formatCurrency(item.quantidade * item.valor_unitario)}
+                          Total: {formatCurrency(item.quantidade * item.valor_unitario)}
                         </span>
                       </div>
                     </TableCell>
@@ -959,7 +958,7 @@ export function EstoqueLista() {
               {filteredItems.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={mergeMode ? 8 : 7}
+                    colSpan={mergeMode ? 7 : 6}
                     className="text-center py-8 text-gray-500 dark:text-slate-400"
                   >
                     Nenhum item encontrado no estoque.

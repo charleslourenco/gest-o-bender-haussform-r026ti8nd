@@ -32,8 +32,6 @@ export function ComprasOCR() {
   const [notas, setNotas] = useState<any[]>([])
   const [expandedNota, setExpandedNota] = useState<string | null>(null)
   const [attachingNotaId, setAttachingNotaId] = useState<string | null>(null)
-  const [viewingUrl, setViewingUrl] = useState<string | null>(null)
-  const [viewingTitle, setViewingTitle] = useState<string>('')
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
@@ -93,13 +91,7 @@ export function ComprasOCR() {
         return
       }
 
-      const isPdf = nota.arquivo_url.toLowerCase().endsWith('.pdf')
-      if (isPdf) {
-        window.open(url, '_blank', 'noopener,noreferrer')
-      } else {
-        setViewingUrl(url)
-        setViewingTitle(`Nota: ${nota.numero_nota || nota.fornecedor}`)
-      }
+      window.open(url, '_blank', 'noopener,noreferrer')
     } catch (err: any) {
       toast({
         title: 'Erro ao carregar o arquivo',
@@ -521,42 +513,6 @@ export function ComprasOCR() {
         accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf"
         onChange={handleAttachFile}
       />
-
-      {viewingUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200"
-          onClick={() => {
-            setViewingUrl(null)
-            setViewingTitle('')
-          }}
-        >
-          <div
-            className="bg-white dark:bg-slate-900 rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
-              <h3 className="font-semibold text-sm dark:text-slate-100">{viewingTitle}</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setViewingUrl(null)
-                  setViewingTitle('')
-                }}
-              >
-                Fechar
-              </Button>
-            </div>
-            <div className="flex-1 overflow-auto flex items-center justify-center bg-slate-100 dark:bg-slate-950">
-              <img
-                src={viewingUrl}
-                alt={viewingTitle}
-                className="max-w-full max-h-full object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
