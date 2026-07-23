@@ -14,7 +14,7 @@ import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 
 type Solicitacao = SolicitacaoDetalhe
 
-export function SolicitacoesCompra() {
+export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void }) {
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Solicitacao | null>(null)
@@ -52,8 +52,9 @@ export function SolicitacoesCompra() {
       })
     } finally {
       setLoading(false)
+      onDataChange?.()
     }
-  }, [toast, mostrarArquivados])
+  }, [toast, mostrarArquivados, onDataChange])
 
   useEffect(() => {
     fetchSolicitacoes()

@@ -9,11 +9,12 @@ import { ItensCliente } from '@/components/estoque/ItensCliente'
 import { CaixasVirtuais } from '@/components/estoque/CaixasVirtuais'
 import { GestaoSobras } from '@/components/estoque/GestaoSobras'
 import { ListasMateriais } from '@/components/estoque/ListasMateriais'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function EstoqueCompras() {
   const [unreadListas, setUnreadListas] = useState(0)
+  const [pendingSolicitacoes, setPendingSolicitacoes] = useState(0)
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -47,6 +48,37 @@ export default function EstoqueCompras() {
     }
   }, [])
 
+  const fetchPendingSolicitacoes = useCallback(async () => {
+    const { count } = await supabase
+      .from('solicitacoes_compra')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'Pendente')
+      .eq('arquivado', false)
+
+    setPendingSolicitacoes(count || 0)
+  }, [])
+
+  useEffect(() => {
+    fetchPendingSolicitacoes()
+
+    const channel = supabase
+      .channel('solicitacoes_compra_pending_count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'solicitacoes_compra',
+        },
+        () => fetchPendingSolicitacoes(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchPendingSolicitacoes])
+
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 w-full mt-0">
@@ -67,9 +99,14 @@ export default function EstoqueCompras() {
               </TabsTrigger>
               <TabsTrigger
                 value="solicitacoes"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 relative"
               >
                 Solicitações
+                {pendingSolicitacoes > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
+                    {pendingSolicitacoes}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="estoque"
@@ -128,7 +165,7 @@ export default function EstoqueCompras() {
             value="solicitacoes"
             className="m-0 border-none outline-none h-full flex flex-col overflow-hidden"
           >
-            <SolicitacoesCompra />
+            <SolicitacoesCompra onDataChange={fetchPendingSolicitacoes} />
           </TabsContent>
           <TabsContent
             value="estoque"
