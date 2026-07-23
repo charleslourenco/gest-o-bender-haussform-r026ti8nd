@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { saveAlias } from '@/services/estoque-aliases'
 import { MatchedItem } from '@/services/estoque-matching'
-import { QuickRegisterItemModal } from './QuickRegisterItemModal'
+import { UnifiedItemModal } from './UnifiedItemModal'
 
 interface NotaReviewItemCardProps {
   item: MatchedItem
@@ -220,13 +220,14 @@ export function NotaReviewItemCard({
       </div>
 
       {showRegister && (
-        <QuickRegisterItemModal
+        <UnifiedItemModal
           isOpen={showRegister}
           onClose={() => setShowRegister(false)}
-          item={item}
-          realIdx={realIdx}
+          mode="edit"
           notaId={notaId}
           notaFornecedor={notaFornecedor}
+          ocrItem={item}
+          realIdx={realIdx}
           onSaved={() => {
             setShowRegister(false)
             onResolved()

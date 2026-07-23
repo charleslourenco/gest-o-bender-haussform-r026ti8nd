@@ -1716,6 +1716,54 @@ export type Database = {
         }
         Relationships: []
       }
+      itens_nota_fiscal: {
+        Row: {
+          created_at: string
+          id: string
+          nome_produto: string
+          nota_fiscal_id: string | null
+          produto_id: string | null
+          quantidade: number
+          unidade: string
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_produto: string
+          nota_fiscal_id?: string | null
+          produto_id?: string | null
+          quantidade?: number
+          unidade?: string
+          valor_unitario?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_produto?: string
+          nota_fiscal_id?: string | null
+          produto_id?: string | null
+          quantidade?: number
+          unidade?: string
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'itens_nota_fiscal_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'notas_fiscais'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'itens_nota_fiscal_produto_id_fkey'
+            columns: ['produto_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       kanban_historico: {
         Row: {
           card_id: string | null

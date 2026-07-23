@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { MatchedItem } from '@/services/estoque-matching'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
-import { AdicionarItemManualModal } from './AdicionarItemManualModal'
+import { UnifiedItemModal } from './UnifiedItemModal'
 
 interface NotaReviewPanelProps {
   nota: any
@@ -72,10 +72,12 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       )}
 
       {showAddModal && (
-        <AdicionarItemManualModal
+        <UnifiedItemModal
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
+          mode="create"
           notaId={nota.id}
+          notaFornecedor={nota.fornecedor}
           onSaved={() => {
             setShowAddModal(false)
             onResolved()
