@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { CircleArrowDown, Loader2 } from 'lucide-react'
+import { CircleArrowDown, Loader2, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { UnifiedPayeeSelect, PayeeOption } from './UnifiedPayeeSelect'
+import { formatCurrency } from '@/lib/utils'
 
 function addMonths(dateStr: string, months: number): string {
   const d = new Date(dateStr + 'T00:00:00')
@@ -48,6 +49,9 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [contas, setContas] = useState<any[]>([])
   const [recorrente, setRecorrente] = useState(false)
   const [qtdMeses, setQtdMeses] = useState('2')
+  const [divisoes, setDivisoes] = useState<DivisaoRow[]>([])
+  const [divisaoError, setDivisaoError] = useState<string | null>(null)
+  const [divisoes, setDivisoes] = useState<{ descricao: string; valor: string }[]>([])
 
   useEffect(() => {
     if (!open) {
@@ -65,6 +69,43 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
     return payee !== null && Number(valor) > 0 && !!dataVencimento
   }, [payee, valor, dataVencimento])
 
+  const divisaoDiff = useMemo(() => {
+    const totalDivisoes = divisoes.reduce((acc, r) => acc + (Number(r.valor) || 0), 0)
+    return Number(valor) - totalDivisoes
+  }, [divisoes, valor])
+
+  const divisoesValid = useMemo(() => {
+    if (divisoes.length === 0) return true
+    if (Math.abs(divisaoDiff) > 0.001) return false
+    return divisoes.every((d) => d.descricao.trim() !== '' && Number(d.valor) > 0)
+  }, [divisoes, divisaoDiff])
+
+  const handleDivisoesChange = useCallback((next: DivisaoRow[]) => {
+    setDivisoes(next)
+    setDivisaoError(null)
+  }, [])
+
+  const divisoesTotal = useMemo(() => {
+    return divisoes.reduce((acc, d) => acc + (Number(d.valor) || 0), 0)
+  }, [divisoes])
+
+  const divisoesMatch = useMemo(() => {
+    if (divisoes.length === 0) return true
+    return Math.round(divisoesTotal * 100) === Math.round(Number(valor) * 100)
+  }, [divisoes.length, divisoesTotal, valor])
+
+  function addDivisao() {
+    setDivisoes((prev) => [...prev, { descricao: '', valor: '' }])
+  }
+
+  function removeDivisao(index: number) {
+    setDivisoes((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function updateDivisao(index: number, field: 'descricao' | 'valor', value: string) {
+    setDivisoes((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)))
+  }
+
   const resetForm = () => {
     setPayee(null)
     setDescricao('')
@@ -74,6 +115,7 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
     setContaBancariaId('none')
     setRecorrente(false)
     setQtdMeses('2')
+    setDivisoes([])
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,30 +126,81 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
       const valorNum = Number(valor)
       const meses = recorrente ? Math.max(1, parseInt(qtdMeses, 10) || 1) : 1
 
-      const rows: any[] = []
-      for (let i = 0; i < meses; i++) {
-        rows.push({
-          fornecedor: payee.name,
-          descricao,
-          valor: valorNum,
-          data_vencimento: addMonths(dataVencimento, i),
-          categoria: categoria || null,
-          user_id: user?.id,
-          status_pagamento: 'aguardando',
-          conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
+      const hasDivisoes = divisoes.length > 0
+
+      if (hasDivisoes && !divisoesMatch) {
+        toast({
+          title: 'Divisões inválidas',
+          description: 'A soma das divisões deve ser igual ao valor total da conta a pagar.',
+          variant: 'destructive',
         })
+        return
       }
 
-      const { error } = await supabase.from('contas_pagar').insert(rows)
-      if (error) throw error
+      if (hasDivisoes) {
+        const divisoesPayload = divisoes
+          .filter((d) => d.descricao.trim() !== '' && Number(d.valor) > 0)
+          .map((d) => ({ descricao: d.descricao.trim(), valor: Number(d.valor) }))
 
-      toast({
-        title: 'Sucesso',
-        description:
-          meses > 1
-            ? `${meses} contas a pagar recorrentes cadastradas.`
-            : 'Conta a pagar cadastrada com sucesso.',
-      })
+        if (divisoesPayload.length !== divisoes.length) {
+          toast({
+            title: 'Divisões incompletas',
+            description: 'Preencha a descrição e o valor de todas as divisões.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        const { data: rpcData, error: rpcError } = await supabase.rpc(
+          'insert_conta_pagar_with_divisoes',
+          {
+            p_fornecedor: payee.name,
+            p_descricao: descricao,
+            p_valor: valorNum,
+            p_data_vencimento: dataVencimento,
+            p_categoria: categoria || null,
+            p_user_id: user?.id,
+            p_conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
+            p_meses: meses,
+            p_divisoes: divisoesPayload,
+          },
+        )
+
+        if (rpcError) throw rpcError
+
+        toast({
+          title: 'Sucesso',
+          description:
+            meses > 1
+              ? `${meses} contas a pagar recorrentes cadastradas com divisões.`
+              : 'Conta a pagar cadastrada com sucesso.',
+        })
+      } else {
+        const rows: any[] = []
+        for (let i = 0; i < meses; i++) {
+          rows.push({
+            fornecedor: payee.name,
+            descricao,
+            valor: valorNum,
+            data_vencimento: addMonths(dataVencimento, i),
+            categoria: categoria || null,
+            user_id: user?.id,
+            status_pagamento: 'aguardando',
+            conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
+          })
+        }
+
+        const { error } = await supabase.from('contas_pagar').insert(rows)
+        if (error) throw error
+
+        toast({
+          title: 'Sucesso',
+          description:
+            meses > 1
+              ? `${meses} contas a pagar recorrentes cadastradas.`
+              : 'Conta a pagar cadastrada com sucesso.',
+        })
+      }
       setOpen(false)
       resetForm()
       onRefresh?.()
@@ -223,6 +316,67 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
                   Serão criadas {Math.max(1, parseInt(qtdMeses, 10) || 1)} contas, com vencimento
                   mensal a partir de {dataVencimento || '—'}.
                 </p>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-md border p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Divisões / Rateio</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={addDivisao}
+              >
+                <Plus className="w-3 h-3 mr-1" /> Adicionar divisão
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Opcional. A soma das divisões deve ser igual ao valor total.
+            </p>
+            {divisoes.length > 0 && (
+              <div className="space-y-2">
+                {divisoes.map((div, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={div.descricao}
+                      onChange={(e) => updateDivisao(idx, 'descricao', e.target.value)}
+                      placeholder="Ex: Ajuda de custo"
+                      className="flex-1 h-9"
+                    />
+                    <CurrencyInput
+                      value={div.valor}
+                      onValueChange={(val: number | string) =>
+                        updateDivisao(idx, 'valor', val ? val.toString() : '')
+                      }
+                      placeholder="R$ 0,00"
+                      className="w-32 h-9"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                      onClick={() => removeDivisao(idx)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between pt-1 border-t">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Total das divisões:
+                  </span>
+                  <span
+                    className={`text-sm font-bold ${
+                      divisoesMatch ? 'text-emerald-600' : 'text-red-600'
+                    }`}
+                  >
+                    {formatCurrency(divisoesTotal)}
+                  </span>
+                </div>
               </div>
             )}
           </div>
