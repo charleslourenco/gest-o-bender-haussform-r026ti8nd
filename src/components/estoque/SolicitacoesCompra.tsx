@@ -5,8 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { RefreshCw, Clock, ShoppingBag } from 'lucide-react'
+import { RefreshCw, Clock, ShoppingBag, Archive } from 'lucide-react'
 import { SolicitacaoCompraDetailModal, SolicitacaoDetalhe } from './SolicitacaoCompraDetailModal'
 import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 
@@ -17,21 +19,29 @@ export function SolicitacoesCompra() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Solicitacao | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [mostrarArquivados, setMostrarArquivados] = useState(false)
   const { toast } = useToast()
 
   const fetchSolicitacoes = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('solicitacoes_compra')
         .select(
           `
           *,
           usuario:users(nome),
-          cliente:clientes(nome)
+          cliente:clientes(nome),
+          editado_por_usuario:users!solicitacoes_compra_editado_por_fkey(nome)
         `,
         )
         .order('criado_em', { ascending: false })
+
+      if (!mostrarArquivados) {
+        query = query.eq('arquivado', false)
+      }
+
+      const { data, error } = await query
 
       if (error) throw error
       setSolicitacoes((data as Solicitacao[]) || [])
@@ -44,7 +54,7 @@ export function SolicitacoesCompra() {
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, mostrarArquivados])
 
   useEffect(() => {
     fetchSolicitacoes()
@@ -78,7 +88,7 @@ export function SolicitacoesCompra() {
               </Badge>
             )}
           </CardTitle>
-          <CardDescription>Clique em uma solicitação para ver todos os detalhes</CardDescription>
+          <CardDescription>Clique em uma solicitação para editar todos os detalhes</CardDescription>
         </div>
         <div className="flex items-center gap-2">
           <SolicitacaoCompraDialog onCreated={fetchSolicitacoes} />
@@ -93,7 +103,17 @@ export function SolicitacoesCompra() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0 flex flex-col pb-6">
+      <CardContent className="flex-1 min-h-0 flex flex-col pb-6 gap-3">
+        <div className="flex items-center gap-2 px-1">
+          <Switch
+            id="mostrar-arquivados"
+            checked={mostrarArquivados}
+            onCheckedChange={setMostrarArquivados}
+          />
+          <Label htmlFor="mostrar-arquivados" className="text-sm cursor-pointer">
+            Mostrar arquivados
+          </Label>
+        </div>
         <ScrollArea className="flex-1 min-h-0 rounded-md border">
           {loading ? (
             <div className="p-4 space-y-3">
@@ -110,16 +130,20 @@ export function SolicitacoesCompra() {
             <div className="divide-y">
               {solicitacoes.map((s) => {
                 const isPending = s.status === 'Pendente'
+                const isArchived = s.arquivado === true
                 return (
                   <button
                     key={s.id}
                     onClick={() => handleRowClick(s)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 group relative ${
                       isPending ? 'bg-orange-50/60 dark:bg-orange-950/20' : ''
-                    }`}
+                    } ${isArchived ? 'opacity-60' : ''}`}
                   >
                     {isPending && (
                       <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-orange-500" />
+                    )}
+                    {isArchived && (
+                      <span className="absolute left-0 top-0 bottom-0 w-1.5 bg-gray-400" />
                     )}
                     <div className="w-[90px] shrink-0 text-xs text-muted-foreground">
                       {new Date(s.criado_em).toLocaleDateString('pt-BR', {
@@ -131,7 +155,10 @@ export function SolicitacoesCompra() {
                       {s.usuario?.nome || 'Desconhecido'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{s.nome_item}</p>
+                      <p className="font-medium truncate flex items-center gap-1">
+                        {s.nome_item}
+                        {isArchived && <Archive className="w-3 h-3 text-muted-foreground" />}
+                      </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {s.quantidade} {s.unidade}
                         {s.cliente?.nome ? ` · ${s.cliente.nome}` : ''}
