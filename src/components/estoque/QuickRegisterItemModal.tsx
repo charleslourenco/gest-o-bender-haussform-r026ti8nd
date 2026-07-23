@@ -174,8 +174,14 @@ export function QuickRegisterItemModal({
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto">
           <div className="space-y-1">
-            <Label>Nome do Item *</Label>
-            <Input value={form.nome} onChange={(e) => setField('nome', e.target.value)} />
+            <Label>Nome do Produto *</Label>
+            <Input
+              value={form.nome}
+              onChange={(e) => setField('nome', e.target.value)}
+              placeholder="Digite o nome do produto"
+              autoFocus
+              className="border-slate-400 dark:border-slate-500 focus-visible:ring-2 focus-visible:ring-emerald-500"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
