@@ -10,7 +10,19 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Plus, Trash2, Tags, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Search,
+  Plus,
+  Trash2,
+  Tags,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  GitMerge,
+  X,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTableScroll } from '@/hooks/use-table-scroll'
 import {
@@ -53,6 +65,8 @@ import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/hooks/use-toast'
 
 import { GerarEtiquetaModal } from './GerarEtiquetaModal'
+import { EditItemModal } from './EditItemModal'
+import { MergeItemsModal } from './MergeItemsModal'
 
 export function EstoqueLista() {
   const [items, setItems] = useState<any[]>([])
@@ -61,6 +75,11 @@ export function EstoqueLista() {
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [itemToAllocate, setItemToAllocate] = useState<any>(null)
+  const [itemToEdit, setItemToEdit] = useState<any>(null)
+  const [mergeMode, setMergeMode] = useState(false)
+  const [masterId, setMasterId] = useState<string | null>(null)
+  const [duplicateIds, setDuplicateIds] = useState<string[]>([])
+  const [mergeModalOpen, setMergeModalOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const { toast } = useToast()
 
@@ -289,6 +308,32 @@ export function EstoqueLista() {
       i.fornecedor?.toLowerCase().includes(search.toLowerCase()),
   )
 
+  const toggleDuplicate = (id: string) => {
+    setDuplicateIds((prev) => (prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]))
+  }
+
+  const toggleMaster = (id: string) => {
+    setMasterId((prev) => {
+      if (prev === id) {
+        setDuplicateIds((dups) => dups.filter((d) => d !== id))
+        return null
+      }
+      setDuplicateIds((dups) => dups.filter((d) => d !== id))
+      return id
+    })
+  }
+
+  const exitMergeMode = () => {
+    setMergeMode(false)
+    setMasterId(null)
+    setDuplicateIds([])
+  }
+
+  const canConfirmMerge = !!masterId && duplicateIds.length > 0
+
+  const masterItem = masterId ? items.find((i) => i.id === masterId) : null
+  const duplicateItems = items.filter((i) => duplicateIds.includes(i.id))
+
   const [isNormalizing, setIsNormalizing] = useState(false)
   const [normalizeProgress, setNormalizeProgress] = useState(0)
 
@@ -471,23 +516,73 @@ export function EstoqueLista() {
             className="pl-9 dark:bg-slate-900 dark:border-slate-800"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-            disabled={filteredItems.length === 0}
-            className="border-gray-200 dark:border-slate-800"
-          >
-            <Download className="h-4 w-4 mr-2" /> Exportar CSV
-          </Button>
-          <Button
-            className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" /> Novo Item
-          </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {mergeMode ? (
+            <>
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mr-2">
+                <span className="font-medium">
+                  Mestre: {masterItem ? '1 selecionado' : 'nenhum'}
+                </span>
+                <span className="text-slate-400">|</span>
+                <span className="font-medium">Duplicados: {duplicateIds.length}</span>
+              </div>
+              <Button
+                variant="outline"
+                onClick={exitMergeMode}
+                className="border-gray-200 dark:border-slate-800"
+              >
+                <X className="h-4 w-4 mr-2" /> Cancelar
+              </Button>
+              <Button
+                onClick={() => setMergeModalOpen(true)}
+                disabled={!canConfirmMerge}
+                className="bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50"
+              >
+                <GitMerge className="h-4 w-4 mr-2" /> Confirmar Mesclagem
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleExportCSV}
+                disabled={filteredItems.length === 0}
+                className="border-gray-200 dark:border-slate-800"
+              >
+                <Download className="h-4 w-4 mr-2" /> Exportar CSV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setMergeMode(true)}
+                disabled={filteredItems.length < 2}
+                className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
+              >
+                <GitMerge className="h-4 w-4 mr-2" /> Mesclar Itens
+              </Button>
+              <Button
+                className="bg-steel-blue hover:bg-dark-denim dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Novo Item
+              </Button>
+            </>
+          )}
         </div>
       </div>
+
+      {mergeMode && (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 rounded-lg p-3 flex items-start gap-3 flex-none">
+          <GitMerge className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-800 dark:text-amber-200">
+            <p className="font-medium">Modo de Mesclagem ativo</p>
+            <p className="text-xs mt-0.5">
+              Selecione <strong>um item como Mestre</strong> (botão radio) e um ou mais itens como
+              <strong> Duplicados</strong> (checkbox). Os duplicados serão excluídos e seus
+              registros migrados para o mestre.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 rounded-md border dark:border-slate-800 overflow-hidden flex flex-col min-h-0 relative group">
         {canScrollLeft && (
@@ -518,7 +613,10 @@ export function EstoqueLista() {
           <Table className="min-w-[1200px] relative">
             <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
               <TableRow>
-                <TableHead className="whitespace-nowrap">Item</TableHead>
+                {mergeMode && (
+                  <TableHead className="w-[110px] text-center whitespace-nowrap">Mesclar</TableHead>
+                )}
+                <TableHead className="w-[250px] min-w-[250px]">Item</TableHead>
                 <TableHead className="min-w-[120px] max-w-[200px]">Marca</TableHead>
                 <TableHead className="whitespace-nowrap">Detalhes</TableHead>
                 <TableHead className="whitespace-nowrap">Categoria</TableHead>
@@ -542,11 +640,36 @@ export function EstoqueLista() {
 
                 return (
                   <TableRow key={item.id}>
-                    <TableCell
-                      className="font-medium min-w-[250px] max-w-[350px]"
-                      title={item.nome}
-                    >
-                      <div className="truncate mb-1">{item.nome}</div>
+                    {mergeMode && (
+                      <TableCell className="text-center align-top pt-3">
+                        <div className="flex flex-col items-center gap-1.5">
+                          <label className="flex items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400 cursor-pointer">
+                            <Checkbox
+                              checked={masterId === item.id}
+                              onCheckedChange={() => toggleMaster(item.id)}
+                              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                            />
+                            Mestre
+                          </label>
+                          <label className="flex items-center gap-1 text-[10px] font-medium text-amber-700 dark:text-amber-400 cursor-pointer">
+                            <Checkbox
+                              checked={duplicateIds.includes(item.id)}
+                              onCheckedChange={() => toggleDuplicate(item.id)}
+                              disabled={masterId === item.id}
+                              className="data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                            />
+                            Dup.
+                          </label>
+                        </div>
+                      </TableCell>
+                    )}
+                    <TableCell className="font-medium align-top w-[250px] min-w-[250px]">
+                      <div
+                        className="mb-1"
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        {item.nome}
+                      </div>
                       <div className="flex flex-col gap-1 mt-1">
                         {itemAllocations.length > 0 && (
                           <div className="flex flex-wrap gap-1">
@@ -668,26 +791,39 @@ export function EstoqueLista() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setItemToAllocate(item)}
-                        className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
-                        title="Alocar e Gerar Etiqueta"
-                      >
-                        <Tags className="w-4 h-4" />
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item.id)}
-                          className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
-                          title="Apagar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                    <TableCell className="text-right whitespace-nowrap align-top pt-3">
+                      {!mergeMode && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setItemToEdit(item)}
+                            className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/30 h-8 w-8 mr-1"
+                            title="Editar"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setItemToAllocate(item)}
+                            className="text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30 h-8 w-8 mr-1"
+                            title="Alocar e Gerar Etiqueta"
+                          >
+                            <Tags className="w-4 h-4" />
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(item.id)}
+                              className="text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                              title="Apagar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </>
                       )}
                     </TableCell>
                   </TableRow>
@@ -696,7 +832,7 @@ export function EstoqueLista() {
               {filteredItems.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={mergeMode ? 11 : 10}
                     className="text-center py-8 text-gray-500 dark:text-slate-400"
                   >
                     Nenhum item encontrado no estoque.
@@ -869,6 +1005,30 @@ export function EstoqueLista() {
           onSave={fetchItems}
         />
       )}
+
+      {itemToEdit && (
+        <EditItemModal
+          isOpen={!!itemToEdit}
+          onClose={() => setItemToEdit(null)}
+          item={itemToEdit}
+          onSaved={() => {
+            setItemToEdit(null)
+            fetchItems()
+          }}
+        />
+      )}
+
+      <MergeItemsModal
+        isOpen={mergeModalOpen}
+        onClose={() => setMergeModalOpen(false)}
+        masterItem={masterItem}
+        duplicateItems={duplicateItems}
+        onMerged={() => {
+          setMergeModalOpen(false)
+          exitMergeMode()
+          fetchItems()
+        }}
+      />
     </div>
   )
 }
