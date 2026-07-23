@@ -554,6 +554,38 @@ export type Database = {
           },
         ]
       }
+      contas_pagar_divisoes: {
+        Row: {
+          conta_pagar_id: string
+          criado_em: string
+          descricao: string
+          id: string
+          valor: number
+        }
+        Insert: {
+          conta_pagar_id: string
+          criado_em?: string
+          descricao: string
+          id?: string
+          valor: number
+        }
+        Update: {
+          conta_pagar_id?: string
+          criado_em?: string
+          descricao?: string
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contas_pagar_divisoes_conta_pagar_id_fkey'
+            columns: ['conta_pagar_id']
+            isOneToOne: false
+            referencedRelation: 'contas_pagar'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       contas_receber: {
         Row: {
           antecipado: boolean | null
