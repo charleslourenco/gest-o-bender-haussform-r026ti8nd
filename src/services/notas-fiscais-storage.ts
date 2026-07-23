@@ -39,10 +39,27 @@ export async function uploadInvoiceFile(
   return { path: filePath, error: null }
 }
 
+function normalizeStoragePath(path: string): string {
+  if (!path) return path
+  let p = path.trim()
+  // Strip full Supabase storage URLs (public or signed)
+  p = p.replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/notas-fiscais\//, '')
+  // Strip query string (e.g. signed URL tokens)
+  p = p.split('?')[0]
+  // Strip leading slashes
+  p = p.replace(/^\/+/, '')
+  // Strip a possible bucket-name prefix
+  p = p.replace(/^notas-fiscais\//, '')
+  return p
+}
+
 export async function getInvoiceSignedUrl(
   path: string,
 ): Promise<{ url: string; error: string | null }> {
-  const { data, error } = await supabase.storage.from(BUCKET_NAME).createSignedUrl(path, 3600)
+  const normalizedPath = normalizeStoragePath(path)
+  const { data, error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .createSignedUrl(normalizedPath, 3600)
 
   if (error || !data?.signedUrl) {
     return { url: '', error: error?.message || 'Falha ao gerar URL de acesso.' }

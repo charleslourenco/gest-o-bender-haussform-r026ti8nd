@@ -84,8 +84,8 @@ export function ComprasOCR() {
 
     if (error || !url) {
       toast({
-        title: 'Não foi possível gerar o link de visualização',
-        description: 'O arquivo pode estar ausente ou as permissões podem estar incorretas.',
+        title: 'Não foi possível carregar a nota fiscal',
+        description: 'Verifique se o arquivo ainda existe no armazenamento.',
         variant: 'destructive',
       })
       return

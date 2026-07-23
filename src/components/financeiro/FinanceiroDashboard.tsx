@@ -3,7 +3,7 @@ import { Transaction } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, Tooltip } from 'recharts'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 
 const chartConfig = {
   receitas: { label: 'Receitas', color: '#10b981' },
@@ -16,36 +16,40 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
 
   const today = new Date().toISOString().split('T')[0]
 
+  const safeTransactions = Array.isArray(transactions) ? transactions : []
+
   const { receitasHoje, despesasHoje, saldoPrevisto } = useMemo(() => {
     let rH = 0,
       dH = 0,
       saldo = 0
-    transactions.forEach((t) => {
+    safeTransactions.forEach((t) => {
+      const amount = Number(t.amount) || 0
       if (t.status === 'pago') {
-        saldo += t.type === 'receita' ? t.amount : -t.amount
+        saldo += t.type === 'receita' ? amount : -amount
       }
       if (t.dueDate === today && t.status !== 'pago') {
-        if (t.type === 'receita') rH += t.amount
-        else dH += t.amount
+        if (t.type === 'receita') rH += amount
+        else dH += amount
       }
     })
     return { receitasHoje: rH, despesasHoje: dH, saldoPrevisto: saldo }
-  }, [transactions, today])
+  }, [safeTransactions, today])
 
   const chartData = useMemo(() => {
     const groups: Record<string, { receitas: number; despesas: number }> = {}
-    transactions.forEach((t) => {
+    safeTransactions.forEach((t) => {
       const date = t.paidDate || t.dueDate
-      if (!date) return
+      if (!date || typeof date !== 'string') return
       const month = date.substring(0, 7)
       if (!groups[month]) groups[month] = { receitas: 0, despesas: 0 }
-      if (t.type === 'receita') groups[month].receitas += t.amount
-      else groups[month].despesas += t.amount
+      const amount = Number(t.amount) || 0
+      if (t.type === 'receita') groups[month].receitas += amount
+      else groups[month].despesas += amount
     })
     return Object.entries(groups)
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([month, data]) => ({ month, ...data }))
-  }, [transactions])
+  }, [safeTransactions])
 
   return (
     <div className="space-y-6">
@@ -91,15 +95,21 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
           <CardTitle>Fluxo Mensal (Receitas vs Despesas)</CardTitle>
         </CardHeader>
         <CardContent className="h-[350px]">
-          <ChartContainer config={chartConfig} className="w-full h-full">
-            <BarChart data={chartData.slice(-6)}>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <Tooltip cursor={false} content={<ChartTooltipContent />} />
-              <Bar dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
+          {chartData.length > 0 ? (
+            <ChartContainer config={chartConfig} className="w-full h-full">
+              <BarChart data={chartData.slice(-6)}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                <Tooltip cursor={false} content={<ChartTooltipContent />} />
+                <Bar dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full text-sm text-gray-500">
+              Sem dados suficientes para exibir o fluxo mensal.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
