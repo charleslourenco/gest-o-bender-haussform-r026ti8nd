@@ -21,8 +21,8 @@ export default function EstoqueCompras() {
       const { count } = await supabase
         .from('documentos_cliente')
         .select('*', { count: 'exact', head: true })
-        .eq('tipo', 'lista de materiais')
-        .or('status.eq.pendente,status.eq.novo,status.is.null')
+        .eq('tipo', 'lista_materiais')
+        .or('status.eq.Pendente,status.is.null')
 
       setUnreadListas(count || 0)
     }
@@ -37,7 +37,7 @@ export default function EstoqueCompras() {
           event: '*',
           schema: 'public',
           table: 'documentos_cliente',
-          filter: "tipo=eq.'lista de materiais'",
+          filter: 'tipo=eq.lista_materiais',
         },
         () => fetchUnread(),
       )

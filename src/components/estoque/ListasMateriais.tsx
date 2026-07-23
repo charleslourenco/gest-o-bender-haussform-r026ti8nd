@@ -147,45 +147,57 @@ export function ListasMateriais() {
                 </TableCell>
               </TableRow>
             ) : (
-              listas.map((doc) => (
-                <TableRow key={doc.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      {doc.template_nome || 'Lista de Materiais'}
-                    </div>
-                  </TableCell>
-                  <TableCell>{doc.clientes?.nome || '-'}</TableCell>
-                  <TableCell>{format(new Date(doc.criado_em), 'dd/MM/yyyy HH:mm')}</TableCell>
-                  <TableCell>{doc.users?.nome || '-'}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={doc.status === 'pendente' ? 'Pendente' : doc.status || 'Pendente'}
-                      onValueChange={(val) => handleStatusChange(doc.id, val)}
-                    >
-                      <SelectTrigger className="w-[140px] h-8">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Pendente">Pendente</SelectItem>
-                        <SelectItem value="Comprado">Comprado</SelectItem>
-                        <SelectItem value="revisado">Revisado</SelectItem>
-                        <SelectItem value="Concluído">Concluído</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDownloadFile(doc.arquivo_url, doc.template_nome)}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Baixar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              listas.map((doc) => {
+                const isPending = (doc.status || 'Pendente') === 'Pendente'
+                return (
+                  <TableRow
+                    key={doc.id}
+                    className={`relative transition-colors hover:bg-muted/60 ${
+                      isPending
+                        ? 'bg-orange-50/60 dark:bg-orange-950/20 border-l-[3px] border-l-orange-500'
+                        : ''
+                    }`}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText
+                          className={`h-4 w-4 ${isPending ? 'text-orange-500 dark:text-orange-400' : 'text-muted-foreground'}`}
+                        />
+                        {doc.template_nome || 'Lista de Materiais'}
+                      </div>
+                    </TableCell>
+                    <TableCell>{doc.clientes?.nome || '-'}</TableCell>
+                    <TableCell>{format(new Date(doc.criado_em), 'dd/MM/yyyy HH:mm')}</TableCell>
+                    <TableCell>{doc.users?.nome || '-'}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={doc.status === 'pendente' ? 'Pendente' : doc.status || 'Pendente'}
+                        onValueChange={(val) => handleStatusChange(doc.id, val)}
+                      >
+                        <SelectTrigger className="w-[140px] h-8">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Pendente">Pendente</SelectItem>
+                          <SelectItem value="Comprado">Comprado</SelectItem>
+                          <SelectItem value="revisado">Revisado</SelectItem>
+                          <SelectItem value="Concluído">Concluído</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadFile(doc.arquivo_url, doc.template_nome)}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Baixar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>
