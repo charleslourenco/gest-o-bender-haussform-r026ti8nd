@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { AnaliseProjetoKanbanBoard } from '@/components/analise/AnaliseProjetoKanbanBoard'
 import { AnaliseTecnicaListView } from '@/components/analise/AnaliseTecnicaListView'
+import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -114,6 +115,12 @@ export default function AnaliseTecnica() {
                 >
                   Lista
                 </TabsTrigger>
+                <TabsTrigger
+                  value="arquivados"
+                  className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground"
+                >
+                  Arquivados
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -207,6 +214,8 @@ export default function AnaliseTecnica() {
       <div className="flex-1 overflow-hidden">
         {view === 'kanban' ? (
           <AnaliseProjetoKanbanBoard />
+        ) : view === 'arquivados' ? (
+          <KanbanArquivados archiveFlag="arquivado_analise" />
         ) : (
           <AnaliseTecnicaListView searchQuery={filters.cliente} columns={PROJECT_COLUMNS} />
         )}

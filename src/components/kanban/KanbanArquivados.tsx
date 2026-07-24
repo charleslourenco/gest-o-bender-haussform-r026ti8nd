@@ -4,6 +4,8 @@ import {
   desarquivarProducao,
   fetchMontagemArquivados,
   desarquivarMontagem,
+  fetchAnaliseArquivados,
+  desarquivarAnalise,
 } from '@/services/arquivamento'
 import {
   Table,
@@ -19,7 +21,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 
 interface KanbanArquivadosProps {
-  archiveFlag: 'arquivado_producao' | 'arquivado_montagem'
+  archiveFlag: 'arquivado_producao' | 'arquivado_montagem' | 'arquivado_analise'
 }
 
 export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
@@ -27,8 +29,17 @@ export function KanbanArquivados({ archiveFlag }: KanbanArquivadosProps) {
   const [loading, setLoading] = useState(true)
 
   const isProducao = archiveFlag === 'arquivado_producao'
-  const fetchData = isProducao ? fetchProducaoArquivados : fetchMontagemArquivados
-  const unarchiveFn = isProducao ? desarquivarProducao : desarquivarMontagem
+  const isAnalise = archiveFlag === 'arquivado_analise'
+  const fetchData = isProducao
+    ? fetchProducaoArquivados
+    : isAnalise
+      ? fetchAnaliseArquivados
+      : fetchMontagemArquivados
+  const unarchiveFn = isProducao
+    ? desarquivarProducao
+    : isAnalise
+      ? desarquivarAnalise
+      : desarquivarMontagem
 
   const loadData = async () => {
     try {

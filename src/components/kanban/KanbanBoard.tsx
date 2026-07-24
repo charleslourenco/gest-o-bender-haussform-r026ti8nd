@@ -28,7 +28,7 @@ import { KanbanHeader } from './KanbanHeader'
 import { MontadorSelect } from './MontadorSelect'
 import { CreateCardDialog } from './CreateCardDialog'
 import { MontadoresTab } from '@/pages/MontadoresTab'
-import { arquivarProducao, arquivarMontagem } from '@/services/arquivamento'
+import { arquivarProducao, arquivarMontagem, arquivarAnalise } from '@/services/arquivamento'
 import {
   Select,
   SelectContent,
@@ -145,7 +145,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       ? 'arquivado_producao'
       : isMontagemRoute
         ? 'arquivado_montagem'
-        : undefined,
+        : isAnaliseTecnica
+          ? 'arquivado_analise'
+          : undefined,
   })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -417,6 +419,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         await arquivarProducao(id)
       } else if (isMontagemRoute) {
         await arquivarMontagem(id)
+      } else if (isAnaliseTecnica) {
+        await arquivarAnalise(id)
       }
       toast.success('Card arquivado com sucesso!')
       setItems((prev) => prev.filter((i) => i?.id !== id))
@@ -601,24 +605,25 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       : 'top-2 text-muted-foreground/50 bg-card rounded',
                   )}
                 >
-                  {col.id === columns[columns.length - 1].id && (isProducao || isMontagemRoute) && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleArchiveCard(item.id)
-                      }}
-                      className={cn(
-                        'p-1 rounded transition-colors',
-                        isAnaliseTecnica || isProducao || isMontagemRoute
-                          ? 'hover:text-amber-600 hover:bg-amber-600/10'
-                          : 'hover:text-amber-600 hover:bg-amber-600/10',
-                      )}
-                      title="Arquivar"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  {col.id === columns[columns.length - 1].id &&
+                    (isProducao || isMontagemRoute || isAnaliseTecnica) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleArchiveCard(item.id)
+                        }}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          isAnaliseTecnica || isProducao || isMontagemRoute
+                            ? 'hover:text-amber-600 hover:bg-amber-600/10'
+                            : 'hover:text-amber-600 hover:bg-amber-600/10',
+                        )}
+                        title="Arquivar"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   <button
                     type="button"
                     onClick={(e) => {

@@ -2520,6 +2520,7 @@ export type Database = {
           quantidade: number
           status: string
           tamanho: string | null
+          tipo_solicitacao: string
           unidade: string
           urgencia: string
           usuario_id: string
@@ -2542,6 +2543,7 @@ export type Database = {
           quantidade: number
           status?: string
           tamanho?: string | null
+          tipo_solicitacao?: string
           unidade: string
           urgencia?: string
           usuario_id: string
@@ -2564,6 +2566,7 @@ export type Database = {
           quantidade?: number
           status?: string
           tamanho?: string | null
+          tipo_solicitacao?: string
           unidade?: string
           urgencia?: string
           usuario_id?: string

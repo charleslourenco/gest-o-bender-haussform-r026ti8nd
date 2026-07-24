@@ -78,6 +78,32 @@ export async function fetchMontagemArquivados() {
   return data
 }
 
+export async function arquivarAnalise(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ arquivado_analise: true } as any)
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function desarquivarAnalise(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ arquivado_analise: false } as any)
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function fetchAnaliseArquivados() {
+  const { data, error } = await supabase
+    .from('produtos_servicos_projeto')
+    .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
+    .eq('arquivado_analise' as any, true)
+    .order('atualizado_em', { ascending: false })
+  if (error) throw error
+  return data
+}
+
 export async function arquivarAcompanhamento(id: string): Promise<void> {
   const { error } = await supabase
     .from('acompanhamentos')
