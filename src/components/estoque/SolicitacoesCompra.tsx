@@ -74,6 +74,29 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
 
   const pendingCount = solicitacoes.filter((s) => s.status === 'Pendente').length
 
+  const renderTipoLabel = (s: Solicitacao) => {
+    const tipo = s.tipo_solicitacao || 'Cliente'
+    if (tipo === 'Produção') {
+      return (
+        <Badge className="bg-green-600 hover:bg-green-700 text-white border-none">
+          Para Produção
+        </Badge>
+      )
+    }
+    if (tipo === 'Reposição') {
+      return (
+        <Badge className="bg-blue-600 hover:bg-blue-700 text-white border-none">
+          Reposição de Estoque
+        </Badge>
+      )
+    }
+    return (
+      <span className="text-sm text-muted-foreground truncate">
+        {s.cliente?.nome || 'Sem cliente'}
+      </span>
+    )
+  }
+
   return (
     <Card className="h-full flex flex-col animate-in fade-in duration-300 min-h-0">
       <CardHeader className="flex-none flex flex-row items-center justify-between">
@@ -159,8 +182,10 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {s.quantidade} {s.unidade}
-                        {s.cliente?.nome ? ` · ${s.cliente.nome}` : ''}
                       </p>
+                    </div>
+                    <div className="shrink-0 min-w-[140px] flex justify-end">
+                      {renderTipoLabel(s)}
                     </div>
                     <div className="shrink-0">
                       <Badge

@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -24,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Form,
   FormControl,
@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { Save, Archive, Loader2, Clock, History } from 'lucide-react'
+import { Save, Archive, Loader2, History } from 'lucide-react'
 
 export type SolicitacaoDetalhe = {
   id: string
@@ -56,6 +56,7 @@ export type SolicitacaoDetalhe = {
   arquivado?: boolean | null
   editado_por?: string | null
   editado_em?: string | null
+  tipo_solicitacao?: string | null
   usuario?: { nome: string } | null
   cliente?: { nome: string } | null
   editado_por_usuario?: { nome: string } | null
@@ -82,6 +83,7 @@ const formSchema = z.object({
   cliente_id: z.string().optional().nullable(),
   status: z.string().min(1, 'Selecione um status'),
   urgencia: z.string().min(1, 'Selecione a urgência'),
+  tipo_solicitacao: z.enum(['Cliente', 'Produção', 'Reposição']),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -134,12 +136,18 @@ export function SolicitacaoCompraDetailModal({
       cliente_id: '',
       status: 'Pendente',
       urgencia: 'Média',
+      tipo_solicitacao: 'Cliente',
     },
   })
 
   useEffect(() => {
     if (solicitacao && open) {
       const { motivo: motivoTexto, observacoes } = parseMotivo(solicitacao.motivo)
+      const tipo =
+        solicitacao.tipo_solicitacao &&
+        ['Cliente', 'Produção', 'Reposição'].includes(solicitacao.tipo_solicitacao)
+          ? (solicitacao.tipo_solicitacao as 'Cliente' | 'Produção' | 'Reposição')
+          : 'Cliente'
       form.reset({
         nome_item: solicitacao.nome_item || '',
         link: solicitacao.link || '',
@@ -154,10 +162,20 @@ export function SolicitacaoCompraDetailModal({
         cliente_id: solicitacao.cliente_id || '',
         status: solicitacao.status || 'Pendente',
         urgencia: solicitacao.urgencia || 'Média',
+        tipo_solicitacao: tipo,
       })
       void observacoes
     }
   }, [solicitacao, open, form])
+
+  const tipoSolicitacao = form.watch('tipo_solicitacao')
+  const showCliente = tipoSolicitacao === 'Cliente'
+
+  useEffect(() => {
+    if (!showCliente && form.getValues('cliente_id')) {
+      form.setValue('cliente_id', '')
+    }
+  }, [showCliente, form])
 
   useEffect(() => {
     if (!open) return
@@ -235,8 +253,9 @@ export function SolicitacaoCompraDetailModal({
         data_entrega_prevista: values.data_entrega_prevista || null,
         motivo: motivoCompleto,
         urgencia: values.urgencia,
-        cliente_id: values.cliente_id || null,
+        cliente_id: values.tipo_solicitacao === 'Cliente' ? values.cliente_id || null : null,
         status: values.status,
+        tipo_solicitacao: values.tipo_solicitacao,
       }
 
       const originalNonStatus = {
@@ -252,6 +271,7 @@ export function SolicitacaoCompraDetailModal({
         motivo: solicitacao.motivo,
         urgencia: solicitacao.urgencia,
         cliente_id: solicitacao.cliente_id,
+        tipo_solicitacao: solicitacao.tipo_solicitacao,
       }
 
       const hasNonStatusChanges = Object.keys(originalNonStatus).some((key) => {
@@ -337,6 +357,76 @@ export function SolicitacaoCompraDetailModal({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="tipo_solicitacao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Solicitação</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="grid grid-cols-3 gap-2"
+                    >
+                      {(
+                        [
+                          { value: 'Cliente', label: 'Cliente' },
+                          { value: 'Produção', label: 'Para Produção' },
+                          { value: 'Reposição', label: 'Reposição de Estoque' },
+                        ] as const
+                      ).map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                            field.value === opt.value
+                              ? 'border-primary bg-primary/5 text-foreground'
+                              : 'border-input hover:bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
+                          <RadioGroupItem value={opt.value} />
+                          <span className="font-medium">{opt.label}</span>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {showCliente && (
+              <FormField
+                control={form.control}
+                name="cliente_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cliente (opcional)</FormLabel>
+                    <Select
+                      value={field.value ?? ''}
+                      onValueChange={(value) => field.onChange(value || '')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={loadingClientes ? 'Carregando...' : 'Selecione um cliente'}
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -517,36 +607,6 @@ export function SolicitacaoCompraDetailModal({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="cliente_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cliente (opcional)</FormLabel>
-                  <Select
-                    value={field.value ?? ''}
-                    onValueChange={(value) => field.onChange(value || '')}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={loadingClientes ? 'Carregando...' : 'Selecione um cliente'}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clientes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
