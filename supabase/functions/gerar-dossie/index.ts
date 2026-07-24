@@ -322,7 +322,8 @@ Deno.serve(async (req) => {
           placeholders,
           pdfMonkeyApiKey,
         )
-        const fileName = `${template.nome}_preenchido.pdf`.replace(/\s+/g, '_')
+        const safeTemplateNome = (template.nome || 'documento').replace(/\s+/g, '_')
+        const fileName = `${safeTemplateNome}_${cliente_id}_${formulario_comercial_id}.pdf`
         const filePath = `contratos/${cliente_id}/${fileName}`
 
         const { error: uploadError } = await supabaseAdmin.storage

@@ -200,12 +200,12 @@ export function AnaliseKanbanCard({
             >
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Card?'}
+                  {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Item?'}
                 </AlertDialogTitle>
                 <AlertDialogDescription>
                   {card.is_parent_card
-                    ? 'Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.'
-                    : 'Tem certeza que deseja excluir este card? Esta ação não pode ser desfeita.'}
+                    ? 'Tem certeza que deseja excluir este projeto? Todo o formulário comercial e seus itens serão removidos. O cadastro do cliente permanecerá intacto.'
+                    : 'Tem certeza que deseja excluir este item? Apenas este produto/serviço será removido. O restante do projeto e o cliente não serão afetados.'}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -214,7 +214,7 @@ export function AnaliseKanbanCard({
                   onClick={handleDelete}
                   className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
                 >
-                  Excluir
+                  Confirmar Exclusão
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

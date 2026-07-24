@@ -103,53 +103,46 @@ Deno.serve(async (req: Request) => {
 
       const { data: docInfo, error: docError } = await supabaseClient
         .from('documentos_cliente')
-        .select('projeto_id')
+        .select('projeto_id, cliente_id')
         .eq('id', documento_id)
         .single()
 
-      if (docError && !docInfo) {
+      if (docError || !docInfo) {
         throw new Error('Documento não encontrado na base de dados.')
       }
 
-      const formulario_comercial_id = docInfo?.projeto_id
+      const formulario_comercial_id = docInfo.projeto_id
+      const effectiveClienteId = cliente_id || docInfo.cliente_id
 
-      if (!cliente_id) {
+      if (!formulario_comercial_id) {
+        throw new Error(
+          'Este documento não possui um projeto (formulario_comercial_id) vinculado. Vincule o documento à venda atual antes de gerar o PDF.',
+        )
+      }
+
+      if (!effectiveClienteId) {
         throw new Error('Falta a referência do cliente (cliente_id) no documento.')
       }
 
-      let form: any = null
+      const { data: formData, error: formError } = await supabaseClient
+        .from('formulario_comercial')
+        .select('*, cliente:clientes(*)')
+        .eq('id', formulario_comercial_id)
+        .single()
 
-      if (formulario_comercial_id) {
-        const { data: formData } = await supabaseClient
-          .from('formulario_comercial')
-          .select('*, cliente:clientes(*)')
-          .eq('id', formulario_comercial_id)
-          .single()
-
-        if (formData) {
-          form = formData
-        }
-      }
-
-      if (!form && cliente_id) {
-        const { data: formData } = await supabaseClient
-          .from('formulario_comercial')
-          .select('*, cliente:clientes(*)')
-          .eq('cliente_id', cliente_id)
-          .order('atualizado_em', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (formData) {
-          form = formData
-        }
-      }
-
-      if (!form) {
+      if (formError || !formData) {
         throw new Error(
-          'Formulário comercial não encontrado para este cliente. Preencha o formulário comercial primeiro.',
+          'Formulário comercial da venda atual não encontrado. Não é permitido utilizar formulários antigos.',
         )
       }
+
+      const form: any = formData
+
+      // Ensure projeto_id is always synced to the current sale's formulario_comercial_id
+      await supabaseClient
+        .from('documentos_cliente')
+        .update({ projeto_id: formulario_comercial_id, cliente_id: effectiveClienteId })
+        .eq('id', documento_id)
 
       if (!form.cliente) {
         const { data: clientData } = await supabaseClient
@@ -437,11 +430,11 @@ Deno.serve(async (req: Request) => {
         pdfMonkeyApiKey,
       )
 
-      const safeTemplateNome = template_nome
+      const safeTemplateNome = (template_nome || 'documento')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-zA-Z0-9]/g, '_')
-      const fileName = `contratos/${cliente_id}/${safeTemplateNome}_${Date.now()}.pdf`
+      const fileName = `contratos/${effectiveClienteId}/${safeTemplateNome}_${formulario_comercial_id}_${Date.now()}.pdf`
 
       const { error: uploadError } = await supabaseClient.storage
         .from('bender_clientes')

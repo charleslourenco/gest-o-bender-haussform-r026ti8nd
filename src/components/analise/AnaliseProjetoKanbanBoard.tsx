@@ -326,8 +326,9 @@ export function AnaliseProjetoKanbanBoard() {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja excluir este projeto? Esta ação não pode ser
-                                desfeita.
+                                Tem certeza que deseja excluir este projeto? Todo o formulário
+                                comercial e seus itens serão removidos. O cadastro do cliente
+                                permanecerá intacto.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -339,9 +340,9 @@ export function AnaliseProjetoKanbanBoard() {
                                 }}
                                 className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
                               >
-                                Excluir
+                                Confirmar Exclusão
                               </AlertDialogAction>
-                            </AlertDialogFooter>
+                            </AlertDialogFooter>{' '}
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
