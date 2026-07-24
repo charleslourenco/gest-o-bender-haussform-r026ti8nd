@@ -1504,6 +1504,7 @@ export type Database = {
         Row: {
           ambientes: Json | null
           arquivado: boolean | null
+          arquivado_analise: boolean
           atualizado_em: string
           bairro: string | null
           cep: string | null
@@ -1550,6 +1551,7 @@ export type Database = {
         Insert: {
           ambientes?: Json | null
           arquivado?: boolean | null
+          arquivado_analise?: boolean
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null
@@ -1596,6 +1598,7 @@ export type Database = {
         Update: {
           ambientes?: Json | null
           arquivado?: boolean | null
+          arquivado_analise?: boolean
           atualizado_em?: string
           bairro?: string | null
           cep?: string | null

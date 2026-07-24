@@ -128,7 +128,10 @@ export function AnaliseKanbanBoard({
   const loadCards = async () => {
     let query = supabase
       .from('produtos_servicos_projeto')
-      .select('*, clientes(nome), users(nome), project_item_names')
+      .select(
+        '*, clientes(nome), users(nome), project_item_names, formulario_comercial(leads(kanban_ativo))',
+      )
+      .eq('arquivado_analise', false)
 
     if (formularioComercialId) {
       query = query.eq('formulario_comercial_id', formularioComercialId)
@@ -366,13 +369,20 @@ export function AnaliseKanbanBoard({
     }
   })
 
-  const cardsWithDeps = cards.map((c) => ({
-    ...c,
-    has_outsourced_dependency:
-      c && !c.is_outsourced && c.formulario_comercial_id
-        ? outsourcedNamesByForm.has(`${c.formulario_comercial_id}_${c.nome_produto}`)
-        : false,
-  }))
+  const cardsWithDeps = cards.map((c) => {
+    const leadsData = c?.formulario_comercial?.leads
+    const kanbanAtivo = Array.isArray(leadsData)
+      ? leadsData[0]?.kanban_ativo
+      : leadsData?.kanban_ativo
+    return {
+      ...c,
+      kanban_ativo: kanbanAtivo ?? false,
+      has_outsourced_dependency:
+        c && !c.is_outsourced && c.formulario_comercial_id
+          ? outsourcedNamesByForm.has(`${c.formulario_comercial_id}_${c.nome_produto}`)
+          : false,
+    }
+  })
 
   const filteredCards = (cardsWithDeps || []).filter((c) => {
     if (!c) return false

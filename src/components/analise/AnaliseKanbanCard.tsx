@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserCircle2, Trash2 } from 'lucide-react'
+import { UserCircle2, Trash2, Archive } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +99,33 @@ export function AnaliseKanbanCard({
     }
   }
 
+  const canArquivar =
+    card?.status_analise === 'concluido' && !card?.arquivado_analise && card?.kanban_ativo === false
+
+  const handleArquivar = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    let error: any
+    if (card?.is_parent_card && card?.formulario_comercial_id) {
+      const res = await supabase
+        .from('formulario_comercial')
+        .update({ arquivado_analise: true })
+        .eq('id', card.formulario_comercial_id)
+      error = res.error
+    } else {
+      const res = await supabase
+        .from('produtos_servicos_projeto')
+        .update({ arquivado_analise: true })
+        .eq('id', card?.id)
+      error = res.error
+    }
+    if (error) {
+      toast({ title: 'Erro ao arquivar', description: error.message, variant: 'destructive' })
+    } else {
+      toast({ title: 'Card arquivado com sucesso!' })
+      if (onDelete) onDelete(card?.id)
+    }
+  }
+
   const stopPropagation = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
   }
@@ -134,6 +161,16 @@ export function AnaliseKanbanCard({
           <span className="text-transparent">N/A</span>
         )}
         <div className="ml-auto flex items-center gap-1">
+          {canArquivar && (
+            <button
+              onClick={handleArquivar}
+              onPointerDown={(e) => e.stopPropagation()}
+              title="Arquivar"
+              className="text-muted-foreground p-1 rounded hover:bg-primary/10 hover:text-primary cursor-pointer shrink-0"
+            >
+              <Archive className="h-3.5 w-3.5" />
+            </button>
+          )}
           {needsCheck && (
             <button
               onClick={(e) => {
