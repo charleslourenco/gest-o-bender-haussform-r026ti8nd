@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, User, DollarSign, Trash2 } from 'lucide-react'
+import { Calendar, User, DollarSign, Trash2, Archive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
+import { arquivarAnaliseFormulario } from '@/services/arquivamento'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,47 +24,68 @@ const PROJECT_COLUMNS = [
   { id: 'concluido', title: 'CONCLUÍDO' },
 ]
 
+const LAST_COLUMN_ID = PROJECT_COLUMNS[PROJECT_COLUMNS.length - 1].id
+
 export function AnaliseProjetoKanbanBoard() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
   const { toast } = useToast()
   const navigate = useNavigate()
   const [users, setUsers] = useState<any[]>([])
 
   const loadProjects = async () => {
-    const { data: usersData } = await supabase.from('users').select('id, nome')
-    if (usersData) setUsers(usersData)
+    try {
+      const { data: usersData } = await supabase.from('users').select('id, nome')
+      if (usersData) setUsers(usersData)
 
-    const { data, error } = await supabase.from('formulario_comercial').select(`
-        id, 
-        valor_total, 
-        data_prevista_entrega, 
-        status_analise_projeto,
-        user_id,
-        ambientes,
-        produtos_servicos,
-        clientes (nome),
-        leads (
-          users (nome)
-        ),
-        produtos_servicos_projeto (nome_produto, is_outsourced, status_analise)
-      `)
+      const { data, error } = await supabase
+        .from('formulario_comercial')
+        .select(
+          `
+          id,
+          valor_total,
+          data_prevista_entrega,
+          status_analise_projeto,
+          user_id,
+          ambientes,
+          produtos_servicos,
+          arquivado_analise,
+          clientes (nome),
+          leads ( kanban_ativo, users (nome) ),
+          produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise )
+        `,
+        )
+        .eq('arquivado_analise' as any, false)
 
-    if (error) {
-      console.error(error)
-      return
+      if (error) {
+        console.error('Erro ao carregar projetos:', error)
+        toast({
+          title: 'Erro ao carregar projetos',
+          description: error.message,
+          variant: 'destructive',
+        })
+        setProjects([])
+        setLoading(false)
+        return
+      }
+
+      const mapped = (data || []).map((p: any) => ({
+        ...p,
+        status_analise_projeto: p.status_analise_projeto || 'iniciar',
+        arquivado_analise: p.arquivado_analise ?? false,
+      }))
+
+      setProjects(mapped)
+    } catch (err: any) {
+      console.error('Erro inesperado ao carregar projetos:', err)
+      setProjects([])
+    } finally {
+      setLoading(false)
     }
-
-    const mapped = (data || []).map((p) => ({
-      ...p,
-      status_analise_projeto: p.status_analise_projeto || 'iniciar',
-    }))
-
-    setProjects(mapped)
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -121,6 +143,23 @@ export function AnaliseProjetoKanbanBoard() {
     } else {
       toast({ title: 'Projeto excluído com sucesso!' })
       setProjects((prev) => prev.filter((p) => p.id !== id))
+    }
+  }
+
+  const handleArchiveProject = async (id: string) => {
+    setArchivingId(id)
+    try {
+      await arquivarAnaliseFormulario(id)
+      toast({ title: 'Projeto arquivado com sucesso!' })
+      setProjects((prev) => prev.filter((p) => p.id !== id))
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao arquivar projeto',
+        description: err.message || 'Erro interno.',
+        variant: 'destructive',
+      })
+    } finally {
+      setArchivingId(null)
     }
   }
 
@@ -187,6 +226,14 @@ export function AnaliseProjetoKanbanBoard() {
 
                   const clientName = project.clientes?.nome || 'Cliente não encontrado'
 
+                  const leadData: any = Array.isArray(project.leads)
+                    ? project.leads[0]
+                    : project.leads
+                  const kanbanAtivo = leadData?.kanban_ativo === true
+
+                  const canArchive =
+                    col.id === LAST_COLUMN_ID && !kanbanAtivo && project.arquivado_analise === false
+
                   let productNames: { name: string; is_outsourced: boolean }[] = []
                   if (
                     project?.produtos_servicos_projeto &&
@@ -233,40 +280,81 @@ export function AnaliseProjetoKanbanBoard() {
                         draggingId === project.id && 'opacity-50 ring-2 ring-primary',
                       )}
                     >
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button
-                            className="absolute top-3 right-3 text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100"
-                            onClick={(e) => e.stopPropagation()}
-                            title="Excluir Projeto"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja excluir este projeto? Esta ação não pode ser
-                              desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeleteProject(project.id)
-                              }}
-                              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
-                            >
-                              Excluir
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <div className="absolute top-3 right-3 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {canArchive && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                className="text-muted-foreground hover:text-amber-600 transition-colors p-1.5 rounded hover:bg-amber-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={archivingId === project.id}
+                                title="Arquivar Projeto"
+                              >
+                                <Archive className="h-4 w-4" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Arquivar Projeto?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  O projeto e todos os seus ambientes serão arquivados da Análise
+                                  Técnica. Esta ação não afeta Produção ou Montagem. Você poderá
+                                  restaurá-lo na aba Arquivados.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleArchiveProject(project.id)
+                                  }}
+                                  className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+                                >
+                                  Arquivar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
 
-                      <h4 className="font-semibold text-sm mb-3 pr-6 line-clamp-2">{clientName}</h4>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button
+                              className="text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded hover:bg-destructive/10"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Excluir Projeto"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir este projeto? Esta ação não pode ser
+                                desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteProject(project.id)
+                                }}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+
+                      <h4 className="font-semibold text-sm mb-3 pr-14 line-clamp-2">
+                        {clientName}
+                      </h4>
 
                       <div className="space-y-2 mb-3">
                         <div className="flex items-center text-xs text-muted-foreground">

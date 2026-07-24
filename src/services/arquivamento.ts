@@ -104,6 +104,46 @@ export async function fetchAnaliseArquivados() {
   return data
 }
 
+export async function arquivarAnaliseFormulario(formularioId: string): Promise<void> {
+  const { error: errMain } = await supabase
+    .from('formulario_comercial')
+    .update({ arquivado_analise: true } as any)
+    .eq('id', formularioId)
+  if (errMain) throw errMain
+
+  const { error: errChildren } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ arquivado_analise: true } as any)
+    .eq('formulario_comercial_id', formularioId)
+  if (errChildren) throw errChildren
+}
+
+export async function desarquivarAnaliseFormulario(formularioId: string): Promise<void> {
+  const { error: errMain } = await supabase
+    .from('formulario_comercial')
+    .update({ arquivado_analise: false } as any)
+    .eq('id', formularioId)
+  if (errMain) throw errMain
+
+  const { error: errChildren } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ arquivado_analise: false } as any)
+    .eq('formulario_comercial_id', formularioId)
+  if (errChildren) throw errChildren
+}
+
+export async function fetchAnaliseFormularioArquivados() {
+  const { data, error } = await supabase
+    .from('formulario_comercial')
+    .select(
+      'id, nome_cliente, valor_total, data_prevista_entrega, status_analise_projeto, atualizado_em, arquivado_analise, clientes(nome), leads(kanban_ativo)',
+    )
+    .eq('arquivado_analise' as any, true)
+    .order('atualizado_em', { ascending: false })
+  if (error) throw error
+  return data
+}
+
 export async function arquivarAcompanhamento(id: string): Promise<void> {
   const { error } = await supabase
     .from('acompanhamentos')
