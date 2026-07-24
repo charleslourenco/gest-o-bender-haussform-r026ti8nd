@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Users, ChevronRight, UserPlus, Loader2, X } from 'lucide-react'
+import { Users, ChevronRight, UserPlus, Loader2, X, FolderSearch } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { createNewClientFlow } from '@/services/cliente-form'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { RecuperarClienteDialog } from './recuperar-cliente-dialog'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -82,7 +83,7 @@ function normalizeLead(raw: any): LeadRelation | null {
 }
 
 export function ClientesList({ onSelect }: ClientesListProps) {
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const [clientesData, setClientesData] = useState<ClienteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -90,6 +91,10 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   const [totalVendido, setTotalVendido] = useState(0)
   const [numVendas, setNumVendas] = useState(0)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [recuperarOpen, setRecuperarOpen] = useState(false)
+
+  const nivelClientes = permissions?.['Clientes'] || permissions?.['Área de Clientes'] || ''
+  const canRecuperar = nivelClientes ? nivelClientes.toLowerCase() === 'admin' : false
 
   const [clientes, setClientes] = useState<FilterOption[]>([])
   const [consultores, setConsultores] = useState<FilterOption[]>([])
@@ -220,15 +225,38 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">Gerencie o histórico e dossiês dos clientes</p>
         </div>
-        <Button onClick={handleNewClient} disabled={creating} className="shrink-0">
-          {creating ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <UserPlus className="w-4 h-4 mr-2" />
+        <div className="flex items-center gap-2 shrink-0">
+          {canRecuperar && (
+            <Button
+              variant="outline"
+              onClick={() => setRecuperarOpen(true)}
+              className="shrink-0"
+              title="Recuperar documentos de clientes excluídos"
+            >
+              <FolderSearch className="w-4 h-4 mr-2" />
+              Recuperar Cliente
+            </Button>
           )}
-          Novo Cliente
-        </Button>
+          <Button onClick={handleNewClient} disabled={creating} className="shrink-0">
+            {creating ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <UserPlus className="w-4 h-4 mr-2" />
+            )}
+            Novo Cliente
+          </Button>
+        </div>
       </div>
+
+      <RecuperarClienteDialog
+        open={recuperarOpen}
+        onOpenChange={setRecuperarOpen}
+        onRecovered={(clientId) => {
+          setRecuperarOpen(false)
+          setRefreshTrigger((prev) => prev + 1)
+          onSelect(clientId)
+        }}
+      />
 
       <div className="px-6 pb-6 flex-1 flex flex-col gap-4 min-h-0">
         <div className="bg-card border border-border rounded-xl p-4 shadow-sm shrink-0">
