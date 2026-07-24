@@ -6,7 +6,9 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
+  Eye,
 } from 'lucide-react'
+import { openStorageFileInNewTab } from '@/lib/file-viewer'
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { maskCpfCnpj, sanitizeCpfCnpj, detectTipoPessoa } from '@/lib/cpf-cnpj'
 import { toast } from 'sonner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   scanOrphanFolders,
   recoverOrphanFolder,
@@ -144,6 +147,13 @@ export function RecuperarClienteDialog({
   const handleSelectOrphan = (o: OrphanFolder) => {
     setSelected(o)
     setStep('detail')
+  }
+
+  const handlePreviewFile = async (file: StorageFile) => {
+    const result = await openStorageFileInNewTab(file.path, { bucket: 'bender_clientes' })
+    if (!result.success) {
+      toast.error(result.error || 'Não foi possível visualizar o arquivo.')
+    }
   }
 
   const goToTarget = async () => {
@@ -317,7 +327,7 @@ export function RecuperarClienteDialog({
                       key={f.path}
                       className="flex items-center justify-between gap-3 p-2.5 text-sm"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{f.name}</p>
                         <p className="text-xs text-muted-foreground truncate font-mono">{f.path}</p>
                       </div>
@@ -329,6 +339,22 @@ export function RecuperarClienteDialog({
                           </p>
                         )}
                       </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-primary"
+                            onClick={() => handlePreviewFile(f)}
+                            title="Visualizar arquivo"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-card text-card-foreground border border-border">
+                          Visualizar
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   ))}
                 </div>
