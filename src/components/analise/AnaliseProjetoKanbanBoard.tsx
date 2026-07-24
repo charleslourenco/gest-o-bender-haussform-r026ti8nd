@@ -24,8 +24,6 @@ const PROJECT_COLUMNS = [
   { id: 'concluido', title: 'CONCLUÍDO' },
 ]
 
-const LAST_COLUMN_ID = PROJECT_COLUMNS[PROJECT_COLUMNS.length - 1].id
-
 export function AnaliseProjetoKanbanBoard() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -226,13 +224,14 @@ export function AnaliseProjetoKanbanBoard() {
 
                   const clientName = project.clientes?.nome || 'Cliente não encontrado'
 
-                  const leadData: any = Array.isArray(project.leads)
-                    ? project.leads[0]
-                    : project.leads
-                  const kanbanAtivo = leadData?.kanban_ativo === true
+                  const childItems: any[] = Array.isArray(project.produtos_servicos_projeto)
+                    ? project.produtos_servicos_projeto
+                    : []
+                  const allInFinalStage =
+                    childItems.length > 0 &&
+                    childItems.every((p: any) => p?.status_analise === 'aguardando_plano_corte')
 
-                  const canArchive =
-                    col.id === LAST_COLUMN_ID && !kanbanAtivo && project.arquivado_analise === false
+                  const canArchive = allInFinalStage && project.arquivado_analise === false
 
                   let productNames: { name: string; is_outsourced: boolean }[] = []
                   if (
