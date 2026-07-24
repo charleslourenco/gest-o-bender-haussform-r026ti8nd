@@ -99,8 +99,7 @@ export function AnaliseKanbanCard({
     }
   }
 
-  const canArquivar =
-    card?.status_analise === 'concluido' && !card?.arquivado_analise && card?.kanban_ativo === false
+  const canArquivar = card?.status_analise === 'aguardando_plano_corte' && !card?.arquivado_analise
 
   const handleArquivar = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
