@@ -224,14 +224,9 @@ export function AnaliseProjetoKanbanBoard() {
 
                   const clientName = project.clientes?.nome || 'Cliente não encontrado'
 
-                  const childItems: any[] = Array.isArray(project.produtos_servicos_projeto)
-                    ? project.produtos_servicos_projeto
-                    : []
-                  const allInFinalStage =
-                    childItems.length > 0 &&
-                    childItems.every((p: any) => p?.status_analise === 'aguardando_plano_corte')
-
-                  const canArchive = allInFinalStage && project.arquivado_analise === false
+                  const canArchive =
+                    project.status_analise_projeto === 'concluido' &&
+                    project.arquivado_analise === false
 
                   let productNames: { name: string; is_outsourced: boolean }[] = []
                   if (
