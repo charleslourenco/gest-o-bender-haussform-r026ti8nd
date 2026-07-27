@@ -18,10 +18,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Group, CheckCircle2, Paperclip, MoreVertical, Pencil } from 'lucide-react'
+import { Group, CheckCircle2, Paperclip, MoreVertical, Pencil, Eye } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { AgruparContasDialog } from '@/components/financeiro/AgruparContasDialog'
 import { EditarContaDialog } from '@/components/financeiro/EditarContaDialog'
+import { DetalhesContaDialog } from '@/components/financeiro/DetalhesContaDialog'
 import { supabase } from '@/lib/supabase/client'
 import { getInvoiceSignedUrl } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
@@ -42,6 +43,9 @@ export interface ExtendedTransaction {
   antecipado?: boolean | null
   comprovanteUrl?: string | null
   notaFiscalId?: string | null
+  grupoId?: string | null
+  observacoes?: string | null
+  contaBancariaId?: string | null
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -87,6 +91,9 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   const [editOpen, setEditOpen] = useState(false)
   const [editTipo, setEditTipo] = useState<'pagar' | 'receber'>('pagar')
   const [editConta, setEditConta] = useState<any>(null)
+  const [detalhesOpen, setDetalhesOpen] = useState(false)
+  const [detalhesConta, setDetalhesConta] = useState<any>(null)
+  const [detalhesTipo, setDetalhesTipo] = useState<'pagar' | 'receber'>('pagar')
   const { toast } = useToast()
 
   const pagar = useMemo(() => transactions.filter((t) => t.type === 'despesa'), [transactions])
@@ -116,6 +123,12 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
     setEditTipo(tipo)
     setEditConta(conta)
     setEditOpen(true)
+  }
+
+  function openDetails(tipo: 'pagar' | 'receber', conta: any) {
+    setDetalhesTipo(tipo)
+    setDetalhesConta(conta)
+    setDetalhesOpen(true)
   }
 
   async function markPaid(
@@ -191,7 +204,21 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
           </TableHeader>
           <TableBody>
             {items.map((t) => (
-              <TableRow key={t.id} data-state={sel.includes(t.id) ? 'selected' : undefined}>
+              <TableRow
+                key={t.id}
+                className="cursor-pointer"
+                onClick={(e) => {
+                  const target = e.target as HTMLElement
+                  if (
+                    target.closest('button') ||
+                    target.closest('input') ||
+                    target.closest('[role="checkbox"]')
+                  )
+                    return
+                  openDetails(isPagar ? 'pagar' : 'receber', t.source)
+                }}
+                data-state={sel.includes(t.id) ? 'selected' : undefined}
+              >
                 <TableCell>
                   {canSel(t) && (
                     <Checkbox
@@ -236,6 +263,11 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => openDetails(isPagar ? 'pagar' : 'receber', t.source)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => openEdit(isPagar ? 'pagar' : 'receber', t.source)}
                       >
@@ -318,6 +350,13 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
         onOpenChange={setEditOpen}
         tipo={editTipo}
         conta={editConta}
+        onSuccess={onRefresh}
+      />
+      <DetalhesContaDialog
+        open={detalhesOpen}
+        onOpenChange={setDetalhesOpen}
+        tipo={detalhesTipo}
+        conta={detalhesConta}
         onSuccess={onRefresh}
       />
     </div>

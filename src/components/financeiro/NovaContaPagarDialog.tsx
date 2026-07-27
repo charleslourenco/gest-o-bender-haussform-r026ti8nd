@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
@@ -51,6 +52,7 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [qtdMeses, setQtdMeses] = useState('2')
   const [divisoes, setDivisoes] = useState<DivisaoRow[]>([])
   const [divisaoError, setDivisaoError] = useState<string | null>(null)
+  const [observacoes, setObservacoes] = useState('')
 
   useEffect(() => {
     if (!open) {
@@ -115,6 +117,7 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
     setRecorrente(false)
     setQtdMeses('2')
     setDivisoes([])
+    setObservacoes('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,6 +127,7 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
       setLoading(true)
       const valorNum = Number(valor)
       const meses = recorrente ? Math.max(1, parseInt(qtdMeses, 10) || 1) : 1
+      const grupoId = meses > 1 ? crypto.randomUUID() : null
 
       const hasDivisoes = divisoes.length > 0
 
@@ -162,6 +166,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
             p_conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
             p_meses: meses,
             p_divisoes: divisoesPayload,
+            p_grupo_id: grupoId,
+            p_observacoes: observacoes || null,
           },
         )
 
@@ -186,6 +192,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
             user_id: user?.id,
             status_pagamento: 'aguardando',
             conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
+            grupo_id: grupoId,
+            observacoes: observacoes || null,
           })
         }
 
@@ -378,6 +386,17 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="observacoes">Observações</Label>
+            <Textarea
+              id="observacoes"
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Notas adicionais sobre este lançamento..."
+              rows={2}
+            />
           </div>
 
           <Button type="submit" className="w-full" disabled={loading || !isValid}>

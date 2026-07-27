@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import {
   Select,
@@ -40,6 +41,7 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
   const [clienteId, setClienteId] = useState('none')
   const [contaBancariaId, setContaBancariaId] = useState('none')
   const [contas, setContas] = useState<any[]>([])
+  const [observacoes, setObservacoes] = useState('')
 
   useEffect(() => {
     if (!open) {
@@ -76,6 +78,7 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
         meio_pagamento: meioPagamento,
         cliente_id: clienteId === 'none' ? null : clienteId,
         conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
+        observacoes: observacoes || null,
       })
 
       if (error) throw error
@@ -90,6 +93,7 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
       setMeioPagamento('Pix')
       setClienteId('none')
       setContaBancariaId('none')
+      setObservacoes('')
     } catch (error) {
       toast({
         title: 'Erro',
@@ -207,6 +211,15 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Observações</Label>
+            <Textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Notas adicionais sobre este lançamento..."
+              rows={2}
+            />
           </div>
           <DialogFooter className="pt-4">
             <DialogClose asChild>

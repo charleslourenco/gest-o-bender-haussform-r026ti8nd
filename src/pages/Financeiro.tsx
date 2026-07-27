@@ -54,6 +54,9 @@ export default function Financeiro() {
         meioPagamento: r.meio_pagamento,
         antecipado: r.antecipado,
         comprovanteUrl: r.comprovante_url,
+        grupoId: r.grupo_id,
+        observacoes: r.observacoes,
+        contaBancariaId: r.conta_bancaria_id,
       }))
 
       const pagamentos = (pagarRes.data || []).map((p: any) => ({
@@ -72,6 +75,9 @@ export default function Financeiro() {
         antecipado: p.antecipado,
         comprovanteUrl: p.comprovante_url,
         notaFiscalId: p.nota_fiscal_id,
+        grupoId: p.grupo_id,
+        observacoes: p.observacoes,
+        contaBancariaId: p.conta_bancaria_id,
       }))
 
       setTransactions(
