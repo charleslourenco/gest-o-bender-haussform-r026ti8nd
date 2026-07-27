@@ -492,9 +492,11 @@ export type Database = {
           data_vencimento: string | null
           descricao: string | null
           fornecedor: string
+          grupo_id: string | null
           id: string
           meio_pagamento: string | null
           nota_fiscal_id: string | null
+          observacoes: string | null
           status_pagamento: string
           user_id: string | null
           valor: number
@@ -511,9 +513,11 @@ export type Database = {
           data_vencimento?: string | null
           descricao?: string | null
           fornecedor: string
+          grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
           nota_fiscal_id?: string | null
+          observacoes?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor: number
@@ -530,9 +534,11 @@ export type Database = {
           data_vencimento?: string | null
           descricao?: string | null
           fornecedor?: string
+          grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
           nota_fiscal_id?: string | null
+          observacoes?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor?: number
@@ -599,9 +605,11 @@ export type Database = {
           data_vencimento: string
           descricao: string | null
           formulario_comercial_id: string | null
+          grupo_id: string | null
           id: string
           meio_pagamento: string | null
           numero_parcela: string
+          observacoes: string | null
           status_pagamento: string
           user_id: string | null
           valor: number
@@ -618,9 +626,11 @@ export type Database = {
           data_vencimento: string
           descricao?: string | null
           formulario_comercial_id?: string | null
+          grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
           numero_parcela: string
+          observacoes?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor: number
@@ -637,9 +647,11 @@ export type Database = {
           data_vencimento?: string
           descricao?: string | null
           formulario_comercial_id?: string | null
+          grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
           numero_parcela?: string
+          observacoes?: string | null
           status_pagamento?: string
           user_id?: string | null
           valor?: number
@@ -2880,6 +2892,22 @@ export type Database = {
       has_module_access: {
         Args: { mod: string; user_id: string }
         Returns: boolean
+      }
+      insert_conta_pagar_with_divisoes: {
+        Args: {
+          p_categoria: string
+          p_conta_bancaria_id: string
+          p_data_vencimento: string
+          p_descricao: string
+          p_divisoes: Json
+          p_fornecedor: string
+          p_grupo_id?: string
+          p_meses: number
+          p_observacoes?: string
+          p_user_id: string
+          p_valor: number
+        }
+        Returns: Json
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_signature_completed: { Args: { p_status: string }; Returns: boolean }

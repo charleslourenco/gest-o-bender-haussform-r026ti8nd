@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { UnifiedPayeeSelect, PayeeOption } from './UnifiedPayeeSelect'
+import { DivisaoRow } from './DivisoesRateioSection'
 import { formatCurrency } from '@/lib/utils'
 
 function addMonths(dateStr: string, months: number): string {

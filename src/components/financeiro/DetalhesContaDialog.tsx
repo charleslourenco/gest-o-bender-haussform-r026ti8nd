@@ -7,7 +7,17 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader2, Save } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -20,6 +30,21 @@ interface DetalhesContaDialogProps {
   conta: any
   onSuccess: () => void
 }
+
+const STATUS_OPTIONS = [
+  { value: 'aguardando', label: 'Aguardando' },
+  { value: 'pago', label: 'Pago' },
+  { value: 'agrupado', label: 'Agrupado' },
+]
+
+const MEIO_PAGAMENTO_OPTIONS = [
+  { value: 'Pix', label: 'Pix' },
+  { value: 'Boleto', label: 'Boleto' },
+  { value: 'Transferência', label: 'Transferência' },
+  { value: 'Cartão', label: 'Cartão' },
+  { value: 'Dinheiro', label: 'Dinheiro' },
+  { value: 'Cheque', label: 'Cheque' },
+]
 
 function Section({ title, children }: { title: string; children: any }) {
   return (
@@ -59,11 +84,23 @@ export function DetalhesContaDialog({
   const [clienteName, setClienteName] = useState<string | null>(null)
   const [observacoes, setObservacoes] = useState('')
 
+  const [status, setStatus] = useState('aguardando')
+  const [meioPagamento, setMeioPagamento] = useState('')
+  const [contaBancariaId, setContaBancariaId] = useState('none')
+  const [dataPagamento, setDataPagamento] = useState('')
+  const [antecipado, setAntecipado] = useState(false)
+  const [contas, setContas] = useState<any[]>([])
+
   const table = tipo === 'pagar' ? 'contas_pagar' : 'contas_receber'
 
   useEffect(() => {
     if (!open || !conta) return
     setObservacoes(conta.observacoes || '')
+    setStatus((conta.status_pagamento || 'aguardando').toLowerCase())
+    setMeioPagamento(conta.meio_pagamento || '')
+    setContaBancariaId(conta.conta_bancaria_id || 'none')
+    setDataPagamento(conta.data_pagamento || '')
+    setAntecipado(!!conta.antecipado)
     setInstallments([])
     setOrigins([])
     setBankAccount(null)
@@ -73,6 +110,12 @@ export function DetalhesContaDialog({
     const load = async () => {
       setLoading(true)
       try {
+        const { data: contasData } = await supabase
+          .from('contas_bancarias')
+          .select('id, nome_exibicao, banco, status')
+          .order('nome_exibicao')
+        if (!cancelled) setContas((contasData || []).filter((c: any) => c.status))
+
         const grupoId = conta.grupo_id
         let groupData: any[] = []
         if (grupoId) {
@@ -135,16 +178,43 @@ export function DetalhesContaDialog({
     }
   }, [open, conta, table, tipo])
 
+  const isPago = status.toLowerCase() === 'pago'
+
   const handleSave = async () => {
     if (!conta) return
     setSaving(true)
     try {
-      const { error } = await supabase.from(table).update({ observacoes }).eq('id', conta.id)
+      const payload: any = {
+        observacoes,
+        status_pagamento: status,
+      }
+
+      if (isPago) {
+        payload.meio_pagamento = meioPagamento || null
+        payload.conta_bancaria_id = contaBancariaId === 'none' ? null : contaBancariaId
+        payload.data_pagamento = dataPagamento || null
+        payload.antecipado = antecipado
+      } else {
+        payload.meio_pagamento = null
+        payload.conta_bancaria_id = null
+        payload.data_pagamento = null
+        payload.antecipado = false
+      }
+
+      const { error } = await supabase
+        .from(table)
+        .update({ ...payload, atualizado_em: new Date().toISOString() })
+        .eq('id', conta.id)
       if (error) throw error
-      toast({ title: 'Observações salvas com sucesso!' })
+      toast({ title: 'Alterações salvas com sucesso!' })
       onSuccess()
-    } catch {
-      toast({ title: 'Erro ao salvar observações', variant: 'destructive' })
+      onOpenChange(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: err?.message || 'Falha ao salvar alterações.',
+        variant: 'destructive',
+      })
     } finally {
       setSaving(false)
     }
@@ -176,8 +246,25 @@ export function DetalhesContaDialog({
               <InfoRow label="Descrição" value={conta.descricao || '-'} />
               <InfoRow label="Valor Total" value={formatCurrency(totalValue)} />
               <InfoRow label="Categoria" value={conta.categoria || '-'} />
-              <InfoRow label="Status" value={conta.status_pagamento || '-'} />
               <InfoRow label="Vencimento" value={fmtDate(conta.data_vencimento)} />
+
+              <div className="flex flex-col gap-2 pt-2 border-t mt-2">
+                <Label htmlFor="detalhe-status" className="text-sm font-medium">
+                  Status
+                </Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger id="detalhe-status">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </Section>
 
             {conta.grupo_id ? (
@@ -236,17 +323,75 @@ export function DetalhesContaDialog({
             </Section>
 
             <Section title={tipo === 'pagar' ? 'Pagamento' : 'Recebimento'}>
-              <InfoRow label="Meio de Pagamento" value={conta.meio_pagamento || '-'} />
-              <InfoRow
-                label="Conta Bancária"
-                value={
-                  bankAccount
-                    ? `${bankAccount.nome_exibicao}${bankAccount.banco ? ' — ' + bankAccount.banco : ''}`
-                    : '-'
-                }
-              />
-              <InfoRow label="Data Pagamento" value={fmtDate(conta.data_pagamento)} />
-              {conta.antecipado && <InfoRow label="Antecipado" value="Sim" />}
+              {isPago ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="detalhe-meio" className="text-sm font-medium">
+                      Meio de Pagamento
+                    </Label>
+                    <Select value={meioPagamento} onValueChange={setMeioPagamento}>
+                      <SelectTrigger id="detalhe-meio">
+                        <SelectValue placeholder="Selecione o meio de pagamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MEIO_PAGAMENTO_OPTIONS.map((m) => (
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="detalhe-conta" className="text-sm font-medium">
+                      Conta Bancária
+                    </Label>
+                    <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+                      <SelectTrigger id="detalhe-conta">
+                        <SelectValue placeholder="Selecione a conta bancária" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                        {contas.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome_exibicao}
+                            {c.banco ? ` — ${c.banco}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="detalhe-data-pagamento" className="text-sm font-medium">
+                      Data de Pagamento
+                    </Label>
+                    <Input
+                      id="detalhe-data-pagamento"
+                      type="date"
+                      value={dataPagamento}
+                      onChange={(e) => setDataPagamento(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2 pt-1">
+                    <Checkbox
+                      id="detalhe-antecipado"
+                      checked={antecipado}
+                      onCheckedChange={(v) => setAntecipado(v === true)}
+                    />
+                    <Label htmlFor="detalhe-antecipado" className="cursor-pointer text-sm">
+                      Antecipado
+                    </Label>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Os campos de pagamento ficam disponíveis quando o status é definido como
+                  &ldquo;Pago&rdquo;.
+                </p>
+              )}
             </Section>
 
             <Section title="Observações">
@@ -256,15 +401,21 @@ export function DetalhesContaDialog({
                 placeholder="Adicione observações sobre este lançamento..."
                 rows={3}
               />
-              <Button size="sm" onClick={handleSave} disabled={saving} className="mt-2">
+            </Section>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Fechar
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
                 {saving ? (
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                 ) : (
-                  <Save className="w-3 h-3 mr-1" />
+                  <Save className="w-4 h-4 mr-1" />
                 )}
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>
-            </Section>
+            </div>
           </div>
         )}
       </DialogContent>
