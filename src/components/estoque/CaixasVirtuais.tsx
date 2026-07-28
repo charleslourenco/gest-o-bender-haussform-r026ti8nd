@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, PackageOpen, Check, Box, Trash2, Link2, UserRound } from 'lucide-react'
+import { Plus, PackageOpen, Check, Box, Trash2, Link2, UserRound, Search } from 'lucide-react'
 import { maskCpf } from '@/lib/cpf'
 import {
   Dialog,
@@ -13,33 +13,32 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
+import { ItemSearchModal, type InventoryItem } from '@/components/estoque/ItemSearchModal'
 
 export function CaixasVirtuais() {
   const [caixas, setCaixas] = useState<any[]>([])
   const [clientes, setClientes] = useState<any[]>([])
-  const [itensEstoque, setItensEstoque] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
   const [selectedCaixa, setSelectedCaixa] = useState<any>(null)
 
   const [novaCaixa, setNovaCaixa] = useState({ nome: '', cliente_id: '' })
-  const [novoItem, setNovoItem] = useState({ item_id: '', quantidade: 1 })
+  const [novoItem, setNovoItem] = useState<{
+    item_id: string
+    quantidade: number
+    nome?: string
+    unidade?: string
+    disponivel?: number
+  }>({ item_id: '', quantidade: 1 })
 
   const { toast } = useToast()
 
   useEffect(() => {
     fetchCaixas()
     fetchClientes()
-    fetchItensEstoque()
   }, [])
 
   async function fetchCaixas() {
@@ -58,15 +57,6 @@ export function CaixasVirtuais() {
       .select('id, nome')
       .order('nome')
     if (data) setClientes(data)
-  }
-
-  async function fetchItensEstoque() {
-    const { data } = await supabase
-      .from('estoque_itens' as any)
-      .select('id, nome, quantidade, unidade')
-      .gt('quantidade', 0)
-      .order('nome')
-    if (data) setItensEstoque(data)
   }
 
   async function handleCriarCaixa() {
@@ -89,11 +79,10 @@ export function CaixasVirtuais() {
     if (!novoItem.item_id || novoItem.quantidade <= 0)
       return toast({ title: 'Dados inválidos', variant: 'destructive' })
 
-    const itemEstoque = itensEstoque.find((i) => i.id === novoItem.item_id)
-    if (itemEstoque && novoItem.quantidade > itemEstoque.quantidade) {
+    if (novoItem.disponivel !== undefined && novoItem.quantidade > novoItem.disponivel) {
       return toast({
         title: 'Quantidade indisponível',
-        description: `Temos apenas ${itemEstoque.quantidade} em estoque.`,
+        description: `Temos apenas ${novoItem.disponivel} ${novoItem.unidade || ''} em estoque.`,
         variant: 'destructive',
       })
     }
@@ -111,7 +100,20 @@ export function CaixasVirtuais() {
       setIsItemModalOpen(false)
       setNovoItem({ item_id: '', quantidade: 1 })
       fetchCaixas()
-      fetchItensEstoque()
+    }
+  }
+
+  function handleSelectItem(item: InventoryItem) {
+    setNovoItem({
+      item_id: item.id,
+      quantidade: 1,
+      nome: item.nome,
+      unidade: item.unidade,
+      disponivel: Number(item.quantidade || 0),
+    })
+    setIsSearchModalOpen(false)
+    if (!isItemModalOpen) {
+      setIsItemModalOpen(true)
     }
   }
 
@@ -133,7 +135,6 @@ export function CaixasVirtuais() {
     } else {
       toast({ title: 'Caixa apagada', description: 'Itens retornados ao estoque.' })
       fetchCaixas()
-      fetchItensEstoque()
     }
   }
 
@@ -364,6 +365,13 @@ export function CaixasVirtuais() {
         </DialogContent>
       </Dialog>
 
+      <ItemSearchModal
+        open={isSearchModalOpen}
+        onOpenChange={setIsSearchModalOpen}
+        onSelect={handleSelectItem}
+        title="Buscar Item para a Caixa"
+      />
+
       <Dialog open={isItemModalOpen} onOpenChange={setIsItemModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -372,21 +380,38 @@ export function CaixasVirtuais() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Item do Estoque</Label>
-              <Select
-                value={novoItem.item_id}
-                onValueChange={(v) => setNovoItem({ ...novoItem, item_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um item disponível..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {itensEstoque.map((i) => (
-                    <SelectItem key={i.id} value={i.id}>
-                      {i.nome} (Disp: {i.quantidade} {i.unidade})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {novoItem.item_id && novoItem.nome ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate">
+                      {novoItem.nome}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      Unidade: {novoItem.unidade || '-'} · Disponível: {novoItem.disponivel ?? 0}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-steel-blue dark:text-blue-400"
+                    onClick={() => {
+                      setNovoItem({ item_id: '', quantidade: 1 })
+                      setIsSearchModalOpen(true)
+                    }}
+                  >
+                    <Search className="w-4 h-4 mr-1" /> Trocar
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-muted-foreground"
+                  onClick={() => setIsSearchModalOpen(true)}
+                >
+                  <Search className="w-4 h-4 mr-2" />
+                  Buscar item no estoque...
+                </Button>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Quantidade</Label>
@@ -396,6 +421,11 @@ export function CaixasVirtuais() {
                 value={novoItem.quantidade}
                 onChange={(e) => setNovoItem({ ...novoItem, quantidade: Number(e.target.value) })}
               />
+              {novoItem.disponivel !== undefined && (
+                <p className="text-xs text-gray-400 dark:text-slate-500">
+                  Disponível em estoque: {novoItem.disponivel} {novoItem.unidade || ''}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -405,6 +435,7 @@ export function CaixasVirtuais() {
             <Button
               onClick={handleAdicionarItem}
               className="bg-steel-blue text-white hover:bg-dark-denim"
+              disabled={!novoItem.item_id}
             >
               Adicionar
             </Button>
