@@ -282,8 +282,6 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         .from('bender_clientes')
         .upload(filePath, file, {
           upsert: false,
-          // @ts-expect-error: using undocumented flag or explicit resumable config
-          resumable: true,
         })
 
       if (uploadError) throw uploadError
