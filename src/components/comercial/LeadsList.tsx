@@ -27,18 +27,18 @@ export function LeadsList({ leads }: { leads: any[] }) {
           <TableBody>
             {leads.map((lead) => (
               <TableRow key={lead.id}>
-                <TableCell className="font-medium">{lead.nome}</TableCell>
-                <TableCell className="text-muted-foreground">{lead.email}</TableCell>
-                <TableCell>{lead.telefone}</TableCell>
+                <TableCell className="font-medium text-lucent-white">{lead.nome}</TableCell>
+                <TableCell className="text-lucent-white">{lead.email}</TableCell>
+                <TableCell className="text-lucent-white">{lead.telefone}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="font-normal">
+                  <Badge variant="outline" className="font-normal text-lucent-white">
                     {lead.origem || '-'}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary">{lead.status || 'Novo Lead'}</Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground text-sm">
+                <TableCell className="text-lucent-white text-sm">
                   {new Date(lead.criado_em).toLocaleDateString('pt-BR')}
                 </TableCell>
               </TableRow>

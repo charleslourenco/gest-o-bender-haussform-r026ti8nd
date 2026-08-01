@@ -46,6 +46,7 @@ export default {
         'steel-blue': '#4D5357',
         'pale-cornflower': '#DBDCDB',
         'off-white': '#F2F3F3',
+        'lucent-white': 'hsl(180 4% 95%)',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
