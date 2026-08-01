@@ -21,28 +21,28 @@ export default function GestaoPessoas() {
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col bg-off-white">
       <Tabs defaultValue="clt" className="flex-1 flex flex-col min-h-0 w-full mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center justify-between w-full bg-midnight-navy text-off-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <UsersRound className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Gestão de Pessoas</h2>
+              <UsersRound className="w-5 h-5 text-off-white" />
+              <h2 className="text-lg font-bold text-off-white">Gestão de Pessoas</h2>
             </div>
-            <TabsList className="bg-white/10 border-none h-9">
+            <TabsList className="bg-off-white/10 border-none h-9">
               <TabsTrigger
                 value="clt"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white"
               >
                 Time CLT
               </TabsTrigger>
               <TabsTrigger
                 value="pj"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white"
               >
                 Parceiros PJ
               </TabsTrigger>
               <TabsTrigger
                 value="fornecedores"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white"
               >
                 Fornecedores
               </TabsTrigger>
