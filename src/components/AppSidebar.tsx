@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { supabase } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   Users,
@@ -62,30 +60,6 @@ const menuItems = [
 export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
-  const [empresa, setEmpresa] = useState<{
-    nome: string
-    logo_url: string | null
-    atualizado_em?: string
-  } | null>(null)
-
-  useEffect(() => {
-    async function fetchEmpresa() {
-      const { data } = await supabase
-        .from('empresa')
-        .select('nome, logo_url, atualizado_em')
-        .order('criado_em', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (data) {
-        setEmpresa(data)
-      }
-    }
-    fetchEmpresa()
-
-    const handleBrandingUpdated = () => fetchEmpresa()
-    window.addEventListener('branding_updated', handleBrandingUpdated)
-    return () => window.removeEventListener('branding_updated', handleBrandingUpdated)
-  }, [])
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
 
@@ -98,19 +72,11 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
       <SidebarHeader className="p-4 flex flex-col justify-center min-h-[64px]">
-        {empresa?.logo_url ? (
-          <img
-            src={`${empresa.logo_url}${empresa.logo_url.includes('?') ? '&' : '?'}t=${empresa.atualizado_em ? new Date(empresa.atualizado_em).getTime() : Date.now()}`}
-            alt={empresa.nome || 'Logo da Empresa'}
-            className="max-h-12 w-full object-contain logo-always-light"
-          />
-        ) : empresa?.nome ? (
-          <div className="flex flex-row items-center gap-2 w-full justify-center">
-            <span className="font-bold text-xl text-sidebar-foreground truncate text-center">
-              {empresa.nome}
-            </span>
-          </div>
-        ) : null}
+        <img
+          src="/ativo%20203.png"
+          alt="Bender Haussform"
+          className="max-h-12 w-full object-contain"
+        />
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
         <SidebarGroup className="flex-1 overflow-y-auto z-10 pb-4">

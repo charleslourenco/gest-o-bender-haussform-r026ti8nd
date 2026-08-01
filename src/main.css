@@ -53,33 +53,39 @@
   }
 
   .dark {
-    --background: 240 4% 16%; /* Black Beauty */
+    --background: 204 6% 32%; /* Metallic Fir */
     --foreground: 180 4% 95%; /* Lucent White */
-    --card: 240 4% 20%;
-    --card-foreground: 180 4% 95%;
-    --popover: 240 4% 20%;
-    --popover-foreground: 180 4% 95%;
+    --card: 240 4% 16%; /* Black Beauty */
+    --card-foreground: 180 4% 95%; /* Lucent White */
+    --popover: 240 4% 16%; /* Black Beauty */
+    --popover-foreground: 180 4% 95%; /* Lucent White */
     --primary: 180 4% 95%; /* Lucent White */
     --primary-foreground: 240 4% 16%; /* Black Beauty */
-    --secondary: 204 6% 32%; /* Metallic Fir */
-    --secondary-foreground: 180 4% 95%;
-    --muted: 240 4% 22%;
-    --muted-foreground: 190 4% 66%; /* Silver 10077 C */
-    --accent: 204 6% 32%; /* Metallic Fir */
+    --secondary: 190 4% 66%; /* Silver 10077 C */
+    --secondary-foreground: 180 4% 95%; /* Lucent White */
+    --muted: 240 4% 20%; /* Black Beauty (lifted) */
+    --muted-foreground: 180 4% 95%; /* Lucent White */
+    --accent: 190 4% 66%; /* Silver 10077 C */
     --accent-foreground: 180 4% 95%; /* Lucent White */
     --destructive: 204 6% 42%; /* Metallic Fir (lighter) */
-    --destructive-foreground: 180 4% 95%;
-    --border: 204 6% 28%;
-    --input: 240 4% 24%;
-    --ring: 180 4% 95%;
-    --sidebar-background: 240 4% 16%;
-    --sidebar-foreground: 180 4% 95%;
-    --sidebar-primary: 180 4% 95%;
-    --sidebar-primary-foreground: 240 4% 16%;
-    --sidebar-accent: 204 6% 32%;
-    --sidebar-accent-foreground: 180 4% 95%;
-    --sidebar-border: 204 6% 28%;
-    --sidebar-ring: 180 4% 95%;
+    --destructive-foreground: 180 4% 95%; /* Lucent White */
+    --border: 120 1% 86%; /* Cool Gray 1 XGC */
+    --input: 120 1% 86%; /* Cool Gray 1 XGC */
+    --ring: 180 4% 95%; /* Lucent White */
+    --sidebar-background: 240 4% 16%; /* Black Beauty */
+    --sidebar-foreground: 180 4% 95%; /* Lucent White */
+    --sidebar-primary: 180 4% 95%; /* Lucent White */
+    --sidebar-primary-foreground: 240 4% 16%; /* Black Beauty */
+    --sidebar-accent: 190 4% 66%; /* Silver 10077 C */
+    --sidebar-accent-foreground: 180 4% 95%; /* Lucent White */
+    --sidebar-border: 120 1% 86%; /* Cool Gray 1 XGC */
+    --sidebar-ring: 180 4% 95%; /* Lucent White */
+
+    --chart-1: 180 4% 95%; /* Lucent White */
+    --chart-2: 190 4% 66%; /* Silver 10077 C */
+    --chart-3: 204 6% 32%; /* Metallic Fir */
+    --chart-4: 240 4% 16%; /* Black Beauty */
+    --chart-5: 120 1% 86%; /* Cool Gray 1 XGC */
   }
 }
 
