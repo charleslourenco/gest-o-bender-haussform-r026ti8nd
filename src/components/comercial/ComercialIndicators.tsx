@@ -26,7 +26,7 @@ export function ComercialIndicators() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
+          <Card key={i} className="border-0 bg-transparent shadow-none">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-[100px]" />
               <Skeleton className="h-4 w-4 rounded-full" />
@@ -51,67 +51,69 @@ export function ComercialIndicators() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-blue-500 shadow-sm">
+        <Card className="border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-700">Total de Leads</CardTitle>
-            <div className="bg-blue-100 p-2 rounded-full">
-              <Users className="h-4 w-4 text-blue-600" />
+            <CardTitle className="text-sm font-semibold text-lucent-white">
+              Total de Leads
+            </CardTitle>
+            <div className="p-2 rounded-full bg-transparent">
+              <Users className="h-4 w-4 text-lucent-white" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-midnight-navy">{totalLeads}</div>
-            <p className="text-xs text-gray-500 mt-1 font-medium">Registrados no sistema</p>
+            <div className="text-3xl font-bold text-lucent-white">{totalLeads}</div>
+            <p className="text-xs text-lucent-white mt-1 font-medium">Registrados no sistema</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500 shadow-sm">
+        <Card className="border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-700">Em Andamento</CardTitle>
-            <div className="bg-amber-100 p-2 rounded-full">
-              <Clock className="h-4 w-4 text-amber-600" />
+            <CardTitle className="text-sm font-semibold text-lucent-white">Em Andamento</CardTitle>
+            <div className="p-2 rounded-full bg-transparent">
+              <Clock className="h-4 w-4 text-lucent-white" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-midnight-navy">{leadsEmAndamento}</div>
-            <p className="text-xs text-gray-500 mt-1 font-medium">Oportunidades ativas</p>
+            <div className="text-3xl font-bold text-lucent-white">{leadsEmAndamento}</div>
+            <p className="text-xs text-lucent-white mt-1 font-medium">Oportunidades ativas</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+        <Card className="border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-700">Vendidos</CardTitle>
-            <div className="bg-emerald-100 p-2 rounded-full">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <CardTitle className="text-sm font-semibold text-lucent-white">Vendidos</CardTitle>
+            <div className="p-2 rounded-full bg-transparent">
+              <CheckCircle2 className="h-4 w-4 text-lucent-white" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-midnight-navy">{leadsVendido}</div>
-            <div className="flex items-center mt-1 text-xs text-emerald-600 font-medium">
-              <TrendingUp className="w-3 h-3 mr-1" />
+            <div className="text-3xl font-bold text-lucent-white">{leadsVendido}</div>
+            <div className="flex items-center mt-1 text-xs text-lucent-white font-medium">
+              <TrendingUp className="w-3 h-3 mr-1 text-lucent-white" />
               Taxa de conversão: {taxaConversao}%
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500 shadow-sm">
+        <Card className="border-0 bg-transparent shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-gray-700">Perdidos</CardTitle>
-            <div className="bg-red-100 p-2 rounded-full">
-              <AlertCircle className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-sm font-semibold text-lucent-white">Perdidos</CardTitle>
+            <div className="p-2 rounded-full bg-transparent">
+              <AlertCircle className="h-4 w-4 text-lucent-white" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-midnight-navy">{leadsPerdido}</div>
-            <p className="text-xs text-gray-500 mt-1 font-medium">Negócios não fechados</p>
+            <div className="text-3xl font-bold text-lucent-white">{leadsPerdido}</div>
+            <p className="text-xs text-lucent-white mt-1 font-medium">Negócios não fechados</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="shadow-sm">
-        <CardHeader className="border-b border-gray-100">
+      <Card className="border-0 bg-transparent shadow-none">
+        <CardHeader className="border-0">
           <div className="flex items-center gap-2">
-            <BarChart className="w-5 h-5 text-midnight-navy" />
-            <CardTitle className="text-lg font-semibold text-midnight-navy">
+            <BarChart className="w-5 h-5 text-lucent-white" />
+            <CardTitle className="text-lg font-semibold text-lucent-white">
               Origem dos Leads
             </CardTitle>
           </div>
@@ -131,25 +133,30 @@ export function ComercialIndicators() {
               .sort(([, a], [, b]) => (b as number) - (a as number))
               .map(([origem, count]) => (
                 <div key={origem} className="flex items-center">
-                  <div className="w-32 text-sm font-medium text-gray-700 truncate" title={origem}>
+                  <div
+                    className="w-32 text-sm font-medium text-lucent-white truncate"
+                    title={origem}
+                  >
                     {origem}
                   </div>
                   <div className="flex-1 ml-4">
-                    <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-3 w-full bg-lucent-white/10 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-pale-cornflower"
+                        className="h-full bg-lucent-white/70 rounded-full"
                         style={{ width: `${Math.max(1, ((count as number) / totalLeads) * 100)}%` }}
                       />
                     </div>
                   </div>
-                  <div className="w-12 text-right text-sm font-bold text-midnight-navy ml-4">
+                  <div className="w-12 text-right text-sm font-bold text-lucent-white ml-4">
                     {count as number}
                   </div>
                 </div>
               ))}
 
             {leads.length === 0 && (
-              <div className="text-center text-gray-500 py-4">Sem dados de origem para exibir.</div>
+              <div className="text-center text-lucent-white py-4">
+                Sem dados de origem para exibir.
+              </div>
             )}
           </div>
         </CardContent>
