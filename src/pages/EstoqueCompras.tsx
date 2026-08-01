@@ -82,70 +82,68 @@ export default function EstoqueCompras() {
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
       <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 w-full mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] dark:bg-slate-900 text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center justify-between w-full bg-midnight-navy text-off-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <PackageSearch className="w-5 h-5 text-emerald-400 dark:text-emerald-500" />
-              <h2 className="text-lg font-bold text-white dark:text-slate-100">
-                Estoque & Compras
-              </h2>
+              <PackageSearch className="w-5 h-5 text-off-white" />
+              <h2 className="text-lg font-bold text-off-white">Estoque & Compras</h2>
             </div>
-            <TabsList className="bg-white/10 dark:bg-slate-800/50 border-none h-9">
+            <TabsList className="bg-off-white/10 border-none h-9">
               <TabsTrigger
                 value="overview"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Visão Geral
               </TabsTrigger>
               <TabsTrigger
                 value="solicitacoes"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 relative"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60 relative"
               >
                 Solicitações
                 {pendingSolicitacoes > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
+                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-off-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
                     {pendingSolicitacoes}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger
                 value="estoque"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Inventário
               </TabsTrigger>
               <TabsTrigger
                 value="listas-materiais"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60 relative"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60 relative"
               >
                 Listas de Materiais
                 {unreadListas > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
+                  <span className="absolute -top-1.5 -right-1.5 bg-orange-500 text-off-white text-[10px] min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full font-bold shadow-sm animate-pulse">
                     {unreadListas}
                   </span>
                 )}
               </TabsTrigger>
               <TabsTrigger
                 value="documentos"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Documentos & OCR
               </TabsTrigger>
               <TabsTrigger
                 value="itens-cliente"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Itens de Cliente
               </TabsTrigger>
               <TabsTrigger
                 value="separacao"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Separação
               </TabsTrigger>
               <TabsTrigger
                 value="sobras"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Sobras
               </TabsTrigger>
