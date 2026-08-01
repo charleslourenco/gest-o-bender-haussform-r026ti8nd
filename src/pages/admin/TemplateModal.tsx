@@ -110,7 +110,7 @@ export function TemplateModal({ template, onClose, onSuccess }: any) {
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg p-6 bg-midnight-navy text-off-white border-steel-blue max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg p-6 bg-midnight-navy text-off-white border-none max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-off-white">
             {template ? 'Editar Template' : 'Adicionar Template'}

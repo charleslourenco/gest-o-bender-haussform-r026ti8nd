@@ -123,15 +123,15 @@ export function TemplatesList() {
   }
 
   return (
-    <div className="bg-pale-cornflower text-midnight-navy p-6 space-y-6 rounded-lg shadow-sm">
+    <div className="bg-midnight-navy text-off-white p-6 space-y-6 rounded-lg">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-midnight-navy/60" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-off-white/60" />
           <Input
             placeholder="Buscar template..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white border-steel-blue/30 text-midnight-navy placeholder:text-midnight-navy/50"
+            className="pl-9 bg-dark-denim border-steel-blue/40 text-off-white placeholder:text-off-white/40 focus-visible:border-dark-denim"
           />
         </div>
         <Button
@@ -149,14 +149,14 @@ export function TemplatesList() {
       <div className="w-full">
         {loading ? (
           <div className="space-y-4">
-            <Skeleton className="h-12 w-full bg-white/50 rounded-lg" />
-            <Skeleton className="h-24 w-full bg-white/50 rounded-lg" />
-            <Skeleton className="h-24 w-full bg-white/50 rounded-lg" />
+            <Skeleton className="h-12 w-full bg-dark-denim/50 rounded-lg" />
+            <Skeleton className="h-24 w-full bg-dark-denim/50 rounded-lg" />
+            <Skeleton className="h-24 w-full bg-dark-denim/50 rounded-lg" />
           </div>
         ) : error ? (
-          <div className="p-12 flex flex-col items-center justify-center text-center bg-white/50 border border-steel-blue border-dashed rounded-lg">
+          <div className="p-12 flex flex-col items-center justify-center text-center bg-dark-denim/30 rounded-lg">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-midnight-navy mb-2">{error}</h3>
+            <h3 className="text-lg font-medium text-off-white mb-2">{error}</h3>
             <Button
               onClick={fetchTemplates}
               className="bg-steel-blue text-off-white hover:bg-steel-blue/90"
@@ -165,10 +165,10 @@ export function TemplatesList() {
             </Button>
           </div>
         ) : templates.length === 0 ? (
-          <div className="p-12 flex flex-col items-center justify-center text-center bg-white/50 border border-steel-blue border-dashed rounded-lg">
-            <FileText className="h-12 w-12 text-steel-blue mb-4" />
-            <h3 className="text-lg font-medium text-midnight-navy mb-2">Aguardando ação</h3>
-            <p className="text-midnight-navy/70 mb-6 text-sm">
+          <div className="p-12 flex flex-col items-center justify-center text-center bg-dark-denim/30 rounded-lg">
+            <FileText className="h-12 w-12 text-off-white mb-4" />
+            <h3 className="text-lg font-medium text-off-white mb-2">Aguardando ação</h3>
+            <p className="text-off-white/70 mb-6 text-sm">
               Faça o upload dos arquivos no bucket 'bender_templates' no Supabase.
             </p>
             <Button
@@ -184,22 +184,18 @@ export function TemplatesList() {
           </div>
         ) : (
           <>
-            {/* Mobile View */}
             <div className="grid grid-cols-1 gap-4 sm:hidden">
               {templates.map((t) => (
-                <div
-                  key={t.id}
-                  className="bg-white p-4 rounded-lg border border-steel-blue/20 shadow-sm space-y-3"
-                >
+                <div key={t.id} className="bg-dark-denim p-4 rounded-lg space-y-3">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h4 className="font-medium text-midnight-navy">{t.nome}</h4>
-                      <p className="text-xs text-midnight-navy/60 mb-1">{formatTipo(t.tipo)}</p>
+                      <h4 className="font-medium text-off-white">{t.nome}</h4>
+                      <p className="text-xs text-off-white/60 mb-1">{formatTipo(t.tipo)}</p>
                       <a
                         href={getFileUrl(t.arquivo_url)}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-steel-blue hover:underline truncate inline-block max-w-[200px]"
+                        className="text-xs text-off-white/80 hover:underline truncate inline-block max-w-[200px]"
                       >
                         {t.arquivo_url?.startsWith('http') ? 'Ver URL Externa' : 'Ver Arquivo'}
                       </a>
@@ -207,7 +203,7 @@ export function TemplatesList() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4 text-midnight-navy" />
+                          <MoreVertical className="h-4 w-4 text-off-white" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -239,7 +235,7 @@ export function TemplatesList() {
                     >
                       {t.status === 'ativo' ? 'Ativo' : 'Inativo'}
                     </Badge>
-                    <span className="text-xs text-midnight-navy/60">
+                    <span className="text-xs text-off-white/60">
                       {new Date(t.criado_em).toLocaleDateString('pt-BR')}
                     </span>
                   </div>
@@ -247,24 +243,17 @@ export function TemplatesList() {
               ))}
             </div>
 
-            {/* Desktop View */}
-            <div className="hidden sm:block overflow-x-auto border border-steel-blue rounded-lg bg-white">
+            <div className="hidden sm:block overflow-x-auto rounded-lg bg-dark-denim">
               <Table className="min-w-[800px] w-full">
-                <TableHeader className="bg-steel-blue/10">
-                  <TableRow className="hover:bg-transparent border-steel-blue">
-                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
-                      Nome
-                    </TableHead>
-                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
-                      Tipo
-                    </TableHead>
-                    <TableHead className="font-medium p-4 text-sm text-midnight-navy max-w-[200px]">
+                <TableHeader className="bg-dark-denim">
+                  <TableRow className="hover:bg-transparent border-steel-blue/20">
+                    <TableHead className="font-medium p-4 text-sm text-off-white">Nome</TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-off-white">Tipo</TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-off-white max-w-[200px]">
                       URL/Arquivo
                     </TableHead>
-                    <TableHead className="font-medium p-4 text-sm text-midnight-navy">
-                      Status
-                    </TableHead>
-                    <TableHead className="font-medium p-4 text-sm text-midnight-navy text-right">
+                    <TableHead className="font-medium p-4 text-sm text-off-white">Status</TableHead>
+                    <TableHead className="font-medium p-4 text-sm text-off-white text-right">
                       Ações
                     </TableHead>
                   </TableRow>
@@ -273,11 +262,13 @@ export function TemplatesList() {
                   {templates.map((t) => (
                     <TableRow
                       key={t.id}
-                      className="border-b border-steel-blue/20 hover:bg-steel-blue/5 transition-colors"
+                      className="border-b border-steel-blue/20 hover:bg-midnight-navy/50 transition-colors"
                     >
-                      <TableCell className="font-medium p-4 text-sm">{t.nome}</TableCell>
+                      <TableCell className="font-medium p-4 text-sm text-off-white">
+                        {t.nome}
+                      </TableCell>
                       <TableCell className="p-4 text-sm">
-                        <span className="px-2 py-1 bg-pale-cornflower text-midnight-navy rounded-md text-xs font-medium border border-steel-blue/30">
+                        <span className="px-2 py-1 bg-midnight-navy text-off-white rounded-md text-xs font-medium border border-steel-blue/30">
                           {formatTipo(t.tipo)}
                         </span>
                       </TableCell>
@@ -286,7 +277,7 @@ export function TemplatesList() {
                           href={getFileUrl(t.arquivo_url)}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-steel-blue hover:underline"
+                          className="text-off-white/80 hover:underline"
                         >
                           {t.arquivo_url?.startsWith('http') ? t.arquivo_url : t.arquivo_url}
                         </a>
@@ -306,7 +297,7 @@ export function TemplatesList() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-steel-blue hover:text-midnight-navy hover:bg-pale-cornflower"
+                            className="h-8 w-8 text-off-white hover:text-off-white/80 hover:bg-midnight-navy"
                             onClick={() => window.open(getFileUrl(t.arquivo_url), '_blank')}
                             title="Visualizar"
                           >
@@ -315,7 +306,7 @@ export function TemplatesList() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-steel-blue hover:text-midnight-navy hover:bg-pale-cornflower"
+                            className="h-8 w-8 text-off-white hover:text-off-white/80 hover:bg-midnight-navy"
                             onClick={() => {
                               setSelectedTemplate(t)
                               setModalOpen(true)
@@ -327,7 +318,7 @@ export function TemplatesList() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className="h-8 w-8 text-red-500 hover:text-red-300 hover:bg-red-500/10"
                             onClick={() => handleDelete(t)}
                             title="Excluir"
                           >

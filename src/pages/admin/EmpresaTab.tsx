@@ -97,46 +97,46 @@ export function EmpresaTab() {
   if (loading)
     return (
       <div className="p-8 flex justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-steel-blue" />
+        <Loader2 className="h-8 w-8 animate-spin text-off-white" />
       </div>
     )
 
   return (
-    <Card className="border-steel-blue/20 shadow-sm bg-off-white">
+    <Card className="bg-midnight-navy border-none">
       <CardHeader>
-        <CardTitle className="text-xl font-bold text-midnight-navy flex items-center gap-2">
+        <CardTitle className="text-xl font-bold text-off-white flex items-center gap-2">
           <Building className="h-5 w-5" /> Dados da Empresa
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-off-white/70">
           Gerencie o nome e a logo que aparecem no sistema e nos documentos.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-          <Label className="text-midnight-navy font-semibold">Nome da Empresa</Label>
+          <Label className="text-off-white font-semibold">Nome da Empresa</Label>
           <Input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            className="bg-pale-cornflower border-2 border-steel-blue"
+            className="bg-dark-denim border-2 border-steel-blue/40 text-off-white placeholder:text-off-white/40 focus-visible:border-dark-denim"
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-midnight-navy font-semibold">Logo da Empresa</Label>
+          <Label className="text-off-white font-semibold">Logo da Empresa</Label>
           <div className="flex items-start gap-6">
-            <div className="h-32 w-32 shrink-0 rounded-lg border-2 border-dashed border-steel-blue/50 flex items-center justify-center bg-pale-cornflower/30 overflow-hidden relative">
+            <div className="h-32 w-32 shrink-0 rounded-lg border-2 border-dashed border-steel-blue/40 flex items-center justify-center bg-dark-denim overflow-hidden relative">
               {logoUrl ? (
                 <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
               ) : (
-                <ImageIcon className="h-8 w-8 text-steel-blue/50" />
+                <ImageIcon className="h-8 w-8 text-off-white/50" />
               )}
               {uploading && (
-                <div className="absolute inset-0 bg-midnight-navy/20 flex items-center justify-center backdrop-blur-sm">
+                <div className="absolute inset-0 bg-midnight-navy/40 flex items-center justify-center backdrop-blur-sm">
                   <Loader2 className="h-6 w-6 animate-spin text-off-white" />
                 </div>
               )}
             </div>
             <div className="space-y-4 flex-1">
-              <div className="text-sm text-midnight-navy/70">
+              <div className="text-sm text-off-white/70">
                 Faça o upload de uma imagem (PNG, JPG) para usar como logo da empresa.
               </div>
               <input
@@ -152,7 +152,7 @@ export function EmpresaTab() {
                   variant="outline"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="border-steel-blue"
+                  className="bg-dark-denim border-steel-blue/40 text-off-white hover:bg-dark-denim/80 hover:text-off-white"
                 >
                   <Upload className="mr-2 h-4 w-4" /> Escolher Imagem
                 </Button>
@@ -161,7 +161,7 @@ export function EmpresaTab() {
                     type="button"
                     variant="ghost"
                     onClick={() => setLogoUrl('')}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                   >
                     Remover
                   </Button>
@@ -174,7 +174,7 @@ export function EmpresaTab() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-dark-denim text-off-white hover:bg-dark-denim/90"
+            className="bg-dark-denim text-off-white hover:bg-dark-denim/80 border border-steel-blue/40"
           >
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar Alterações
           </Button>

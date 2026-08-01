@@ -105,19 +105,19 @@ export function BrandingTab() {
   }
 
   return (
-    <div className="bg-card border text-card-foreground p-6 space-y-6 rounded-lg shadow-sm">
+    <div className="bg-midnight-navy text-off-white p-6 space-y-6 rounded-lg">
       <div className="space-y-2 max-w-xl">
-        <Label className="text-foreground font-medium text-sm">Nome da Empresa *</Label>
+        <Label className="text-off-white font-medium text-sm">Nome da Empresa *</Label>
         <Input
           value={nome}
           onChange={(e) => setNome(e.target.value)}
           maxLength={100}
-          className="bg-background text-foreground"
+          className="bg-dark-denim text-off-white border-steel-blue/40 placeholder:text-off-white/40 focus-visible:border-dark-denim"
         />
       </div>
 
       <div className="space-y-2">
-        <Label className="text-foreground font-medium text-sm">
+        <Label className="text-off-white font-medium text-sm">
           Logo (JPG, PNG, SVG - Máx 5MB) *
         </Label>
         <div className="flex items-center gap-4 flex-wrap">
@@ -125,7 +125,7 @@ export function BrandingTab() {
             <img
               src={logoUrl}
               alt="Preview"
-              className="w-24 h-24 object-contain border rounded-md bg-background p-2"
+              className="w-24 h-24 object-contain border border-steel-blue/40 rounded-md bg-dark-denim p-2"
             />
           )}
           <Input
@@ -133,13 +133,17 @@ export function BrandingTab() {
             accept=".jpg,.jpeg,.png,.svg"
             onChange={handleFileChange}
             ref={fileInputRef}
-            className="bg-background max-w-sm cursor-pointer file:font-medium"
+            className="bg-dark-denim text-off-white max-w-sm cursor-pointer file:font-medium border-steel-blue/40"
           />
         </div>
       </div>
 
       <div className="pt-4">
-        <Button onClick={handleSave} disabled={loading || !nome} className="w-full sm:w-auto">
+        <Button
+          onClick={handleSave}
+          disabled={loading || !nome}
+          className="w-full sm:w-auto bg-dark-denim text-off-white hover:bg-dark-denim/80 border border-steel-blue/40"
+        >
           {loading ? 'Salvando...' : 'Salvar Branding'}
         </Button>
       </div>

@@ -176,26 +176,26 @@ export function PermissionsMatrix() {
       case 'Leitor':
         return <Eye className="h-4 w-4 text-slate-400" />
       default:
-        return <Shield className="h-4 w-4 text-slate-600" />
+        return <Shield className="h-4 w-4 text-slate-400" />
     }
   }
 
   if (loading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-[40px] w-full bg-steel-blue/20" />
-        <Skeleton className="h-[400px] w-full bg-steel-blue/20" />
+        <Skeleton className="h-[40px] w-full bg-dark-denim/40" />
+        <Skeleton className="h-[400px] w-full bg-dark-denim/40" />
       </div>
     )
   }
 
   return (
     <div className="flex flex-col space-y-2 animate-in fade-in duration-300">
-      <div className="flex items-center gap-2 mb-2 p-4 bg-off-white border border-steel-blue/20 rounded-xl shadow-sm">
-        <ShieldAlert className="h-6 w-6 text-steel-blue" />
+      <div className="flex items-center gap-2 mb-2 p-4 bg-midnight-navy rounded-xl">
+        <ShieldAlert className="h-6 w-6 text-off-white" />
         <div>
-          <h3 className="font-bold text-midnight-navy text-lg">Matriz de Permissões</h3>
-          <p className="text-sm text-midnight-navy/70">
+          <h3 className="font-bold text-off-white text-lg">Matriz de Permissões</h3>
+          <p className="text-sm text-off-white/70">
             Configure os níveis de acesso de cada usuário por módulo. Alterações são salvas
             automaticamente.
           </p>
@@ -206,7 +206,7 @@ export function PermissionsMatrix() {
         <div
           ref={topScrollRef}
           onScroll={handleTopScroll}
-          className="overflow-x-auto overflow-y-hidden rounded-t-xl bg-off-white/50 custom-scrollbar-top"
+          className="overflow-x-auto overflow-y-hidden rounded-t-xl bg-midnight-navy/50 custom-scrollbar-top"
           style={{ height: '12px' }}
         >
           <div style={{ width: contentWidth, height: '1px' }} />
@@ -215,7 +215,7 @@ export function PermissionsMatrix() {
         <div
           ref={tableScrollRef}
           onScroll={handleTableScroll}
-          className="overflow-auto border-x border-b border-t border-steel-blue/20 rounded-b-xl bg-off-white max-h-[65vh] shadow-sm relative"
+          className="overflow-auto rounded-b-xl bg-midnight-navy max-h-[65vh] relative"
         >
           <table className="w-full text-sm text-left border-collapse">
             <thead className="sticky top-0 z-30 shadow-sm bg-dark-denim">
@@ -233,7 +233,7 @@ export function PermissionsMatrix() {
                         {user.nome}
                       </span>
                       <span
-                        className="text-xs text-pale-cornflower font-normal truncate"
+                        className="text-xs text-off-white/50 font-normal truncate"
                         title={user.email}
                       >
                         {user.email}
@@ -248,8 +248,8 @@ export function PermissionsMatrix() {
                 <tr
                   key={mod}
                   className={cn(
-                    'transition-colors hover:bg-pale-cornflower/40 group',
-                    idx % 2 === 0 ? 'bg-off-white' : 'bg-pale-cornflower/20',
+                    'transition-colors hover:bg-dark-denim/50 group',
+                    idx % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/30',
                   )}
                 >
                   <td className="p-4 font-semibold text-off-white bg-steel-blue sticky left-0 z-20 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.4)] whitespace-nowrap border-b border-steel-blue/20 border-r border-r-steel-blue/50">
@@ -270,10 +270,10 @@ export function PermissionsMatrix() {
                         >
                           <SelectTrigger
                             className={cn(
-                              'w-full bg-off-white border-2 border-steel-blue/30 text-midnight-navy focus:ring-0 focus:border-dark-denim transition-all rounded-lg h-10',
-                              level === 'Admin' && 'border-emerald-500/50 bg-emerald-50/50',
-                              level === 'Editor' && 'border-sky-500/50 bg-sky-50/50',
-                              level === 'Leitor' && 'border-slate-400/50 bg-slate-50/50',
+                              'w-full bg-dark-denim border-2 border-steel-blue/30 text-off-white focus:ring-0 focus:border-dark-denim transition-all rounded-lg h-10',
+                              level === 'Admin' && 'border-emerald-500/50 bg-emerald-500/10',
+                              level === 'Editor' && 'border-sky-500/50 bg-sky-500/10',
+                              level === 'Leitor' && 'border-slate-400/50 bg-slate-400/10',
                               isAdmin && 'opacity-50 cursor-not-allowed',
                             )}
                           >
@@ -282,19 +282,19 @@ export function PermissionsMatrix() {
                               <SelectValue placeholder="Nenhum" />
                             </div>
                           </SelectTrigger>
-                          <SelectContent className="bg-off-white border-2 border-steel-blue">
+                          <SelectContent className="bg-dark-denim border-2 border-steel-blue/40">
                             <SelectItem
                               value="Nenhum"
-                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
                             >
                               <div className="flex items-center gap-2">
-                                <Shield className="h-4 w-4 text-slate-600" />
+                                <Shield className="h-4 w-4 text-slate-400" />
                                 Nenhum
                               </div>
                             </SelectItem>
                             <SelectItem
                               value="Leitor"
-                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
                             >
                               <div className="flex items-center gap-2">
                                 <Eye className="h-4 w-4 text-slate-400" />
@@ -303,7 +303,7 @@ export function PermissionsMatrix() {
                             </SelectItem>
                             <SelectItem
                               value="Editor"
-                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
                             >
                               <div className="flex items-center gap-2">
                                 <Edit2 className="h-4 w-4 text-sky-400" />
@@ -312,7 +312,7 @@ export function PermissionsMatrix() {
                             </SelectItem>
                             <SelectItem
                               value="Admin"
-                              className="focus:bg-pale-cornflower focus:text-midnight-navy"
+                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
                             >
                               <div className="flex items-center gap-2">
                                 <Key className="h-4 w-4 text-emerald-400" />

@@ -40,13 +40,13 @@ export function TemplatesTab() {
   }
 
   return (
-    <Card className="border-steel-blue/20 shadow-sm bg-off-white">
+    <Card className="bg-midnight-navy border-none">
       <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <CardTitle className="text-xl font-bold flex items-center gap-2 text-midnight-navy">
+          <CardTitle className="text-xl font-bold flex items-center gap-2 text-off-white">
             <FileText className="h-5 w-5" /> Templates de Documentos
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-off-white/70">
             Gerencie os modelos de contratos e termos usados no sistema.
           </CardDescription>
         </div>
@@ -60,7 +60,7 @@ export function TemplatesTab() {
       <CardContent>
         {loading ? (
           <div className="flex justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-steel-blue" />
+            <Loader2 className="h-8 w-8 animate-spin text-off-white" />
           </div>
         ) : (
           <TemplatesTable
