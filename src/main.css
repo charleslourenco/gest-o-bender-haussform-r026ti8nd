@@ -190,4 +190,8 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .chart-lucent-text text {
+    fill: #f2f3f3;
+  }
 }

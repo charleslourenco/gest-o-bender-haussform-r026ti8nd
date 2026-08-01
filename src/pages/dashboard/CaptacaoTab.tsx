@@ -58,17 +58,17 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-0 border-none shadow-none bg-transparent">
+        <Card className="bg-midnight-navy border-0 border-none shadow-none">
           <CardHeader>
             <CardTitle className="text-lg text-off-white">Origem dos Leads</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {originData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-steel-blue">
+              <div className="h-full flex items-center justify-center text-off-white">
                 Sem dados
               </div>
             ) : (
-              <ChartContainer config={{}} className="h-full w-full">
+              <ChartContainer config={{}} className="h-full w-full chart-lucent-text">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
