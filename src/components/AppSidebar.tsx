@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import logoImg from '@/assets/ativo-203-f4d7e.png'
+import { useTheme } from 'next-themes'
+import logoLightImg from '@/assets/ativo-203-f4d7e.png'
+import logoDarkImg from '@/assets/ativo-200-688bf.png'
 import {
   LayoutDashboard,
   Users,
@@ -61,6 +64,15 @@ const menuItems = [
 export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isDark = mounted ? resolvedTheme === 'dark' : false
+  const logoImg = isDark ? logoLightImg : logoDarkImg
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
 

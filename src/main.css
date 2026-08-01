@@ -6,11 +6,11 @@
 
 @layer base {
   :root {
-    --background: 180 4% 95%; /* Lucent White */
-    --foreground: 240 4% 16%; /* Black Beauty */
+    --background: 180 4% 95%; /* Lucent White (#F2F3F3) */
+    --foreground: 240 4% 16%; /* Black Beauty (#27272A) */
 
-    --card: 180 4% 95%;
-    --card-foreground: 240 4% 16%;
+    --card: 120 1% 86%; /* Cool Gray 1 XGC (#DBDCDB) */
+    --card-foreground: 240 4% 16%; /* Black Beauty (#27272A) */
 
     --popover: 180 4% 95%;
     --popover-foreground: 240 4% 16%;
@@ -36,14 +36,14 @@
 
     --radius: 0.5rem;
 
-    --sidebar-background: 240 4% 16%; /* Black Beauty */
-    --sidebar-foreground: 180 4% 95%; /* Lucent White */
-    --sidebar-primary: 180 4% 95%; /* Lucent White */
-    --sidebar-primary-foreground: 240 4% 16%; /* Black Beauty */
-    --sidebar-accent: 204 6% 32%; /* Metallic Fir */
-    --sidebar-accent-foreground: 180 4% 95%; /* Lucent White */
-    --sidebar-border: 204 6% 32%; /* Metallic Fir */
-    --sidebar-ring: 180 4% 95%; /* Lucent White */
+    --sidebar-background: 120 1% 86%; /* Cool Gray 1 XGC (#DBDCDB) */
+    --sidebar-foreground: 240 4% 16%; /* Black Beauty (#27272A) */
+    --sidebar-primary: 240 4% 16%; /* Black Beauty */
+    --sidebar-primary-foreground: 180 4% 95%; /* Lucent White */
+    --sidebar-accent: 120 1% 78%; /* Cool Gray hover tint */
+    --sidebar-accent-foreground: 240 4% 16%; /* Black Beauty */
+    --sidebar-border: 120 1% 78%;
+    --sidebar-ring: 240 4% 16%;
 
     --chart-1: 240 4% 16%;
     --chart-2: 204 6% 32%;
