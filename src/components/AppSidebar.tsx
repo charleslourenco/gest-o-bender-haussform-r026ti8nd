@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import logoImg from '@/assets/ativo-203-f4d7e.png'
 import {
   LayoutDashboard,
   Users,
@@ -71,19 +72,13 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
-      <SidebarHeader className="p-4 flex flex-col justify-center min-h-[64px]">
+      <SidebarHeader className="p-4 flex flex-col items-center justify-center min-h-[64px]">
         <img
-          src="/ativo%20203.png"
+          src={logoImg}
           alt="Bender Haussform"
           width={180}
           height={48}
-          className="max-h-12 w-full object-contain"
-          onError={(e) => {
-            const img = e.currentTarget
-            if (img.src.indexOf('ativo%20203.png') !== -1) {
-              img.src = '/ativo 203.png'
-            }
-          }}
+          className="h-10 w-auto max-w-[180px] object-contain"
         />
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
