@@ -93,6 +93,9 @@
   * {
     @apply border-border;
   }
+  .dark .border.bg-card {
+    border-color: transparent;
+  }
   body {
     @apply bg-background text-foreground font-sans;
     font-family: 'Raleway', system-ui, sans-serif;
