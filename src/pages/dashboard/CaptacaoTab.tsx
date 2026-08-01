@@ -25,50 +25,52 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-midnight-navy border-0 border-none shadow-none">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-off-white">Total de Leads</CardTitle>
-            <Users className="h-5 w-5 text-off-white" />
+            <CardTitle className="text-sm font-bold text-card-foreground">Total de Leads</CardTitle>
+            <Users className="h-5 w-5 text-card-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-off-white">{totalLeads}</div>
-            <p className="text-xs text-off-white font-medium mt-1">Captações no período</p>
+            <div className="text-3xl font-black text-card-foreground">{totalLeads}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Captações no período</p>
           </CardContent>
         </Card>
-        <Card className="bg-midnight-navy border-0 border-none shadow-none">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-off-white">Convertidos</CardTitle>
-            <Target className="h-5 w-5 text-off-white" />
+            <CardTitle className="text-sm font-bold text-card-foreground">Convertidos</CardTitle>
+            <Target className="h-5 w-5 text-card-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-off-white">{convertidos}</div>
-            <p className="text-xs text-off-white font-medium mt-1">Viraram clientes</p>
+            <div className="text-3xl font-black text-card-foreground">{convertidos}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Viraram clientes</p>
           </CardContent>
         </Card>
-        <Card className="bg-midnight-navy border-0 border-none shadow-none">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-off-white">Taxa de Conversão</CardTitle>
-            <Target className="h-5 w-5 text-off-white" />
+            <CardTitle className="text-sm font-bold text-card-foreground">
+              Taxa de Conversão
+            </CardTitle>
+            <Target className="h-5 w-5 text-card-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-off-white">{txConversao}%</div>
-            <p className="text-xs text-off-white font-medium mt-1">Média do período</p>
+            <div className="text-3xl font-black text-card-foreground">{txConversao}%</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Média do período</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-midnight-navy border-0 border-none shadow-none">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-off-white">Origem dos Leads</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">Origem dos Leads</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {originData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-off-white">
+              <div className="h-full flex items-center justify-center text-muted-foreground">
                 Sem dados
               </div>
             ) : (
-              <ChartContainer config={{}} className="h-full w-full chart-lucent-text">
+              <ChartContainer config={{}} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie

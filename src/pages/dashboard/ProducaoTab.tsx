@@ -40,30 +40,32 @@ export function ProducaoTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">
+            <CardTitle className="text-sm font-bold text-card-foreground">
               Projetos na Produção
             </CardTitle>
             <Factory className="h-5 w-5 text-indigo-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{total}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Ambientes em fabricação</p>
+            <div className="text-3xl font-black text-card-foreground">{total}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Ambientes em fabricação
+            </p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">
+            <CardTitle className="text-lg text-card-foreground">
               Distribuição por Máquina/Fase
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {fasesData.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-steel-blue">
+              <div className="h-full flex items-center justify-center text-muted-foreground">
                 Sem dados
               </div>
             ) : (
@@ -92,9 +94,9 @@ export function ProducaoTab({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Volume por Etapa</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">Volume por Etapa</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer config={{}} className="h-full w-full">

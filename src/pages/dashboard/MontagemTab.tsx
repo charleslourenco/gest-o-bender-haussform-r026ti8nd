@@ -38,16 +38,16 @@ export function MontagemTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">
+            <CardTitle className="text-sm font-bold text-card-foreground">
               Em Expedição/Montagem
             </CardTitle>
             <Hammer className="h-5 w-5 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{ativos}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">
+            <div className="text-3xl font-black text-card-foreground">{ativos}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
               Ambientes em campo ou expedidos
             </p>
           </CardContent>
@@ -55,9 +55,9 @@ export function MontagemTab({ data }: { data: DashboardData }) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Projetos por Etapa</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">Projetos por Etapa</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer config={{}} className="h-full w-full">
@@ -74,9 +74,9 @@ export function MontagemTab({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">
+            <CardTitle className="text-lg text-card-foreground">
               Montagens por Equipe/Responsável
             </CardTitle>
           </CardHeader>

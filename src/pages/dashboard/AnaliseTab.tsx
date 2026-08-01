@@ -44,24 +44,28 @@ export function AnaliseTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">
+            <CardTitle className="text-sm font-bold text-card-foreground">
               Projetos em Análise
             </CardTitle>
             <FileSearch className="h-5 w-5 text-orange-600 dark:text-orange-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{total}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Ambientes sendo trabalhados</p>
+            <div className="text-3xl font-black text-card-foreground">{total}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Ambientes sendo trabalhados
+            </p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Atendimentos por Analista</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">
+              Atendimentos por Analista
+            </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer config={{}} className="h-full w-full">
@@ -83,9 +87,11 @@ export function AnaliseTab({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Projetos por Fase (Funil)</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">
+              Projetos por Fase (Funil)
+            </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer config={{}} className="h-full w-full">

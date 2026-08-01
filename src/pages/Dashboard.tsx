@@ -150,40 +150,40 @@ export default function Dashboard() {
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
       <Tabs defaultValue="captacao" className="w-full flex-1 flex flex-col min-h-0 mt-0">
-        <div className="flex flex-row items-center w-full bg-[#27272A] text-white px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center w-full bg-card text-card-foreground px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <Presentation className="w-5 h-5 text-[#F2F3F3]" />
-              <h2 className="text-lg font-bold text-white">Dashboard Integrado</h2>
+              <Presentation className="w-5 h-5 text-card-foreground" />
+              <h2 className="text-lg font-bold text-card-foreground">Dashboard Integrado</h2>
             </div>
-            <TabsList className="bg-white/10 border-none h-9">
+            <TabsList className="bg-muted border-none h-9">
               <TabsTrigger
                 value="captacao"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
               >
                 Captação de Leads
               </TabsTrigger>
               <TabsTrigger
                 value="comercial"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
               >
                 Comercial
               </TabsTrigger>
               <TabsTrigger
                 value="analise"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
               >
                 Análise Técnica
               </TabsTrigger>
               <TabsTrigger
                 value="producao"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
               >
                 Produção
               </TabsTrigger>
               <TabsTrigger
                 value="montagem"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
               >
                 Montagem
               </TabsTrigger>
@@ -258,13 +258,13 @@ export default function Dashboard() {
         <div className="flex-1 overflow-y-auto min-h-0 w-full">
           {loading ? (
             <div className="space-y-6">
-              <Skeleton className="h-12 w-full max-w-2xl rounded-lg bg-steel-blue/20" />
+              <Skeleton className="h-12 w-full max-w-2xl rounded-lg bg-muted" />
               <div className="grid gap-6 md:grid-cols-3">
-                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
-                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
-                <Skeleton className="h-32 w-full rounded-xl bg-steel-blue/20" />
+                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
               </div>
-              <Skeleton className="h-96 w-full rounded-xl bg-steel-blue/20" />
+              <Skeleton className="h-96 w-full rounded-xl bg-muted" />
             </div>
           ) : (
             <>

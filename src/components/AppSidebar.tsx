@@ -74,6 +74,8 @@ export function AppSidebar() {
   const isDark = mounted ? resolvedTheme === 'dark' : false
   const logoImg = isDark ? logoLightImg : logoDarkImg
 
+  const logoClass = isDark ? '' : 'logo-always-light'
+
   const isSuperAdmin = user?.email === 'admin@bender.com'
 
   const hasAccess = (moduleName: string) => {
@@ -90,7 +92,7 @@ export function AppSidebar() {
           alt="Bender Haussform"
           width={180}
           height={48}
-          className="h-10 w-auto max-w-[180px] object-contain"
+          className={cn('h-10 w-auto max-w-[180px] object-contain', logoClass)}
         />
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">

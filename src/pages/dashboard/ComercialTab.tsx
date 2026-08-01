@@ -41,34 +41,40 @@ export function ComercialTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">
+            <CardTitle className="text-sm font-bold text-card-foreground">
               Atendimentos Gerais
             </CardTitle>
-            <Briefcase className="h-5 w-5 text-steel-blue" />
+            <Briefcase className="h-5 w-5 text-card-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{totalLeads}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">No período selecionado</p>
+            <div className="text-3xl font-black text-card-foreground">{totalLeads}</div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">No período selecionado</p>
           </CardContent>
         </Card>
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">Valor em Vendas</CardTitle>
+            <CardTitle className="text-sm font-bold text-card-foreground">
+              Valor em Vendas
+            </CardTitle>
             <DollarSign className="h-5 w-5 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{formatCurrency(valorTotal)}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Receita gerada</p>
+            <div className="text-3xl font-black text-card-foreground">
+              {formatCurrency(valorTotal)}
+            </div>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Receita gerada</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-steel-blue/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Atendimentos por Consultor</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">
+              Atendimentos por Consultor
+            </CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ChartContainer config={{}} className="h-full w-full">
@@ -91,17 +97,17 @@ export function ComercialTab({ data }: { data: DashboardData }) {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-steel-blue/20 flex flex-col">
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Desempenho por Consultor</CardTitle>
+            <CardTitle className="text-lg text-card-foreground">Desempenho por Consultor</CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto">
-            <ul className="divide-y divide-steel-blue/10">
+            <ul className="divide-y divide-border">
               {consultoresData.map((c, i) => (
                 <li key={i} className="py-3 flex justify-between items-center">
                   <div>
-                    <p className="font-bold text-midnight-navy">{c.nome}</p>
-                    <p className="text-xs text-steel-blue">
+                    <p className="font-bold text-card-foreground">{c.nome}</p>
+                    <p className="text-xs text-muted-foreground">
                       {c.vendas} vendas / {c.atendimentos} atend.
                     </p>
                   </div>
