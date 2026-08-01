@@ -130,7 +130,7 @@ export function Header() {
           <img
             src={empresa.logo_url}
             alt="Logo"
-            className="h-8 max-w-[140px] object-contain ml-2"
+            className="h-8 max-w-[140px] object-contain ml-2 logo-themed"
           />
         )}
       </div>

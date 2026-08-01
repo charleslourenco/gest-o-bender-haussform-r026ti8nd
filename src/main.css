@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&family=Montserrat:wght@600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,80 +6,80 @@
 
 @layer base {
   :root {
-    --background: 206 60% 98%; /* Off-White */
-    --foreground: 217 66% 12%; /* Midnight Navy */
+    --background: 180 4% 95%; /* Lucent White */
+    --foreground: 240 4% 16%; /* Black Beauty */
 
-    --card: 206 60% 98%;
-    --card-foreground: 217 66% 12%;
+    --card: 180 4% 95%;
+    --card-foreground: 240 4% 16%;
 
-    --popover: 206 60% 98%;
-    --popover-foreground: 217 66% 12%;
+    --popover: 180 4% 95%;
+    --popover-foreground: 240 4% 16%;
 
-    --primary: 211 58% 25%; /* Dark Denim */
-    --primary-foreground: 206 60% 98%; /* Off-White */
+    --primary: 240 4% 16%; /* Black Beauty */
+    --primary-foreground: 180 4% 95%; /* Lucent White */
 
-    --secondary: 206 38% 47%; /* Steel Blue */
-    --secondary-foreground: 206 60% 98%;
+    --secondary: 190 4% 66%; /* Silver 10077 C */
+    --secondary-foreground: 240 4% 16%;
 
-    --muted: 206 50% 80%; /* Pale Cornflower */
-    --muted-foreground: 217 66% 12%;
+    --muted: 120 1% 86%; /* Cool Gray 1 XGC */
+    --muted-foreground: 204 6% 32%; /* Metallic Fir */
 
-    --accent: 206 50% 80%;
-    --accent-foreground: 217 66% 12%;
+    --accent: 204 6% 32%; /* Metallic Fir */
+    --accent-foreground: 180 4% 95%; /* Lucent White */
 
-    --destructive: 206 38% 47%; /* Strict Palette: using Steel Blue instead of red */
-    --destructive-foreground: 206 60% 98%;
+    --destructive: 204 6% 32%; /* Metallic Fir */
+    --destructive-foreground: 180 4% 95%; /* Lucent White */
 
-    --border: 206 38% 47%;
-    --input: 206 50% 80%;
-    --ring: 211 58% 25%;
+    --border: 120 1% 86%; /* Cool Gray 1 XGC */
+    --input: 120 1% 86%;
+    --ring: 240 4% 16%; /* Black Beauty */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 217 66% 12%;
-    --sidebar-foreground: 206 60% 98%;
-    --sidebar-primary: 211 58% 25%;
-    --sidebar-primary-foreground: 206 60% 98%;
-    --sidebar-accent: 211 58% 25%;
-    --sidebar-accent-foreground: 206 60% 98%;
-    --sidebar-border: 206 38% 47%;
-    --sidebar-ring: 211 58% 25%;
+    --sidebar-background: 240 4% 16%; /* Black Beauty */
+    --sidebar-foreground: 180 4% 95%; /* Lucent White */
+    --sidebar-primary: 180 4% 95%; /* Lucent White */
+    --sidebar-primary-foreground: 240 4% 16%; /* Black Beauty */
+    --sidebar-accent: 204 6% 32%; /* Metallic Fir */
+    --sidebar-accent-foreground: 180 4% 95%; /* Lucent White */
+    --sidebar-border: 204 6% 32%; /* Metallic Fir */
+    --sidebar-ring: 180 4% 95%; /* Lucent White */
 
-    --chart-1: 211 58% 25%;
-    --chart-2: 206 38% 47%;
-    --chart-3: 206 50% 80%;
-    --chart-4: 217 66% 12%;
-    --chart-5: 206 60% 98%;
+    --chart-1: 240 4% 16%;
+    --chart-2: 204 6% 32%;
+    --chart-3: 190 4% 66%;
+    --chart-4: 120 1% 86%;
+    --chart-5: 180 4% 95%;
   }
 
   .dark {
-    --background: 217 66% 12%;
-    --foreground: 206 60% 98%;
-    --card: 217 60% 16%;
-    --card-foreground: 206 60% 98%;
-    --popover: 217 60% 16%;
-    --popover-foreground: 206 60% 98%;
-    --primary: 211 58% 50%;
-    --primary-foreground: 217 66% 12%;
-    --secondary: 206 38% 47%;
-    --secondary-foreground: 206 60% 98%;
-    --muted: 217 60% 20%;
-    --muted-foreground: 206 50% 80%;
-    --accent: 217 60% 20%;
-    --accent-foreground: 206 60% 98%;
-    --destructive: 0 62.8% 40.6%;
-    --destructive-foreground: 206 60% 98%;
-    --border: 217 60% 24%;
-    --input: 217 60% 24%;
-    --ring: 211 58% 50%;
-    --sidebar-background: 217 66% 12%;
-    --sidebar-foreground: 206 60% 98%;
-    --sidebar-primary: 211 58% 50%;
-    --sidebar-primary-foreground: 217 66% 12%;
-    --sidebar-accent: 217 60% 20%;
-    --sidebar-accent-foreground: 206 60% 98%;
-    --sidebar-border: 217 60% 24%;
-    --sidebar-ring: 211 58% 50%;
+    --background: 240 4% 16%; /* Black Beauty */
+    --foreground: 180 4% 95%; /* Lucent White */
+    --card: 240 4% 20%;
+    --card-foreground: 180 4% 95%;
+    --popover: 240 4% 20%;
+    --popover-foreground: 180 4% 95%;
+    --primary: 180 4% 95%; /* Lucent White */
+    --primary-foreground: 240 4% 16%; /* Black Beauty */
+    --secondary: 204 6% 32%; /* Metallic Fir */
+    --secondary-foreground: 180 4% 95%;
+    --muted: 240 4% 22%;
+    --muted-foreground: 190 4% 66%; /* Silver 10077 C */
+    --accent: 204 6% 32%; /* Metallic Fir */
+    --accent-foreground: 180 4% 95%; /* Lucent White */
+    --destructive: 204 6% 42%; /* Metallic Fir (lighter) */
+    --destructive-foreground: 180 4% 95%;
+    --border: 204 6% 28%;
+    --input: 240 4% 24%;
+    --ring: 180 4% 95%;
+    --sidebar-background: 240 4% 16%;
+    --sidebar-foreground: 180 4% 95%;
+    --sidebar-primary: 180 4% 95%;
+    --sidebar-primary-foreground: 240 4% 16%;
+    --sidebar-accent: 204 6% 32%;
+    --sidebar-accent-foreground: 180 4% 95%;
+    --sidebar-border: 204 6% 28%;
+    --sidebar-ring: 180 4% 95%;
   }
 }
 
@@ -89,11 +89,34 @@
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Raleway', system-ui, sans-serif;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'TT Travels Next', 'Montserrat', 'Raleway', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 }
 
 @layer utilities {
+  .font-heading {
+    font-family: 'TT Travels Next', 'Montserrat', 'Raleway', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .logo-always-light {
+    filter: invert(1);
+  }
+  .dark .logo-themed {
+    filter: invert(1);
+  }
+
   @keyframes fade-in-up {
     from {
       opacity: 0;

@@ -62,7 +62,7 @@ export default function Login() {
             <img
               src={`${empresa.logo_url}${empresa.logo_url.includes('?') ? '&' : '?'}t=${empresa.atualizado_em ? new Date(empresa.atualizado_em).getTime() : Date.now()}`}
               alt={empresa.nome || 'Logo da Empresa'}
-              className="max-h-16 w-full object-contain"
+              className="max-h-16 w-full object-contain logo-always-light"
             />
           ) : (
             <>

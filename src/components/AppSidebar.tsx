@@ -102,7 +102,7 @@ export function AppSidebar() {
           <img
             src={`${empresa.logo_url}${empresa.logo_url.includes('?') ? '&' : '?'}t=${empresa.atualizado_em ? new Date(empresa.atualizado_em).getTime() : Date.now()}`}
             alt={empresa.nome || 'Logo da Empresa'}
-            className="max-h-12 w-full object-contain"
+            className="max-h-12 w-full object-contain logo-always-light"
           />
         ) : empresa?.nome ? (
           <div className="flex flex-row items-center gap-2 w-full justify-center">
