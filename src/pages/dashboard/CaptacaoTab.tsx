@@ -25,36 +25,34 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card className="bg-midnight-navy border-2 border-midnight-navy">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">Total de Leads</CardTitle>
-            <Users className="h-5 w-5 text-steel-blue" />
+            <CardTitle className="text-sm font-bold text-off-white">Total de Leads</CardTitle>
+            <Users className="h-5 w-5 text-off-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{totalLeads}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Captações no período</p>
+            <div className="text-3xl font-black text-off-white">{totalLeads}</div>
+            <p className="text-xs text-off-white font-medium mt-1">Captações no período</p>
           </CardContent>
         </Card>
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card className="bg-midnight-navy border-2 border-midnight-navy">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">Convertidos</CardTitle>
-            <Target className="h-5 w-5 text-emerald-600" />
+            <CardTitle className="text-sm font-bold text-off-white">Convertidos</CardTitle>
+            <Target className="h-5 w-5 text-off-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{convertidos}</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Viraram clientes</p>
+            <div className="text-3xl font-black text-off-white">{convertidos}</div>
+            <p className="text-xs text-off-white font-medium mt-1">Viraram clientes</p>
           </CardContent>
         </Card>
-        <Card className="bg-off-white border-2 border-steel-blue/20">
+        <Card className="bg-midnight-navy border-2 border-midnight-navy">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-bold text-midnight-navy">
-              Taxa de Conversão
-            </CardTitle>
-            <Target className="h-5 w-5 text-zinc-800" />
+            <CardTitle className="text-sm font-bold text-off-white">Taxa de Conversão</CardTitle>
+            <Target className="h-5 w-5 text-off-white" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-dark-denim">{txConversao}%</div>
-            <p className="text-xs text-steel-blue font-medium mt-1">Média do período</p>
+            <div className="text-3xl font-black text-off-white">{txConversao}%</div>
+            <p className="text-xs text-off-white font-medium mt-1">Média do período</p>
           </CardContent>
         </Card>
       </div>
