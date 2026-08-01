@@ -62,7 +62,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-2 border-steel-blue/20">
           <CardHeader>
-            <CardTitle className="text-lg text-midnight-navy">Origem dos Leads</CardTitle>
+            <CardTitle className="text-lg text-off-white">Origem dos Leads</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {originData.length === 0 ? (
