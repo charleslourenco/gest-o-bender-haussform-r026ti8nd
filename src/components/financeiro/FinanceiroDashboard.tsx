@@ -60,7 +60,9 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{formatCurrency(saldoPrevisto)}</div>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(saldoPrevisto)}
+            </div>
             <p className="text-xs text-gray-500 mt-1">Baseado em lançamentos pagos</p>
           </CardContent>
         </Card>
