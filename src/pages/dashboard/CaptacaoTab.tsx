@@ -25,7 +25,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="bg-midnight-navy border-2 border-midnight-navy">
+        <Card className="bg-midnight-navy border-0 border-none shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold text-off-white">Total de Leads</CardTitle>
             <Users className="h-5 w-5 text-off-white" />
@@ -35,7 +35,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
             <p className="text-xs text-off-white font-medium mt-1">Captações no período</p>
           </CardContent>
         </Card>
-        <Card className="bg-midnight-navy border-2 border-midnight-navy">
+        <Card className="bg-midnight-navy border-0 border-none shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold text-off-white">Convertidos</CardTitle>
             <Target className="h-5 w-5 text-off-white" />
@@ -45,7 +45,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
             <p className="text-xs text-off-white font-medium mt-1">Viraram clientes</p>
           </CardContent>
         </Card>
-        <Card className="bg-midnight-navy border-2 border-midnight-navy">
+        <Card className="bg-midnight-navy border-0 border-none shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-bold text-off-white">Taxa de Conversão</CardTitle>
             <Target className="h-5 w-5 text-off-white" />
@@ -58,7 +58,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 border-steel-blue/20">
+        <Card className="border-0 border-none shadow-none bg-transparent">
           <CardHeader>
             <CardTitle className="text-lg text-off-white">Origem dos Leads</CardTitle>
           </CardHeader>
