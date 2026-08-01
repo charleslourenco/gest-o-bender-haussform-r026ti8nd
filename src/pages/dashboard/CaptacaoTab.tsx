@@ -50,7 +50,7 @@ export function CaptacaoTab({ data }: { data: DashboardData }) {
             <CardTitle className="text-sm font-bold text-midnight-navy">
               Taxa de Conversão
             </CardTitle>
-            <Target className="h-5 w-5 text-amber-500" />
+            <Target className="h-5 w-5 text-zinc-800" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-black text-dark-denim">{txConversao}%</div>
