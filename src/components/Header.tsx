@@ -126,13 +126,7 @@ export function Header() {
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-card px-4 shadow-sm">
       <div className="flex items-center gap-4">
         <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
-        {empresa?.logo_url && (
-          <img
-            src={empresa.logo_url}
-            alt="Logo"
-            className="h-8 max-w-[140px] object-contain ml-2 logo-themed"
-          />
-        )}
+        {empresa?.logo_url && null}
       </div>
 
       <div className="flex items-center gap-4">
