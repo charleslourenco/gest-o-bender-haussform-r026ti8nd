@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from 'next-themes'
 import logoLightImg from '@/assets/ativo-203-f4d7e.png'
-import logoDarkImg from '@/assets/ativo-200-688bf.png'
+import logoLightModeImg from '@/assets/ativo-204-80a9b.png'
 import {
   LayoutDashboard,
   Users,
@@ -72,9 +72,7 @@ export function AppSidebar() {
   }, [])
 
   const isDark = mounted ? resolvedTheme === 'dark' : false
-  const logoImg = isDark ? logoLightImg : logoDarkImg
-
-  const logoClass = isDark ? '' : 'logo-always-light'
+  const logoImg = isDark ? logoLightImg : logoLightModeImg
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
 
@@ -92,7 +90,7 @@ export function AppSidebar() {
           alt="Bender Haussform"
           width={180}
           height={48}
-          className={cn('h-10 w-auto max-w-[180px] object-contain', logoClass)}
+          className="h-10 w-auto max-w-[180px] object-contain transition-opacity duration-200"
         />
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
