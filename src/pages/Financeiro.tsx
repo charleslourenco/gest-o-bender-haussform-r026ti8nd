@@ -133,34 +133,34 @@ export default function Financeiro() {
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
       <Tabs defaultValue="dashboard" className="flex-1 flex flex-col min-h-0 w-full mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-[#0A1931] text-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center justify-between w-full bg-midnight-navy text-off-white px-4 py-3 mb-4 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <Wallet className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-bold text-white">Financeiro</h2>
+              <Wallet className="w-5 h-5 text-off-white" />
+              <h2 className="text-lg font-bold text-off-white">Financeiro</h2>
             </div>
-            <TabsList className="bg-white/10 border-none h-9">
+            <TabsList className="bg-off-white/10 border-none h-9">
               <TabsTrigger
                 value="dashboard"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Visão Geral
               </TabsTrigger>
               <TabsTrigger
                 value="movimentacoes"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Lançamentos & IA
               </TabsTrigger>
               <TabsTrigger
                 value="dre"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 DRE
               </TabsTrigger>
               <TabsTrigger
                 value="contas"
-                className="data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/60"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Contas Bancárias
               </TabsTrigger>
@@ -169,25 +169,25 @@ export default function Financeiro() {
 
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-off-white" />
               <Input
                 placeholder="Busca global..."
-                className="pl-9 bg-white/10 border-white/20 text-white placeholder:text-white/50 h-9 w-40"
+                className="pl-9 bg-off-white/10 border-off-white/20 text-off-white placeholder:text-off-white/50 h-9 w-40 [color-scheme:dark]"
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
               />
             </div>
             <Input
               type="date"
-              className="bg-white/10 border-white/20 text-white h-9 w-36 [color-scheme:dark]"
+              className="bg-off-white/10 border-off-white/20 text-off-white h-9 w-36 [color-scheme:dark]"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               title="Data Inicial"
             />
-            <span className="text-white/50 text-sm">até</span>
+            <span className="text-off-white text-sm">até</span>
             <Input
               type="date"
-              className="bg-white/10 border-white/20 text-white h-9 w-36 [color-scheme:dark]"
+              className="bg-off-white/10 border-off-white/20 text-off-white h-9 w-36 [color-scheme:dark]"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               title="Data Final"
