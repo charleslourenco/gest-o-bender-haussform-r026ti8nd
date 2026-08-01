@@ -75,7 +75,15 @@ export function AppSidebar() {
         <img
           src="/ativo%20203.png"
           alt="Bender Haussform"
+          width={180}
+          height={48}
           className="max-h-12 w-full object-contain"
+          onError={(e) => {
+            const img = e.currentTarget
+            if (img.src.indexOf('ativo%20203.png') !== -1) {
+              img.src = '/ativo 203.png'
+            }
+          }}
         />
       </SidebarHeader>
       <SidebarContent className="flex flex-col h-full overflow-hidden">
