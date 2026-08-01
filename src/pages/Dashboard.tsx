@@ -150,10 +150,10 @@ export default function Dashboard() {
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
       <Tabs defaultValue="captacao" className="w-full flex-1 flex flex-col min-h-0 mt-0">
-        <div className="flex flex-row items-center w-full bg-[#0A1931] text-white px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center w-full bg-[#27272A] text-white px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2 mr-2">
-              <Presentation className="w-5 h-5 text-emerald-400" />
+              <Presentation className="w-5 h-5 text-[#F2F3F3]" />
               <h2 className="text-lg font-bold text-white">Dashboard Integrado</h2>
             </div>
             <TabsList className="bg-white/10 border-none h-9">
