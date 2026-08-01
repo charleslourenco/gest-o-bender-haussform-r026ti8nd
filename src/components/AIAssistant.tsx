@@ -360,13 +360,13 @@ export function AIAssistant() {
 
           <form
             onSubmit={handleSend}
-            className="p-2 border-t flex gap-2 items-center bg-white shrink-0"
+            className="p-2 border-t flex gap-2 items-center bg-[hsl(240_4%_16%)] shrink-0"
           >
             <Input
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder={`Fale com ${charData.name}...`}
-              className="h-9 text-sm text-gray-900 focus-visible:ring-1 border-gray-200"
+              className="h-9 text-sm text-white placeholder:text-gray-400 focus-visible:ring-1 border-gray-200 bg-[hsl(240_4%_16%)]"
             />
             <button
               type="submit"
