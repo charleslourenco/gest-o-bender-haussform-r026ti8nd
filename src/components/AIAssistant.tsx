@@ -309,7 +309,7 @@ export function AIAssistant() {
   return (
     <>
       {isOpen && (
-        <div className="fixed bottom-4 left-4 right-4 md:right-auto md:left-[17rem] md:bottom-8 z-[100] md:w-[360px] bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden animate-fade-in-up origin-bottom-left">
+        <div className="fixed bottom-24 right-4 z-[100] w-[calc(100%-2rem)] md:w-[380px] bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col overflow-hidden animate-fade-in-up origin-bottom-right">
           <div className="flex items-center justify-between p-3 border-b bg-gray-50/50">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-blue-500" />
@@ -379,23 +379,23 @@ export function AIAssistant() {
         </div>
       )}
 
-      <div className="relative w-full flex justify-center items-end group px-2">
+      <div className="fixed bottom-4 right-4 z-50 flex items-end justify-center group">
         <button
           onClick={toggleAssistant}
-          className="relative transition-transform hover:scale-105 active:scale-95 flex items-end justify-center w-full"
+          className="relative transition-transform hover:scale-105 active:scale-95 flex items-end justify-center"
         >
           <img
             src={charData.img}
             alt={charData.name}
             className={cn(
-              'w-auto object-contain drop-shadow-xl origin-bottom transition-all max-h-[140px] xl:max-h-[160px] 2xl:max-h-[180px]',
+              'w-auto object-contain drop-shadow-xl origin-bottom transition-all max-h-[120px] xl:max-h-[140px] 2xl:max-h-[160px]',
               isOpen
                 ? 'translate-y-0 opacity-100'
                 : 'translate-y-2 opacity-90 hover:opacity-100 hover:translate-y-0',
             )}
           />
           {hasNewMessage && !isOpen && (
-            <div className="absolute top-2 right-2 md:right-4 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10 shadow-md">
+            <div className="absolute top-0 right-0 flex items-center justify-center h-6 w-6 bg-red-500 rounded-full border-2 border-white animate-bounce text-white z-10 shadow-md">
               <MessageSquare className="h-3 w-3" fill="currentColor" />
             </div>
           )}

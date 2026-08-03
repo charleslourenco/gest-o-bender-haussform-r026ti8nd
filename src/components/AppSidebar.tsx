@@ -16,21 +16,12 @@ import {
   Hammer,
   Package,
   ClipboardCheck,
+  Menu,
+  X,
 } from 'lucide-react'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar'
+import { useSidebar } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
-import { AIAssistant } from './AIAssistant'
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
@@ -65,6 +56,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
   const { resolvedTheme } = useTheme()
+  const { open, setOpen } = useSidebar()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -82,97 +74,109 @@ export function AppSidebar() {
     return level && level !== 'Sem Acesso'
   }
 
+  const closeSidebar = () => setOpen(false)
+
   return (
-    <Sidebar className="border-r border-border bg-sidebar [&>div[data-sidebar=sidebar]]:bg-sidebar">
-      <SidebarHeader className="p-4 flex flex-col items-center justify-center min-h-[64px]">
-        <img
-          src={logoImg}
-          alt="Bender Haussform"
-          width={180}
-          height={48}
-          className="h-10 w-auto max-w-[180px] object-contain transition-opacity duration-200"
-        />
-      </SidebarHeader>
-      <SidebarContent className="flex flex-col h-full overflow-hidden">
-        <SidebarGroup className="flex-1 overflow-y-auto z-10 pb-4">
-          <SidebarGroupLabel className="text-sidebar-foreground/70">
+    <>
+      <div className="fixed left-0 top-0 bottom-0 w-12 z-30 bg-sidebar border-r border-border flex flex-col items-center pt-4">
+        <button
+          onClick={() => setOpen(true)}
+          className="p-2.5 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 bg-black/50 z-40 animate-fade-in" onClick={closeSidebar} />
+      )}
+
+      <aside
+        className={cn(
+          'fixed left-0 top-0 bottom-0 z-50 w-64 bg-sidebar border-r border-border flex flex-col transition-transform duration-300 ease-in-out',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="p-4 flex items-center justify-between border-b border-border/40 min-h-[64px]">
+          <img
+            src={logoImg}
+            alt="Bender Haussform"
+            width={180}
+            height={48}
+            className="h-10 w-auto max-w-[180px] object-contain"
+          />
+          <button
+            onClick={closeSidebar}
+            className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground transition-colors"
+            aria-label="Fechar menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto py-4 px-2">
+          <p className="text-xs font-semibold text-sidebar-foreground/60 px-3 mb-2">
             Menu Principal
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                const canAccess = hasAccess(item.module)
-                const isActive = location.pathname.startsWith(item.url)
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild={canAccess}
-                      isActive={isActive}
-                      tooltip={item.title}
+          </p>
+          <ul className="space-y-1">
+            {menuItems.map((item) => {
+              const canAccess = hasAccess(item.module)
+              const isActive = location.pathname.startsWith(item.url)
+              return (
+                <li key={item.title}>
+                  {canAccess ? (
+                    <Link
+                      to={item.url}
+                      onClick={closeSidebar}
                       className={cn(
-                        !canAccess ? 'opacity-60 cursor-not-allowed' : '',
+                        'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
                         isActive
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground'
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                           : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
-                      {canAccess ? (
-                        <Link to={item.url} className="flex items-center gap-2">
-                          <item.icon className="w-4 h-4 shrink-0" />
-                          <span className="font-medium truncate">{item.title}</span>
-                        </Link>
-                      ) : (
-                        <div className="flex items-center gap-2 w-full">
-                          <item.icon className="w-4 h-4 shrink-0" />
-                          <span className="font-medium truncate">{item.title}</span>
-                          <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
-                        </div>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <div className="mt-auto w-full flex flex-col items-center justify-center relative z-20 py-4 min-h-[90px]">
-          <AIAssistant />
-        </div>
-
-        <SidebarGroup className="shrink-0 z-30 bg-sidebar border-t border-border/40">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild={hasAccess('Administrativo')}
-                  tooltip="Administrativo"
-                  isActive={location.pathname === '/admin'}
-                  className={cn(
-                    !hasAccess('Administrativo') ? 'opacity-60 cursor-not-allowed' : '',
-                    location.pathname === '/admin'
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                  )}
-                >
-                  {hasAccess('Administrativo') ? (
-                    <Link to="/admin" className="flex items-center gap-2">
-                      <Settings className="w-4 h-4 shrink-0" />
-                      <span className="font-medium truncate">Administrativo</span>
+                      <item.icon className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">{item.title}</span>
                     </Link>
                   ) : (
-                    <div className="flex items-center gap-2 w-full">
-                      <Settings className="w-4 h-4 shrink-0" />
-                      <span className="font-medium truncate">Administrativo</span>
+                    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm opacity-60 cursor-not-allowed text-sidebar-foreground">
+                      <item.icon className="w-4 h-4 shrink-0" />
+                      <span className="font-medium truncate">{item.title}</span>
                       <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
                     </div>
                   )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="mt-4 pt-4 border-t border-border/40">
+            <p className="text-xs font-semibold text-sidebar-foreground/60 px-3 mb-2">Sistema</p>
+            {hasAccess('Administrativo') ? (
+              <Link
+                to="/admin"
+                onClick={closeSidebar}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm transition-colors',
+                  location.pathname === '/admin'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                )}
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                <span className="font-medium truncate">Administrativo</span>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm opacity-60 cursor-not-allowed text-sidebar-foreground">
+                <Settings className="w-4 h-4 shrink-0" />
+                <span className="font-medium truncate">Administrativo</span>
+                <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
+              </div>
+            )}
+          </div>
+        </nav>
+      </aside>
+    </>
   )
 }

@@ -131,8 +131,16 @@ export const maskCPF = (v: string) =>
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .slice(0, 14)
 
+export const stripDDIFromPhone = (v: string): string => {
+  let digits = v.replace(/\D/g, '')
+  if ((digits.length === 12 || digits.length === 13) && digits.startsWith('55')) {
+    digits = digits.slice(2)
+  }
+  return digits
+}
+
 export const maskPhoneStrict = (v: string) => {
-  let val = v.replace(/\D/g, '')
+  let val = stripDDIFromPhone(v)
   if (val.length > 11) val = val.slice(0, 11)
   if (val.length <= 2) return val.replace(/(\d{1,2})/, '($1')
   if (val.length <= 7) return val.replace(/(\d{2})(\d{1,5})/, '($1)$2')

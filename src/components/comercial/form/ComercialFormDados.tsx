@@ -19,6 +19,9 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
   const maskPhone = (v: string) => {
     let r = v.replace(/\D/g, '')
+    if ((r.length === 12 || r.length === 13) && r.startsWith('55')) {
+      r = r.substring(2)
+    }
     if (r.length > 11) r = r.substring(0, 11)
     if (r.length > 2) {
       r = r.replace(/^(\d{2})(\d)/g, '($1) $2')
@@ -333,7 +336,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         .update({
           nome: data.nome,
           email: data.email,
-          telefone: data.telefone,
+          telefone: data.telefone.replace(/\D/g, ''),
           cpf: data.cpf,
           tipo_pessoa: tipoPessoa,
         })
