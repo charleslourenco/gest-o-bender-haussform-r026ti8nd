@@ -61,7 +61,7 @@ export default function Montagem() {
           <KanbanArquivados archiveFlag="arquivado_montagem" />
         ) : (
           <>
-            <KanbanBoard title="Montagem" columns={COLUMNS} />
+            <KanbanBoard title="Montagem" columns={COLUMNS} archiveFlag="arquivado_montagem" />
 
             {activeTab === 'lista' && (
               <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200">

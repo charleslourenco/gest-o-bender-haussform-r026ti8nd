@@ -5,6 +5,7 @@ import { Trash2, Download, Upload, PenTool, FileSignature } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { EquipeSignatureModal } from './equipe-signature-modal'
 import { downloadFromStorage } from '@/lib/download'
+import { isPdfDocument } from '@/lib/signature-utils'
 
 interface Props {
   entityId: string
@@ -206,7 +207,18 @@ export function DocumentosAba({ entityId, entityType, entityNome, entityEmail, e
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setSignatureDoc(d)}
+                  onClick={() => {
+                    if (!isPdfDocument(d.arquivo_url, d.tipo)) {
+                      toast({
+                        title: 'Formato não suportado para assinatura',
+                        description:
+                          'Apenas documentos PDF podem ser assinados. Converta o arquivo para PDF e envie novamente.',
+                        variant: 'destructive',
+                      })
+                      return
+                    }
+                    setSignatureDoc(d)
+                  }}
                   title="Gerenciar Assinaturas"
                 >
                   <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas

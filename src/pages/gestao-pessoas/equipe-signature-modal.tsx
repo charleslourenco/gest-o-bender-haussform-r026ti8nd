@@ -219,13 +219,14 @@ export function EquipeSignatureModal({
   const handleSendEmail = async (sig: any) => {
     setSendingId(sig.id)
     try {
-      const link = `${window.location.origin}/assinatura/${sig.id}`
+      const link = getSignerLink(sig)
       const body = {
         to: sig.signatario_email,
         nome: sig.signatario_nome,
         link,
         codigo: sig.codigo_confirmacao,
         documento_nome: sig.documento_nome,
+        envelope_id: envelope?.id,
       }
 
       const { data, error } = await supabase.functions.invoke('send-signature-email', { body })
@@ -239,8 +240,17 @@ export function EquipeSignatureModal({
     }
   }
 
+  const getSignerLink = (sig: any): string => {
+    if (envelope) {
+      const assinante = assinantesList.find((a) => a.email === sig.signatario_email)
+      const token = assinante?.token_acesso
+      return `${window.location.origin}/assinar-envelope/${envelope.id}${token ? `?token=${token}` : ''}`
+    }
+    return `${window.location.origin}/assinatura/${sig.id}`
+  }
+
   const copyLink = (sig: any) => {
-    const link = `${window.location.origin}/assinatura/${sig.id}`
+    const link = getSignerLink(sig)
     navigator.clipboard.writeText(link)
     toast.success('Link copiado!')
   }

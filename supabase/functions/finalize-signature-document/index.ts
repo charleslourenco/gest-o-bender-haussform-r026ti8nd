@@ -348,9 +348,7 @@ async function processDocument(
 
   if (payload.force) {
     // Force reprocessing: bypass idempotency to re-stamp with corrected signatures
-  } else if (payload.manual && documento.envelope_id && documento.arquivo_assinado_url) {
-    return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
-  } else if (!payload.manual && documento.arquivo_assinado_url) {
+  } else if (documento.arquivo_assinado_url) {
     return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
   }
 

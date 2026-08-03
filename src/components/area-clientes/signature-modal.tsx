@@ -109,7 +109,34 @@ export function SignatureModal({
           setAssinantesList(assinantesData || [])
         }
       } else {
-        setAssinantesList([])
+        const { data: existingDocs } = await supabase
+          .from('documentos_cliente')
+          .select('envelope_id')
+          .in(
+            'id',
+            docs.map((d) => d.id),
+          )
+
+        const envelopeIds = [
+          ...new Set((existingDocs || []).map((d) => d.envelope_id).filter(Boolean)),
+        ]
+        if (envelopeIds.length > 0) {
+          const { data: env } = await supabase
+            .from('envelopes_assinatura')
+            .select('*')
+            .eq('id', envelopeIds[0])
+            .single()
+          if (env) setEnvelope(env)
+
+          const { data: assinantesData } = await supabase
+            .from('assinantes')
+            .select('*')
+            .eq('envelope_id', envelopeIds[0])
+          setAssinantesList(assinantesData || [])
+        } else {
+          setAssinantesList([])
+        }
+
         const { data, error } = await supabase
           .from('assinaturas')
           .select('*')
@@ -145,9 +172,8 @@ export function SignatureModal({
   }, [signatures, isEnvelope])
 
   const allAssinantesSigned =
-    isEnvelope && assinantesList.length > 0 && assinantesList.every((a) => a.status === 'assinado')
+    assinantesList.length > 0 && assinantesList.every((a) => a.status === 'assinado')
   const allSigned =
-    isEnvelope &&
     !!envelope &&
     signatures.length > 0 &&
     signatures.every((s) => s.status === 'assinado') &&
@@ -270,6 +296,28 @@ export function SignatureModal({
       } else {
         const doc = docs[0]
         const docId = doc.path || doc.arquivo_url
+
+        const { data: newEnv, error: envError } = await supabase
+          .from('envelopes_assinatura')
+          .insert({
+            documento_id: docId,
+            cliente_id: clienteId,
+            nome_documento: doc.title || doc.template_nome || doc.tipo,
+            status: 'aguardando',
+            signatario_nome: form.nome,
+            signatario_email: form.email,
+            codigo_verificacao: code,
+          })
+          .select()
+          .single()
+        if (envError) throw envError
+        setEnvelope(newEnv)
+
+        await supabase
+          .from('documentos_cliente')
+          .update({ envelope_id: newEnv.id })
+          .eq('id', doc.id)
+
         const { error } = await supabase.from('assinaturas').insert({
           documento_id: docId,
           documento_nome: doc.title || doc.template_nome || doc.tipo,
@@ -284,6 +332,28 @@ export function SignatureModal({
           status: 'pendente',
         })
         if (error) throw error
+
+        const tokenAcesso = crypto.randomUUID()
+        await supabase.from('assinantes').insert({
+          envelope_id: newEnv.id,
+          nome_completo: form.nome,
+          email: form.email,
+          cpf: form.cpf || null,
+          papel: form.tipo,
+          tipo_assinatura: 'link',
+          status: 'pendente',
+          codigo_verificacao: code,
+          codigo_expira_em: expiraEm.toISOString(),
+          token_acesso: tokenAcesso,
+        })
+
+        const { data: authData } = await supabase.auth.getUser()
+        const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
+        await supabase.from('timeline_eventos').insert({
+          cliente_id: clienteId,
+          usuario_nome: userName,
+          acao: `Envelope de assinatura criado para ${form.nome}`,
+        })
       }
 
       toast.success('Signatário adicionado com sucesso!')
@@ -312,7 +382,7 @@ export function SignatureModal({
       let link: string
       let body: any
 
-      if (isEnvelope && envelope) {
+      if (envelope) {
         const assinanteRecord = assinantesList.find((a) => a.email === sig.signatario_email)
         const tokenParam = assinanteRecord?.token_acesso
           ? `?token=${assinanteRecord.token_acesso}`
@@ -323,7 +393,9 @@ export function SignatureModal({
           nome: sig.signatario_nome,
           link,
           codigo: sig.codigo_confirmacao,
-          documento_nome: `Envelope com ${docs.length} documento(s)`,
+          documento_nome: isEnvelope
+            ? `Envelope com ${docs.length} documento(s)`
+            : sig.documento_nome,
           envelope_id: envelope.id,
         }
       } else {
@@ -352,7 +424,7 @@ export function SignatureModal({
 
   const copyLink = (sig: any) => {
     let link: string
-    if (isEnvelope && envelope) {
+    if (envelope) {
       const assinanteRecord = assinantesList.find((a) => a.email === sig.signatario_email)
       const tokenParam = assinanteRecord?.token_acesso
         ? `?token=${assinanteRecord.token_acesso}`

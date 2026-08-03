@@ -121,8 +121,26 @@ export default function AssinaturaPage() {
         acao: `Assinatura Realizada no documento ${assinatura.documento_nome} (Papel: ${assinatura.signatario_tipo})`,
       })
 
-      // A finalização agora é disparada automaticamente via gatilho de banco de dados
-      // quando a última assinatura for concluída.
+      const { data: linkedDoc } = await supabase
+        .from('documentos_cliente')
+        .select('envelope_id')
+        .eq('arquivo_url', assinatura.documento_id)
+        .limit(1)
+        .maybeSingle()
+
+      if (linkedDoc?.envelope_id) {
+        await supabase
+          .from('assinantes')
+          .update({
+            status: 'assinado',
+            assinado_em: new Date().toISOString(),
+            assinatura_base64: formData.assinaturaBase64,
+            ip_address: ip,
+          })
+          .eq('envelope_id', linkedDoc.envelope_id)
+          .eq('email', assinatura.signatario_email)
+          .neq('status', 'assinado')
+      }
 
       toast.success('Documento assinado com sucesso!')
       setAssinatura({

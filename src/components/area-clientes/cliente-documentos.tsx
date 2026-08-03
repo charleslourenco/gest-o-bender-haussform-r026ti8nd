@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 import { Progress } from '@/components/ui/progress'
+import { isPdfDocument } from '@/lib/signature-utils'
 
 export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload: () => void }) {
   const [docs, setDocs] = useState<any[]>([])
@@ -615,7 +616,16 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
           variant="default"
           className="font-bold shadow bg-green-600 hover:bg-green-700 text-white"
           disabled={!canBatchSign}
-          onClick={() => setSignatureDocs(selectedDocs)}
+          onClick={() => {
+            const nonPdf = selectedDocs.filter((d) => !isPdfDocument(d.arquivo_url))
+            if (nonPdf.length > 0) {
+              toast.error(
+                `${nonPdf.length} documento(s) não estão em formato PDF e não podem ser assinados. Remova-os da seleção ou converta para PDF.`,
+              )
+              return
+            }
+            setSignatureDocs(selectedDocs)
+          }}
         >
           <Send className="w-4 h-4 mr-2" /> Enviar Selecionados ({selectedDocs.length})
         </Button>
@@ -785,11 +795,30 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
+                        onClick={() => {
+                          if (
+                            !isPdfDocument(doc.arquivo_url) &&
+                            doc.tipo !== 'upload_manual' &&
+                            doc.tipo !== 'lista_materiais'
+                          ) {
+                            toast.error(
+                              'Apenas documentos PDF podem ser assinados. Converta o arquivo para PDF.',
+                            )
+                            return
+                          }
+                          if (
+                            (doc.tipo === 'upload_manual' || doc.tipo === 'lista_materiais') &&
+                            !isPdfDocument(doc.arquivo_url)
+                          ) {
+                            toast.error(
+                              'Apenas documentos PDF podem ser assinados. Converta o arquivo para PDF e envie novamente.',
+                            )
+                            return
+                          }
                           setSignatureDocs([
                             { ...doc, title: doc.template_nome || doc.tipo, path: doc.arquivo_url },
                           ])
-                        }
+                        }}
                         className="hover:bg-accent hover:text-accent-foreground"
                       >
                         <PenTool className="w-4 h-4 mr-1" /> Gerenciar Assinaturas

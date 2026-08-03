@@ -56,9 +56,19 @@ export default function AssinarEnvelopePage() {
         .eq('envelope_id', id)
         .order('criado_em', { ascending: true })
 
-      setDocs(envDocs || [])
+      const { data: equipeDocs } = await supabase
+        .from('documentos_equipe')
+        .select('*')
+        .eq('envelope_id', id)
+        .order('criado_em', { ascending: true })
 
-      const docIds = (envDocs || []).map((d) => d.arquivo_url).filter(Boolean)
+      const allDocs = [
+        ...(envDocs || []).map((d) => ({ ...d, _source: 'cliente' })),
+        ...(equipeDocs || []).map((d) => ({ ...d, _source: 'equipe' })),
+      ]
+      setDocs(allDocs)
+
+      const docIds = allDocs.flatMap((d) => [d.arquivo_url, d.id].filter(Boolean))
       if (docIds.length > 0) {
         const { data: sigs } = await supabase
           .from('assinaturas')
@@ -128,12 +138,11 @@ export default function AssinarEnvelopePage() {
         }
         if (!url) url = filePath
       } else {
-        const { data } = await supabase.storage
-          .from('bender_clientes')
-          .createSignedUrl(filePath, 3600)
+        const bucket = doc._source === 'equipe' ? 'documentos_equipe' : 'bender_clientes'
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(filePath, 3600)
         if (data?.signedUrl) url = data.signedUrl
         if (!url) {
-          const { data: pubData } = supabase.storage.from('bender_clientes').getPublicUrl(filePath)
+          const { data: pubData } = supabase.storage.from(bucket).getPublicUrl(filePath)
           if (pubData?.publicUrl) url = pubData.publicUrl
         }
       }
@@ -178,7 +187,7 @@ export default function AssinarEnvelopePage() {
   const handleSignDoc = async (doc: any) => {
     const sig = assinaturas.find(
       (a) =>
-        a.documento_id === doc.arquivo_url &&
+        (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
         a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
     )
     if (!sig) {
@@ -232,10 +241,11 @@ export default function AssinarEnvelopePage() {
           .eq('id', assinante.id)
       }
 
+      const allDocIds = docs.flatMap((d) => [d.arquivo_url, d.id].filter(Boolean))
       const { data: updatedSigs } = await supabase
         .from('assinaturas')
         .select('*')
-        .in('documento_id', docs.map((d) => d.arquivo_url).filter(Boolean))
+        .in('documento_id', allDocIds)
       setAssinaturas(updatedSigs || [])
 
       const { data: updatedAssinantes } = await supabase
@@ -244,12 +254,23 @@ export default function AssinarEnvelopePage() {
         .eq('envelope_id', id)
       setAssinantes(updatedAssinantes || [])
 
-      const { data: updatedDocs } = await supabase
+      const { data: updatedClienteDocs } = await supabase
         .from('documentos_cliente')
         .select('*')
         .eq('envelope_id', id)
         .order('criado_em', { ascending: true })
-      setDocs(updatedDocs || [])
+
+      const { data: updatedEquipeDocs } = await supabase
+        .from('documentos_equipe')
+        .select('*')
+        .eq('envelope_id', id)
+        .order('criado_em', { ascending: true })
+
+      const updatedDocs = [
+        ...(updatedClienteDocs || []).map((d) => ({ ...d, _source: 'cliente' })),
+        ...(updatedEquipeDocs || []).map((d) => ({ ...d, _source: 'equipe' })),
+      ]
+      setDocs(updatedDocs)
 
       const myUpdatedSigs = (updatedSigs || []).filter(
         (s) => s.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
@@ -351,7 +372,7 @@ export default function AssinarEnvelopePage() {
             {docs.map((doc, idx) => {
               const sig = assinaturas.find(
                 (a) =>
-                  a.documento_id === doc.arquivo_url &&
+                  (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
                   (!verified ||
                     a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase()),
               )
@@ -522,7 +543,7 @@ export default function AssinarEnvelopePage() {
                 {docs.map((doc, idx) => {
                   const sig = assinaturas.find(
                     (a) =>
-                      a.documento_id === doc.arquivo_url &&
+                      (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
                       a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
                   )
                   const signed = sig?.status === 'assinado' || doc.status === 'Assinado'
