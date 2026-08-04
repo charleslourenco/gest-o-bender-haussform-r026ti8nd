@@ -33,13 +33,6 @@ import {
   DEFAULT_FILTROS,
   applyFiltros,
 } from '@/components/montagem/HistoricoFilters'
-import { fetchMontadores, MontadorOption } from '@/services/historico-montagem'
-import { HistoricoTimelineFilters } from '@/components/montagem/HistoricoTimelineFilters'
-import {
-  HistoricoFiltros,
-  DEFAULT_FILTROS,
-  applyFiltros,
-} from '@/components/montagem/HistoricoFilters'
 
 export function KanbanDialog({
   selectedCard,
