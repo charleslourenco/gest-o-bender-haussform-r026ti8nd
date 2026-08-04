@@ -876,7 +876,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </SelectContent>
                   </Select>
 
-                  {isMontagemRoute && (
+                  {isMontagemRoute && item?.id && (
                     <MontadorSelect
                       item={item}
                       montadores={allMontadores || []}

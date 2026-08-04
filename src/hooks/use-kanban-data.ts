@@ -50,18 +50,55 @@ export function getClienteNome(item: any): string | null {
   return null
 }
 
-const normalizeItem = (item: any): KanbanItem => ({
-  ...item,
-  alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
-  cliente: item?.cliente ?? null,
-  formulario: item?.formulario ?? null,
-  status_analise: item?.status_analise ?? null,
-  nome_produto: item?.nome_produto ?? '',
-  qtd: item?.qtd ?? 0,
-  codigo_rastreio: item?.codigo_rastreio ?? null,
-  analista_id: item?.analista_id ?? null,
-  criado_em: item?.criado_em ?? '',
-})
+const normalizeItem = (item: any): KanbanItem => {
+  if (!item || typeof item !== 'object') {
+    return {
+      id: '',
+      nome_produto: '',
+      codigo_rastreio: null,
+      qtd: 0,
+      status_analise: '',
+      cliente: null,
+      cliente_id: null,
+      criado_em: '',
+      analista_id: null,
+      formulario: null,
+      alocacao_montagem: [],
+      terceirizado_validado: false,
+      outsourced_checked: false,
+      is_outsourced: false,
+    }
+  }
+  const cliente = Array.isArray(item?.cliente) ? (item.cliente[0] ?? null) : (item?.cliente ?? null)
+  const formularioRaw = Array.isArray(item?.formulario)
+    ? (item.formulario[0] ?? null)
+    : (item?.formulario ?? null)
+  const formulario = formularioRaw
+    ? {
+        user_id: formularioRaw.user_id ?? '',
+        nome_cliente: formularioRaw.nome_cliente ?? null,
+        cliente: Array.isArray(formularioRaw.cliente)
+          ? (formularioRaw.cliente[0] ?? null)
+          : (formularioRaw.cliente ?? null),
+      }
+    : null
+  return {
+    ...item,
+    alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+    cliente,
+    formulario,
+    status_analise: item?.status_analise ?? null,
+    nome_produto: item?.nome_produto ?? '',
+    qtd: item?.qtd ?? 0,
+    codigo_rastreio: item?.codigo_rastreio ?? null,
+    analista_id: item?.analista_id ?? null,
+    criado_em: item?.criado_em ?? '',
+    cliente_id: item?.cliente_id ?? null,
+    terceirizado_validado: item?.terceirizado_validado ?? false,
+    outsourced_checked: item?.outsourced_checked ?? false,
+    is_outsourced: item?.is_outsourced ?? false,
+  }
+}
 
 export function useKanbanData(
   columns: KanbanColumnDef[],
@@ -138,7 +175,14 @@ export function useKanbanData(
           const { data: montData } = await supabase
             .from('montadores')
             .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
-          if (montData) setAllMontadores(montData)
+          if (montData) {
+            setAllMontadores(
+              montData.map((m: any) => ({
+                ...m,
+                alocacao_montagem: Array.isArray(m?.alocacao_montagem) ? m.alocacao_montagem : [],
+              })),
+            )
+          }
         }
 
         const validItems = ((data as unknown as KanbanItem[]) || []).map(normalizeItem)

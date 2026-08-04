@@ -60,15 +60,23 @@ export function KanbanCard({
 
   useEffect(() => {
     if (isMontagem && card?.id) {
+      let isMounted = true
       supabase
         .from('alocacao_montagem')
         .select('montadores(nome_completo)')
         .eq('card_id', card.id)
         .then(({ data }) => {
-          if (data) {
-            setMontadores(data.map((d: any) => d.montadores?.nome_completo).filter(Boolean))
-          }
+          if (!isMounted || !data) return
+          setMontadores(data.map((d: any) => d?.montadores?.nome_completo).filter(Boolean))
         })
+        .catch(() => {
+          if (isMounted) setMontadores([])
+        })
+      return () => {
+        isMounted = false
+      }
+    } else {
+      setMontadores([])
     }
   }, [card?.id, isMontagem])
 

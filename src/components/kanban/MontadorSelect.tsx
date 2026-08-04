@@ -1,5 +1,3 @@
-import { useState } from 'react'
-import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -10,19 +8,10 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Check, ChevronsUpDown, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import { useMontadorAllocation } from '@/hooks/use-montador-allocation'
+import { AllocationConfirmDialog } from './AllocationConfirmDialog'
 
 export function MontadorSelect({
   item,
@@ -36,69 +25,16 @@ export function MontadorSelect({
   const alocacoesCard = Array.isArray(item?.alocacao_montagem)
     ? item.alocacao_montagem.map((a: any) => a?.montador_id).filter(Boolean)
     : []
-  const [pendingAllocation, setPendingAllocation] = useState<{
-    montadorId: string
-    montadorNome: string
-    prevCards: any[]
-  } | null>(null)
+
+  const { pending, clearPending, toggleMontador, resolveChoice } = useMontadorAllocation(onUpdate)
 
   if (!item?.id) return null
 
-  const handleToggleMontador = async (montadorId: string, checked: boolean) => {
-    if (!checked) {
-      await supabase
-        .from('alocacao_montagem')
-        .delete()
-        .match({ montador_id: montadorId, card_id: item.id })
-      onUpdate()
-      return
-    }
-
-    const montador = montadores.find((m) => m.id === montadorId)
+  const handleSelect = (montadorId: string) => {
+    const montador = montadores.find((m) => m?.id === montadorId)
     if (!montador) return
-
-    const currentCardClientId = item?.cliente_id ?? null
-    const conflictingAllocations = Array.isArray(montador?.alocacao_montagem)
-      ? montador.alocacao_montagem.filter(
-          (a: any) =>
-            a?.produtos_servicos_projeto?.cliente_id !== currentCardClientId &&
-            a?.card_id !== item?.id,
-        )
-      : []
-
-    if (conflictingAllocations.length > 0) {
-      setPendingAllocation({
-        montadorId,
-        montadorNome: montador.nome_completo,
-        prevCards: conflictingAllocations.map((a: any) => a.card_id),
-      })
-      return
-    }
-
-    await proceedAllocation(montadorId)
-  }
-
-  const proceedAllocation = async (montadorId: string) => {
-    await supabase.from('alocacao_montagem').insert({
-      montador_id: montadorId,
-      card_id: item.id,
-    })
-    toast.success('Montador alocado com sucesso')
-    onUpdate()
-  }
-
-  const confirmPendingAllocation = async () => {
-    if (!pendingAllocation) return
-
-    if (pendingAllocation.prevCards.length > 0) {
-      await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: 'pendencia' })
-        .in('id', pendingAllocation.prevCards)
-    }
-
-    await proceedAllocation(pendingAllocation.montadorId)
-    setPendingAllocation(null)
+    const isChecked = alocacoesCard.includes(montadorId)
+    toggleMontador(montador, item.id, item?.cliente_id ?? null, isChecked)
   }
 
   return (
@@ -129,7 +65,8 @@ export function MontadorSelect({
                 Nenhum encontrado.
               </CommandEmpty>
               <CommandGroup>
-                {montadores.map((m) => {
+                {(montadores || []).map((m) => {
+                  if (!m?.id) return null
                   const isChecked = alocacoesCard.includes(m.id)
                   const isBusyWithOtherClient =
                     !isChecked &&
@@ -140,8 +77,8 @@ export function MontadorSelect({
                   return (
                     <CommandItem
                       key={m.id}
-                      value={m.nome_completo}
-                      onSelect={() => handleToggleMontador(m.id, !isChecked)}
+                      value={m.nome_completo || ''}
+                      onSelect={() => handleSelect(m.id)}
                       className="text-xs cursor-pointer py-1.5"
                     >
                       <div
@@ -172,33 +109,13 @@ export function MontadorSelect({
         </PopoverContent>
       </Popover>
 
-      <AlertDialog
-        open={!!pendingAllocation}
-        onOpenChange={(open) => !open && setPendingAllocation(null)}
-      >
-        <AlertDialogContent className="z-[60] bg-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Autorizar Realocação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O montador <strong>{pendingAllocation?.montadorNome}</strong> já está alocado em outro
-              cliente.
-              <br />
-              <br />
-              Deseja autorizar a nova alocação e mover a(s) montagem(ns) anterior(es) para{' '}
-              <strong>Pendências</strong>?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmPendingAllocation}
-              className="bg-emerald-500 text-white hover:bg-emerald-600"
-            >
-              Sim, Autorizar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AllocationConfirmDialog
+        open={!!pending}
+        onOpenChange={(o) => !o && clearPending()}
+        montadorNome={pending?.montador.nome_completo ?? null}
+        prevCardsCount={pending?.prevCards.length ?? 0}
+        onChoose={(choice) => resolveChoice(choice, item.id)}
+      />
     </>
   )
 }
