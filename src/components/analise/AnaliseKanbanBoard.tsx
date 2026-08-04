@@ -132,6 +132,7 @@ export function AnaliseKanbanBoard({
         '*, clientes(nome), users(nome), project_item_names, formulario_comercial(leads(kanban_ativo))',
       )
       .eq('arquivado_analise', false)
+      .eq('excluido_analise' as any, false)
 
     if (formularioComercialId) {
       query = query.eq('formulario_comercial_id', formularioComercialId)
@@ -145,7 +146,7 @@ export function AnaliseKanbanBoard({
   useEffect(() => {
     loadCards()
     const sub = supabase
-      .channel('psp_changes')
+      .channel('psp_changes_analise')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'produtos_servicos_projeto' },

@@ -21,6 +21,7 @@ export async function fetchLeadsArquivados() {
     .from('leads')
     .select('*, consultor:users!leads_consultor_id_fkey(nome)')
     .eq('arquivado_comercial' as any, true)
+    .eq('excluido' as any, false)
     .order('atualizado_em', { ascending: false })
   if (error) throw error
   return data
@@ -47,6 +48,7 @@ export async function fetchProducaoArquivados() {
     .from('produtos_servicos_projeto')
     .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
     .eq('arquivado_producao' as any, true)
+    .eq('excluido_producao' as any, false)
     .order('atualizado_em', { ascending: false })
   if (error) throw error
   return data
@@ -73,6 +75,7 @@ export async function fetchMontagemArquivados() {
     .from('produtos_servicos_projeto')
     .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
     .eq('arquivado_montagem' as any, true)
+    .eq('excluido_montagem' as any, false)
     .order('atualizado_em', { ascending: false })
   if (error) throw error
   return data
@@ -99,6 +102,7 @@ export async function fetchAnaliseArquivados() {
     .from('produtos_servicos_projeto')
     .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
     .eq('arquivado_analise' as any, true)
+    .eq('excluido_analise' as any, false)
     .order('atualizado_em', { ascending: false })
   if (error) throw error
   return data
@@ -139,6 +143,7 @@ export async function fetchAnaliseFormularioArquivados() {
       'id, nome_cliente, valor_total, data_prevista_entrega, status_analise_projeto, atualizado_em, arquivado_analise, clientes(nome), leads(kanban_ativo)',
     )
     .eq('arquivado_analise' as any, true)
+    .eq('excluido_analise' as any, false)
     .order('atualizado_em', { ascending: false })
   if (error) throw error
   return data

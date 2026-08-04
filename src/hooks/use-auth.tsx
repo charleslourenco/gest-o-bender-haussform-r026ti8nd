@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   permissions: Record<string, string>
+  isAdmin: boolean
   signUp: (email: string, password: string, name: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
@@ -24,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [permissions, setPermissions] = useState<Record<string, string>>({})
+  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,13 +39,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!error && data) {
           const perms: Record<string, string> = {}
           data.forEach((p) => {
-            // Mapeamento de contingência para nomes antigos
             const modName = p.modulo === 'Área de Clientes' ? 'Clientes' : p.modulo
 
             const currentLevel = perms[modName]
             const newLevel = p.nivel_acesso
 
-            // Garantir que a permissão mais alta não seja sobrescrita por uma inferior em caso de duplicatas
             const levels = { Admin: 4, Editor: 3, Leitor: 2, 'Sem Acesso': 1 }
             const currentScore = currentLevel ? levels[currentLevel as keyof typeof levels] || 0 : 0
             const newScore = levels[newLevel as keyof typeof levels] || 0
@@ -59,16 +59,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
+    const fetchIsAdmin = async (userId: string) => {
+      try {
+        const { data, error } = await supabase.rpc('is_admin', { user_id: userId })
+        if (!error) {
+          setIsAdmin(data === true)
+        } else {
+          setIsAdmin(false)
+        }
+      } catch (err) {
+        console.error('Error checking admin status', err)
+        setIsAdmin(false)
+      }
+    }
+
     const handleSession = (sessionObj: Session | null) => {
       setSession(sessionObj)
       setUser(sessionObj?.user ?? null)
 
       if (sessionObj?.user) {
-        fetchPermissions(sessionObj.user.id).then(() => {
-          setLoading(false)
-        })
+        Promise.all([fetchPermissions(sessionObj.user.id), fetchIsAdmin(sessionObj.user.id)]).then(
+          () => {
+            setLoading(false)
+          },
+        )
       } else {
         setPermissions({})
+        setIsAdmin(false)
         setLoading(false)
       }
     }
@@ -108,7 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, permissions, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider
+      value={{ user, session, permissions, isAdmin, signUp, signIn, signOut, loading }}
+    >
       {children}
     </AuthContext.Provider>
   )

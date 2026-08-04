@@ -128,6 +128,7 @@ export function RecuperarClienteDialog({
         .from('clientes')
         .select('id, nome, email')
         .ilike('status', 'Ativo')
+        .eq('excluido' as any, false)
         .order('nome')
       if (error) throw error
       setExistingClients(data || [])

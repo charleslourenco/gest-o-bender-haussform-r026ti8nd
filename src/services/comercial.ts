@@ -5,6 +5,7 @@ export const fetchLeads = async () => {
     .from('leads')
     .select('*, consultor:users!leads_consultor_id_fkey(nome)')
     .eq('arquivado_comercial' as any, false)
+    .eq('excluido' as any, false)
     .order('ordem', { ascending: true })
   if (error) throw error
   return data
@@ -34,7 +35,10 @@ export const updateLead = async (id: string, leadData: any) => {
 }
 
 export const deleteLead = async (id: string) => {
-  const { error } = await supabase.from('leads').delete().eq('id', id)
+  const { error } = await supabase
+    .from('leads')
+    .update({ excluido: true } as any)
+    .eq('id', id)
   if (error) throw error
 }
 

@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { useKanbanData, getClienteNome, type KanbanItem } from '@/hooks/use-kanban-data'
 import {
   updateCardStatus,
   deleteCard as deleteCardAction,
   assignAnalyst as assignAnalystAction,
+  type KanbanModule,
 } from '@/lib/kanban-actions'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -123,9 +125,34 @@ function TimeInColumn({
 
 export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const location = useLocation()
+  const { isAdmin } = useAuth()
   const isMontagemRoute = location.pathname.includes('/montagem')
   const isAnaliseTecnica = location.pathname.includes('/analise-tecnica')
   const isProducao = location.pathname.includes('/producao')
+
+  const kanbanModule: KanbanModule = isProducao
+    ? 'producao'
+    : isMontagemRoute
+      ? 'montagem'
+      : 'analise'
+
+  const archiveFlag = isProducao
+    ? 'arquivado_producao'
+    : isMontagemRoute
+      ? 'arquivado_montagem'
+      : isAnaliseTecnica
+        ? 'arquivado_analise'
+        : undefined
+
+  const excluidoFlag = isProducao
+    ? 'excluido_producao'
+    : isMontagemRoute
+      ? 'excluido_montagem'
+      : isAnaliseTecnica
+        ? 'excluido_analise'
+        : undefined
+
+  const priorityColumnId = isMontagemRoute ? columns[0]?.id : undefined
 
   const {
     items,
@@ -141,13 +168,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     refreshItems,
   } = useKanbanData(columns, {
     fetchMontadores: isMontagemRoute,
-    archiveFlag: isProducao
-      ? 'arquivado_producao'
-      : isMontagemRoute
-        ? 'arquivado_montagem'
-        : isAnaliseTecnica
-          ? 'arquivado_analise'
-          : undefined,
+    archiveFlag,
+    excluidoFlag,
+    priorityColumnId,
   })
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -403,16 +426,19 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   const handleDeleteCard = async (id: string) => {
+    if (!isAdmin) {
+      toast.error('Apenas administradores podem excluir cards.')
+      return
+    }
     if (!confirm('Deseja realmente excluir este card?')) return
     try {
-      await deleteCardAction(id)
+      await deleteCardAction(id, kanbanModule)
       toast.success('Card excluído com sucesso!')
       setItems((prev) => prev.filter((i) => i?.id !== id))
     } catch (err: any) {
       toast.error('Erro ao excluir card: ' + err.message)
     }
   }
-
   const handleArchiveCard = async (id: string) => {
     try {
       if (isProducao) {
@@ -624,22 +650,24 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         <Archive className="h-3.5 w-3.5" />
                       </button>
                     )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteCard(item.id)
-                    }}
-                    className={cn(
-                      'p-1 rounded transition-colors',
-                      isAnaliseTecnica || isProducao || isMontagemRoute
-                        ? 'hover:text-destructive hover:bg-destructive/10'
-                        : 'hover:text-destructive hover:bg-destructive/10',
-                    )}
-                    title="Excluir card"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteCard(item.id)
+                      }}
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        isAnaliseTecnica || isProducao || isMontagemRoute
+                          ? 'hover:text-destructive hover:bg-destructive/10'
+                          : 'hover:text-destructive hover:bg-destructive/10',
+                      )}
+                      title="Excluir card"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   <div className="p-1 cursor-grab active:cursor-grabbing">
                     <GripVertical className="h-3.5 w-3.5" />
                   </div>
@@ -1130,13 +1158,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             </Select>
                           </TableCell>
                           <TableCell className="text-right">
-                            <button
-                              onClick={() => item?.id && handleDeleteCard(item.id)}
-                              className="p-2 rounded-md hover:bg-destructive/10 text-destructive transition-colors inline-flex items-center justify-center"
-                              title="Excluir item"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={() => item?.id && handleDeleteCard(item.id)}
+                                className="p-2 rounded-md hover:bg-destructive/10 text-destructive transition-colors inline-flex items-center justify-center"
+                                title="Excluir item"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </TableCell>
                         </TableRow>
                       ) : null,

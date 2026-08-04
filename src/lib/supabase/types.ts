@@ -1252,6 +1252,7 @@ export type Database = {
       estoque_item_aliases: {
         Row: {
           criado_em: string
+          descricao_normalizada: string | null
           descricao_nota: string
           id: string
           item_id: string
@@ -1259,6 +1260,7 @@ export type Database = {
         }
         Insert: {
           criado_em?: string
+          descricao_normalizada?: string | null
           descricao_nota: string
           id?: string
           item_id: string
@@ -1266,6 +1268,7 @@ export type Database = {
         }
         Update: {
           criado_em?: string
+          descricao_normalizada?: string | null
           descricao_nota?: string
           id?: string
           item_id?: string
@@ -2947,6 +2950,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unaccent: { Args: { '': string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ export function AnaliseKanbanCard({
   const [users, setUsers] = useState<any[]>([])
   const [analistaId, setAnalistaId] = useState<string>(card?.analista_id || '')
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -56,11 +58,19 @@ export function AnaliseKanbanCard({
   const handleDelete = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
 
+    if (!isAdmin) {
+      toast({
+        title: 'Apenas administradores podem excluir cards.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (card?.is_parent_card && card?.formulario_comercial_id) {
       const { error } = await supabase
-        .from('formulario_comercial')
-        .delete()
-        .eq('id', card.formulario_comercial_id)
+        .from('produtos_servicos_projeto')
+        .update({ excluido_analise: true } as any)
+        .eq('formulario_comercial_id', card.formulario_comercial_id)
 
       if (error) {
         toast({
@@ -73,7 +83,10 @@ export function AnaliseKanbanCard({
         if (onDelete) onDelete(card.id)
       }
     } else {
-      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', card?.id)
+      const { error } = await supabase
+        .from('produtos_servicos_projeto')
+        .update({ excluido_analise: true } as any)
+        .eq('id', card?.id)
 
       if (error) {
         toast({ title: 'Erro ao excluir card', description: error.message, variant: 'destructive' })
@@ -183,42 +196,44 @@ export function AnaliseKanbanCard({
               ⚠️
             </button>
           )}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <button
-                className={`transition-colors p-1.5 rounded hover:bg-destructive/10 shrink-0 ${isAlert ? 'text-orange-700 dark:text-orange-400 hover:text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </AlertDialogTrigger>
-            <AlertDialogContent
-              onClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Item?'}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {card.is_parent_card
-                    ? 'Tem certeza que deseja excluir este projeto? Todo o formulário comercial e seus itens serão removidos. O cadastro do cliente permanecerá intacto.'
-                    : 'Tem certeza que deseja excluir este item? Apenas este produto/serviço será removido. O restante do projeto e o cliente não serão afetados.'}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+          {isAdmin && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  className={`transition-colors p-1.5 rounded hover:bg-destructive/10 shrink-0 ${isAlert ? 'text-orange-700 dark:text-orange-400 hover:text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  title={card.is_parent_card ? 'Excluir Projeto' : 'Excluir Card'}
                 >
-                  Confirmar Exclusão
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {card.is_parent_card ? 'Excluir Projeto?' : 'Excluir Item?'}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {card.is_parent_card
+                      ? 'Tem certeza que deseja excluir este projeto? Todo o formulário comercial e seus itens serão removidos. O cadastro do cliente permanecerá intacto.'
+                      : 'Tem certeza que deseja excluir este item? Apenas este produto/serviço será removido. O restante do projeto e o cliente não serão afetados.'}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+                  >
+                    Confirmar Exclusão
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 

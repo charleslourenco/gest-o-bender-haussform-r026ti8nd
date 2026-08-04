@@ -83,7 +83,7 @@ function normalizeLead(raw: any): LeadRelation | null {
 }
 
 export function ClientesList({ onSelect }: ClientesListProps) {
-  const { user, permissions } = useAuth()
+  const { user, permissions, isAdmin } = useAuth()
   const [clientesData, setClientesData] = useState<ClienteRow[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -120,7 +120,11 @@ export function ClientesList({ onSelect }: ClientesListProps) {
     const fetchFilterOptions = async () => {
       try {
         const [clientesRes, consultoresRes] = await Promise.all([
-          supabase.from('clientes').select('id, nome').order('nome'),
+          supabase
+            .from('clientes')
+            .select('id, nome')
+            .eq('excluido' as any, false)
+            .order('nome'),
           supabase.from('users').select('id, nome').eq('status', true).order('nome'),
         ])
         if (clientesRes.error) throw clientesRes.error
@@ -149,6 +153,8 @@ export function ClientesList({ onSelect }: ClientesListProps) {
             dossies(id, status, criado_em)
           `)
 
+        query = query.eq('excluido' as any, false)
+
         if (clienteFilter !== 'all') {
           query = query.eq('id', clienteFilter)
         }
@@ -170,20 +176,21 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           dossies: Array.isArray(c.dossies) ? c.dossies : c.dossies ? [c.dossies] : [],
         }))
 
-        const withForm = normalized.filter((c) => c.leads?.formulario_comercial)
+        const clientsWithForm = normalized.filter((c) => c.leads?.formulario_comercial)
 
-        const inPeriod = withForm.filter((c) => {
+        const formInPeriod = clientsWithForm.filter((c) => {
           const dv = c.leads?.formulario_comercial?.data_venda
           if (!dv) return true
           if (dataVendaDe && dv < dataVendaDe) return false
           if (dataVendaAte && dv > dataVendaAte) return false
           return true
         })
-        setClientesData(inPeriod)
+
+        setClientesData(normalized)
 
         const formIds = new Set<string>()
         let total = 0
-        inPeriod.forEach((c) => {
+        formInPeriod.forEach((c) => {
           const f = c.leads!.formulario_comercial!
           if (f.id && !formIds.has(f.id)) {
             formIds.add(f.id)
@@ -402,15 +409,17 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <ClienteDeleteDialog
-                            clienteId={cliente.id}
-                            clienteNome={cliente.nome}
-                            onDeleted={() => {
-                              toast.success('Cliente excluído com sucesso.')
-                              setRefreshTrigger((prev) => prev + 1)
-                            }}
-                            triggerClassName="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          />
+                          {isAdmin && (
+                            <ClienteDeleteDialog
+                              clienteId={cliente.id}
+                              clienteNome={cliente.nome}
+                              onDeleted={() => {
+                                toast.success('Cliente excluído com sucesso.')
+                                setRefreshTrigger((prev) => prev + 1)
+                              }}
+                              triggerClassName="inline-flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            />
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

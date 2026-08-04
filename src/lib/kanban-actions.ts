@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 
+export type KanbanModule = 'analise' | 'producao' | 'montagem'
+
 export async function releaseAssemblers(cardId: string): Promise<void> {
   const { error } = await supabase.from('alocacao_montagem').delete().eq('card_id', cardId)
   if (error) throw error
@@ -22,10 +24,14 @@ export async function updateCardStatus(
   if (error) throw error
 }
 
-export async function deleteCard(id: string): Promise<void> {
+export async function deleteCard(id: string, module: KanbanModule): Promise<void> {
+  const flag = `excluido_${module}` as
+    | 'excluido_analise'
+    | 'excluido_producao'
+    | 'excluido_montagem'
   const { data, error } = await supabase
     .from('produtos_servicos_projeto')
-    .delete()
+    .update({ [flag]: true, atualizado_em: new Date().toISOString() } as any)
     .eq('id', id)
     .select('id')
   if (error) throw error

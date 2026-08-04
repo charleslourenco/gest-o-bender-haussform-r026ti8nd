@@ -50,12 +50,24 @@ export function getClienteNome(item: any): string | null {
   return null
 }
 
+const normalizeItem = (item: any): KanbanItem => ({
+  ...item,
+  alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+})
+
 export function useKanbanData(
   columns: KanbanColumnDef[],
-  opts?: { fetchMontadores?: boolean; archiveFlag?: string },
+  opts?: {
+    fetchMontadores?: boolean
+    archiveFlag?: string
+    excluidoFlag?: string
+    priorityColumnId?: string
+  },
 ) {
   const fetchMontadores = opts?.fetchMontadores ?? false
   const archiveFlag = opts?.archiveFlag
+  const excluidoFlag = opts?.excluidoFlag
+  const priorityColumnId = opts?.priorityColumnId
   const [items, setItems] = useState<KanbanItem[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -72,6 +84,13 @@ export function useKanbanData(
   }, [page])
 
   const columnsKey = JSON.stringify(columns)
+  const channelName = `kanban_changes_${archiveFlag || excluidoFlag || 'default'}`
+
+  const applyFilters = (q: any) => {
+    if (archiveFlag) q = q.eq(archiveFlag as any, false)
+    if (excluidoFlag) q = q.eq(excluidoFlag as any, false)
+    return q
+  }
 
   const fetchItems = useCallback(
     async (isLoadMore = false) => {
@@ -83,11 +102,26 @@ export function useKanbanData(
         const currentPage = isLoadMore ? pageRef.current + 1 : 0
         const from = currentPage * PAGE_SIZE
         const to = from + PAGE_SIZE - 1
+
+        let priorityItems: KanbanItem[] = []
+        if (priorityColumnId) {
+          let pq = supabase
+            .from('produtos_servicos_projeto')
+            .select(ITEM_SELECT)
+            .eq('status_analise', priorityColumnId)
+          pq = applyFilters(pq)
+          const { data: pData, error: pErr } = await pq
+            .order('criado_em', { ascending: false })
+            .limit(500)
+          if (pErr) throw pErr
+          priorityItems = ((pData as unknown as KanbanItem[]) || []).map(normalizeItem)
+        }
+
         let query = supabase
           .from('produtos_servicos_projeto')
           .select(ITEM_SELECT, { count: 'exact' })
         if (columnIds.length > 0) query = query.in('status_analise', columnIds)
-        if (archiveFlag) query = query.eq(archiveFlag as any, false)
+        query = applyFilters(query)
         query = query.order('criado_em', { ascending: false }).range(from, to)
         const { data, count, error: err } = await query
         if (err) throw err
@@ -99,18 +133,19 @@ export function useKanbanData(
           if (montData) setAllMontadores(montData)
         }
 
-        const validItems = ((data as unknown as KanbanItem[]) || []).map((item) => ({
-          ...item,
-          alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
-        }))
+        const validItems = ((data as unknown as KanbanItem[]) || []).map(normalizeItem)
+        const merged = [...priorityItems, ...validItems].filter(
+          (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
+        )
+
         if (isLoadMore) {
           setItems((prev) => [
             ...prev,
-            ...validItems.filter((fi) => !prev.some((pi) => pi?.id === fi.id)),
+            ...merged.filter((fi) => !prev.some((pi) => pi?.id === fi.id)),
           ])
           setPage(currentPage)
         } else {
-          setItems(validItems)
+          setItems(merged)
           setPage(0)
         }
 
@@ -125,34 +160,48 @@ export function useKanbanData(
         setIsLoadingMore(false)
       }
     },
-    [columnsKey, fetchMontadores, archiveFlag],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [columnsKey, fetchMontadores, archiveFlag, excluidoFlag, priorityColumnId],
   )
 
   const refreshItems = useCallback(async () => {
     try {
       const columnIds = columns.map((c) => c.id)
+      const limit = (pageRef.current + 1) * PAGE_SIZE
+
+      let priorityItems: KanbanItem[] = []
+      if (priorityColumnId) {
+        let pq = supabase
+          .from('produtos_servicos_projeto')
+          .select(ITEM_SELECT)
+          .eq('status_analise', priorityColumnId)
+        pq = applyFilters(pq)
+        const { data: pData } = await pq.order('criado_em', { ascending: false }).limit(500)
+        priorityItems = ((pData as unknown as KanbanItem[]) || []).map(normalizeItem)
+      }
+
       let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
       if (columnIds.length > 0) query = query.in('status_analise', columnIds)
-      if (archiveFlag) query = query.eq(archiveFlag as any, false)
-      query = query.order('criado_em', { ascending: false })
-      const limit = (pageRef.current + 1) * PAGE_SIZE
-      const { data, error: err } = await query.limit(limit)
+      query = applyFilters(query)
+      query = query.order('criado_em', { ascending: false }).limit(Math.max(limit, PAGE_SIZE))
+      const { data, error: err } = await query
       if (!err && data) {
-        const normalized = (data as unknown as KanbanItem[]).map((item) => ({
-          ...item,
-          alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
-        }))
-        setItems(normalized)
+        const normalized = (data as unknown as KanbanItem[]).map(normalizeItem)
+        const merged = [...priorityItems, ...normalized].filter(
+          (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
+        )
+        setItems(merged)
       }
     } catch (e) {
       console.error(e)
     }
-  }, [columnsKey, archiveFlag])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnsKey, archiveFlag, excluidoFlag, priorityColumnId])
 
   useEffect(() => {
     fetchItems()
     const channel = supabase
-      .channel('kanban_changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'produtos_servicos_projeto' },
@@ -165,7 +214,7 @@ export function useKanbanData(
       supabase.removeChannel(channel)
       window.removeEventListener('kanban_updated', handleUpdate)
     }
-  }, [fetchItems, refreshItems])
+  }, [fetchItems, refreshItems, channelName])
 
   useEffect(() => {
     const fetchUsers = async () => {
