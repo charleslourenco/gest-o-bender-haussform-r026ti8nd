@@ -26,6 +26,20 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { fetchMontadores, MontadorOption } from '@/services/historico-montagem'
+import { HistoricoTimelineFilters } from '@/components/montagem/HistoricoTimelineFilters'
+import {
+  HistoricoFiltros,
+  DEFAULT_FILTROS,
+  applyFiltros,
+} from '@/components/montagem/HistoricoFilters'
+import { fetchMontadores, MontadorOption } from '@/services/historico-montagem'
+import { HistoricoTimelineFilters } from '@/components/montagem/HistoricoTimelineFilters'
+import {
+  HistoricoFiltros,
+  DEFAULT_FILTROS,
+  applyFiltros,
+} from '@/components/montagem/HistoricoFilters'
 
 export function KanbanDialog({
   selectedCard,
@@ -45,8 +59,10 @@ export function KanbanDialog({
   const { toast } = useToast()
 
   const [montadores, setMontadores] = useState<any[]>([])
+  const [montadorOptions, setMontadorOptions] = useState<MontadorOption[]>([])
   const [alocacoesCard, setAlocacoesCard] = useState<string[]>([])
   const [historico, setHistorico] = useState<any[]>([])
+  const [timelineFiltros, setTimelineFiltros] = useState<HistoricoFiltros>(DEFAULT_FILTROS)
 
   const refreshAlocacoes = async () => {
     if (!selectedCard) return
@@ -58,7 +74,7 @@ export function KanbanDialog({
 
     const { data: montData } = await supabase
       .from('montadores')
-      .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id, nome_produto))')
+      .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(card_id, nome_produto))')
     if (montData) {
       setMontadores(
         montData.map((m: any) => ({
@@ -70,10 +86,19 @@ export function KanbanDialog({
 
     const { data: histData } = await (supabase as any)
       .from('historico_alocacao_montagem')
-      .select('id, acao, criado_em, montador:montadores(nome_completo)')
+      .select('id, acao, criado_em, montador_id, montador:montadores(nome_completo)')
       .eq('card_id', selectedCard.id)
       .order('criado_em', { ascending: false })
     setHistorico(Array.isArray(histData) ? histData : [])
+
+    if (montadorOptions.length === 0) {
+      try {
+        const montOpts = await fetchMontadores()
+        setMontadorOptions(montOpts)
+      } catch {
+        // silent
+      }
+    }
   }
 
   const { pending, clearPending, toggleMontador, resolveChoice } =
@@ -82,6 +107,7 @@ export function KanbanDialog({
   useEffect(() => {
     if (isMontagem && selectedCard) {
       refreshAlocacoes()
+      setTimelineFiltros(DEFAULT_FILTROS)
     } else {
       setAlocacoesCard([])
       setHistorico([])
@@ -100,6 +126,11 @@ export function KanbanDialog({
 
   const colTitle =
     columns.find((c) => c.id === selectedCard.status_analise)?.title || selectedCard.status_analise
+
+  const filteredHistorico = applyFiltros(
+    historico.map((h: any) => ({ ...h, montador_id: h.montador_id })),
+    timelineFiltros,
+  )
 
   return (
     <>
@@ -256,51 +287,66 @@ export function KanbanDialog({
 
             {isMontagem && historico.length > 0 && (
               <div className="bg-muted/30 p-3 rounded-lg border border-border">
-                <span className="text-xs text-primary uppercase font-semibold block mb-2">
-                  Histórico de Montagem
-                </span>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {historico.map((h) => {
-                    const montadorNome = Array.isArray(h?.montador)
-                      ? h.montador[0]?.nome_completo
-                      : h?.montador?.nome_completo
-                    const isAlocado = h.acao === 'alocado'
-                    return (
-                      <div key={h.id} className="flex items-center gap-2 text-sm">
-                        <div
-                          className={cn(
-                            'w-2 h-2 rounded-full shrink-0',
-                            isAlocado ? 'bg-emerald-500' : 'bg-orange-500',
-                          )}
-                        />
-                        <span className="font-medium text-card-foreground">
-                          {montadorNome || 'Montador'}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-xs px-1.5 py-0.5 rounded font-medium',
-                            isAlocado
-                              ? 'bg-emerald-500/20 text-emerald-600'
-                              : 'bg-orange-500/20 text-orange-600',
-                          )}
-                        >
-                          {isAlocado ? 'Alocado' : 'Desalocado'}
-                        </span>
-                        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-                          {h.criado_em
-                            ? new Date(h.criado_em).toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : ''}
-                        </span>
-                      </div>
-                    )
-                  })}
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-primary uppercase font-semibold">
+                    Histórico de Montagem
+                  </span>
                 </div>
+                <div className="mb-3">
+                  <HistoricoTimelineFilters
+                    montadores={montadorOptions}
+                    filtros={timelineFiltros}
+                    onChange={setTimelineFiltros}
+                  />
+                </div>
+                {filteredHistorico.length === 0 ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    Nenhum registro encontrado com os filtros atuais.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    {filteredHistorico.map((h: any) => {
+                      const montadorNome = Array.isArray(h?.montador)
+                        ? h.montador[0]?.nome_completo
+                        : h?.montador?.nome_completo
+                      const isAlocado = h.acao === 'alocado'
+                      return (
+                        <div key={h.id} className="flex items-center gap-2 text-sm">
+                          <div
+                            className={cn(
+                              'w-2 h-2 rounded-full shrink-0',
+                              isAlocado ? 'bg-emerald-500' : 'bg-orange-500',
+                            )}
+                          />
+                          <span className="font-medium text-card-foreground">
+                            {montadorNome || 'Montador'}
+                          </span>
+                          <span
+                            className={cn(
+                              'text-xs px-1.5 py-0.5 rounded font-medium',
+                              isAlocado
+                                ? 'bg-emerald-500/20 text-emerald-600'
+                                : 'bg-orange-500/20 text-orange-600',
+                            )}
+                          >
+                            {isAlocado ? 'Alocado' : 'Desalocado'}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+                            {h.criado_em
+                              ? new Date(h.criado_em).toLocaleString('pt-BR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : ''}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

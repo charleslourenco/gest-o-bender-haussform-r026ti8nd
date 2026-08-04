@@ -1746,6 +1746,45 @@ export type Database = {
         }
         Relationships: []
       }
+      historico_alocacao_montagem: {
+        Row: {
+          acao: string
+          card_id: string
+          criado_em: string
+          id: string
+          montador_id: string
+        }
+        Insert: {
+          acao: string
+          card_id: string
+          criado_em?: string
+          id?: string
+          montador_id: string
+        }
+        Update: {
+          acao?: string
+          card_id?: string
+          criado_em?: string
+          id?: string
+          montador_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'historico_alocacao_montagem_card_id_fkey'
+            columns: ['card_id']
+            isOneToOne: false
+            referencedRelation: 'produtos_servicos_projeto'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'historico_alocacao_montagem_montador_id_fkey'
+            columns: ['montador_id']
+            isOneToOne: false
+            referencedRelation: 'montadores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       itens_nota_fiscal: {
         Row: {
           created_at: string
