@@ -17,7 +17,7 @@ export function printAllocationLabels(params: {
   let labelsHtml = ''
   for (let i = 0; i < params.quantidade; i++) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      `${window.location.origin}/alocacao/${params.alocacaoId}-${i + 1}`,
+      `${window.location.origin}/baixa-alocacao/${params.alocacaoId}`,
     )}`
 
     let dim = []
