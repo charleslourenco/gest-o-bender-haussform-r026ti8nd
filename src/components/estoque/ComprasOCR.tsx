@@ -17,7 +17,11 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
-import { matchInvoiceItems, MatchedItem } from '@/services/estoque-matching'
+import {
+  matchInvoiceItems,
+  persistAutoMatchedAliases,
+  MatchedItem,
+} from '@/services/estoque-matching'
 import { NotaReviewPanel } from './NotaReviewPanel'
 import {
   uploadInvoiceFile,
@@ -209,6 +213,10 @@ export function ComprasOCR() {
         if (hasItens) {
           matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
 
+          const {
+            data: { user: currentUser },
+          } = await supabase.auth.getUser()
+
           for (const item of matchedItems) {
             if (
               (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
@@ -236,8 +244,9 @@ export function ComprasOCR() {
               }
             }
           }
-        }
 
+          await persistAutoMatchedAliases(matchedItems, currentUser?.id)
+        }
         const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
         const notaStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
 

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
-import { fetchAliases } from './estoque-aliases'
+import { fetchAliases, upsertAliasesBatch } from './estoque-aliases'
+import { normalizeDescription } from '@/lib/normalize'
 
 export const CONFIDENCE_THRESHOLD = 85
 
@@ -16,12 +17,7 @@ export interface MatchedItem {
 }
 
 function normalizeString(s: string | null | undefined): string {
-  if (!s) return ''
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
+  return normalizeDescription(s)
 }
 
 function getCoreName(s: string): string {
@@ -137,7 +133,11 @@ export async function matchInvoiceItems(
   const aliasesRaw = await fetchAliases(descricoes)
   const aliasesMap = new Map<string, string>()
   aliasesRaw.forEach((a) => {
-    if (a.estoque_itens) aliasesMap.set(a.descricao_nota, a.item_id)
+    if (a.estoque_itens) {
+      aliasesMap.set(a.descricao_nota, a.item_id)
+      const norm = normalizeDescription(a.descricao_nota)
+      if (norm) aliasesMap.set(norm, a.item_id)
+    }
   })
 
   const normalizedResults = await normalizeItems(descricoes)
@@ -155,7 +155,7 @@ export async function matchInvoiceItems(
       metadados_normalizados: meta,
     }
 
-    const aliasItemId = aliasesMap.get(nome)
+    const aliasItemId = aliasesMap.get(nome) || aliasesMap.get(normalizeDescription(nome))
     if (aliasItemId) {
       const matched = existingItems.find((i) => i.id === aliasItemId)
       if (matched) {
@@ -232,4 +232,21 @@ export async function matchInvoiceItems(
       score: bestScore,
     }
   })
+}
+
+export async function persistAutoMatchedAliases(
+  matchedItems: MatchedItem[],
+  userId?: string,
+): Promise<void> {
+  const toSave = matchedItems.filter(
+    (i) => i.status === 'matched' && i.item_id && i.source !== 'alias',
+  )
+  if (toSave.length === 0) return
+  await upsertAliasesBatch(
+    toSave.map((i) => ({
+      descricao_nota: i.produto,
+      item_id: i.item_id as string,
+      usuario_id: userId ?? null,
+    })),
+  )
 }

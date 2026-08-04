@@ -30,7 +30,7 @@ export function NotaReviewItemCard({
   const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [resolving, setResolving] = useState(false)
-  const [lembrar, setLembrar] = useState(false)
+  const [lembrar, setLembrar] = useState(true)
   const [selectedItemId, setSelectedItemId] = useState('')
   const [showRegister, setShowRegister] = useState(false)
 
