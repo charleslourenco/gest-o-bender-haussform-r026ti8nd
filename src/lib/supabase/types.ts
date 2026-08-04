@@ -335,6 +335,7 @@ export type Database = {
           email: string
           endereco_obra: string | null
           estado: string | null
+          excluido: boolean
           id: string
           inscricao_estadual: string | null
           lead_id: string | null
@@ -364,6 +365,7 @@ export type Database = {
           email: string
           endereco_obra?: string | null
           estado?: string | null
+          excluido?: boolean
           id?: string
           inscricao_estadual?: string | null
           lead_id?: string | null
@@ -393,6 +395,7 @@ export type Database = {
           email?: string
           endereco_obra?: string | null
           estado?: string | null
+          excluido?: boolean
           id?: string
           inscricao_estadual?: string | null
           lead_id?: string | null
@@ -1836,6 +1839,7 @@ export type Database = {
           criado_por_nome: string | null
           data_venda: string | null
           email: string | null
+          excluido: boolean
           id: string
           kanban_ativo: boolean
           nome: string
@@ -1856,6 +1860,7 @@ export type Database = {
           criado_por_nome?: string | null
           data_venda?: string | null
           email?: string | null
+          excluido?: boolean
           id?: string
           kanban_ativo?: boolean
           nome: string
@@ -1876,6 +1881,7 @@ export type Database = {
           criado_por_nome?: string | null
           data_venda?: string | null
           email?: string | null
+          excluido?: boolean
           id?: string
           kanban_ativo?: boolean
           nome?: string
@@ -2425,6 +2431,9 @@ export type Database = {
           criado_em: string
           data_manual: string | null
           descricao: string | null
+          excluido_analise: boolean
+          excluido_montagem: boolean
+          excluido_producao: boolean
           formulario_comercial_id: string | null
           id: string
           is_outsourced: boolean
@@ -2447,6 +2456,9 @@ export type Database = {
           criado_em?: string
           data_manual?: string | null
           descricao?: string | null
+          excluido_analise?: boolean
+          excluido_montagem?: boolean
+          excluido_producao?: boolean
           formulario_comercial_id?: string | null
           id?: string
           is_outsourced?: boolean
@@ -2469,6 +2481,9 @@ export type Database = {
           criado_em?: string
           data_manual?: string | null
           descricao?: string | null
+          excluido_analise?: boolean
+          excluido_montagem?: boolean
+          excluido_producao?: boolean
           formulario_comercial_id?: string | null
           id?: string
           is_outsourced?: boolean

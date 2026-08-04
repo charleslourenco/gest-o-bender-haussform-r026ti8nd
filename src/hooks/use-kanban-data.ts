@@ -53,6 +53,14 @@ export function getClienteNome(item: any): string | null {
 const normalizeItem = (item: any): KanbanItem => ({
   ...item,
   alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+  cliente: item?.cliente ?? null,
+  formulario: item?.formulario ?? null,
+  status_analise: item?.status_analise ?? null,
+  nome_produto: item?.nome_produto ?? '',
+  qtd: item?.qtd ?? 0,
+  codigo_rastreio: item?.codigo_rastreio ?? null,
+  analista_id: item?.analista_id ?? null,
+  criado_em: item?.criado_em ?? '',
 })
 
 export function useKanbanData(
@@ -205,7 +213,13 @@ export function useKanbanData(
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'produtos_servicos_projeto' },
-        () => refreshItems(),
+        () => {
+          try {
+            refreshItems()
+          } catch (e) {
+            console.error('Realtime refresh error:', e)
+          }
+        },
       )
       .subscribe()
     const handleUpdate = () => refreshItems()

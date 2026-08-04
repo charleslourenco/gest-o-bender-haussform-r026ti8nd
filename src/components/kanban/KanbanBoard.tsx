@@ -814,6 +814,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                     </div>
                   </div>
                 )}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      <span className="text-muted-foreground">Qtd: {item?.qtd ?? 0}</span>
+                    </div>
+                  </div>
+                )}
 
                 <div
                   className={cn(

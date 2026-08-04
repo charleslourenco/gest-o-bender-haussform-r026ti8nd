@@ -11,16 +11,12 @@ import {
 import { CardData, KanbanColumnDef } from './types'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { useMontadorAllocation } from '@/hooks/use-montador-allocation'
+import { AllocationConfirmDialog } from './AllocationConfirmDialog'
+import { Button } from '@/components/ui/button'
+import { ChevronsUpDown, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command,
@@ -30,10 +26,6 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ChevronsUpDown, Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 export function KanbanDialog({
   selectedCard,
@@ -54,95 +46,38 @@ export function KanbanDialog({
 
   const [montadores, setMontadores] = useState<any[]>([])
   const [alocacoesCard, setAlocacoesCard] = useState<string[]>([])
-  const [pendingAllocation, setPendingAllocation] = useState<{
-    montadorId: string
-    montadorNome: string
-    prevCards: any[]
-  } | null>(null)
 
-  useEffect(() => {
-    if (isMontagem && selectedCard) {
-      fetchMontadoresData()
-    }
-  }, [isMontagem, selectedCard])
+  const refreshAlocacoes = async () => {
+    if (!selectedCard) return
+    const { data: alocData } = await supabase
+      .from('alocacao_montagem')
+      .select('montador_id')
+      .eq('card_id', selectedCard.id)
+    setAlocacoesCard((alocData || []).map((a: any) => a.montador_id).filter(Boolean))
 
-  const fetchMontadoresData = async () => {
     const { data: montData } = await supabase
       .from('montadores')
       .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id, nome_produto))')
-
     if (montData) setMontadores(montData)
-
-    if (selectedCard) {
-      const { data: alocData } = await supabase
-        .from('alocacao_montagem')
-        .select('montador_id')
-        .eq('card_id', selectedCard.id)
-
-      if (alocData) {
-        setAlocacoesCard(alocData.map((a) => a.montador_id))
-      }
-    }
   }
 
-  const handleToggleMontador = async (montadorId: string, checked: boolean) => {
-    if (!selectedCard) return
+  const { pending, clearPending, toggleMontador, resolveChoice } =
+    useMontadorAllocation(refreshAlocacoes)
 
-    if (!checked) {
-      await supabase
-        .from('alocacao_montagem')
-        .delete()
-        .match({ montador_id: montadorId, card_id: selectedCard.id })
-      setAlocacoesCard((prev) => prev.filter((id) => id !== montadorId))
-      return
+  useEffect(() => {
+    if (isMontagem && selectedCard) {
+      refreshAlocacoes()
+    } else {
+      setAlocacoesCard([])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMontagem, selectedCard?.id])
 
+  const handleToggleMontador = (montadorId: string, isChecked: boolean) => {
+    if (!selectedCard) return
     const montador = montadores.find((m) => m.id === montadorId)
     if (!montador) return
-
-    const currentCardClientId = selectedCard.cliente_id
-    const conflictingAllocations =
-      montador.alocacao_montagem?.filter(
-        (a: any) =>
-          a.produtos_servicos_projeto?.cliente_id !== currentCardClientId &&
-          a.card_id !== selectedCard.id,
-      ) || []
-
-    if (conflictingAllocations.length > 0) {
-      setPendingAllocation({
-        montadorId,
-        montadorNome: montador.nome_completo,
-        prevCards: conflictingAllocations.map((a: any) => a.card_id),
-      })
-      return
-    }
-
-    await proceedAllocation(montadorId)
-  }
-
-  const proceedAllocation = async (montadorId: string) => {
-    if (!selectedCard) return
-    await supabase.from('alocacao_montagem').insert({
-      montador_id: montadorId,
-      card_id: selectedCard.id,
-    })
-    setAlocacoesCard((prev) => [...prev, montadorId])
-    toast({ title: 'Montador alocado com sucesso' })
-    fetchMontadoresData()
-  }
-
-  const confirmPendingAllocation = async () => {
-    if (!pendingAllocation || !selectedCard) return
-
-    if (pendingAllocation.prevCards.length > 0) {
-      await supabase
-        .from('produtos_servicos_projeto')
-        .update({ status_analise: 'pendencia' })
-        .in('id', pendingAllocation.prevCards)
-    }
-
-    await proceedAllocation(pendingAllocation.montadorId)
-    setPendingAllocation(null)
+    toggleMontador(montador, selectedCard.id, selectedCard.cliente_id ?? null, isChecked)
   }
 
   if (!selectedCard) return null
@@ -240,9 +175,10 @@ export function KanbanDialog({
                             const isChecked = alocacoesCard.includes(m.id)
                             const isBusyWithOtherClient =
                               !isChecked &&
-                              m.alocacao_montagem?.some(
+                              Array.isArray(m?.alocacao_montagem) &&
+                              m.alocacao_montagem.some(
                                 (a: any) =>
-                                  a.produtos_servicos_projeto?.cliente_id !==
+                                  a?.produtos_servicos_projeto?.cliente_id !==
                                   selectedCard.cliente_id,
                               )
 
@@ -326,35 +262,13 @@ export function KanbanDialog({
         </DialogContent>
       </Dialog>
 
-      <AlertDialog
-        open={!!pendingAllocation}
-        onOpenChange={(open) => !open && setPendingAllocation(null)}
-      >
-        <AlertDialogContent className="bg-card text-card-foreground border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Autorizar Realocação?</AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              O montador <strong>{pendingAllocation?.montadorNome}</strong> já está alocado em outro
-              cliente.
-              <br />
-              <br />
-              Deseja autorizar a nova alocação e mover a(s) montagem(ns) anterior(es) para{' '}
-              <strong>Pendências</strong>?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-border text-foreground hover:bg-muted hover:text-foreground">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmPendingAllocation}
-              className="bg-emerald-500 text-white hover:bg-emerald-600"
-            >
-              Sim, Autorizar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AllocationConfirmDialog
+        open={!!pending}
+        onOpenChange={(o) => !o && clearPending()}
+        montadorNome={pending?.montador.nome_completo ?? null}
+        prevCardsCount={pending?.prevCards.length ?? 0}
+        onChoose={(choice) => resolveChoice(choice, selectedCard.id)}
+      />
     </>
   )
 }
