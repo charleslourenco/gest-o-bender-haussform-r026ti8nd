@@ -1111,25 +1111,34 @@ export type Database = {
       }
       estoque_alocacoes: {
         Row: {
+          baixado_em: string | null
+          baixado_por: string | null
           cliente_nome: string
           criado_em: string
           id: string
           item_id: string
           quantidade: number
+          status: string
         }
         Insert: {
+          baixado_em?: string | null
+          baixado_por?: string | null
           cliente_nome: string
           criado_em?: string
           id?: string
           item_id: string
           quantidade: number
+          status?: string
         }
         Update: {
+          baixado_em?: string | null
+          baixado_por?: string | null
           cliente_nome?: string
           criado_em?: string
           id?: string
           item_id?: string
           quantidade?: number
+          status?: string
         }
         Relationships: [
           {

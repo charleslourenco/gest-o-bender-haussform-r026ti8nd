@@ -24,6 +24,7 @@ import {
   MoreVertical,
   Pencil,
   Printer,
+  PackageMinus,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTableScroll } from '@/hooks/use-table-scroll'
@@ -188,6 +189,7 @@ import { useToast } from '@/hooks/use-toast'
 import { GerarEtiquetaModal } from './GerarEtiquetaModal'
 import { EditItemModal } from './EditItemModal'
 import { MergeItemsModal } from './MergeItemsModal'
+import { DesalocarModal } from './DesalocarModal'
 
 function CategoryBadge({ category, onEdit }: { category: string; onEdit: (val: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -236,6 +238,7 @@ export function EstoqueLista() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [itemToAllocate, setItemToAllocate] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
+  const [itemToDesalocar, setItemToDesalocar] = useState<any>(null)
   const [mergeMode, setMergeMode] = useState(false)
   const [masterId, setMasterId] = useState<string | null>(null)
   const [duplicateIds, setDuplicateIds] = useState<string[]>([])
@@ -937,10 +940,10 @@ export function EstoqueLista() {
                               <Pencil className="w-4 h-4 mr-2" /> Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setItemToAllocate(item)}>
-                              <Tags className="w-4 h-4 mr-2" /> Alocar
+                              <Tags className="w-4 h-4 mr-2" /> Alocar e Gerar Etiqueta
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setItemToAllocate(item)}>
-                              <Printer className="w-4 h-4 mr-2" /> Gerar Etiqueta
+                            <DropdownMenuItem onClick={() => setItemToDesalocar(item)}>
+                              <PackageMinus className="w-4 h-4 mr-2" /> Desalocar
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() => handleDelete(item.id)}
@@ -1141,6 +1144,15 @@ export function EstoqueLista() {
             setItemToEdit(null)
             fetchItems()
           }}
+        />
+      )}
+
+      {itemToDesalocar && (
+        <DesalocarModal
+          isOpen={!!itemToDesalocar}
+          onClose={() => setItemToDesalocar(null)}
+          item={itemToDesalocar}
+          onDone={fetchItems}
         />
       )}
 
