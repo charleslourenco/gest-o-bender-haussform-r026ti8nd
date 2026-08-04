@@ -46,7 +46,7 @@ export function AllocationConfirmDialog({
             className="w-full bg-amber-500 text-white hover:bg-amber-600 justify-start"
             onClick={() => onChoose('swap')}
           >
-            Trocar alocação e mover o card alocado para pendência
+            Trocar alocação
           </Button>
           <Button
             type="button"

@@ -72,11 +72,12 @@ export function useMontadorAllocation(onUpdate: () => void) {
 
       try {
         if (choice === 'swap' && pending.prevCards.length > 0) {
-          const { error: swapErr } = await supabase
-            .from('produtos_servicos_projeto')
-            .update({ status_analise: 'pendencia' })
-            .in('id', pending.prevCards)
-          if (swapErr) throw swapErr
+          const { error: delErr } = await supabase
+            .from('alocacao_montagem')
+            .delete()
+            .eq('montador_id', pending.montador.id)
+            .in('card_id', pending.prevCards)
+          if (delErr) throw delErr
         }
 
         const { error: insertErr } = await supabase

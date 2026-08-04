@@ -46,6 +46,7 @@ export function KanbanDialog({
 
   const [montadores, setMontadores] = useState<any[]>([])
   const [alocacoesCard, setAlocacoesCard] = useState<string[]>([])
+  const [historico, setHistorico] = useState<any[]>([])
 
   const refreshAlocacoes = async () => {
     if (!selectedCard) return
@@ -58,7 +59,21 @@ export function KanbanDialog({
     const { data: montData } = await supabase
       .from('montadores')
       .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id, nome_produto))')
-    if (montData) setMontadores(montData)
+    if (montData) {
+      setMontadores(
+        montData.map((m: any) => ({
+          ...m,
+          alocacao_montagem: Array.isArray(m?.alocacao_montagem) ? m.alocacao_montagem : [],
+        })),
+      )
+    }
+
+    const { data: histData } = await (supabase as any)
+      .from('historico_alocacao_montagem')
+      .select('id, acao, criado_em, montador:montadores(nome_completo)')
+      .eq('card_id', selectedCard.id)
+      .order('criado_em', { ascending: false })
+    setHistorico(Array.isArray(histData) ? histData : [])
   }
 
   const { pending, clearPending, toggleMontador, resolveChoice } =
@@ -69,6 +84,7 @@ export function KanbanDialog({
       refreshAlocacoes()
     } else {
       setAlocacoesCard([])
+      setHistorico([])
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMontagem, selectedCard?.id])
@@ -235,6 +251,56 @@ export function KanbanDialog({
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {isMontagem && historico.length > 0 && (
+              <div className="bg-muted/30 p-3 rounded-lg border border-border">
+                <span className="text-xs text-primary uppercase font-semibold block mb-2">
+                  Histórico de Montagem
+                </span>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                  {historico.map((h) => {
+                    const montadorNome = Array.isArray(h?.montador)
+                      ? h.montador[0]?.nome_completo
+                      : h?.montador?.nome_completo
+                    const isAlocado = h.acao === 'alocado'
+                    return (
+                      <div key={h.id} className="flex items-center gap-2 text-sm">
+                        <div
+                          className={cn(
+                            'w-2 h-2 rounded-full shrink-0',
+                            isAlocado ? 'bg-emerald-500' : 'bg-orange-500',
+                          )}
+                        />
+                        <span className="font-medium text-card-foreground">
+                          {montadorNome || 'Montador'}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-xs px-1.5 py-0.5 rounded font-medium',
+                            isAlocado
+                              ? 'bg-emerald-500/20 text-emerald-600'
+                              : 'bg-orange-500/20 text-orange-600',
+                          )}
+                        >
+                          {isAlocado ? 'Alocado' : 'Desalocado'}
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+                          {h.criado_em
+                            ? new Date(h.criado_em).toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : ''}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 
