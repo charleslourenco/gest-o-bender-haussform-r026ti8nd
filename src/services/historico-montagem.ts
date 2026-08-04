@@ -31,7 +31,12 @@ export const fetchMontadores = async (): Promise<MontadorOption[]> => {
     .select('id, nome_completo')
     .order('nome_completo', { ascending: true })
   if (error) throw error
-  return (data || []).map((m: any) => ({ id: m.id, nome_completo: m.nome_completo }))
+  return (data || [])
+    .filter((m: any) => m && m.id)
+    .map((m: any) => ({
+      id: m.id,
+      nome_completo: m.nome_completo ?? '—',
+    }))
 }
 
 export const fetchHistoricoMontagem = async (): Promise<HistoricoMontagemRecord[]> => {
@@ -180,7 +185,7 @@ export const fetchProdutividadeMontadores = async (): Promise<ProdutividadeMonta
 
       return {
         montador_id: m.id,
-        montador_nome: m.nome_completo,
+        montador_nome: m.nome_completo ?? '—',
         cards_montados: cardsWithAlocacao.size,
         total_alocacoes: totalAlocacoes,
         tempo_medio_horas: tempoMedio,

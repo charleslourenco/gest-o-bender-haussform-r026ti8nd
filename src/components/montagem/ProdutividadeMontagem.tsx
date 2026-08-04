@@ -8,13 +8,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { ArrowUpDown, Loader2 } from 'lucide-react'
+import { ArrowUpDown, Loader2, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   fetchProdutividadeMontadores,
   ProdutividadeMontador,
   formatTempoMedio,
 } from '@/services/historico-montagem'
+import { ProdutividadeDetalheDrawer } from '@/components/montagem/ProdutividadeDetalheDrawer'
 import { cn } from '@/lib/utils'
 
 type SortField = 'cards_montados' | 'total_alocacoes' | 'tempo_medio_horas' | 'cards_em_andamento'
@@ -24,6 +25,10 @@ export function ProdutividadeMontagem() {
   const [loading, setLoading] = useState(true)
   const [sortField, setSortField] = useState<SortField>('cards_montados')
   const [sortDesc, setSortDesc] = useState(true)
+  const [selectedMontador, setSelectedMontador] = useState<{
+    id: string
+    nome: string
+  } | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -88,6 +93,10 @@ export function ProdutividadeMontagem() {
     </TableHead>
   )
 
+  const handleRowClick = (m: ProdutividadeMontador) => {
+    setSelectedMontador({ id: m.montador_id, nome: m.montador_nome ?? 'Montador' })
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 py-3 border-b border-border bg-card shrink-0">
@@ -127,9 +136,15 @@ export function ProdutividadeMontagem() {
                   sortedData.map((m) => (
                     <TableRow
                       key={m.montador_id}
-                      className="hover:bg-muted/50 border-b border-border"
+                      onClick={() => handleRowClick(m)}
+                      className="hover:bg-muted/50 border-b border-border cursor-pointer transition-colors"
                     >
-                      <TableCell className="font-medium">{m.montador_nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>{m.montador_nome ?? '—'}</span>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-50" />
+                        </div>
+                      </TableCell>
                       <TableCell className="text-sm">{m.cards_montados}</TableCell>
                       <TableCell className="text-sm">{m.total_alocacoes}</TableCell>
                       <TableCell className="text-sm">
@@ -152,6 +167,15 @@ export function ProdutividadeMontagem() {
           </div>
         )}
       </div>
+
+      <ProdutividadeDetalheDrawer
+        open={!!selectedMontador}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMontador(null)
+        }}
+        montadorId={selectedMontador?.id ?? null}
+        montadorNome={selectedMontador?.nome ?? null}
+      />
     </div>
   )
 }
