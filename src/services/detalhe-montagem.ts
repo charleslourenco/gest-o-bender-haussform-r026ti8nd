@@ -1,101 +1,193 @@
 import { supabase } from '@/lib/supabase/client'
 
-export interface DetalheMontagemCard {
+export interface ConcludedAssembly {
   card_id: string
   card_nome: string
-  cliente_id: string | null
   cliente_nome: string
-  data_inicio: string | null
-  data_fim: string | null
-  em_andamento: boolean
-  duracao_horas: number
+  data_conclusao: string | null
+  tempo_alocacao_horas: number
 }
 
-const extractField = (obj: any, field: string): any => {
-  if (!obj) return null
-  if (Array.isArray(obj)) return obj[0]?.[field] ?? null
-  return obj[field] ?? null
+export interface InProgressAssembly {
+  card_id: string
+  card_nome: string
+  cliente_nome: string
+  status: string
+  tempo_na_fase_horas: number
 }
 
-export const fetchDetalheMontador = async (montadorId: string): Promise<DetalheMontagemCard[]> => {
-  if (!montadorId) return []
+export interface MontadorDetalhe {
+  concluidas: ConcludedAssembly[]
+  em_andamento: InProgressAssembly[]
+}
 
-  const { data, error } = await supabase
+export const PHASE_ORDER = [
+  'aguardando_agenda',
+  'transporte',
+  'montagem',
+  'item_terceirizado',
+  'pendencia',
+  'assistencia',
+  'concluido',
+] as const
+
+export const PHASE_LABELS: Record<string, string> = {
+  aguardando_agenda: 'Aguardando Agenda',
+  transporte: 'Transporte',
+  montagem: 'Em Montagem',
+  item_terceirizado: 'Item Terceirizado',
+  pendencia: 'Pendência',
+  assistencia: 'Assistência',
+  concluido: 'Concluído',
+}
+
+const safeArray = <T>(data: T[] | null | undefined): T[] => {
+  return Array.isArray(data) ? data : []
+}
+
+export const fetchMontadorDetalhe = async (
+  montadorId: string,
+  dataInicio?: string,
+  dataFim?: string,
+): Promise<MontadorDetalhe> => {
+  if (!montadorId) return { concluidas: [], em_andamento: [] }
+
+  const { data: allocHistoryRaw } = await supabase
     .from('historico_alocacao_montagem')
-    .select(
-      'id, criado_em, acao, card_id, card:produtos_servicos_projeto(nome_produto, cliente_id, clientes:clientes(nome))',
-    )
+    .select('card_id, acao, criado_em')
     .eq('montador_id', montadorId)
     .order('criado_em', { ascending: true })
 
-  if (error) throw error
+  const allocHistory = safeArray(allocHistoryRaw as any[]).filter(
+    (r: any) => r && r.card_id && r.acao && r.criado_em,
+  )
 
-  const rows = (data || []) as any[]
+  const cardIds = Array.from(new Set(allocHistory.map((r: any) => r.card_id as string)))
+  if (cardIds.length === 0) return { concluidas: [], em_andamento: [] }
 
-  const byCard = new Map<string, any[]>()
-  for (const row of rows) {
-    const cardId = row?.card_id
-    if (!cardId) continue
-    if (!byCard.has(cardId)) byCard.set(cardId, [])
-    byCard.get(cardId)!.push(row)
+  const { data: cardsRaw } = await supabase
+    .from('produtos_servicos_projeto')
+    .select('id, nome_produto, status_analise, cliente_id, criado_em, cliente:clientes(nome)')
+    .in('id', cardIds)
+
+  const cardsMap = new Map<string, any>()
+  for (const c of safeArray(cardsRaw as any[])) {
+    if (c && c.id) cardsMap.set(c.id, c)
   }
 
-  const now = Date.now()
-  const result: DetalheMontagemCard[] = []
+  const { data: kanbanHistoryRaw } = await supabase
+    .from('kanban_historico')
+    .select('card_id, status_novo, criado_em')
+    .in('card_id', cardIds)
+    .order('criado_em', { ascending: true })
 
-  for (const [cardId, events] of byCard.entries()) {
-    const cardInfo = events[0]?.card
-    const cardNome = extractField(cardInfo, 'nome_produto') ?? '—'
-    const clienteId = extractField(cardInfo, 'cliente_id') ?? null
-    const clienteObj = extractField(cardInfo, 'clientes')
-    const clienteNome = extractField(clienteObj, 'nome') ?? '—'
+  const kanbanHistory = safeArray(kanbanHistoryRaw as any[]).filter(
+    (r: any) => r && r.card_id && r.status_novo && r.criado_em,
+  )
 
-    let totalDuration = 0
-    let firstAlocado: string | null = null
-    let lastDesalocado: string | null = null
-    let emAndamento = false
+  const { data: currentAllocsRaw } = await supabase
+    .from('alocacao_montagem')
+    .select('card_id')
+    .eq('montador_id', montadorId)
+
+  const currentAllocCardIds = new Set(
+    safeArray(currentAllocsRaw as any[])
+      .filter((r: any) => r && r.card_id)
+      .map((r: any) => r.card_id as string),
+  )
+
+  const computeAllocTime = (cardId: string): number => {
+    const events = allocHistory.filter((r: any) => r.card_id === cardId)
+    let totalMs = 0
     let pendingStart: string | null = null
-
+    const now = Date.now()
     for (const ev of events) {
-      if (!ev || !ev.acao || !ev.criado_em) continue
       if (ev.acao === 'alocado') {
-        if (!firstAlocado) firstAlocado = ev.criado_em
-        if (!pendingStart) pendingStart = ev.criado_em
-      } else if (ev.acao === 'desalocado') {
-        if (pendingStart) {
-          const diff = new Date(ev.criado_em).getTime() - new Date(pendingStart).getTime()
-          if (diff > 0) totalDuration += diff
-          lastDesalocado = ev.criado_em
-          pendingStart = null
-        }
+        pendingStart = ev.criado_em
+      } else if (ev.acao === 'desalocado' && pendingStart) {
+        const diff = new Date(ev.criado_em).getTime() - new Date(pendingStart).getTime()
+        if (diff > 0) totalMs += diff
+        pendingStart = null
       }
     }
-
-    if (pendingStart) {
-      emAndamento = true
+    if (pendingStart && currentAllocCardIds.has(cardId)) {
       const diff = now - new Date(pendingStart).getTime()
-      if (diff > 0) totalDuration += diff
+      if (diff > 0) totalMs += diff
+    }
+    return totalMs / (1000 * 60 * 60)
+  }
+
+  const getConclusionDate = (cardId: string): string | null => {
+    const entries = kanbanHistory
+      .filter((r: any) => r.card_id === cardId && r.status_novo === 'concluido')
+      .sort((a: any, b: any) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
+    return entries.length > 0 ? entries[0].criado_em : null
+  }
+
+  const getTimeInPhase = (cardId: string, status: string, fallbackDate?: string | null): number => {
+    const entries = kanbanHistory
+      .filter((r: any) => r.card_id === cardId && r.status_novo === status)
+      .sort((a: any, b: any) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
+    const startTime = entries.length > 0 ? entries[0].criado_em : (fallbackDate ?? null)
+    if (!startTime) return 0
+    const diff = Date.now() - new Date(startTime).getTime()
+    return diff > 0 ? diff / (1000 * 60 * 60) : 0
+  }
+
+  const getCardInfo = (cardId: string) => {
+    const card = cardsMap.get(cardId)
+    const cardNome = card?.nome_produto ?? '—'
+    const clienteObj = Array.isArray(card?.cliente) ? card.cliente[0] : card?.cliente
+    const clienteNome = clienteObj?.nome ?? '—'
+    return { cardNome, clienteNome, criadoEm: (card?.criado_em ?? null) as string | null }
+  }
+
+  const concluidas: ConcludedAssembly[] = []
+  for (const cardId of cardIds) {
+    const conclusionDate = getConclusionDate(cardId)
+    if (!conclusionDate) continue
+
+    if (dataInicio) {
+      const start = new Date(dataInicio + 'T00:00:00')
+      if (new Date(conclusionDate) < start) continue
+    }
+    if (dataFim) {
+      const end = new Date(dataFim + 'T23:59:59.999')
+      if (new Date(conclusionDate) > end) continue
     }
 
-    result.push({
+    const { cardNome, clienteNome } = getCardInfo(cardId)
+    concluidas.push({
       card_id: cardId,
       card_nome: cardNome,
-      cliente_id: clienteId,
       cliente_nome: clienteNome,
-      data_inicio: firstAlocado,
-      data_fim: emAndamento ? null : lastDesalocado,
-      em_andamento: emAndamento,
-      duracao_horas: totalDuration / (1000 * 60 * 60),
+      data_conclusao: conclusionDate,
+      tempo_alocacao_horas: computeAllocTime(cardId),
     })
   }
 
-  result.sort((a, b) => {
-    const aTime = a.data_inicio ? new Date(a.data_inicio).getTime() : 0
-    const bTime = b.data_inicio ? new Date(b.data_inicio).getTime() : 0
+  concluidas.sort((a, b) => {
+    const aTime = a.data_conclusao ? new Date(a.data_conclusao).getTime() : 0
+    const bTime = b.data_conclusao ? new Date(b.data_conclusao).getTime() : 0
     return bTime - aTime
   })
 
-  return result
+  const em_andamento: InProgressAssembly[] = []
+  for (const cardId of currentAllocCardIds) {
+    const card = cardsMap.get(cardId)
+    if (!card) continue
+    const status = card.status_analise ?? ''
+    const { cardNome, clienteNome, criadoEm } = getCardInfo(cardId)
+    em_andamento.push({
+      card_id: cardId,
+      card_nome: cardNome,
+      cliente_nome: clienteNome,
+      status,
+      tempo_na_fase_horas: getTimeInPhase(cardId, status, criadoEm),
+    })
+  }
+
+  return { concluidas, em_andamento }
 }
 
 export const formatDuracao = (hours: number): string => {

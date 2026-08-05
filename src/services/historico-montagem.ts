@@ -31,7 +31,7 @@ export const fetchMontadores = async (): Promise<MontadorOption[]> => {
     .select('id, nome_completo')
     .order('nome_completo', { ascending: true })
   if (error) throw error
-  return (data || [])
+  return (Array.isArray(data) ? data : [])
     .filter((m: any) => m && m.id)
     .map((m: any) => ({
       id: m.id,
@@ -48,22 +48,24 @@ export const fetchHistoricoMontagem = async (): Promise<HistoricoMontagemRecord[
     .order('criado_em', { ascending: false })
   if (error) throw error
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    criado_em: row.criado_em,
-    acao: row.acao,
-    card_id: row.card_id,
-    montador_id: row.montador_id,
-    montador_nome: Array.isArray(row?.montador)
-      ? row.montador[0]?.nome_completo
-      : (row?.montador?.nome_completo ?? null),
-    card_nome: Array.isArray(row?.card)
-      ? row.card[0]?.nome_produto
-      : (row?.card?.nome_produto ?? null),
-    cliente_nome: Array.isArray(row?.card)
-      ? (row.card[0]?.clientes?.nome ?? null)
-      : (row?.card?.clientes?.nome ?? null),
-  }))
+  return (Array.isArray(data) ? data : [])
+    .filter((r: any) => r && r.id)
+    .map((row: any) => ({
+      id: row.id,
+      criado_em: row.criado_em,
+      acao: row.acao,
+      card_id: row.card_id,
+      montador_id: row.montador_id,
+      montador_nome: Array.isArray(row?.montador)
+        ? row.montador[0]?.nome_completo
+        : (row?.montador?.nome_completo ?? null),
+      card_nome: Array.isArray(row?.card)
+        ? row.card[0]?.nome_produto
+        : (row?.card?.nome_produto ?? null),
+      cliente_nome: Array.isArray(row?.card)
+        ? (row.card[0]?.clientes?.nome ?? null)
+        : (row?.card?.clientes?.nome ?? null),
+    }))
 }
 
 export const fetchHistoricoByCard = async (cardId: string): Promise<HistoricoMontagemRecord[]> => {
@@ -76,22 +78,24 @@ export const fetchHistoricoByCard = async (cardId: string): Promise<HistoricoMon
     .order('criado_em', { ascending: false })
   if (error) throw error
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    criado_em: row.criado_em,
-    acao: row.acao,
-    card_id: row.card_id,
-    montador_id: row.montador_id,
-    montador_nome: Array.isArray(row?.montador)
-      ? row.montador[0]?.nome_completo
-      : (row?.montador?.nome_completo ?? null),
-    card_nome: Array.isArray(row?.card)
-      ? row.card[0]?.nome_produto
-      : (row?.card?.nome_produto ?? null),
-    cliente_nome: Array.isArray(row?.card)
-      ? (row.card[0]?.clientes?.nome ?? null)
-      : (row?.card?.clientes?.nome ?? null),
-  }))
+  return (Array.isArray(data) ? data : [])
+    .filter((r: any) => r && r.id)
+    .map((row: any) => ({
+      id: row.id,
+      criado_em: row.criado_em,
+      acao: row.acao,
+      card_id: row.card_id,
+      montador_id: row.montador_id,
+      montador_nome: Array.isArray(row?.montador)
+        ? row.montador[0]?.nome_completo
+        : (row?.montador?.nome_completo ?? null),
+      card_nome: Array.isArray(row?.card)
+        ? row.card[0]?.nome_produto
+        : (row?.card?.nome_produto ?? null),
+      cliente_nome: Array.isArray(row?.card)
+        ? (row.card[0]?.clientes?.nome ?? null)
+        : (row?.card?.clientes?.nome ?? null),
+    }))
 }
 
 const parseDurationToHours = (durationStr: string): number | null => {
@@ -127,9 +131,15 @@ export const fetchProdutividadeMontadores = async (): Promise<ProdutividadeMonta
   if (historicoRes.error) throw historicoRes.error
   if (alocacoesRes.error) throw alocacoesRes.error
 
-  const montadores = montadoresRes.data || []
-  const historico = historicoRes.data || []
-  const alocacoes = alocacoesRes.data || []
+  const montadores = (Array.isArray(montadoresRes.data) ? montadoresRes.data : []).filter(
+    (m: any) => m && m.id,
+  )
+  const historico = (Array.isArray(historicoRes.data) ? historicoRes.data : []).filter(
+    (h: any) => h && h.montador_id && h.card_id,
+  )
+  const alocacoes = (Array.isArray(alocacoesRes.data) ? alocacoesRes.data : []).filter(
+    (a: any) => a && a.montador_id,
+  )
 
   const inProgressCounts: Record<string, number> = {}
   for (const a of alocacoes) {
@@ -159,6 +169,7 @@ export const fetchProdutividadeMontadores = async (): Promise<ProdutividadeMonta
   }
 
   return montadores
+    .filter((m: any) => m && m.id)
     .map((m: any) => {
       const montadorHistorico = historico.filter((h: any) => h.montador_id === m.id)
       const cardsWithAlocacao = new Set(

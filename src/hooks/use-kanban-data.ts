@@ -51,7 +51,7 @@ export function getClienteNome(item: any): string | null {
 }
 
 const normalizeItem = (item: any): KanbanItem => {
-  if (!item || typeof item !== 'object') {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
     return {
       id: '',
       nome_produto: '',
@@ -159,7 +159,9 @@ export function useKanbanData(
             .order('criado_em', { ascending: false })
             .limit(500)
           if (pErr) throw pErr
-          priorityItems = ((pData as unknown as KanbanItem[]) || []).map(normalizeItem)
+          priorityItems = (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(
+            normalizeItem,
+          )
         }
 
         let query = supabase
@@ -175,17 +177,21 @@ export function useKanbanData(
           const { data: montData } = await supabase
             .from('montadores')
             .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
-          if (montData) {
+          if (Array.isArray(montData)) {
             setAllMontadores(
-              montData.map((m: any) => ({
-                ...m,
-                alocacao_montagem: Array.isArray(m?.alocacao_montagem) ? m.alocacao_montagem : [],
-              })),
+              montData
+                .filter((m: any) => m && m.id)
+                .map((m: any) => ({
+                  ...m,
+                  alocacao_montagem: Array.isArray(m?.alocacao_montagem) ? m.alocacao_montagem : [],
+                })),
             )
           }
         }
 
-        const validItems = ((data as unknown as KanbanItem[]) || []).map(normalizeItem)
+        const validItems = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
+          normalizeItem,
+        )
         const merged = [...priorityItems, ...validItems].filter(
           (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
         )
@@ -229,7 +235,9 @@ export function useKanbanData(
           .eq('status_analise', priorityColumnId)
         pq = applyFilters(pq)
         const { data: pData } = await pq.order('criado_em', { ascending: false }).limit(500)
-        priorityItems = ((pData as unknown as KanbanItem[]) || []).map(normalizeItem)
+        priorityItems = (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(
+          normalizeItem,
+        )
       }
 
       let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
@@ -238,7 +246,9 @@ export function useKanbanData(
       query = query.order('criado_em', { ascending: false }).limit(Math.max(limit, PAGE_SIZE))
       const { data, error: err } = await query
       if (!err && data) {
-        const normalized = (data as unknown as KanbanItem[]).map(normalizeItem)
+        const normalized = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
+          normalizeItem,
+        )
         const merged = [...priorityItems, ...normalized].filter(
           (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
         )
@@ -281,7 +291,7 @@ export function useKanbanData(
         .select('id, nome, foto_perfil')
         .eq('status', true)
         .order('nome')
-      if (data) {
+      if (Array.isArray(data)) {
         const map: Record<string, any> = {}
         data.forEach((u) => {
           map[u.id] = u

@@ -1,43 +1,25 @@
 import { useState, useEffect, useCallback } from 'react'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { ArrowUpDown, Loader2, ChevronRight } from 'lucide-react'
+import { Loader2, ChevronRight, User } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  fetchProdutividadeMontadores,
-  ProdutividadeMontador,
-  formatTempoMedio,
-} from '@/services/historico-montagem'
-import { ProdutividadeDetalheDrawer } from '@/components/montagem/ProdutividadeDetalheDrawer'
-import { cn } from '@/lib/utils'
-
-type SortField = 'cards_montados' | 'total_alocacoes' | 'tempo_medio_horas' | 'cards_em_andamento'
+import { fetchMontadores, type MontadorOption } from '@/services/historico-montagem'
+import { ProdutividadeDetalheModal } from '@/components/montagem/ProdutividadeDetalheModal'
+import { Button } from '@/components/ui/button'
 
 export function ProdutividadeMontagem() {
-  const [data, setData] = useState<ProdutividadeMontador[]>([])
+  const [montadores, setMontadores] = useState<MontadorOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortField, setSortField] = useState<SortField>('cards_montados')
-  const [sortDesc, setSortDesc] = useState(true)
-  const [selectedMontador, setSelectedMontador] = useState<{
-    id: string
-    nome: string
-  } | null>(null)
+  const [selectedMontador, setSelectedMontador] = useState<{ id: string; nome: string } | null>(
+    null,
+  )
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const result = await fetchProdutividadeMontadores()
-      setData(result)
+      const result = await fetchMontadores()
+      setMontadores(result)
     } catch (e: any) {
-      toast.error('Erro ao carregar produtividade: ' + e.message)
-      setData([])
+      toast.error('Erro ao carregar montadores: ' + (e?.message || 'desconhecido'))
+      setMontadores([])
     } finally {
       setLoading(false)
     }
@@ -47,54 +29,8 @@ export function ProdutividadeMontagem() {
     loadData()
   }, [loadData])
 
-  const sortedData = [...data].sort((a, b) => {
-    const aVal = a[sortField]
-    const bVal = b[sortField]
-    if (aVal === null) return sortDesc ? 1 : -1
-    if (bVal === null) return sortDesc ? -1 : 1
-    if (typeof aVal === 'number' && typeof bVal === 'number') {
-      return sortDesc ? bVal - aVal : aVal - bVal
-    }
-    return sortDesc
-      ? String(bVal).localeCompare(String(aVal))
-      : String(aVal).localeCompare(String(bVal))
-  })
-
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDesc(!sortDesc)
-    } else {
-      setSortField(field)
-      setSortDesc(true)
-    }
-  }
-
-  const SortHeader = ({
-    field,
-    label,
-    className,
-  }: {
-    field: SortField
-    label: string
-    className?: string
-  }) => (
-    <TableHead className={cn('font-semibold', className)}>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => toggleSort(field)}
-        className="h-auto p-0 font-semibold hover:bg-transparent hover:text-foreground"
-      >
-        {label}
-        <ArrowUpDown
-          className={cn('w-3 h-3 ml-1.5', sortField === field ? 'opacity-100' : 'opacity-40')}
-        />
-      </Button>
-    </TableHead>
-  )
-
-  const handleRowClick = (m: ProdutividadeMontador) => {
-    setSelectedMontador({ id: m.montador_id, nome: m.montador_nome ?? 'Montador' })
+  const handleRowClick = (m: MontadorOption) => {
+    setSelectedMontador({ id: m.id, nome: m.nome_completo ?? 'Montador' })
   }
 
   return (
@@ -113,62 +49,35 @@ export function ProdutividadeMontagem() {
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
+        ) : montadores.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+            <User className="w-10 h-10 mb-3 opacity-40" />
+            <p>Nenhum montador encontrado.</p>
+          </div>
         ) : (
-          <div className="bg-card rounded-md shadow-sm border border-border overflow-hidden">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow className="hover:bg-transparent border-border">
-                  <TableHead className="font-semibold">Montador</TableHead>
-                  <SortHeader field="cards_montados" label="Cards Montados" />
-                  <SortHeader field="total_alocacoes" label="Total de Alocações" />
-                  <SortHeader field="tempo_medio_horas" label="Tempo Médio de Montagem" />
-                  <SortHeader field="cards_em_andamento" label="Cards Em Andamento" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedData.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhum montador encontrado.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedData.map((m) => (
-                    <TableRow
-                      key={m.montador_id}
-                      onClick={() => handleRowClick(m)}
-                      className="hover:bg-muted/50 border-b border-border cursor-pointer transition-colors"
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center justify-between gap-2">
-                          <span>{m.montador_nome ?? '—'}</span>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground opacity-50" />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{m.cards_montados}</TableCell>
-                      <TableCell className="text-sm">{m.total_alocacoes}</TableCell>
-                      <TableCell className="text-sm">
-                        {formatTempoMedio(m.tempo_medio_horas)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {m.cards_em_andamento > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-500/15 text-blue-600">
-                            {m.cards_em_andamento}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          <div className="bg-card rounded-md shadow-sm border border-border overflow-hidden max-w-2xl mx-auto">
+            <div className="divide-y divide-border">
+              {montadores.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleRowClick(m)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="font-medium text-foreground">{m.nome_completo || '—'}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      <ProdutividadeDetalheDrawer
+      <ProdutividadeDetalheModal
         open={!!selectedMontador}
         onOpenChange={(open) => {
           if (!open) setSelectedMontador(null)
