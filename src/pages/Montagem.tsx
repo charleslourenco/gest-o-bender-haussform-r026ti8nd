@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { HistoricoMontagem } from '@/components/montagem/HistoricoMontagem'
-import { ProdutividadeMontagem } from '@/components/montagem/ProdutividadeMontagem'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type ViewMode = 'kanban' | 'arquivados' | 'historico' | 'produtividade'
+type ViewMode = 'kanban' | 'arquivados' | 'historico'
 
 const COLUMNS = [
   { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
@@ -57,17 +56,6 @@ export default function Montagem() {
         >
           Histórico
         </Button>
-        <Button
-          variant={view === 'produtividade' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setView('produtividade')}
-          className={cn(
-            view === 'produtividade' &&
-              'bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap',
-          )}
-        >
-          Produtividade
-        </Button>
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0">
@@ -75,8 +63,6 @@ export default function Montagem() {
           <KanbanArquivados archiveFlag="arquivado_montagem" />
         ) : view === 'historico' ? (
           <HistoricoMontagem />
-        ) : view === 'produtividade' ? (
-          <ProdutividadeMontagem />
         ) : (
           <KanbanBoard title="Montagem" columns={COLUMNS} />
         )}
