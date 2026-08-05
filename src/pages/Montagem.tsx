@@ -25,8 +25,8 @@ export default function Montagem() {
   const [view, setView] = useState<ViewMode>('kanban')
 
   useEffect(() => {
-    const handleTab = (e: any) => setActiveTab(e.detail)
-    const handleSearch = (e: any) => setSearch(e.detail)
+    const handleTab = (e: any) => setActiveTab(e?.detail ?? 'kanban')
+    const handleSearch = (e: any) => setSearch(e?.detail ?? '')
 
     window.addEventListener('kanban_tab_change', handleTab)
     window.addEventListener('kanban_search_change', handleSearch)

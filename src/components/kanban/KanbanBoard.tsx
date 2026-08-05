@@ -82,20 +82,26 @@ function TimeInColumn({
   useEffect(() => {
     let isMounted = true
     const fetchTime = async () => {
-      const { data } = await supabase
-        .from('kanban_historico')
-        .select('criado_em')
-        .eq('card_id', cardId)
-        .eq('status_novo', status)
-        .order('criado_em', { ascending: false })
-        .limit(1)
+      try {
+        const { data } = await supabase
+          .from('kanban_historico')
+          .select('criado_em')
+          .eq('card_id', cardId)
+          .eq('status_novo', status)
+          .order('criado_em', { ascending: false })
+          .limit(1)
 
-      if (!isMounted) return
+        if (!isMounted) return
 
-      const startTime = data && data.length > 0 ? data[0].criado_em : criado_em
+        const rawStart = data && data.length > 0 ? data[0].criado_em : criado_em
+        if (!rawStart) return
 
-      if (startTime) {
-        const diffInMs = new Date().getTime() - new Date(startTime).getTime()
+        const startMs = new Date(rawStart).getTime()
+        if (isNaN(startMs)) return
+
+        const diffInMs = new Date().getTime() - startMs
+        if (diffInMs < 0) return
+
         const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
         const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
 
@@ -106,6 +112,8 @@ function TimeInColumn({
         } else {
           setTimeStr(`⏱️ < 1h`)
         }
+      } catch (e) {
+        console.error('Error fetching time in column:', e)
       }
     }
 
@@ -631,7 +639,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       : 'top-2 text-muted-foreground/50 bg-card rounded',
                   )}
                 >
-                  {col.id === columns[columns.length - 1].id &&
+                  {columns.length > 0 &&
+                    col.id === columns[columns.length - 1].id &&
                     (isProducao || isMontagemRoute || isAnaliseTecnica) && (
                       <button
                         type="button"

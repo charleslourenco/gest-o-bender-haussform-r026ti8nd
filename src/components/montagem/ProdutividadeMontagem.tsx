@@ -8,15 +8,16 @@ import { Button } from '@/components/ui/button'
 export function ProdutividadeMontagem() {
   const [montadores, setMontadores] = useState<MontadorOption[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedMontador, setSelectedMontador] = useState<{ id: string; nome: string } | null>(
-    null,
-  )
+  const [selectedMontador, setSelectedMontador] = useState<{
+    id: string
+    nome: string
+  } | null>(null)
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true)
       const result = await fetchMontadores()
-      setMontadores(result)
+      setMontadores(Array.isArray(result) ? result : [])
     } catch (e: any) {
       toast.error('Erro ao carregar montadores: ' + (e?.message || 'desconhecido'))
       setMontadores([])
@@ -30,7 +31,11 @@ export function ProdutividadeMontagem() {
   }, [loadData])
 
   const handleRowClick = (m: MontadorOption) => {
-    setSelectedMontador({ id: m.id, nome: m.nome_completo ?? 'Montador' })
+    if (!m || !m.id) return
+    setSelectedMontador({
+      id: String(m.id),
+      nome: m.nome_completo ?? 'Montador',
+    })
   }
 
   return (
@@ -49,7 +54,7 @@ export function ProdutividadeMontagem() {
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : montadores.length === 0 ? (
+        ) : !montadores || montadores.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
             <User className="w-10 h-10 mb-3 opacity-40" />
             <p>Nenhum montador encontrado.</p>
@@ -59,7 +64,7 @@ export function ProdutividadeMontagem() {
             <div className="divide-y divide-border">
               {montadores.map((m) => (
                 <button
-                  key={m.id}
+                  key={String(m.id ?? '')}
                   onClick={() => handleRowClick(m)}
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left group"
                 >

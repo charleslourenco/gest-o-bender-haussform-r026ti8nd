@@ -34,7 +34,7 @@ export const fetchMontadores = async (): Promise<MontadorOption[]> => {
   return (Array.isArray(data) ? data : [])
     .filter((m: any) => m && m.id)
     .map((m: any) => ({
-      id: m.id,
+      id: String(m.id),
       nome_completo: m.nome_completo ?? '—',
     }))
 }

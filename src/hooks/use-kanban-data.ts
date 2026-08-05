@@ -268,13 +268,15 @@ export function useKanbanData(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'produtos_servicos_projeto' },
         () => {
-          try {
-            refreshItems()
-          } catch (e) {
-            console.error('Realtime refresh error:', e)
-          }
+          refreshItems().catch((e) => console.error('Realtime refresh error:', e))
         },
       )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alocacao_montagem' }, () => {
+        refreshItems().catch((e) => console.error('Realtime refresh error (alocacao):', e))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'montadores' }, () => {
+        refreshItems().catch((e) => console.error('Realtime refresh error (montadores):', e))
+      })
       .subscribe()
     const handleUpdate = () => refreshItems()
     window.addEventListener('kanban_updated', handleUpdate)
