@@ -1,16 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, Phone, Percent, Package, Clock, Archive, Check, X } from 'lucide-react'
+import {
+  Loader2,
+  Phone,
+  Percent,
+  Package,
+  Clock,
+  Archive,
+  Check,
+  X,
+  DollarSign,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/utils'
 import {
   fetchMontadorFicha,
   updateMontadorComissao,
+  updateCardValorComissao,
   KANBAN_STATUS_LIST,
   STATUS_LABELS,
   type MontadorCard,
+  type FichaFilters,
 } from '@/services/montador-ficha'
 
 interface Props {
@@ -43,19 +56,32 @@ export function FichaFuncional({
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [comissaoInput, setComissaoInput] = useState('')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
+  const [valorInputs, setValorInputs] = useState<Record<string, string>>({})
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true)
-      const result = await fetchMontadorFicha(montadorId)
+      const filters: FichaFilters = {}
+      if (dataInicio) filters.dataInicio = dataInicio
+      if (dataFim) filters.dataFim = dataFim
+      const result = await fetchMontadorFicha(montadorId, filters)
       setCards(result.cards)
+      const inputs: Record<string, string> = {}
+      for (const c of result.cards) {
+        if (c.group === 'concluido' && c.valor_comissao != null) {
+          inputs[c.card_id] = String(c.valor_comissao)
+        }
+      }
+      setValorInputs(inputs)
     } catch (e: any) {
       toast.error('Erro ao carregar ficha: ' + (e?.message || ''))
       setCards([])
     } finally {
       setLoading(false)
     }
-  }, [montadorId])
+  }, [montadorId, dataInicio, dataFim])
 
   useEffect(() => {
     loadData()
@@ -73,14 +99,61 @@ export function FichaFuncional({
     }
   }
 
+  const handleSaveValor = async (cardId: string) => {
+    const raw = valorInputs[cardId] ?? ''
+    const val = parseFloat(raw) || 0
+    try {
+      await updateCardValorComissao(cardId, val)
+      setCards((prev) =>
+        prev.map((c) => (c.card_id === cardId ? { ...c, valor_comissao: val } : c)),
+      )
+      toast.success('Valor atualizado')
+    } catch (e: any) {
+      toast.error('Erro ao salvar: ' + (e?.message || ''))
+    }
+  }
+
   const grouped = [...KANBAN_STATUS_LIST, 'arquivados'].map((status) => ({
     status,
     label: STATUS_LABELS[status] || status,
     items: cards.filter((c) => c.group === status),
   }))
 
+  const concludedCards = cards.filter((c) => c.group === 'concluido')
+  const pct = comissaoPercentual ?? 0
+  const totalComissao = concludedCards.reduce(
+    (sum, c) => sum + (c.valor_comissao ?? 0) * (pct / 100),
+    0,
+  )
+
   return (
     <div className="bg-muted/30 p-4 space-y-4 border-t border-border animate-in fade-in duration-200">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
+        <div>
+          <Label className="text-xs text-muted-foreground">Data Início</Label>
+          <Input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+            className="h-8 text-sm bg-background"
+          />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Data Fim</Label>
+          <Input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+            className="h-8 text-sm bg-background"
+          />
+        </div>
+        <div className="col-span-2 flex items-end">
+          <Badge variant="secondary" className="text-xs">
+            {cards.length} montagens no período
+          </Badge>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <Label className="text-xs text-muted-foreground">Nome Completo</Label>
@@ -149,7 +222,7 @@ export function FichaFuncional({
           </div>
         ) : cards.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center bg-muted/20 rounded-lg">
-            Nenhuma montagem atribuída a este montador.
+            Nenhuma montagem atribuída a este montador no período selecionado.
           </p>
         ) : (
           <div className="space-y-2">
@@ -192,6 +265,71 @@ export function FichaFuncional({
           </div>
         )}
       </div>
+
+      {concludedCards.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-primary" />
+            <h4 className="text-sm font-semibold text-foreground">Comissões</h4>
+            <Badge variant="secondary" className="text-xs">
+              {concludedCards.length} concluídos
+            </Badge>
+          </div>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_130px_130px] gap-2 px-3 py-1.5 bg-muted/40 border-b border-border text-xs font-semibold text-foreground">
+              <span>Produto</span>
+              <span className="text-right">Valor Considerado</span>
+              <span className="text-right">A Receber ({pct}%)</span>
+            </div>
+            <div className="divide-y divide-border">
+              {concludedCards.map((card) => {
+                const comissao = (card.valor_comissao ?? 0) * (pct / 100)
+                return (
+                  <div
+                    key={card.card_id}
+                    className="grid grid-cols-[1fr_130px_130px] gap-2 px-3 py-2 bg-card items-center"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {card.nome_produto}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {card.cliente_nome || '—'}
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={valorInputs[card.card_id] ?? ''}
+                      onChange={(e) =>
+                        setValorInputs((prev) => ({
+                          ...prev,
+                          [card.card_id]: e.target.value,
+                        }))
+                      }
+                      onBlur={() => handleSaveValor(card.card_id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                      }}
+                      className="h-7 w-full text-sm text-right"
+                      placeholder="0,00"
+                    />
+                    <span className="text-sm font-semibold text-primary text-right">
+                      {formatCurrency(comissao)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-t border-border">
+              <span className="text-sm font-bold text-foreground">Total a Receber</span>
+              <span className="text-sm font-bold text-primary">
+                {formatCurrency(totalComissao)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

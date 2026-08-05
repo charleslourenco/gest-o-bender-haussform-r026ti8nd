@@ -173,15 +173,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const priorityColumnId = isMontagemRoute ? columns[0]?.id : undefined
 
   const {
-    items,
+    items = [],
     setItems,
     loading,
     isLoadingMore,
     error,
     hasMore,
-    usersMap,
-    allUsers,
-    allMontadores,
+    usersMap = {},
+    allUsers = [],
+    allMontadores = [],
     fetchItems,
     refreshItems,
   } = useKanbanData(columns, {
@@ -302,10 +302,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   const uniqueAnalysts = Array.from(
-    new Set(items.map((i) => i.analista_id).filter(Boolean)),
+    new Set((items ?? []).map((i) => i?.analista_id).filter(Boolean)),
   ) as string[]
   const uniqueConsultants = Array.from(
-    new Set(items.map((i) => i.formulario?.user_id).filter(Boolean)),
+    new Set((items ?? []).map((i) => i?.formulario?.user_id).filter(Boolean)),
   ) as string[]
 
   const filteredItems = (items ?? []).filter((item) => {

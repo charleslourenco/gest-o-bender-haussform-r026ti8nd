@@ -29,19 +29,38 @@ export interface MontadorCard {
   alocado_em: string | null
   arquivado: boolean
   group: string
+  valor_comissao: number | null
+  valor_total: number | null
 }
 
 export interface MontadorFichaData {
   cards: MontadorCard[]
 }
 
+export interface FichaFilters {
+  dataInicio?: string
+  dataFim?: string
+}
+
 const KANBAN_STATUS_SET = new Set<string>(KANBAN_STATUS_LIST)
 
-export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFichaData> {
-  const { data: alocacoes, error: allocError } = await supabase
+export async function fetchMontadorFicha(
+  montadorId: string,
+  filters?: FichaFilters,
+): Promise<MontadorFichaData> {
+  let query = supabase
     .from('alocacao_montagem')
     .select('card_id, criado_em')
     .eq('montador_id', montadorId)
+
+  if (filters?.dataInicio) {
+    query = query.gte('criado_em', filters.dataInicio)
+  }
+  if (filters?.dataFim) {
+    query = query.lte('criado_em', `${filters.dataFim}T23:59:59.999Z`)
+  }
+
+  const { data: alocacoes, error: allocError } = await query
 
   if (allocError) throw allocError
   if (!alocacoes || alocacoes.length === 0) return { cards: [] }
@@ -58,7 +77,7 @@ export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFi
   const { data: cards, error: cardsError } = await supabase
     .from('produtos_servicos_projeto')
     .select(
-      `id, nome_produto, status_analise, arquivado_montagem, excluido_montagem, cliente:clientes(nome)`,
+      `id, nome_produto, status_analise, arquivado_montagem, excluido_montagem, valor_comissao, valor_total, cliente:clientes(nome)`,
     )
     .in('id', cardIds)
     .eq('excluido_montagem', false)
@@ -95,6 +114,8 @@ export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFi
       alocado_em: alocMap.get(id) ?? null,
       arquivado,
       group,
+      valor_comissao: (c as any).valor_comissao ?? null,
+      valor_total: (c as any).valor_total ?? null,
     })
   }
 
@@ -106,5 +127,13 @@ export async function updateMontadorComissao(montadorId: string, comissao: numbe
     .from('montadores')
     .update({ comissao_percentual: comissao, atualizado_em: new Date().toISOString() })
     .eq('id', montadorId)
+  if (error) throw error
+}
+
+export async function updateCardValorComissao(cardId: string, valor: number): Promise<void> {
+  const { error } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ valor_comissao: valor, atualizado_em: new Date().toISOString() })
+    .eq('id', cardId)
   if (error) throw error
 }
