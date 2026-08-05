@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
-import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { HistoricoMontagem } from '@/components/montagem/HistoricoMontagem'
 import { ProdutividadeMontagem } from '@/components/montagem/ProdutividadeMontagem'
@@ -20,25 +19,10 @@ const COLUMNS = [
 ]
 
 export default function Montagem() {
-  const [activeTab, setActiveTab] = useState('kanban')
-  const [search, setSearch] = useState('')
   const [view, setView] = useState<ViewMode>('kanban')
 
-  useEffect(() => {
-    const handleTab = (e: any) => setActiveTab(e?.detail ?? 'kanban')
-    const handleSearch = (e: any) => setSearch(e?.detail ?? '')
-
-    window.addEventListener('kanban_tab_change', handleTab)
-    window.addEventListener('kanban_search_change', handleSearch)
-
-    return () => {
-      window.removeEventListener('kanban_tab_change', handleTab)
-      window.removeEventListener('kanban_search_change', handleSearch)
-    }
-  }, [])
-
   return (
-    <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
+    <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30 overflow-x-auto">
         <Button
           variant={view === 'kanban' ? 'default' : 'outline'}
@@ -86,7 +70,7 @@ export default function Montagem() {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
+      <div className="flex-1 overflow-hidden min-h-0">
         {view === 'arquivados' ? (
           <KanbanArquivados archiveFlag="arquivado_montagem" />
         ) : view === 'historico' ? (
@@ -94,19 +78,7 @@ export default function Montagem() {
         ) : view === 'produtividade' ? (
           <ProdutividadeMontagem />
         ) : (
-          <>
-            <KanbanBoard title="Montagem" columns={COLUMNS} archiveFlag="arquivado_montagem" />
-
-            {activeTab === 'lista' && (
-              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200">
-                <KanbanListView
-                  searchQuery={search}
-                  columns={COLUMNS}
-                  archiveFlag="arquivado_montagem"
-                />
-              </div>
-            )}
-          </>
+          <KanbanBoard title="Montagem" columns={COLUMNS} />
         )}
       </div>
     </div>

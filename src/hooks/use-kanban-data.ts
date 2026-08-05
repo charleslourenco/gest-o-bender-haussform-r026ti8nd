@@ -69,7 +69,10 @@ const normalizeItem = (item: any): KanbanItem => {
       is_outsourced: false,
     }
   }
-  const cliente = Array.isArray(item?.cliente) ? (item.cliente[0] ?? null) : (item?.cliente ?? null)
+  const clienteRaw = Array.isArray(item?.cliente)
+    ? (item.cliente[0] ?? null)
+    : (item?.cliente ?? null)
+  const cliente = clienteRaw ?? { nome: '' }
   const formularioRaw = Array.isArray(item?.formulario)
     ? (item.formulario[0] ?? null)
     : (item?.formulario ?? null)
@@ -137,46 +140,43 @@ export function useKanbanData(
     return q
   }
 
+  const fetchPriorityItems = useCallback(async (): Promise<KanbanItem[]> => {
+    if (!priorityColumnId) return []
+    let pq = supabase
+      .from('produtos_servicos_projeto')
+      .select(ITEM_SELECT)
+      .eq('status_analise', priorityColumnId)
+    pq = applyFilters(pq)
+    const { data: pData, error: pErr } = await pq
+      .order('criado_em', { ascending: false })
+      .limit(500)
+    if (pErr) throw pErr
+    return (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(normalizeItem)
+  }, [priorityColumnId, archiveFlag, excluidoFlag])
+
   const fetchItems = useCallback(
     async (isLoadMore = false) => {
       if (isLoadMore) setIsLoadingMore(true)
       else setLoading(true)
       setError(null)
       try {
-        const columnIds = columns.map((c) => c.id)
+        const paginatedColumnIds = priorityColumnId
+          ? columns.filter((c) => c.id !== priorityColumnId).map((c) => c.id)
+          : columns.map((c) => c.id)
+
         const currentPage = isLoadMore ? pageRef.current + 1 : 0
         const from = currentPage * PAGE_SIZE
         const to = from + PAGE_SIZE - 1
 
         let priorityItems: KanbanItem[] = []
-        if (priorityColumnId) {
-          let pq = supabase
-            .from('produtos_servicos_projeto')
-            .select(ITEM_SELECT)
-            .eq('status_analise', priorityColumnId)
-          pq = applyFilters(pq)
-          const { data: pData, error: pErr } = await pq
-            .order('criado_em', { ascending: false })
-            .limit(500)
-          if (pErr) throw pErr
-          priorityItems = (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(
-            normalizeItem,
-          )
+        if (!isLoadMore) {
+          priorityItems = await fetchPriorityItems()
         }
-
-        let query = supabase
-          .from('produtos_servicos_projeto')
-          .select(ITEM_SELECT, { count: 'exact' })
-        if (columnIds.length > 0) query = query.in('status_analise', columnIds)
-        query = applyFilters(query)
-        query = query.order('criado_em', { ascending: false }).range(from, to)
-        const { data, count, error: err } = await query
-        if (err) throw err
 
         if (fetchMontadores && !isLoadMore) {
           const { data: montData } = await supabase
             .from('montadores')
-            .select('*, alocacao_montagem(card_id, produtos_servicos_projeto(cliente_id))')
+            .select('*, alocacao_montagem(card_id)')
           if (Array.isArray(montData)) {
             setAllMontadores(
               montData
@@ -189,27 +189,41 @@ export function useKanbanData(
           }
         }
 
+        let query = supabase
+          .from('produtos_servicos_projeto')
+          .select(ITEM_SELECT, { count: 'exact' })
+        if (paginatedColumnIds.length > 0) {
+          query = query.in('status_analise', paginatedColumnIds)
+        }
+        query = applyFilters(query)
+        query = query.order('criado_em', { ascending: false }).range(from, to)
+        const { data, count, error: err } = await query
+        if (err) throw err
+
         const validItems = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
           normalizeItem,
         )
-        const merged = [...priorityItems, ...validItems].filter(
-          (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
-        )
 
         if (isLoadMore) {
-          setItems((prev) => [
-            ...prev,
-            ...merged.filter((fi) => !prev.some((pi) => pi?.id === fi.id)),
-          ])
+          setItems((prev) => {
+            const existingIds = new Set(prev.map((i) => i?.id).filter(Boolean))
+            const newItems = validItems.filter((fi) => fi?.id && !existingIds.has(fi.id))
+            return [...prev, ...newItems]
+          })
           setPage(currentPage)
         } else {
+          const merged = [...priorityItems, ...validItems]
           setItems(merged)
           setPage(0)
         }
 
-        if (count !== null && to + 1 >= count) setHasMore(false)
-        else if (validItems.length < PAGE_SIZE) setHasMore(false)
-        else setHasMore(true)
+        const totalCount = count ?? 0
+        const totalLoaded = (currentPage + 1) * PAGE_SIZE
+        if (validItems.length < PAGE_SIZE || totalLoaded >= totalCount) {
+          setHasMore(false)
+        } else {
+          setHasMore(true)
+        }
       } catch (err: any) {
         console.error('Erro ao carregar dados do Kanban:', err)
         setError(err.message || 'Erro ao carregar dados do Kanban.')
@@ -218,30 +232,20 @@ export function useKanbanData(
         setIsLoadingMore(false)
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columnsKey, fetchMontadores, archiveFlag, excluidoFlag, priorityColumnId],
+    [columnsKey, fetchMontadores, archiveFlag, excluidoFlag, priorityColumnId, fetchPriorityItems],
   )
 
   const refreshItems = useCallback(async () => {
     try {
-      const columnIds = columns.map((c) => c.id)
+      const paginatedColumnIds = priorityColumnId
+        ? columns.filter((c) => c.id !== priorityColumnId).map((c) => c.id)
+        : columns.map((c) => c.id)
+
+      const priorityItems = await fetchPriorityItems()
+
       const limit = (pageRef.current + 1) * PAGE_SIZE
-
-      let priorityItems: KanbanItem[] = []
-      if (priorityColumnId) {
-        let pq = supabase
-          .from('produtos_servicos_projeto')
-          .select(ITEM_SELECT)
-          .eq('status_analise', priorityColumnId)
-        pq = applyFilters(pq)
-        const { data: pData } = await pq.order('criado_em', { ascending: false }).limit(500)
-        priorityItems = (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(
-          normalizeItem,
-        )
-      }
-
       let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
-      if (columnIds.length > 0) query = query.in('status_analise', columnIds)
+      if (paginatedColumnIds.length > 0) query = query.in('status_analise', paginatedColumnIds)
       query = applyFilters(query)
       query = query.order('criado_em', { ascending: false }).limit(Math.max(limit, PAGE_SIZE))
       const { data, error: err } = await query
@@ -249,16 +253,13 @@ export function useKanbanData(
         const normalized = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
           normalizeItem,
         )
-        const merged = [...priorityItems, ...normalized].filter(
-          (item, idx, arr) => arr.findIndex((i) => i?.id === item?.id) === idx,
-        )
+        const merged = [...priorityItems, ...normalized]
         setItems(merged)
       }
     } catch (e) {
       console.error(e)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columnsKey, archiveFlag, excluidoFlag, priorityColumnId])
+  }, [columnsKey, archiveFlag, excluidoFlag, priorityColumnId, fetchPriorityItems])
 
   useEffect(() => {
     fetchItems()

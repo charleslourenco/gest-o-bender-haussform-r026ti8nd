@@ -23,6 +23,7 @@ import {
   Plus,
   Wrench,
   Archive,
+  MoveRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -48,6 +49,14 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import {
   Table,
   TableBody,
   TableCell,
@@ -55,6 +64,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 type Item = KanbanItem
 
@@ -639,6 +649,47 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                       : 'top-2 text-muted-foreground/50 bg-card rounded',
                   )}
                 >
+                  {(isMontagemRoute || isProducao || isAnaliseTecnica) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="p-1 rounded transition-colors text-muted-foreground/50 hover:text-primary hover:bg-primary/10"
+                          title="Mover para"
+                        >
+                          <MoveRight className="h-3.5 w-3.5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-[160px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenuLabel className="text-xs font-semibold">
+                          Mover para
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {columns.map((c) => (
+                          <DropdownMenuItem
+                            key={c.id}
+                            className={cn(
+                              'text-xs',
+                              c.id === item?.status_analise && 'opacity-50 pointer-events-none',
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (item?.id && c.id !== item?.status_analise)
+                                handleStatusChange(item.id, c.id)
+                            }}
+                          >
+                            {c.title}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                   {columns.length > 0 &&
                     col.id === columns[columns.length - 1].id &&
                     (isProducao || isMontagemRoute || isAnaliseTecnica) && (
@@ -836,7 +887,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {isAnaliseTecnica && (
+                  {(isAnaliseTecnica || isMontagemRoute) && (
                     <Select
                       value={item?.status_analise ?? ''}
                       onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
@@ -886,11 +937,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   </Select>
 
                   {isMontagemRoute && item?.id && (
-                    <MontadorSelect
-                      item={item}
-                      montadores={allMontadores || []}
-                      onUpdate={fetchItems}
-                    />
+                    <ErrorBoundary fallback={null}>
+                      <MontadorSelect
+                        item={item}
+                        montadores={allMontadores || []}
+                        onUpdate={fetchItems}
+                      />
+                    </ErrorBoundary>
                   )}
                 </div>
               </div>
