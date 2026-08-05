@@ -293,7 +293,10 @@ export function EstoqueLista() {
       .select('*')
       .order('nome')
 
-    const { data: allocData } = await supabase.from('estoque_alocacoes' as any).select('*')
+    const { data: allocData } = await supabase
+      .from('estoque_alocacoes' as any)
+      .select('*')
+      .eq('status', 'ativo')
     const { data: sobrasData } = await supabase
       .from('estoque_sobras' as any)
       .select('*')

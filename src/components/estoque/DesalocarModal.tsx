@@ -55,33 +55,15 @@ export function DesalocarModal({
 
     setSubmitting(true)
     try {
-      const nowIso = new Date().toISOString()
-
-      const { error: stockErr } = await supabase
-        .from('estoque_itens')
-        .update({
-          quantidade: Number(item.quantidade) + Number(alloc.quantidade),
-          atualizado_em: nowIso,
-        })
-        .eq('id', item.id)
-      if (stockErr) throw stockErr
-
       const { error: allocErr } = await supabase
         .from('estoque_alocacoes')
         .update({ status: 'desalocado' })
         .eq('id', alloc.id)
       if (allocErr) throw allocErr
 
-      const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
-        item_id: item.id,
-        tipo: 'entrada',
-        quantidade: alloc.quantidade,
-      })
-      if (movErr) throw movErr
-
       toast({
         title: 'Desalocação concluída',
-        description: `${alloc.quantidade} ${item.unidade} retornaram ao estoque.`,
+        description: `A alocação de ${alloc.cliente_nome} foi removida. A quantidade física do estoque não foi alterada.`,
       })
       onDone()
       onClose()
