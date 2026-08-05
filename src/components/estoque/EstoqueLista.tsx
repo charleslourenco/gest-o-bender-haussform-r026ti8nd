@@ -25,6 +25,7 @@ import {
   Pencil,
   Printer,
   PackageMinus,
+  Loader2,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useTableScroll } from '@/hooks/use-table-scroll'
@@ -190,6 +191,7 @@ import { GerarEtiquetaModal } from './GerarEtiquetaModal'
 import { EditItemModal } from './EditItemModal'
 import { MergeItemsModal } from './MergeItemsModal'
 import { DesalocarModal } from './DesalocarModal'
+import { saveManualEstoqueItem, normalizeItemInBackground } from '@/services/unified-item'
 
 function CategoryBadge({ category, onEdit }: { category: string; onEdit: (val: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -244,6 +246,7 @@ export function EstoqueLista() {
   const [duplicateIds, setDuplicateIds] = useState<string[]>([])
   const [mergeModalOpen, setMergeModalOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [savingItem, setSavingItem] = useState(false)
   const { toast } = useToast()
 
   const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight, checkScroll } =
@@ -331,118 +334,94 @@ export function EstoqueLista() {
   }
 
   const handleSaveItem = async () => {
+    if (!newItem.nome.trim()) {
+      toast({ title: 'Nome do item é obrigatório', variant: 'destructive' })
+      return
+    }
+    if (!newItem.unidade.trim()) {
+      toast({ title: 'Unidade é obrigatória', variant: 'destructive' })
+      return
+    }
+
+    setSavingItem(true)
     try {
-      const { data: allItems } = await supabase.from('estoque_itens').select('id, nome, quantidade')
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      const normalize = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .trim()
-      const getCoreName = (s: string) => {
-        let n = normalize(s)
-        n = n.replace(/^[0-9]+\s*(chapas?|pecas?|unidades?|un|m2|m|x)?\s*(de\s*)?/, '')
-        return n.trim()
-      }
-
-      const coreNew = getCoreName(newItem.nome)
-
-      let existingItem = (allItems || []).find((i) => getCoreName(i.nome) === coreNew)
-
-      if (!existingItem && coreNew.length > 10) {
-        existingItem = (allItems || []).find((i) => {
-          const coreExisting = getCoreName(i.nome)
-          return coreNew.includes(coreExisting) || coreExisting.includes(coreNew)
-        })
-      }
-
-      let metadados_normalizados = null
-      try {
-        const { data: normData } = await supabase.functions.invoke('material-normalization', {
-          body: { action: 'normalize_batch', items: [newItem.nome] },
-        })
-        if (normData?.results?.[0]) {
-          metadados_normalizados = normData.results[0]
-        }
-      } catch (e) {
-        console.error('Failed to normalize manually added item:', e)
-      }
-
-      const payloadMarca = newItem.marca || metadados_normalizados?.marca || undefined
-      const payloadCor = newItem.cor || metadados_normalizados?.cor || undefined
-      const payloadEspessura = newItem.espessura_mm
-        ? Number(newItem.espessura_mm)
-        : metadados_normalizados?.espessura_mm || undefined
-      const payloadLargura = newItem.largura_mm
-        ? Number(newItem.largura_mm)
-        : metadados_normalizados?.largura_mm || undefined
-      const payloadComprimento = newItem.comprimento_m
-        ? Number(newItem.comprimento_m)
-        : metadados_normalizados?.comprimento_m || undefined
-
-      if (existingItem) {
-        const { error } = await supabase
-          .from('estoque_itens')
-          .update({
-            quantidade: Number(existingItem.quantidade) + Number(newItem.quantidade),
-            valor_unitario: newItem.valor_unitario > 0 ? newItem.valor_unitario : undefined,
-            fornecedor: newItem.fornecedor || undefined,
-            atualizado_em: new Date().toISOString(),
-            ...(metadados_normalizados ? { metadados_normalizados } : {}),
-            marca: payloadMarca,
-            cor: payloadCor,
-            espessura_mm: payloadEspessura,
-            largura_mm: payloadLargura,
-            comprimento_m: payloadComprimento,
-          })
-          .eq('id', existingItem.id)
-
-        if (error) throw error
-
-        await supabase.from('estoque_movimentacoes').insert({
-          item_id: existingItem.id,
-          tipo: 'entrada',
+      const result = await saveManualEstoqueItem(
+        {
+          nome: newItem.nome.trim(),
+          marca: newItem.marca,
+          cor: newItem.cor,
+          espessura_mm: newItem.espessura_mm,
+          largura_mm: newItem.largura_mm,
+          comprimento_m: newItem.comprimento_m,
+          fornecedor: newItem.fornecedor,
+          unidade: newItem.unidade,
+          valor_unitario: newItem.valor_unitario,
           quantidade: newItem.quantidade,
-        })
+          categoria: newItem.categoria,
+          classe: '',
+          grupo: '',
+          terceirizado: newItem.terceirizado,
+          estoque_minimo: newItem.estoque_minimo,
+        },
+        user?.id,
+      )
 
-        toast({
-          title: 'Estoque Atualizado',
-          description: 'O item já existia e sua quantidade foi somada.',
-        })
-      } else {
-        const { data: inserted, error } = await supabase
-          .from('estoque_itens' as any)
-          .insert({
-            nome: newItem.nome,
-            categoria: newItem.categoria,
-            quantidade: newItem.quantidade,
-            unidade: newItem.unidade,
-            estoque_minimo: newItem.estoque_minimo,
-            valor_unitario: newItem.valor_unitario,
-            fornecedor: newItem.fornecedor,
-            terceirizado: newItem.terceirizado,
-            marca: payloadMarca,
-            cor: payloadCor,
-            espessura_mm: payloadEspessura,
-            largura_mm: payloadLargura,
-            comprimento_m: payloadComprimento,
-            metadados_normalizados,
-          })
-          .select('id')
-          .single()
-        if (error) throw error
-
-        if (inserted) {
-          await supabase.from('estoque_movimentacoes').insert({
-            item_id: inserted.id,
-            tipo: 'entrada',
-            quantidade: newItem.quantidade,
-          })
-        }
-
-        toast({ title: 'Item Cadastrado', description: 'O item foi adicionado ao inventário.' })
+      if (result.error || !result.item) {
+        throw new Error(result.error || 'Falha ao salvar o item.')
       }
+
+      const saved = result.item
+      const baseFields = {
+        nome: newItem.nome.trim(),
+        marca: newItem.marca || null,
+        cor: newItem.cor || null,
+        espessura_mm: newItem.espessura_mm ? Number(newItem.espessura_mm) : null,
+        largura_mm: newItem.largura_mm ? Number(newItem.largura_mm) : null,
+        comprimento_m: newItem.comprimento_m ? Number(newItem.comprimento_m) : null,
+        fornecedor: newItem.fornecedor || null,
+        unidade: newItem.unidade,
+        valor_unitario: Number(newItem.valor_unitario),
+        categoria: newItem.categoria || null,
+        terceirizado: newItem.terceirizado,
+        estoque_minimo: Number(newItem.estoque_minimo) || 0,
+        atualizado_em: new Date().toISOString(),
+      }
+
+      if (saved.isNew) {
+        setItems((prev) => [
+          {
+            id: saved.id,
+            ...baseFields,
+            quantidade: saved.quantidade,
+            criado_em: new Date().toISOString(),
+            metadados_normalizados: null,
+            classe: null,
+            grupo: null,
+          },
+          ...prev,
+        ])
+      } else {
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === saved.id ? { ...it, ...baseFields, quantidade: saved.quantidade } : it,
+          ),
+        )
+      }
+
+      toast({
+        title: saved.isNew ? 'Item Cadastrado' : 'Estoque Atualizado',
+        description: saved.isNew
+          ? 'O item foi adicionado ao inventário.'
+          : 'O item já existia e sua quantidade foi somada.',
+      })
+
+      normalizeItemInBackground(saved.id, newItem.nome.trim()).catch((e) =>
+        console.error('background normalization failed:', e),
+      )
 
       setIsModalOpen(false)
       setNewItem({
@@ -460,9 +439,10 @@ export function EstoqueLista() {
         largura_mm: '',
         comprimento_m: '',
       })
-      fetchItems()
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro ao salvar item', description: e.message, variant: 'destructive' })
+    } finally {
+      setSavingItem(false)
     }
   }
 
@@ -1119,8 +1099,10 @@ export function EstoqueLista() {
             <Button
               onClick={handleSaveItem}
               className="bg-steel-blue text-white hover:bg-dark-denim"
+              disabled={savingItem}
             >
-              Salvar Item
+              {savingItem && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {savingItem ? 'Salvando...' : 'Salvar Item'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -169,3 +169,145 @@ export async function saveUnifiedItem(
     return { error: e.message }
   }
 }
+
+export interface ManualItemData {
+  nome: string
+  marca: string
+  cor: string
+  espessura_mm: string
+  largura_mm: string
+  comprimento_m: string
+  fornecedor: string
+  unidade: string
+  valor_unitario: number
+  quantidade: number
+  categoria: string
+  classe: string
+  grupo: string
+  terceirizado: boolean
+  estoque_minimo: number
+}
+
+export interface SaveManualItemResult {
+  error: string | null
+  item: { id: string; quantidade: number; isNew: boolean } | null
+}
+
+export async function saveManualEstoqueItem(
+  data: ManualItemData,
+  userId?: string,
+): Promise<SaveManualItemResult> {
+  try {
+    if (!data.nome || !data.nome.trim()) {
+      return { error: 'Nome do item é obrigatório.', item: null }
+    }
+    if (!data.unidade || !data.unidade.trim()) {
+      return { error: 'Unidade é obrigatória.', item: null }
+    }
+    if (isNaN(Number(data.valor_unitario)) || Number(data.valor_unitario) < 0) {
+      return { error: 'Valor unitário inválido.', item: null }
+    }
+    if (isNaN(Number(data.quantidade)) || Number(data.quantidade) < 0) {
+      return { error: 'Quantidade inválida.', item: null }
+    }
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from('estoque_itens')
+      .select('id, nome, quantidade')
+    if (fetchErr) return { error: fetchErr.message, item: null }
+
+    const exactMatch = (existing || []).find(
+      (i) => normalizeString(i.nome) === normalizeString(data.nome),
+    )
+
+    const stockFields = {
+      nome: data.nome.trim(),
+      marca: data.marca || null,
+      cor: data.cor || null,
+      espessura_mm: data.espessura_mm ? Number(data.espessura_mm) : null,
+      largura_mm: data.largura_mm ? Number(data.largura_mm) : null,
+      comprimento_m: data.comprimento_m ? Number(data.comprimento_m) : null,
+      fornecedor: data.fornecedor || null,
+      unidade: data.unidade,
+      valor_unitario: Number(data.valor_unitario),
+      categoria: data.categoria || null,
+      classe: data.classe || null,
+      grupo: data.grupo || null,
+      terceirizado: data.terceirizado,
+      estoque_minimo: Number(data.estoque_minimo) || 0,
+    }
+
+    let itemId: string
+    let newQuantidade: number
+    let isNew = false
+
+    if (exactMatch) {
+      const newQty = Number(exactMatch.quantidade) + Number(data.quantidade)
+      const { error } = await supabase
+        .from('estoque_itens')
+        .update({
+          ...stockFields,
+          quantidade: newQty,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('id', exactMatch.id)
+      if (error) return { error: error.message, item: null }
+      itemId = exactMatch.id
+      newQuantidade = newQty
+    } else {
+      const { data: inserted, error } = await supabase
+        .from('estoque_itens')
+        .insert({
+          ...stockFields,
+          quantidade: Number(data.quantidade),
+          atualizado_em: new Date().toISOString(),
+        })
+        .select('id, quantidade')
+        .single()
+      if (error) return { error: error.message, item: null }
+      itemId = inserted.id
+      newQuantidade = Number(inserted.quantidade)
+      isNew = true
+    }
+
+    const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
+      item_id: itemId,
+      tipo: 'entrada',
+      quantidade: Number(data.quantidade),
+      usuario_id: userId || null,
+    })
+    if (movErr) {
+      console.error('estoque_movimentacoes insert error:', movErr.message)
+    }
+
+    return {
+      error: null,
+      item: { id: itemId, quantidade: newQuantidade, isNew },
+    }
+  } catch (e: any) {
+    return { error: e.message, item: null }
+  }
+}
+
+export async function normalizeItemInBackground(itemId: string, nome: string): Promise<void> {
+  try {
+    const { data, error } = await supabase.functions.invoke('material-normalization', {
+      body: { action: 'normalize_batch', items: [nome] },
+    })
+    if (error || !data?.results?.[0]) return
+    const res = data.results[0]
+    await supabase
+      .from('estoque_itens')
+      .update({
+        metadados_normalizados: res,
+        marca: res.marca || undefined,
+        cor: res.cor || undefined,
+        espessura_mm: res.espessura_mm || undefined,
+        largura_mm: res.largura_mm || undefined,
+        comprimento_m: res.comprimento_m || undefined,
+      })
+      .eq('id', itemId)
+  } catch (e) {
+    console.error('background normalization failed:', e)
+  }
+}
