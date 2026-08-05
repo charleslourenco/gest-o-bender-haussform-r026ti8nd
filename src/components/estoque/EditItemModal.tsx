@@ -27,6 +27,7 @@ export interface EditItemData {
   unidade: string
   valor_unitario: number
   estoque_minimo: number
+  quantidade: number
   categoria: string
   classe: string
   grupo: string
@@ -59,6 +60,7 @@ export function EditItemModal({ isOpen, onClose, item, onSaved }: EditItemModalP
       unidade: item.unidade || 'un',
       valor_unitario: Number(item.valor_unitario) || 0,
       estoque_minimo: Number(item.estoque_minimo) || 0,
+      quantidade: Number(item.quantidade) || 0,
       categoria: item.categoria || '',
       classe: item.classe || '',
       grupo: item.grupo || '',
@@ -95,6 +97,7 @@ export function EditItemModal({ isOpen, onClose, item, onSaved }: EditItemModalP
           unidade: form.unidade,
           valor_unitario: Number(form.valor_unitario),
           estoque_minimo: Number(form.estoque_minimo),
+          quantidade: Number(form.quantidade),
           categoria: form.categoria || null,
           classe: form.classe || null,
           grupo: form.grupo || null,
@@ -187,7 +190,17 @@ export function EditItemModal({ isOpen, onClose, item, onSaved }: EditItemModalP
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>Quantidade</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.quantidade}
+                onChange={(e) => setField('quantidade', Number(e.target.value))}
+              />
+            </div>
             <div className="space-y-1">
               <Label>Valor Unit. (R$) *</Label>
               <Input
