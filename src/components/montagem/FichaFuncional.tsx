@@ -73,10 +73,10 @@ export function FichaFuncional({
     }
   }
 
-  const grouped = KANBAN_STATUS_LIST.map((status) => ({
+  const grouped = [...KANBAN_STATUS_LIST, 'arquivados'].map((status) => ({
     status,
     label: STATUS_LABELS[status] || status,
-    items: cards.filter((c) => c.status_analise === status),
+    items: cards.filter((c) => c.group === status),
   }))
 
   return (

@@ -2022,6 +2022,7 @@ export type Database = {
       montadores: {
         Row: {
           atualizado_em: string
+          comissao_percentual: number | null
           criado_em: string
           id: string
           nome_completo: string
@@ -2030,6 +2031,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          comissao_percentual?: number | null
           criado_em?: string
           id?: string
           nome_completo: string
@@ -2038,6 +2040,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          comissao_percentual?: number | null
           criado_em?: string
           id?: string
           nome_completo?: string

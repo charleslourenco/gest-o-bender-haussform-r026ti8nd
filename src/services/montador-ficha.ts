@@ -18,6 +18,7 @@ export const STATUS_LABELS: Record<string, string> = {
   pendencia: 'Pendência',
   assistencia: 'Assistência',
   concluido: 'Concluído',
+  arquivados: 'Arquivados',
 }
 
 export interface MontadorCard {
@@ -27,11 +28,14 @@ export interface MontadorCard {
   status_analise: string
   alocado_em: string | null
   arquivado: boolean
+  group: string
 }
 
 export interface MontadorFichaData {
   cards: MontadorCard[]
 }
+
+const KANBAN_STATUS_SET = new Set<string>(KANBAN_STATUS_LIST)
 
 export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFichaData> {
   const { data: alocacoes, error: allocError } = await supabase
@@ -42,8 +46,14 @@ export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFi
   if (allocError) throw allocError
   if (!alocacoes || alocacoes.length === 0) return { cards: [] }
 
-  const cardIds = alocacoes.map((a) => a.card_id).filter(Boolean)
-  const alocMap = new Map(alocacoes.map((a) => [a.card_id, a.criado_em]))
+  const alocMap = new Map<string, string>()
+  for (const a of alocacoes) {
+    if (a.card_id && !alocMap.has(a.card_id)) {
+      alocMap.set(a.card_id, a.criado_em)
+    }
+  }
+  const cardIds = Array.from(alocMap.keys())
+  if (cardIds.length === 0) return { cards: [] }
 
   const { data: cards, error: cardsError } = await supabase
     .from('produtos_servicos_projeto')
@@ -51,26 +61,40 @@ export async function fetchMontadorFicha(montadorId: string): Promise<MontadorFi
       `id, nome_produto, status_analise, arquivado_montagem, excluido_montagem, cliente:clientes(nome)`,
     )
     .in('id', cardIds)
-    .in('status_analise', KANBAN_STATUS_LIST)
     .eq('excluido_montagem', false)
 
   if (cardsError) throw cardsError
 
   const seen = new Set<string>()
   const normalized: MontadorCard[] = []
+
   for (const c of cards || []) {
-    if (seen.has(c.id)) continue
-    seen.add(c.id)
+    const id = (c as any).id as string
+    if (!id || seen.has(id)) continue
+    seen.add(id)
+
+    const arquivado = !!(c as any).arquivado_montagem
+    const status = ((c as any).status_analise as string) || ''
+    const inKanban = KANBAN_STATUS_SET.has(status)
+
+    const isActiveKanban = !arquivado && inKanban
+    const isArchived = arquivado
+    if (!isActiveKanban && !isArchived) continue
+
     const clienteRaw = Array.isArray((c as any)?.cliente)
       ? (c as any).cliente[0]
       : (c as any)?.cliente
+
+    const group = arquivado && !inKanban ? 'arquivados' : status
+
     normalized.push({
-      card_id: c.id,
+      card_id: id,
       nome_produto: (c as any).nome_produto || '—',
       cliente_nome: clienteRaw?.nome ?? null,
-      status_analise: (c as any).status_analise || '',
-      alocado_em: alocMap.get(c.id) ?? null,
-      arquivado: !!(c as any).arquivado_montagem,
+      status_analise: status,
+      alocado_em: alocMap.get(id) ?? null,
+      arquivado,
+      group,
     })
   }
 
