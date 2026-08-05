@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
           const base64Data = imageBase64.split(',')[1] || imageBase64
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
-          pdfText = data.text.trim().substring(0, 15000) // Limit string length to avoid context window explosion
+          pdfText = data.text.trim().substring(0, 15000)
           if (!pdfText || pdfText.length < 10) {
             isScannedPdf = true
           }
@@ -118,24 +118,121 @@ Deno.serve(async (req) => {
         userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
       }
 
-      const response = await openai.chat.completions.create({
+      const systemContent = `Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor", "cnpj_fornecedor", "valor", "data_emissao", "numero_nota", e "itens".
+
+CAMPO "fornecedor" (CRÍTICO — LEIA COM ATENÇÃO):
+- DEVE ser SEMPRE o EMITENTE da nota fiscal — a razão social/nome do VENDEDOR/FORNECEDOR que EMITIU a nota.
+- NUNCA use o destinatário/comprador (Bender Haussform) como fornecedor. A Bender Haussform é a empresa COMPRADORA, nunca a fornecedora.
+- Se o texto contiver "Bender Haussform" como fornecedor, você ERROU — revise e use o emitente correto.
+
+EXEMPLOS DE LAYOUT (como distinguir EMITENTE de DESTINATÁRIO):
+
+Exemplo 1 — Nota Fiscal Eletrônica (DANFE):
+  O DANFE tem duas seções principais no cabeçalho:
+  - "EMITENTE" ou "XNAME" → contém a razão social de QUEM EMITIU/vendeu → USE ESTE como "fornecedor"
+  - "DESTINATÁRIO" ou "DEST" → contém a razão social de QUEM COMPROU → NUNCA use este como "fornecedor"
+  Layout típico do DANFE:
+    ┌──────────────────────────────────┐
+    │ EMITENTE: Madeireira São José    │  ← usar como "fornecedor"
+    │ CNPJ: 12.345.678/0001-90        │  ← usar como "cnpj_fornecedor"
+    ├──────────────────────────────────┤
+    │ DESTINATÁRIO: Bender Haussform  │  ← NÃO usar (é o comprador)
+    │ CNPJ: 98.765.432/0001-10        │
+    └──────────────────────────────────┘
+
+Exemplo 2 — Texto plano / PDF flattenado:
+  Quando o PDF é lido linearmente (texto corrido), a ordem geralmente é:
+  1. Razão social do EMITENTE (no topo, antes dos dados do destinatário)
+  2. CNPJ do emitente
+  3. Razão social do DESTINATÁRIO (geralmente "Bender Haussform" ou "BENDER HAUSSFORM")
+  4. CNPJ do destinatário
+  → Use SEMPRE o PRIMEIRO nome/cnpj que aparece (emitente), NUNCA o segundo (destinatário/Bender Haussform).
+  Exemplo de texto extraído:
+    "Ferragens Brasil Ltda
+     CNPJ: 11.222.333/0001-44
+     IE: 123.456.789
+     ---
+     DESTINATÁRIO
+     Bender Haussform
+     CNPJ: 98.765.432/0001-10"
+  → fornecedor = "Ferragens Brasil Ltda" (PRIMEIRO nome, o emitente)
+
+Exemplo 3 — Romaneio / Pedido de Compra:
+  Em romaneios e pedidos, a empresa que VENDE/fornece os materiais é o fornecedor.
+  A Bender Haussform aparece como compradora/cliente.
+  → Use a empresa fornecedora, não a Bender Haussform.
+  Exemplo:
+    "Romaneio de Entrega
+     Cliente: Bender Haussform
+     Fornecedor: Distribuidora ABC"
+  → fornecedor = "Distribuidora ABC"
+
+Exemplo 4 — Nota com cabeçalho "NOTA FISCAL DE SAÍDA":
+  "Saída" significa que o EMITENTE está vendendo para o DESTINATÁRIO.
+  O EMITENTE é o fornecedor. O DESTINATÁRIO (geralmente Bender Haussform) é o comprador.
+  → Use sempre o emitente.
+
+CAMPO "cnpj_fornecedor": CNPJ do emitente/vendedor se houver, senão null.
+CAMPO "valor": número float, valor total da nota.
+CAMPO "data_emissao": string YYYY-MM-DD.
+CAMPO "numero_nota": string, usar se for NF ou romaneio.
+CAMPO "itens": array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero), "categoria" (string, DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação, Colas/Adesivos/Solventes, Insumos, Material elétrico, Uniformes e EPIs, móveis soltos, brocas/fresas/serras, Parafusos).
+Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs. Parafuso, Bucha, Pregos -> Parafusos. Broca, Serra, Fresa, Disco de corte -> brocas/fresas/serras. Cadeira, Mesa, Sofá -> móveis soltos. Solvente, Cola, Adesivo -> Colas/Adesivos/Solventes.`
+
+      const messages: any[] = [
+        { role: 'system', content: systemContent },
+        { role: 'user', content: userContent },
+      ]
+
+      let response = await openai.chat.completions.create({
         model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor" (string, DEVE ser SEMPRE o EMITENTE da nota fiscal — a razão social/nome do VENDEDOR/FORNECEDOR que EMITIU a nota. NUNCA use o destinatário/comprador (Bender Haussform) como fornecedor. Em notas fiscais eletrônicas, o emitente está no campo "EMITENTE" / "XNAME" do XML, e o destinatário no campo "DESTINATÁRIO". Em romaneios/pedidos, use a empresa que está vendendo/fornecendo os materiais, nunca a Bender Haussform que é a compradora), "cnpj_fornecedor" (string, CNPJ do emitente/vendedor se houver, senão null), "valor" (número float), "data_emissao" (string YYYY-MM-DD), "numero_nota" (string, usar se for NF ou romaneio), e "itens" (array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero), "categoria" (string, DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação, Colas/Adesivos/Solventes, Insumos, Material elétrico, Uniformes e EPIs, móveis soltos, brocas/fresas/serras, Parafusos). Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs. Parafuso, Bucha, Pregos -> Parafusos. Broca, Serra, Fresa, Disco de corte -> brocas/fresas/serras. Cadeira, Mesa, Sofá -> móveis soltos. Solvente, Cola, Adesivo -> Colas/Adesivos/Solventes).',
-          },
-          {
-            role: 'user',
-            content: userContent,
-          },
-        ],
+        messages,
         response_format: { type: 'json_object' },
         temperature: 0,
       })
 
-      return new Response(response.choices[0].message.content, {
+      let resultContent = response.choices[0].message.content || '{}'
+      let parsedResult: any
+      try {
+        parsedResult = JSON.parse(resultContent)
+      } catch {
+        parsedResult = {}
+      }
+
+      const MAX_RETRIES = 2
+      let retryCount = 0
+      while (
+        parsedResult.fornecedor &&
+        /bender\s*haussform/i.test(String(parsedResult.fornecedor)) &&
+        retryCount < MAX_RETRIES
+      ) {
+        retryCount++
+        const correctionMessages: any[] = [
+          ...messages,
+          { role: 'assistant', content: resultContent },
+          {
+            role: 'user',
+            content:
+              'ERRO CRÍTICO: O campo "fornecedor" foi preenchido com "Bender Haussform", que é a empresa COMPRADORA (destinatário), NÃO o fornecedor. O fornecedor deve ser o EMITENTE da nota — a empresa que VENDEU/forneciu os materiais. Revise atentamente o documento: procure pelo campo "EMITENTE" ou pelo PRIMEIRO nome/cnpj que aparece no documento (o destinatário/Bender Haussform geralmente vem depois). Retorne APENAS o JSON corrigido com o fornecedor correto.',
+          },
+        ]
+
+        const correctionResponse = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages: correctionMessages,
+          response_format: { type: 'json_object' },
+          temperature: 0,
+        })
+
+        resultContent = correctionResponse.choices[0].message.content || '{}'
+        try {
+          parsedResult = JSON.parse(resultContent)
+        } catch {
+          parsedResult = {}
+        }
+      }
+
+      return new Response(JSON.stringify(parsedResult), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }

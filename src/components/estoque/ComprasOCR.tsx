@@ -13,10 +13,14 @@ import {
   AlertTriangle,
   Eye,
   Paperclip,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   matchInvoiceItems,
   persistAutoMatchedAliases,
@@ -37,6 +41,9 @@ export function ComprasOCR() {
   const [expandedNota, setExpandedNota] = useState<string | null>(null)
   const [attachingNotaId, setAttachingNotaId] = useState<string | null>(null)
   const [viewingNotaId, setViewingNotaId] = useState<string | null>(null)
+  const [editingNotaId, setEditingNotaId] = useState<string | null>(null)
+  const [editFornecedorValue, setEditFornecedorValue] = useState('')
+  const [savingFornecedor, setSavingFornecedor] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -132,6 +139,33 @@ export function ComprasOCR() {
     }
     toast({ title: 'Arquivo anexado!', description: 'O documento foi vinculado à nota fiscal.' })
     fetchNotas()
+  }
+
+  const handleSaveFornecedor = async (notaId: string) => {
+    const value = editFornecedorValue.trim()
+    if (!value) {
+      toast({ title: 'Fornecedor inválido', variant: 'destructive' })
+      return
+    }
+    setSavingFornecedor(true)
+    try {
+      const { error } = await supabase
+        .from('notas_fiscais')
+        .update({ fornecedor: value })
+        .eq('id', notaId)
+      if (error) throw error
+      setNotas((prev) => prev.map((n) => (n.id === notaId ? { ...n, fornecedor: value } : n)))
+      setEditingNotaId(null)
+      toast({ title: 'Fornecedor atualizado!' })
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: e.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingFornecedor(false)
+    }
   }
 
   const handleProcessFile = async (file: File) => {
@@ -395,7 +429,7 @@ export function ComprasOCR() {
                     >
                       <div
                         className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
-                        onClick={() => isPending && setExpandedNota(isExpanded ? null : nota.id)}
+                        onClick={() => setExpandedNota(isExpanded ? null : nota.id)}
                       >
                         <div className="flex items-center gap-4">
                           {isPending ? (
@@ -408,10 +442,63 @@ export function ComprasOCR() {
                             </div>
                           )}
                           <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm dark:text-slate-200">
-                                {nota.fornecedor}
-                              </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {editingNotaId === nota.id ? (
+                                <div
+                                  className="flex items-center gap-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Input
+                                    value={editFornecedorValue}
+                                    onChange={(e) => setEditFornecedorValue(e.target.value)}
+                                    className="h-6 text-sm py-0 max-w-[200px]"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleSaveFornecedor(nota.id)
+                                      if (e.key === 'Escape') setEditingNotaId(null)
+                                    }}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="h-6 w-6 p-0 bg-emerald-600 hover:bg-emerald-700"
+                                    onClick={() => handleSaveFornecedor(nota.id)}
+                                    disabled={savingFornecedor}
+                                  >
+                                    {savingFornecedor ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Check className="w-3 h-3" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={() => setEditingNotaId(null)}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <p className="font-medium text-sm dark:text-slate-200">
+                                    {nota.fornecedor}
+                                  </p>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditingNotaId(nota.id)
+                                      setEditFornecedorValue(nota.fornecedor)
+                                    }}
+                                    title="Editar fornecedor"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
                               {isPending && (
                                 <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800 text-[10px]">
                                   Verificar ({pendingCount})
@@ -429,7 +516,7 @@ export function ComprasOCR() {
                                 ? new Date(nota.data_emissao).toLocaleDateString('pt-BR')
                                 : '-'}
                             </p>
-                          </div>
+                          </div>{' '}
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="text-right">
@@ -476,15 +563,13 @@ export function ComprasOCR() {
                               <Paperclip className="w-4 h-4" />
                             </Button>
                           )}
-                          {isPending && (
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4" />
-                              )}
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </Button>
                           {isAdmin && (
                             <Button
                               variant="ghost"
@@ -500,7 +585,7 @@ export function ComprasOCR() {
                           )}
                         </div>
                       </div>
-                      {isExpanded && isPending && (
+                      {isExpanded && (
                         <div className="px-4 pb-4">
                           <NotaReviewPanel nota={nota} onResolved={fetchNotas} />
                         </div>
