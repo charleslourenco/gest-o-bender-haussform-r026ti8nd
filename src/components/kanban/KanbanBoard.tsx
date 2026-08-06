@@ -204,10 +204,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [dragOverColId, setDragOverColId] = useState<string | null>(null)
 
   useEffect(() => {
+    if (isMontagemRoute) return
     const handleTabChange = (e: any) => setActiveView(e.detail)
     window.addEventListener('kanban_tab_change', handleTabChange)
     return () => window.removeEventListener('kanban_tab_change', handleTabChange)
-  }, [])
+  }, [isMontagemRoute])
 
   const handleOpenValidation = (id: string) => {
     setValidatingCardId(id)
@@ -1083,7 +1084,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      {activeView === 'kanban' && (
+      {(activeView === 'kanban' || isMontagemRoute) && (
         <div className="flex flex-col h-full flex-1 overflow-hidden">
           <div
             ref={scrollContainerRef}
@@ -1109,7 +1110,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      {activeView === 'lista' && (
+      {activeView === 'lista' && !isMontagemRoute && (
         <div className="flex-1 p-6 overflow-hidden flex flex-col bg-background animate-in fade-in duration-300">
           <div className="bg-card rounded-xl border border-border shadow-sm flex-1 overflow-hidden flex flex-col">
             <div className="overflow-x-auto w-full flex-1">
@@ -1254,7 +1255,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      {activeView === 'indicadores' && (
+      {activeView === 'indicadores' && !isMontagemRoute && (
         <div className="flex-1 p-6 flex flex-col items-center justify-center bg-background animate-in fade-in duration-300">
           <div className="bg-card p-8 rounded-xl border border-border shadow-sm max-w-md text-center">
             <h3 className="text-xl font-bold text-foreground mb-2">
@@ -1268,7 +1269,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         </div>
       )}
 
-      {activeView === 'montadores' && (
+      {activeView === 'montadores' && !isMontagemRoute && (
         <div className="flex-1 overflow-auto bg-card m-6 rounded-xl shadow-sm border border-border p-6 animate-in fade-in duration-300">
           <MontadoresTab />
         </div>

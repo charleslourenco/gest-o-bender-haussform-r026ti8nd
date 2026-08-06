@@ -33,6 +33,9 @@ export default function Montagem() {
   return (
     <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30 overflow-x-auto">
+        <h1 className="text-lg font-bold text-foreground tracking-tight mr-4 whitespace-nowrap">
+          Montagem
+        </h1>
         {TABS.map((tab) => (
           <Button
             key={tab.id}
@@ -51,7 +54,7 @@ export default function Montagem() {
 
       <div className="flex-1 overflow-hidden min-h-0">
         {view === 'kanban' && <KanbanBoard title="Montagem" columns={COLUMNS} />}
-        {view === 'lista' && <KanbanListView title="Montagem" columns={COLUMNS} />}
+        {view === 'lista' && <KanbanListView columns={COLUMNS} archiveFlag="arquivado_montagem" />}
         {view === 'montadores' && (
           <div className="h-full overflow-auto p-4">
             <MontadoresTab />

@@ -1,14 +1,5 @@
 import { useState } from 'react'
-import {
-  Plus,
-  Search,
-  FileSearch,
-  Filter,
-  Hammer,
-  Scissors,
-  AlertTriangle,
-  Wrench,
-} from 'lucide-react'
+import { Plus, Search, FileSearch, Filter, Hammer, Scissors, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
@@ -75,38 +66,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   if (title === 'Montagem') {
     return (
       <div className="w-full flex flex-col">
-        <div className="flex items-center justify-between w-full bg-card border-b border-border text-card-foreground px-6 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Wrench className="w-6 h-6 text-primary" />
-              <h1 className="text-xl font-bold text-foreground tracking-tight">Montagem</h1>
-            </div>
-
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto ml-4">
-              <TabsList className="bg-muted border-none h-9">
-                <TabsTrigger
-                  value="kanban"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Quadro Kanban
-                </TabsTrigger>
-                <TabsTrigger
-                  value="lista"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="montadores"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Gestão de Montadores
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-        </div>
-
         <div className="flex items-center justify-between w-full bg-card border-b border-border px-6 py-3 shadow-sm">
           <div className="flex items-center gap-2">
             <div className="relative min-w-0">
