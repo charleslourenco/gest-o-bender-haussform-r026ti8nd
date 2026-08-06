@@ -2484,6 +2484,7 @@ export type Database = {
           qtd: number
           status_analise: string
           terceirizado_validado: boolean
+          valor_comissao: number | null
           valor_total: number
           valor_unitario: number
         }
@@ -2509,6 +2510,7 @@ export type Database = {
           qtd: number
           status_analise?: string
           terceirizado_validado?: boolean
+          valor_comissao?: number | null
           valor_total: number
           valor_unitario: number
         }
@@ -2534,6 +2536,7 @@ export type Database = {
           qtd?: number
           status_analise?: string
           terceirizado_validado?: boolean
+          valor_comissao?: number | null
           valor_total?: number
           valor_unitario?: number
         }

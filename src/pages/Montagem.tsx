@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
+import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { HistoricoMontagem } from '@/components/montagem/HistoricoMontagem'
+import { MontadoresTab } from '@/pages/MontadoresTab'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-type ViewMode = 'kanban' | 'arquivados' | 'historico'
+type ViewMode = 'kanban' | 'lista' | 'montadores' | 'arquivados' | 'historico'
 
 const COLUMNS = [
   { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
@@ -17,55 +19,46 @@ const COLUMNS = [
   { id: 'concluido', title: 'Concluído' },
 ]
 
+const TABS: { id: ViewMode; label: string }[] = [
+  { id: 'kanban', label: 'Kanban' },
+  { id: 'lista', label: 'Lista' },
+  { id: 'montadores', label: 'Gestão de Montadores' },
+  { id: 'arquivados', label: 'Arquivados' },
+  { id: 'historico', label: 'Histórico' },
+]
+
 export default function Montagem() {
   const [view, setView] = useState<ViewMode>('kanban')
 
   return (
     <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30 overflow-x-auto">
-        <Button
-          variant={view === 'kanban' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setView('kanban')}
-          className={cn(
-            view === 'kanban' &&
-              'bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap',
-          )}
-        >
-          Kanban
-        </Button>
-        <Button
-          variant={view === 'arquivados' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setView('arquivados')}
-          className={cn(
-            view === 'arquivados' &&
-              'bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap',
-          )}
-        >
-          Arquivados
-        </Button>
-        <Button
-          variant={view === 'historico' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setView('historico')}
-          className={cn(
-            view === 'historico' &&
-              'bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap',
-          )}
-        >
-          Histórico
-        </Button>
+        {TABS.map((tab) => (
+          <Button
+            key={tab.id}
+            variant={view === tab.id ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setView(tab.id)}
+            className={cn(
+              view === tab.id &&
+                'bg-primary hover:bg-primary/90 text-primary-foreground whitespace-nowrap',
+            )}
+          >
+            {tab.label}
+          </Button>
+        ))}
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0">
-        {view === 'arquivados' ? (
-          <KanbanArquivados archiveFlag="arquivado_montagem" />
-        ) : view === 'historico' ? (
-          <HistoricoMontagem />
-        ) : (
-          <KanbanBoard title="Montagem" columns={COLUMNS} />
+        {view === 'kanban' && <KanbanBoard title="Montagem" columns={COLUMNS} />}
+        {view === 'lista' && <KanbanListView title="Montagem" columns={COLUMNS} />}
+        {view === 'montadores' && (
+          <div className="h-full overflow-auto p-4">
+            <MontadoresTab />
+          </div>
         )}
+        {view === 'arquivados' && <KanbanArquivados archiveFlag="arquivado_montagem" />}
+        {view === 'historico' && <HistoricoMontagem />}
       </div>
     </div>
   )

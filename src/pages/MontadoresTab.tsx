@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Search, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Search, Trash2, Pencil, ChevronDown, ChevronRight } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import {
   Dialog,
@@ -33,13 +33,16 @@ interface Montador {
   alocacao_montagem?: { card_id: string }[]
 }
 
+type DialogMode = 'add' | 'edit' | null
+
 export function MontadoresTab() {
   const [montadores, setMontadores] = useState<Montador[]>([])
   const [search, setSearch] = useState('')
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [novoNome, setNovoNome] = useState('')
-  const [novoTelefone, setNovoTelefone] = useState('')
-  const [novaComissao, setNovaComissao] = useState('')
+  const [dialogMode, setDialogMode] = useState<DialogMode>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [nome, setNome] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [comissao, setComissao] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -59,24 +62,64 @@ export function MontadoresTab() {
     fetchMontadores()
   }, [])
 
-  const handleAdd = async () => {
-    if (!novoNome) return
-    const comissao = parseFloat(novaComissao) || 0
-    const { error } = await supabase.from('montadores').insert({
-      nome_completo: novoNome,
-      telefone: novoTelefone,
-      status: 'Disponível',
-      comissao_percentual: comissao,
-    })
-    if (!error) {
-      toast({ title: 'Montador adicionado' })
-      setIsAddOpen(false)
-      setNovoNome('')
-      setNovoTelefone('')
-      setNovaComissao('')
-      fetchMontadores()
+  const openAdd = () => {
+    setDialogMode('add')
+    setEditingId(null)
+    setNome('')
+    setTelefone('')
+    setComissao('')
+  }
+
+  const openEdit = (m: Montador) => {
+    setDialogMode('edit')
+    setEditingId(m.id)
+    setNome(m.nome_completo)
+    setTelefone(m.telefone || '')
+    setComissao(m.comissao_percentual != null ? String(m.comissao_percentual) : '')
+  }
+
+  const closeDialog = () => {
+    setDialogMode(null)
+    setEditingId(null)
+  }
+
+  const handleSave = async () => {
+    if (!nome) return
+    const comissaoVal = parseFloat(comissao) || 0
+
+    if (dialogMode === 'edit' && editingId) {
+      const { error } = await supabase
+        .from('montadores')
+        .update({
+          nome_completo: nome,
+          telefone: telefone || null,
+          comissao_percentual: comissaoVal,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('id', editingId)
+
+      if (!error) {
+        toast({ title: 'Montador atualizado' })
+        closeDialog()
+        fetchMontadores()
+      } else {
+        toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      }
     } else {
-      toast({ title: 'Erro ao adicionar', variant: 'destructive' })
+      const { error } = await supabase.from('montadores').insert({
+        nome_completo: nome,
+        telefone: telefone || null,
+        status: 'Disponível',
+        comissao_percentual: comissaoVal,
+      })
+
+      if (!error) {
+        toast({ title: 'Montador adicionado' })
+        closeDialog()
+        fetchMontadores()
+      } else {
+        toast({ title: 'Erro ao adicionar', variant: 'destructive' })
+      }
     }
   }
 
@@ -111,10 +154,7 @@ export function MontadoresTab() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button
-          onClick={() => setIsAddOpen(true)}
-          className="bg-steel-blue text-white hover:bg-steel-blue/90"
-        >
+        <Button onClick={openAdd} className="bg-steel-blue text-white hover:bg-steel-blue/90">
           <Plus className="w-4 h-4 mr-2" />
           Novo Montador
         </Button>
@@ -129,7 +169,7 @@ export function MontadoresTab() {
               <TableHead className="text-midnight-navy font-semibold">Telefone</TableHead>
               <TableHead className="text-midnight-navy font-semibold">Status</TableHead>
               <TableHead className="text-midnight-navy font-semibold">Comissão</TableHead>
-              <TableHead className="w-10" />
+              <TableHead className="w-20" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -180,16 +220,28 @@ export function MontadoresTab() {
                         {m.comissao_percentual != null ? `${m.comissao_percentual}%` : '—'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(m.id)
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openEdit(m)
+                            }}
+                          >
+                            <Pencil className="w-4 h-4 text-steel-blue" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(m.id)
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
@@ -213,17 +265,19 @@ export function MontadoresTab() {
         </Table>
       </div>
 
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+      <Dialog open={dialogMode !== null} onOpenChange={(o) => !o && closeDialog()}>
         <DialogContent className="bg-white border-steel-blue/20">
           <DialogHeader>
-            <DialogTitle className="text-midnight-navy">Novo Montador</DialogTitle>
+            <DialogTitle className="text-midnight-navy">
+              {dialogMode === 'edit' ? 'Editar Montador' : 'Novo Montador'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label className="text-midnight-navy font-semibold">Nome Completo</Label>
               <Input
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
                 placeholder="Ex: João da Silva"
                 className="bg-off-white"
               />
@@ -231,8 +285,8 @@ export function MontadoresTab() {
             <div className="space-y-2">
               <Label className="text-midnight-navy font-semibold">Telefone</Label>
               <Input
-                value={novoTelefone}
-                onChange={(e) => setNovoTelefone(e.target.value)}
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
                 placeholder="(00) 00000-0000"
                 className="bg-off-white"
               />
@@ -242,8 +296,8 @@ export function MontadoresTab() {
               <Input
                 type="number"
                 step="0.1"
-                value={novaComissao}
-                onChange={(e) => setNovaComissao(e.target.value)}
+                value={comissao}
+                onChange={(e) => setComissao(e.target.value)}
                 placeholder="Ex: 10"
                 className="bg-off-white"
               />
@@ -252,13 +306,16 @@ export function MontadoresTab() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsAddOpen(false)}
+              onClick={closeDialog}
               className="border-steel-blue/20 text-midnight-navy"
             >
               Cancelar
             </Button>
-            <Button onClick={handleAdd} className="bg-steel-blue text-white hover:bg-steel-blue/90">
-              Salvar
+            <Button
+              onClick={handleSave}
+              className="bg-steel-blue text-white hover:bg-steel-blue/90"
+            >
+              {dialogMode === 'edit' ? 'Salvar' : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>
