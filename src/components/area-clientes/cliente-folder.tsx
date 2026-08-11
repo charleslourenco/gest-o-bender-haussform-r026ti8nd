@@ -1,21 +1,55 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Trash2,
+  Plus,
+  Loader2,
+  ShoppingCart,
+  Calendar,
+  ChevronRight,
+} from 'lucide-react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
+import { createNewSaleForClient } from '@/services/vendas'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDados'
 import { ClienteDocumentos } from './cliente-documentos'
 import { Timeline } from './timeline'
 import { ClienteDeleteDialog } from './cliente-delete-dialog'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+
+interface SaleItem {
+  id: string
+  criado_em: string
+  status: string
+  formulario: any
+}
+
+function computeSaleValue(form: any): number {
+  if (!form) return 0
+  const prods =
+    typeof form.produtos_servicos === 'string'
+      ? JSON.parse(form.produtos_servicos || '[]')
+      : form.produtos_servicos || []
+  if (!Array.isArray(prods)) return 0
+  const subtotal = prods.reduce(
+    (a: number, p: any) => a + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
+    0,
+  )
+  return subtotal - (Number(form.desconto) || 0)
+}
 
 export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const activeTab = searchParams.get('tab') || 'dados'
   const [dossie, setDossie] = useState<any>(null)
+  const [sales, setSales] = useState<SaleItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [creatingSale, setCreatingSale] = useState(false)
 
   const handleTabChange = (value: string) => {
     setSearchParams((prev) => {
@@ -27,6 +61,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   const load = async () => {
     setLoading(true)
     try {
+      // Load the selected dossiê (by id or cliente_id fallback)
       const { data } = await supabase
         .from('dossies')
         .select(`
@@ -51,6 +86,18 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
         }
         data.vendedorNome = vendedor
         setDossie(data)
+
+        // Load ALL sales (dossiês + formulários) for this client
+        const { data: allDossies } = await supabase
+          .from('dossies')
+          .select(`
+            id, criado_em, status, formulario_comercial_id,
+            formulario:formulario_comercial(id, valor_total, desconto, produtos_servicos, datas, criado_em)
+          `)
+          .eq('cliente_id', data.cliente_id)
+          .order('criado_em', { ascending: false })
+
+        setSales((allDossies as any[]) || [])
       }
     } finally {
       setLoading(false)
@@ -61,22 +108,37 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
     load()
   }, [dossieId])
 
+  const handleNovaVenda = async () => {
+    if (!dossie?.cliente_id) return
+    setCreatingSale(true)
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      const userId = authData.user?.id
+      if (!userId) {
+        toast.error('Usuário não autenticado.')
+        return
+      }
+
+      const result = await createNewSaleForClient({
+        clienteId: dossie.cliente_id,
+        userId,
+      })
+
+      toast.success('Nova venda criada com sucesso!')
+      // Navigate to the new sale's folder
+      navigate(`/clientes/${result.dossieId}`)
+    } catch (e: any) {
+      toast.error('Erro ao criar nova venda: ' + e.message)
+    } finally {
+      setCreatingSale(false)
+    }
+  }
+
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando...</div>
   if (!dossie) return <div className="p-8 text-center text-destructive">Dossiê não encontrado.</div>
 
   const form = dossie.formulario
-
-  let prods =
-    typeof form?.produtos_servicos === 'string'
-      ? JSON.parse(form.produtos_servicos || '[]')
-      : form?.produtos_servicos || []
-  const valTot = Array.isArray(prods)
-    ? prods.reduce(
-        (a: number, p: any) =>
-          a + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
-        0,
-      ) - (Number(form?.desconto) || 0)
-    : 0
+  const valTot = computeSaleValue(form)
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in flex flex-col h-full overflow-hidden">
@@ -89,27 +151,83 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
             <h1 className="text-2xl font-bold truncate">{dossie.cliente?.nome || '-'}</h1>
             <p className="text-muted-foreground text-sm">
               Vendedor: {dossie.vendedorNome} | Valor da Venda:{' '}
-              {valTot > 0
-                ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    valTot,
-                  )
-                : '-'}{' '}
-              | Data:{' '}
+              {valTot > 0 ? formatCurrency(valTot) : '-'} | Data:{' '}
               {dossie.criado_em ? new Date(dossie.criado_em).toLocaleDateString('pt-BR') : '-'}
             </p>
           </div>
         </div>
-        <ClienteDeleteDialog
-          clienteId={dossie.cliente_id}
-          clienteNome={dossie.cliente?.nome}
-          onDeleted={() => {
-            toast.success('Cliente excluído com sucesso.')
-            navigate('/clientes')
-          }}
-          triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
-          triggerVariant="button"
-        />
+        <div className="flex items-center gap-2 shrink-0">
+          <Button onClick={handleNovaVenda} disabled={creatingSale} className="shrink-0">
+            {creatingSale ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4 mr-2" />
+            )}
+            Nova Venda
+          </Button>
+          <ClienteDeleteDialog
+            clienteId={dossie.cliente_id}
+            clienteNome={dossie.cliente?.nome}
+            onDeleted={() => {
+              toast.success('Cliente excluído com sucesso.')
+              navigate('/clientes')
+            }}
+            triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
+            triggerVariant="button"
+          />
+        </div>
       </div>
+
+      {/* Sales list — all independent sales for this client */}
+      {sales.length > 1 && (
+        <div className="shrink-0 bg-card border border-border rounded-xl p-3 shadow-sm">
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <ShoppingCart className="w-4 h-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">
+              Vendas deste cliente ({sales.length})
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {sales.map((sale) => {
+              const isActive = sale.id === dossie.id
+              const saleValue = sale.formulario?.valor_total ?? computeSaleValue(sale.formulario)
+              const dataVenda =
+                (sale.formulario?.datas as any)?.data_venda ||
+                sale.formulario?.criado_em ||
+                sale.criado_em
+              return (
+                <button
+                  key={sale.id}
+                  onClick={() => navigate(`/clientes/${sale.id}`)}
+                  className={cn(
+                    'shrink-0 flex flex-col gap-1 px-3 py-2 rounded-lg border text-left min-w-[180px] transition-all',
+                    isActive
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                      : 'bg-background border-border hover:border-primary/50 hover:bg-accent',
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-semibold">
+                    <Calendar className="w-3 h-3" />
+                    {dataVenda ? new Date(dataVenda).toLocaleDateString('pt-BR') : 'Sem data'}
+                  </span>
+                  <span className="text-sm font-bold">
+                    {saleValue > 0 ? formatCurrency(saleValue) : '—'}
+                  </span>
+                  <span
+                    className={cn(
+                      'text-[10px] uppercase tracking-wider font-medium flex items-center gap-1',
+                      isActive ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                    )}
+                  >
+                    {isActive ? 'Venda atual' : 'Abrir venda'}
+                    {!isActive && <ChevronRight className="w-3 h-3" />}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <Tabs
         value={activeTab}

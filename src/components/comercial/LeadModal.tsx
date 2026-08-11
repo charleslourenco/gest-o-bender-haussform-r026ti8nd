@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Lead } from '@/types'
 import { fetchLeadMessages } from '@/services/comercial'
-import { MessageSquare } from 'lucide-react'
+import { findExistingClient } from '@/services/vendas'
+import { useDebounce } from '@/hooks/use-debounce'
+import { MessageSquare, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
 interface Props {
   lead: Lead | null
@@ -21,6 +16,7 @@ interface Props {
 export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
 
   const formatPhone = (value: string) => {
     if (!value) return ''
@@ -42,11 +38,45 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
 
   const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
   const [nome, setNome] = useState(lead?.nome || '')
+  const [email, setEmail] = useState(lead?.email || '')
+
+  const debouncedEmail = useDebounce(email, 400)
+  const debouncedPhone = useDebounce(telefone, 400)
 
   useEffect(() => {
     setTelefone(formatPhone(lead?.telefone || ''))
     setNome(lead?.nome || '')
+    setEmail(lead?.email || '')
+    setDuplicateWarning(null)
   }, [lead])
+
+  // Real-time duplicate client search (email or phone) — never blocks
+  useEffect(() => {
+    const emailClean = (debouncedEmail || '').trim().toLowerCase()
+    const phoneDigits = (debouncedPhone || '').replace(/\D/g, '')
+    if (!emailClean && phoneDigits.length < 10) {
+      setDuplicateWarning(null)
+      return
+    }
+
+    let cancelled = false
+    const run = async () => {
+      const existing = await findExistingClient({
+        email: emailClean,
+        phone: phoneDigits,
+      })
+      if (cancelled) return
+      if (existing && existing.id !== (lead as any)?.cliente_id) {
+        setDuplicateWarning(existing.nome)
+      } else {
+        setDuplicateWarning(null)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedEmail, debouncedPhone, lead])
 
   useEffect(() => {
     if (lead?.id) {
@@ -118,9 +148,18 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
         </h2>
 
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-0">
-          {/* LADO ESQUERDO - FORMULÁRIO */}
           <div className="overflow-y-auto pr-2 scrollbar-thin">
             <form id="lead-form" onSubmit={handleSubmit} className="flex flex-col gap-5 pb-6">
+              {duplicateWarning && (
+                <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-100 rounded-lg px-4 py-3 text-[13px] font-medium shadow-sm animate-fade-in">
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <span>
+                    Cliente já cadastrado: <strong>{duplicateWarning}</strong>. Nova venda?
+                    Continuar?
+                  </span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-foreground font-semibold text-[14px] mb-1.5">
                   Nome Completo *
@@ -141,7 +180,8 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                 <input
                   type="email"
                   name="email"
-                  defaultValue={lead?.email}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                 />
               </div>
@@ -248,7 +288,6 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
             </form>
           </div>
 
-          {/* LADO DIREITO - CHAT CATARINA */}
           <div className="flex flex-col bg-muted/5 border rounded-lg overflow-hidden h-[400px] lg:h-auto">
             <div className="bg-muted p-3 border-b shrink-0 flex items-center justify-between">
               <h3 className="font-bold text-foreground text-[14px] flex items-center gap-2">
@@ -328,7 +367,6 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
           </div>
         </div>
 
-        {/* FOOTER ACTIONS */}
         <div className="flex justify-end gap-4 mt-6 pt-4 border-t shrink-0">
           <button
             type="button"
