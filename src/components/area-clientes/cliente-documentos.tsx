@@ -78,11 +78,20 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
   const loadDocs = async () => {
     try {
-      const { data: docsData, error: docsError } = await supabase
+      const projetoId = dossie.formulario_comercial_id || null
+
+      let docsQuery = supabase
         .from('documentos_cliente')
         .select('*, clientes(nome)')
         .eq('cliente_id', dossie.cliente_id)
-        .order('criado_em', { ascending: false })
+
+      if (projetoId) {
+        docsQuery = docsQuery.eq('projeto_id', projetoId)
+      }
+
+      const { data: docsData, error: docsError } = await docsQuery.order('criado_em', {
+        ascending: false,
+      })
 
       if (docsError) throw docsError
 
@@ -291,6 +300,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       const { error: insertError } = await supabase.from('documentos_cliente').insert({
         cliente_id: dossie.cliente_id,
+        projeto_id: dossie.formulario_comercial_id || null,
         tipo: uploadTipo === 'lista_materiais' ? 'lista_materiais' : 'upload_manual',
         template_nome: file.name,
         status: uploadTipo === 'lista_materiais' ? 'Pendente' : 'Concluído',
