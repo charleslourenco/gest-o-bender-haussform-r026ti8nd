@@ -86,7 +86,9 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         .eq('cliente_id', dossie.cliente_id)
 
       if (projetoId) {
-        docsQuery = docsQuery.or(`projeto_id.eq.${projetoId},projeto_id.is.null`)
+        docsQuery = docsQuery.eq('projeto_id', projetoId)
+      } else {
+        docsQuery = docsQuery.is('projeto_id', null)
       }
 
       const { data: docsData, error: docsError } = await docsQuery.order('criado_em', {

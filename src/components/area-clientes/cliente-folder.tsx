@@ -142,7 +142,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando...</div>
   if (!dossie) return <div className="p-8 text-center text-destructive">Dossiê não encontrado.</div>
 
-  const form = dossie.formulario
+  const form = dossie.formulario || {}
   const valTot = computeSaleValue(form)
 
   return (
@@ -269,9 +269,9 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           <Timeline
             clienteId={dossie.cliente_id}
             formularioId={dossie.formulario_comercial_id}
-            saleCreatedAt={dossie.formulario?.criado_em || dossie.criado_em}
+            saleCreatedAt={(dossie.formulario?.criado_em as string) || dossie.criado_em}
           />
-        </TabsContent>
+        </TabsContent>{' '}
       </Tabs>
     </div>
   )

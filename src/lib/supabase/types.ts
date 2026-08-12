@@ -2725,6 +2725,7 @@ export type Database = {
           acao: string
           cliente_id: string | null
           criado_em: string
+          formulario_id: string | null
           icone: string | null
           id: string
           usuario_nome: string
@@ -2733,6 +2734,7 @@ export type Database = {
           acao: string
           cliente_id?: string | null
           criado_em?: string
+          formulario_id?: string | null
           icone?: string | null
           id?: string
           usuario_nome: string
@@ -2741,6 +2743,7 @@ export type Database = {
           acao?: string
           cliente_id?: string | null
           criado_em?: string
+          formulario_id?: string | null
           icone?: string | null
           id?: string
           usuario_nome?: string
@@ -2751,6 +2754,13 @@ export type Database = {
             columns: ['cliente_id']
             isOneToOne: false
             referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'timeline_eventos_formulario_id_fkey'
+            columns: ['formulario_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
             referencedColumns: ['id']
           },
         ]
@@ -2939,11 +2949,16 @@ export type Database = {
       gerar_codigo_acompanhamento: { Args: { p_nome: string }; Returns: string }
       get_edge_auth_headers: { Args: never; Returns: Json }
       get_timeline_eventos: {
-        Args: { p_cliente_id: string }
+        Args: {
+          p_cliente_id: string
+          p_formulario_id?: string
+          p_sale_created_at?: string
+        }
         Returns: {
           acao: string
           cliente_id: string
           criado_em: string
+          formulario_id: string
           icone: string
           id: string
           nome_exibicao: string
