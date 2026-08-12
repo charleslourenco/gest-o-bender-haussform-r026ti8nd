@@ -51,6 +51,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   const [loading, setLoading] = useState(true)
   const [creatingSale, setCreatingSale] = useState(false)
   const creatingSaleRef = useRef(false)
+  const [clientWithoutDossie, setClientWithoutDossie] = useState<any>(null)
 
   const handleTabChange = (value: string) => {
     setSearchParams((prev) => {
@@ -61,6 +62,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
 
   const load = async () => {
     setLoading(true)
+    setClientWithoutDossie(null)
     try {
       // Load the selected dossiê (by id or cliente_id fallback)
       const { data } = await supabase
@@ -99,6 +101,14 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           .order('criado_em', { ascending: false })
 
         setSales((allDossies as any[]) || [])
+      } else {
+        const { data: clientData } = await supabase
+          .from('clientes')
+          .select('*')
+          .eq('id', dossieId)
+          .eq('excluido', false)
+          .maybeSingle()
+        setClientWithoutDossie(clientData || null)
       }
     } finally {
       setLoading(false)
@@ -140,7 +150,46 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   }
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando...</div>
-  if (!dossie) return <div className="p-8 text-center text-destructive">Dossiê não encontrado.</div>
+  if (!dossie) {
+    if (clientWithoutDossie) {
+      return (
+        <div className="p-4 md:p-6 max-w-6xl mx-auto w-full space-y-6 animate-fade-in flex flex-col h-full overflow-hidden">
+          <div className="flex items-center justify-between gap-4 border-b pb-4 shrink-0">
+            <div className="flex gap-4 items-center min-w-0">
+              <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold truncate">{clientWithoutDossie.nome || '-'}</h1>
+                <p className="text-muted-foreground text-sm">Cliente sem dossiê vinculado</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <ClienteDeleteDialog
+                clienteId={clientWithoutDossie.id}
+                clienteNome={clientWithoutDossie.nome}
+                onDeleted={() => {
+                  toast.success('Cliente excluído com sucesso.')
+                  navigate('/clientes')
+                }}
+                triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
+                triggerVariant="button"
+              />
+            </div>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center text-muted-foreground max-w-md">
+              <p>Este cliente não possui um dossiê vinculado.</p>
+              <p className="mt-2 text-sm">
+                Você pode excluí-lo usando o botão acima ou voltar para a lista de clientes.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return <div className="p-8 text-center text-destructive">Dossiê não encontrado.</div>
+  }
 
   const form = dossie.formulario || {}
   const valTot = computeSaleValue(form)

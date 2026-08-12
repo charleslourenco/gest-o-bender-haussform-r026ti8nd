@@ -32,6 +32,7 @@ export function ComercialList() {
       setLeads(data || [])
     } catch (error) {
       console.error('Erro ao buscar leads:', error)
+      setLeads([])
     } finally {
       setLoading(false)
     }
@@ -81,6 +82,8 @@ export function ComercialList() {
     }
   }
 
+  const safeLeads = Array.isArray(leads) ? leads : []
+
   return (
     <Table>
       <TableHeader>
@@ -95,41 +98,49 @@ export function ComercialList() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {leads.map((lead) => (
-          <TableRow key={lead.id} className="hover:bg-slate-50 transition-colors">
-            <TableCell className="font-medium text-midnight-navy">{lead.nome}</TableCell>
-            <TableCell className="text-gray-600">{lead.email}</TableCell>
-            <TableCell className="text-gray-600">{lead.telefone}</TableCell>
-            <TableCell>
-              <Select value={lead.status} onValueChange={(val) => handleStatusChange(lead.id, val)}>
-                <SelectTrigger
-                  className={`h-8 text-xs font-semibold border-none ${getStatusColor(lead.status)}`}
+        {safeLeads.filter(Boolean).map((lead) => {
+          const consultorNome = Array.isArray(lead.consultor)
+            ? lead.consultor[0]?.nome
+            : lead.consultor?.nome
+          return (
+            <TableRow key={lead.id} className="hover:bg-slate-50 transition-colors">
+              <TableCell className="font-medium text-midnight-navy">{lead.nome || '-'}</TableCell>
+              <TableCell className="text-gray-600">{lead.email || '-'}</TableCell>
+              <TableCell className="text-gray-600">{lead.telefone || '-'}</TableCell>
+              <TableCell>
+                <Select
+                  value={lead.status || 'Novo Lead'}
+                  onValueChange={(val) => handleStatusChange(lead.id, val)}
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {COLUMNS.map((c) => (
-                    <SelectItem key={c} value={c} className="text-xs font-medium">
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">
-                {lead.origem}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-gray-600">
-              {format(new Date(lead.criado_em), 'dd/MM/yyyy HH:mm')}
-            </TableCell>
-            <TableCell className="text-right text-gray-600">
-              {lead.consultor?.nome || 'Não atribuído'}
-            </TableCell>
-          </TableRow>
-        ))}
-        {leads.length === 0 && (
+                  <SelectTrigger
+                    className={`h-8 text-xs font-semibold border-none ${getStatusColor(lead.status || '')}`}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COLUMNS.map((c) => (
+                      <SelectItem key={c} value={c} className="text-xs font-medium">
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">
+                  {lead.origem || '-'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-gray-600">
+                {lead.criado_em ? format(new Date(lead.criado_em), 'dd/MM/yyyy HH:mm') : '-'}
+              </TableCell>
+              <TableCell className="text-right text-gray-600">
+                {consultorNome || 'Não atribuído'}
+              </TableCell>
+            </TableRow>
+          )
+        })}
+        {safeLeads.length === 0 && (
           <TableRow>
             <TableCell colSpan={7} className="text-center text-gray-500 py-8">
               Nenhum lead encontrado no sistema.
