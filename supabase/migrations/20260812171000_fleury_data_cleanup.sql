@@ -135,18 +135,14 @@ BEGIN
   DELETE FROM public.formulario_comercial WHERE cliente_id = v_cliente_id;
 
   -----------------------------------------------------------------
-  -- 17. Remove uploaded documents from storage (client's folder)
-  --     The user has already downloaded them.
+  -- 17. Storage objects cleanup is intentionally omitted here.
+  --     Supabase enforces a protect_delete() trigger on storage.objects
+  --     that blocks direct SQL deletes ("Direct deletion from storage
+  --     tables is not allowed. Use the Storage API instead.").
+  --     Any leftover files in the `dossiers` and `bender-clientes`
+  --     buckets under {cliente_id}/ must be removed out-of-band via the
+  --     Storage REST API (or SDK) from the application layer.
   -----------------------------------------------------------------
-  -- dossiers bucket: files stored under {cliente_id}/ prefix
-  DELETE FROM storage.objects
-  WHERE bucket_id = 'dossiers'
-    AND name LIKE v_cliente_id::text || '/%';
-
-  -- bender-clientes bucket: client documents stored here
-  DELETE FROM storage.objects
-  WHERE bucket_id = 'bender-clientes'
-    AND name LIKE v_cliente_id::text || '/%';
 
   -----------------------------------------------------------------
   -- 18. Reset lead status for any lead linked to this client
