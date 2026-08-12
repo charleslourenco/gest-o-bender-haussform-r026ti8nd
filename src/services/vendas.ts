@@ -110,34 +110,21 @@ export async function ensureSaleForLead(params: {
   if (existingDossies && existingDossies.length > 0) {
     dossieId = existingDossies[0].id
   } else {
-    const { data: orphanDossies } = await supabase
+    // Always create a brand-new dossier for this sale. NEVER adopt or re-point
+    // an existing orphan dossier — doing so would hijack another sale's dossier
+    // and corrupt the client's sale history.
+    const { data: novoDossie, error } = await supabase
       .from('dossies')
+      .insert({
+        cliente_id: clienteId,
+        user_id: userId,
+        status: 'em_documentacao',
+        formulario_comercial_id: formularioId,
+      })
       .select('id')
-      .eq('cliente_id', clienteId)
-      .is('formulario_comercial_id', null)
-      .order('criado_em', { ascending: false })
-      .limit(1)
-
-    if (orphanDossies && orphanDossies.length > 0) {
-      dossieId = orphanDossies[0].id
-      await supabase
-        .from('dossies')
-        .update({ formulario_comercial_id: formularioId })
-        .eq('id', dossieId)
-    } else {
-      const { data: novoDossie, error } = await supabase
-        .from('dossies')
-        .insert({
-          cliente_id: clienteId,
-          user_id: userId,
-          status: 'em_documentacao',
-          formulario_comercial_id: formularioId,
-        })
-        .select('id')
-        .single()
-      if (error) throw new Error('Falha ao criar dossiê: ' + error.message)
-      dossieId = novoDossie.id
-    }
+      .single()
+    if (error) throw new Error('Falha ao criar dossiê: ' + error.message)
+    dossieId = novoDossie.id
   }
 
   await ensureStorageFolder(clienteId)
@@ -185,9 +172,8 @@ export async function createNewSaleForClient(params: {
     .single()
   if (leadError) throw new Error('Falha ao criar lead: ' + leadError.message)
 
-  // Point the client's primary lead to the most recent sale
-  await supabase.from('clientes').update({ lead_id: newLead.id }).eq('id', clienteId)
-
+  // Do NOT overwrite the client's lead_id. Each new sale gets its own independent
+  // lead/form/dossier, and the client retains its original sale reference.
   const { dossieId, formularioId } = await ensureSaleForLead({
     leadId: newLead.id,
     clienteId,

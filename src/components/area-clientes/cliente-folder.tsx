@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Trash2,
@@ -50,6 +50,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   const [sales, setSales] = useState<SaleItem[]>([])
   const [loading, setLoading] = useState(true)
   const [creatingSale, setCreatingSale] = useState(false)
+  const creatingSaleRef = useRef(false)
 
   const handleTabChange = (value: string) => {
     setSearchParams((prev) => {
@@ -110,6 +111,9 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
 
   const handleNovaVenda = async () => {
     if (!dossie?.cliente_id) return
+    // Synchronous double-click guard — prevents creating two identical sales
+    if (creatingSaleRef.current) return
+    creatingSaleRef.current = true
     setCreatingSale(true)
     try {
       const { data: authData } = await supabase.auth.getUser()
@@ -130,6 +134,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
     } catch (e: any) {
       toast.error('Erro ao criar nova venda: ' + e.message)
     } finally {
+      creatingSaleRef.current = false
       setCreatingSale(false)
     }
   }
