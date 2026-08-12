@@ -216,15 +216,15 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         atualizado_em: new Date().toISOString(),
       }
 
-      const { error, data: formUpdateData } = await supabase
-        .from('formulario_comercial')
-        .update(payload)
-        .eq('cliente_id', dossie.cliente_id)
-        .select('id')
+      const formId = dossie.formulario_comercial_id || dossie.formulario?.id
+      if (!formId) {
+        toast.error('Dossiê sem formulário comercial vinculado. Não é possível salvar.')
+        return
+      }
+
+      const { error } = await supabase.from('formulario_comercial').update(payload).eq('id', formId)
 
       if (error) throw error
-
-      const formId = formUpdateData?.[0]?.id
 
       if (formId && data.produtos && data.produtos.length > 0) {
         const compraDiretaItems = data.produtos.filter((p: any) => p.is_outsourced)
