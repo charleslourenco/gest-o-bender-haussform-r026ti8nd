@@ -5,14 +5,14 @@
     "gerar-dossie": 40,
     "gerar_documento_cliente": 86,
     "send-signature-email": 9,
-    "finalize-signature-document": 136,
+    "finalize-signature-document": 137,
     "whatsapp-webhook": 40,
     "assistant-intelligence": 13,
     "financeiro-ai": 17,
     "material-normalization": 5,
     "gerar-comprovante-caixa": 2,
     "gerar-comprovante-item-cliente": 1,
-    "send-whatsapp-message": 93,
+    "send-whatsapp-message": 94,
     "merge-estoque-items": 1
   }
 }
