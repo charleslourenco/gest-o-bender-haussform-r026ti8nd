@@ -197,4 +197,15 @@
   .chart-lucent-text text {
     fill: #f2f3f3;
   }
+
+  .signature-otp [data-slot='input-otp-slot'] {
+    border-color: #27272a !important;
+    background-color: hsl(var(--background)) !important;
+  }
+  .signature-otp [data-slot='input-otp-slot']:hover {
+    border-color: #27272a !important;
+  }
+  .signature-otp [data-slot='input-otp-slot'][data-active='true'] {
+    border-color: #27272a !important;
+  }
 }

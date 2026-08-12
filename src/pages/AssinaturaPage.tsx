@@ -283,7 +283,12 @@ export default function AssinaturaPage() {
                     </p>
                   </div>
                   <div className="flex justify-center">
-                    <InputOTP maxLength={4} value={code} onChange={setCode}>
+                    <InputOTP
+                      maxLength={4}
+                      value={code}
+                      onChange={setCode}
+                      className="signature-otp"
+                    >
                       <InputOTPGroup>
                         <InputOTPSlot index={0} />
                         <InputOTPSlot index={1} />
