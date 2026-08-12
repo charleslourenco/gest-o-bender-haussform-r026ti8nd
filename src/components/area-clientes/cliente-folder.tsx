@@ -266,7 +266,11 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
           <ClienteDocumentos dossie={dossie} onReload={load} />
         </TabsContent>
         <TabsContent value="timeline" className="flex-1 overflow-y-auto mt-4 p-1">
-          <Timeline clienteId={dossie.cliente_id} />
+          <Timeline
+            clienteId={dossie.cliente_id}
+            formularioId={dossie.formulario_comercial_id}
+            saleCreatedAt={dossie.formulario?.criado_em || dossie.criado_em}
+          />
         </TabsContent>
       </Tabs>
     </div>

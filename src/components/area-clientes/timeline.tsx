@@ -2,30 +2,49 @@ import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
-export function Timeline({ clienteId }: { clienteId?: string }) {
+interface TimelineProps {
+  clienteId?: string
+  formularioId?: string | null
+  saleCreatedAt?: string | null
+}
+
+export function Timeline({ clienteId, formularioId, saleCreatedAt }: TimelineProps) {
   const [events, setEvents] = useState<any[]>([])
 
   useEffect(() => {
     if (!clienteId) return
+
     const fetchEvents = async () => {
-      // Tenta buscar usando a função que resolve o nome do usuário a partir do e-mail
       const { data, error } = await supabase.rpc('get_timeline_eventos', {
         p_cliente_id: clienteId,
+        p_formulario_id: formularioId ?? null,
+        p_sale_created_at: saleCreatedAt ?? null,
       })
+
       if (!error && data) {
         setEvents(data)
       } else {
-        // Fallback caso a função ainda não exista (ex: antes da migration rodar)
         const { data: fallbackData } = await supabase
           .from('timeline_eventos')
           .select('*')
           .eq('cliente_id', clienteId)
           .order('criado_em', { ascending: false })
+
         if (fallbackData) {
-          setEvents(fallbackData.map((e: any) => ({ ...e, nome_exibicao: e.usuario_nome })))
+          const filtered = formularioId
+            ? fallbackData.filter(
+                (e: any) =>
+                  e.formulario_id === formularioId ||
+                  (e.formulario_id === null &&
+                    (!saleCreatedAt ||
+                      new Date(e.criado_em).getTime() >= new Date(saleCreatedAt).getTime())),
+              )
+            : fallbackData
+          setEvents(filtered.map((e: any) => ({ ...e, nome_exibicao: e.usuario_nome })))
         }
       }
     }
+
     fetchEvents()
 
     const sub = supabase
@@ -47,7 +66,7 @@ export function Timeline({ clienteId }: { clienteId?: string }) {
     return () => {
       sub.unsubscribe()
     }
-  }, [clienteId])
+  }, [clienteId, formularioId, saleCreatedAt])
 
   return (
     <div className="space-y-6 bg-card">

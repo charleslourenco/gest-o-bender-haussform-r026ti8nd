@@ -86,7 +86,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         .eq('cliente_id', dossie.cliente_id)
 
       if (projetoId) {
-        docsQuery = docsQuery.eq('projeto_id', projetoId)
+        docsQuery = docsQuery.or(`projeto_id.eq.${projetoId},projeto_id.is.null`)
       }
 
       const { data: docsData, error: docsError } = await docsQuery.order('criado_em', {
@@ -191,6 +191,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
+        formulario_id: dossie.formulario_comercial_id || null,
         usuario_nome: userName,
         acao: `Documento ${nome} removido`,
       })
@@ -245,6 +246,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
+        formulario_id: dossie.formulario_comercial_id || null,
         usuario_nome: userName,
         acao: `Geração do documento ${template.nome} iniciada`,
       })
@@ -313,6 +315,7 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
       const userName = session.user?.user_metadata?.nome || session.user?.email || 'Sistema'
       await supabase.from('timeline_eventos').insert({
         cliente_id: dossie.cliente_id,
+        formulario_id: dossie.formulario_comercial_id || null,
         usuario_nome: userName,
         acao: `Arquivo ${file.name} enviado (${uploadTipo === 'lista_materiais' ? 'Lista de Materiais' : 'Manual'})`,
       })
