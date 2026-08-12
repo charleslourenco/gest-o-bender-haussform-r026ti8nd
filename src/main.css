@@ -198,14 +198,32 @@
     fill: #f2f3f3;
   }
 
-  .signature-otp [data-slot='input-otp-slot'] {
+  .signature-otp input,
+  .signature-otp [data-slot] {
     border-color: #27272a !important;
     background-color: hsl(var(--background)) !important;
   }
-  .signature-otp [data-slot='input-otp-slot']:hover {
+  .signature-otp input:hover,
+  .signature-otp [data-slot]:hover {
     border-color: #27272a !important;
   }
-  .signature-otp [data-slot='input-otp-slot'][data-active='true'] {
+  .signature-otp input:focus,
+  .signature-otp input[data-active='true'],
+  .signature-otp [data-slot][data-active='true'] {
     border-color: #27272a !important;
+  }
+  .dark .signature-otp input,
+  .dark .signature-otp [data-slot] {
+    border-color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--background)) !important;
+  }
+  .dark .signature-otp input:hover,
+  .dark .signature-otp [data-slot]:hover {
+    border-color: hsl(var(--foreground)) !important;
+  }
+  .dark .signature-otp input:focus,
+  .dark .signature-otp input[data-active='true'],
+  .dark .signature-otp [data-slot][data-active='true'] {
+    border-color: hsl(var(--foreground)) !important;
   }
 }
