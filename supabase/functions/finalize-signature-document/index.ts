@@ -475,6 +475,8 @@ export async function finalizeDocument(payload: FinalizePayload): Promise<{
     const allSuccess = results.every((r) => r.success)
     const firstUrl = results.find((r) => r.url)?.url ?? null
 
+    await maybeCompleteEnvelope(supabase, payload.envelope_id)
+
     return {
       success: allSuccess,
       url: firstUrl,
