@@ -123,6 +123,9 @@ export default function AssinarEnvelopePage() {
       return
     }
 
+    // Abre a aba imediatamente no clique (síncrono) para contornar bloqueadores de pop-up mobile
+    const newWindow = window.open('about:blank', '_blank')
+
     try {
       let url: string | null = null
 
@@ -148,11 +151,17 @@ export default function AssinarEnvelopePage() {
       }
 
       if (url) {
-        window.open(url, '_blank')
+        if (newWindow) {
+          newWindow.location.href = url
+        } else {
+          window.location.href = url
+        }
       } else {
+        if (newWindow) newWindow.close()
         toast.error('Não foi possível gerar o link de visualização.')
       }
     } catch (e: any) {
+      if (newWindow) newWindow.close()
       toast.error('Erro ao visualizar documento: ' + e.message)
     }
   }
@@ -289,7 +298,13 @@ export default function AssinarEnvelopePage() {
           .update({ status: 'concluido', concluido_em: new Date().toISOString() })
           .eq('id', id)
         setEnvelope({ ...envelope, status: 'concluido', concluido_em: new Date().toISOString() })
-        toast.success('Todos os documentos foram assinados! Processo concluído.')
+
+        // Invoca a finalização do envelope para estampar e enviar os e-mails com os PDFs finais
+        supabase.functions.invoke('finalize-signature-document', {
+          body: { envelope_id: id },
+        })
+
+        toast.success('Todos os documentos foram assinados! Processo concluído e e-mails enviados.')
       } else if (myAllSigned) {
         toast.success('Você assinou todos os seus documentos! Aguardando demais signatários.')
       } else {

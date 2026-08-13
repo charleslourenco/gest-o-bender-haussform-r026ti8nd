@@ -14,7 +14,17 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, nome, link, codigo, documento_nome, envelope_id } = await req.json()
+    const payload = await req.json()
+    const {
+      type = 'invitation',
+      to,
+      nome,
+      link,
+      codigo,
+      documento_nome,
+      envelope_id,
+      pdf_url,
+    } = payload
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (!RESEND_API_KEY) {
@@ -40,50 +50,150 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const subject = isEnvelope
-      ? `Documentos para Assinatura${documentoNomes.length > 0 ? ` (${documentoNomes.length})` : ''}`
-      : `Assinatura Pendente: ${documento_nome}`
+    const isCompletion = type === 'completion'
 
-    const introText = isEnvelope
-      ? `Você foi convidado para assinar um conjunto de ${documentoNomes.length || ''} documentos de forma digital e segura. Acesse o link único abaixo para visualizar e assinar todos os documentos em sequência.`
-      : `Você foi convidado para assinar o documento <strong>${documento_nome}</strong> de forma digital e segura.`
+    let subject = ''
+    let introText = ''
+    let ctaText = ''
+    let ctaLink = link
 
-    const ctaText = isEnvelope
-      ? 'Acessar Documentos para Assinar'
-      : 'Acessar Documento para Assinar'
+    if (isCompletion) {
+      subject = isEnvelope
+        ? `Documentos Assinados e Concluídos${documentoNomes.length > 0 ? ` (${documentoNomes.length})` : ''}`
+        : `Documento Assinado e Concluído: ${documento_nome}`
+
+      introText = isEnvelope
+        ? `Todos os signatários concluíram a assinatura do conjunto de documentos. O processo foi finalizado com sucesso e os documentos assinados estão prontos para visualização e download.`
+        : `O processo de assinatura do documento <strong>${documento_nome}</strong> foi concluído com sucesso por todos os signatários.`
+
+      ctaText = 'Visualizar / Baixar Documento Assinado'
+      if (pdf_url) ctaLink = pdf_url
+    } else {
+      subject = isEnvelope
+        ? `Documentos para Assinatura${documentoNomes.length > 0 ? ` (${documentoNomes.length})` : ''}`
+        : `Assinatura Pendente: ${documento_nome}`
+
+      introText = isEnvelope
+        ? `Você foi convidado para assinar um conjunto de ${documentoNomes.length || ''} documentos de forma digital e segura. Acesse o link único abaixo para visualizar e assinar todos os documentos em sequência.`
+        : `Você foi convidado para assinar o documento <strong>${documento_nome}</strong> de forma digital e segura.`
+
+      ctaText = isEnvelope ? 'Acessar Documentos para Assinar' : 'Acessar Documento para Assinar'
+    }
 
     const docsListHtml =
-      isEnvelope && documentoNomes.length > 0
+      documentoNomes.length > 0
         ? `
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-          <p style="margin: 0 0 10px; color: #666; font-size: 14px; font-weight: bold;">Documentos para assinatura:</p>
-          <ul style="margin: 0; padding-left: 20px; color: #555; font-size: 14px; line-height: 1.8;">
+        <div class="card-box" style="background-color: #f1f5f9; padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <p class="text-main" style="margin: 0 0 10px; color: #1e293b; font-size: 14px; font-weight: bold;">Documentos (${documentoNomes.length}):</p>
+          <ul class="text-main" style="margin: 0; padding-left: 20px; color: #334155; font-size: 14px; line-height: 1.8;">
             ${documentoNomes.map((name, i) => `<li>${i + 1}. ${name}</li>`).join('')}
           </ul>
         </div>
       `
         : ''
 
+    const verificationCodeBox =
+      !isCompletion && codigo
+        ? `
+        <div class="card-box" style="background-color: #f8fafc; padding: 18px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px solid #cbd5e1;">
+          <p class="text-muted" style="margin: 0; color: #475569; font-size: 14px;">Seu código de verificação é:</p>
+          <p class="code-text" style="margin: 10px 0 0; font-size: 34px; font-weight: 800; letter-spacing: 6px; color: #0f172a;">${codigo}</p>
+          <p class="text-muted" style="margin: 15px 0 0; color: #475569; font-size: 13px;"><strong>Instrução:</strong> Copie este código de 4 dígitos e cole no campo indicado na tela de assinatura.</p>
+        </div>
+      `
+        : ''
+
     const html = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-        <h2 style="color: #333;">Olá, ${nome}</h2>
-        <p style="color: #555; line-height: 1.5;">${introText}</p>
-        ${docsListHtml}
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-          <p style="margin: 0; color: #666; font-size: 14px;">Seu código de verificação é:</p>
-          <p style="margin: 10px 0 0; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #000;">${codigo}</p>
-          <p style="margin: 15px 0 0; color: #555; font-size: 13px;"><strong>Instrução:</strong> Copie este código de 4 dígitos e cole no campo indicado na tela de assinatura.</p>
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="color-scheme" content="light dark">
+        <meta name="supported-color-schemes" content="light dark">
+        <style>
+          :root {
+            color-scheme: light dark;
+            supported-color-schemes: light dark;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+          }
+          .email-container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 28px;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+          }
+          .btn-primary {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 15px;
+            display: inline-block;
+            text-align: center;
+            border: 1px solid #1d4ed8;
+          }
+          @media (prefers-color-scheme: dark) {
+            body {
+              background-color: #090d16 !important;
+              color: #f8fafc !important;
+            }
+            .email-container {
+              background-color: #1e293b !important;
+              border-color: #334155 !important;
+              color: #f8fafc !important;
+            }
+            .text-main {
+              color: #f8fafc !important;
+            }
+            .text-muted {
+              color: #cbd5e1 !important;
+            }
+            .card-box {
+              background-color: #0f172a !important;
+              border-color: #334155 !important;
+            }
+            .code-text {
+              color: #38bdf8 !important;
+            }
+            .btn-primary {
+              background-color: #2563eb !important;
+              color: #ffffff !important;
+              border-color: #3b82f6 !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="email-container">
+          <h2 class="text-main" style="color: #0f172a; margin-top: 0; font-size: 20px;">Olá, ${nome}</h2>
+          <p class="text-main" style="color: #334155; line-height: 1.6; font-size: 15px;">${introText}</p>
+          ${docsListHtml}
+          ${verificationCodeBox}
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${ctaLink}" class="btn-primary" style="background-color: #2563eb; color: #ffffff !important; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">${ctaText}</a>
+          </div>
+          <p class="text-muted" style="font-size: 12px; color: #64748b; text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+            Bender Haussform • Assinatura Digital Segura
+          </p>
         </div>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${link}" style="background-color: #000; color: #fff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">${ctaText}</a>
-        </div>
-        <p style="font-size: 12px; color: #999; text-align: center; margin-top: 40px;">Bender Haussform</p>
-      </div>
+      </body>
+      </html>
     `
 
-    const textBody = isEnvelope
-      ? `Olá, ${nome}. Você recebeu ${documentoNomes.length} documento(s) para assinar: ${documentoNomes.join(', ')}. Seu código de verificação é: ${codigo}. Acesse o link para assinar: ${link}`
-      : `Olá, ${nome}. Você foi convidado para assinar o documento ${documento_nome}. Seu código de verificação é: ${codigo}. Acesse o link para assinar: ${link}`
+    const textBody = isCompletion
+      ? `Olá, ${nome}. O processo de assinatura foi concluído com sucesso. Acesse o documento assinado em: ${ctaLink}`
+      : `Olá, ${nome}. Você foi convidado para assinar ${isEnvelope ? `${documentoNomes.length} documento(s)` : documento_nome}. Seu código de verificação é: ${codigo}. Acesse o link para assinar: ${link}`
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

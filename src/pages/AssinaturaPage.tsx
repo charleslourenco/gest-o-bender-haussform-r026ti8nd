@@ -58,28 +58,54 @@ export default function AssinaturaPage() {
     if (!assinatura?.documento_id) return
 
     if (assinatura.documento_id.startsWith('http')) {
+      const match = assinatura.documento_id.match(
+        /\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\/(.+?)(?:\?|$)/,
+      )
+      if (match) {
+        const bucket = match[1]
+        const path = decodeURIComponent(match[2])
+        const newWin = window.open('about:blank', '_blank')
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600)
+        const targetUrl = data?.signedUrl || assinatura.documento_id
+        if (newWin) {
+          newWin.location.href = targetUrl
+        } else {
+          window.location.href = targetUrl
+        }
+        return
+      }
       window.open(assinatura.documento_id, '_blank')
       return
     }
 
-    // Tenta primeiro como public URL, pois o bucket bender_clientes é configurado como público
-    const { data: pubData } = supabase.storage
-      .from('bender_clientes')
-      .getPublicUrl(assinatura.documento_id)
+    const newWin = window.open('about:blank', '_blank')
 
-    if (pubData?.publicUrl) {
-      window.open(pubData.publicUrl, '_blank')
-    } else {
-      // Fallback para signed url em caso de erro na URL pública
+    try {
       const { data, error } = await supabase.storage
         .from('bender_clientes')
         .createSignedUrl(assinatura.documento_id, 3600)
 
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank')
+      let targetUrl = data?.signedUrl
+      if (!targetUrl) {
+        const { data: pubData } = supabase.storage
+          .from('bender_clientes')
+          .getPublicUrl(assinatura.documento_id)
+        targetUrl = pubData?.publicUrl
+      }
+
+      if (targetUrl) {
+        if (newWin) {
+          newWin.location.href = targetUrl
+        } else {
+          window.location.href = targetUrl
+        }
       } else {
+        if (newWin) newWin.close()
         toast.error('Não foi possível abrir o documento.')
       }
+    } catch (e: any) {
+      if (newWin) newWin.close()
+      toast.error('Erro ao abrir documento: ' + e.message)
     }
   }
 
@@ -138,8 +164,16 @@ export default function AssinaturaPage() {
             ip_address: ip,
           })
           .eq('envelope_id', linkedDoc.envelope_id)
-          .eq('email', assinatura.signatario_email)
+          .ilike('email', assinatura.signatario_email)
           .neq('status', 'assinado')
+
+        supabase.functions.invoke('finalize-signature-document', {
+          body: { envelope_id: linkedDoc.envelope_id },
+        })
+      } else if (assinatura.documento_id) {
+        supabase.functions.invoke('finalize-signature-document', {
+          body: { documento_id: assinatura.documento_id, cliente_id: assinatura.cliente_id },
+        })
       }
 
       toast.success('Documento assinado com sucesso!')

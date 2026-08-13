@@ -336,6 +336,41 @@ async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise
   if (envError) {
     console.error('finalize: complete envelope error', envError)
   }
+
+  // Dispara notificação por e-mail com os documentos assinados concluídos
+  try {
+    const { data: assinantes } = await supabase
+      .from('assinantes')
+      .select('nome_completo, email, token_acesso')
+      .eq('envelope_id', envelopeId)
+
+    const { data: envData } = await supabase
+      .from('envelopes_assinatura')
+      .select('nome_documento')
+      .eq('id', envelopeId)
+      .single()
+
+    const docName = envData?.nome_documento || 'Documentos'
+
+    for (const a of assinantes || []) {
+      if (!a.email) continue
+      const tokenParam = a.token_acesso ? `?token=${a.token_acesso}` : ''
+      const link = `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/assinar-envelope/${envelopeId}${tokenParam}`
+
+      await supabase.functions.invoke('send-signature-email', {
+        body: {
+          type: 'completion',
+          to: a.email,
+          nome: a.nome_completo,
+          link,
+          documento_nome: docName,
+          envelope_id: envelopeId,
+        },
+      })
+    }
+  } catch (e) {
+    console.error('finalize: send completion email error', e)
+  }
 }
 
 async function processDocument(

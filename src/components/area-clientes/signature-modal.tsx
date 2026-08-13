@@ -255,21 +255,40 @@ export function SignatureModal({
           if (linkError) throw linkError
         }
 
+        // Verifica se o signatário já existe para evitar duplicidades
+        const existingAssinante = assinantesList.find(
+          (a) => a.email?.toLowerCase() === form.email.trim().toLowerCase(),
+        )
+        if (existingAssinante) {
+          toast.error('Este e-mail já foi adicionado como signatário neste envelope.')
+          return
+        }
+
         for (const doc of docs) {
           const docId = doc.arquivo_url || doc.path || doc.id
-          await supabase.from('assinaturas').insert({
-            documento_id: docId,
-            documento_nome: doc.template_nome || doc.tipo || 'Documento',
-            cliente_id: clienteId,
-            signatario_nome: form.nome,
-            signatario_email: form.email,
-            signatario_telefone: form.telefone || null,
-            signatario_tipo: form.tipo,
-            signatario_cpf: form.cpf || null,
-            codigo_confirmacao: code,
-            expira_em: expiraEm.toISOString(),
-            status: 'pendente',
-          })
+          // Evita inserir assinatura duplicada para o mesmo documento e email
+          const { data: existingSig } = await supabase
+            .from('assinaturas')
+            .select('id')
+            .eq('documento_id', docId)
+            .ilike('signatario_email', form.email.trim())
+            .maybeSingle()
+
+          if (!existingSig) {
+            await supabase.from('assinaturas').insert({
+              documento_id: docId,
+              documento_nome: doc.template_nome || doc.tipo || 'Documento',
+              cliente_id: clienteId,
+              signatario_nome: form.nome,
+              signatario_email: form.email.trim(),
+              signatario_telefone: form.telefone || null,
+              signatario_tipo: form.tipo,
+              signatario_cpf: form.cpf || null,
+              codigo_confirmacao: code,
+              expira_em: expiraEm.toISOString(),
+              status: 'pendente',
+            })
+          }
         }
 
         const { data: authData } = await supabase.auth.getUser()
@@ -278,7 +297,7 @@ export function SignatureModal({
         await supabase.from('assinantes').insert({
           envelope_id: envId,
           nome_completo: form.nome,
-          email: form.email,
+          email: form.email.trim(),
           cpf: form.cpf || null,
           papel: form.tipo,
           tipo_assinatura: 'link',
@@ -297,33 +316,45 @@ export function SignatureModal({
         const doc = docs[0]
         const docId = doc.path || doc.arquivo_url
 
-        const { data: newEnv, error: envError } = await supabase
-          .from('envelopes_assinatura')
-          .insert({
-            documento_id: docId,
-            cliente_id: clienteId,
-            nome_documento: doc.title || doc.template_nome || doc.tipo,
-            status: 'aguardando',
-            signatario_nome: form.nome,
-            signatario_email: form.email,
-            codigo_verificacao: code,
-          })
-          .select()
-          .single()
-        if (envError) throw envError
-        setEnvelope(newEnv)
+        const existingSig = signatures.find(
+          (s) => s.signatario_email?.toLowerCase() === form.email.trim().toLowerCase(),
+        )
+        if (existingSig) {
+          toast.error('Este e-mail já foi adicionado como signatário neste documento.')
+          return
+        }
 
-        await supabase
-          .from('documentos_cliente')
-          .update({ envelope_id: newEnv.id })
-          .eq('id', doc.id)
+        let envId = envelope?.id
+        if (!envId) {
+          const { data: newEnv, error: envError } = await supabase
+            .from('envelopes_assinatura')
+            .insert({
+              documento_id: docId,
+              cliente_id: clienteId,
+              nome_documento: doc.title || doc.template_nome || doc.tipo,
+              status: 'aguardando',
+              signatario_nome: form.nome,
+              signatario_email: form.email.trim(),
+              codigo_verificacao: code,
+            })
+            .select()
+            .single()
+          if (envError) throw envError
+          envId = newEnv.id
+          setEnvelope(newEnv)
+
+          await supabase
+            .from('documentos_cliente')
+            .update({ envelope_id: newEnv.id })
+            .eq('id', doc.id)
+        }
 
         const { error } = await supabase.from('assinaturas').insert({
           documento_id: docId,
           documento_nome: doc.title || doc.template_nome || doc.tipo,
           cliente_id: clienteId,
           signatario_nome: form.nome,
-          signatario_email: form.email,
+          signatario_email: form.email.trim(),
           signatario_telefone: form.telefone || null,
           signatario_tipo: form.tipo,
           signatario_cpf: form.cpf || null,
@@ -335,9 +366,9 @@ export function SignatureModal({
 
         const tokenAcesso = crypto.randomUUID()
         await supabase.from('assinantes').insert({
-          envelope_id: newEnv.id,
+          envelope_id: envId,
           nome_completo: form.nome,
-          email: form.email,
+          email: form.email.trim(),
           cpf: form.cpf || null,
           papel: form.tipo,
           tipo_assinatura: 'link',
