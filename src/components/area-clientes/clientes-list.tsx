@@ -178,15 +178,21 @@ export function ClientesList({ onSelect }: ClientesListProps) {
 
         const clientsWithForm = normalized.filter((c) => c.leads?.formulario_comercial)
 
+        // Quando há filtro de período, vendas sem data_venda são excluídas;
+        // quando não há filtro, mantém o comportamento atual (inclui todas).
+        const hasPeriodFilter = !!(dataVendaDe || dataVendaAte)
+
         const formInPeriod = clientsWithForm.filter((c) => {
           const dv = c.leads?.formulario_comercial?.data_venda
-          if (!dv) return true
+          if (!dv) return !hasPeriodFilter
           if (dataVendaDe && dv < dataVendaDe) return false
           if (dataVendaAte && dv > dataVendaAte) return false
           return true
         })
 
-        setClientesData(normalized)
+        // Sem filtro de período: tabela mostra todos os clientes (comportamento atual).
+        // Com filtro de período: tabela mostra apenas clientes com vendas no período.
+        setClientesData(hasPeriodFilter ? formInPeriod : normalized)
 
         const formIds = new Set<string>()
         let total = 0
