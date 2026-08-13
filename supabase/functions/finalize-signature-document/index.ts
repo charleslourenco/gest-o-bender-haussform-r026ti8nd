@@ -20,6 +20,10 @@ const SERVICE_ROLE_KEY =
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SERVICE_ROLE_KEY') ?? ''
 const STORAGE_BUCKET = 'bender_clientes'
 const STORAGE_BUCKET_EQUIPE = 'documentos_equipe'
+// URL pública do app (frontend). Em produção aponta para o domínio do sistema;
+// em preview/DEV cai no endereço local. Usada para montar links de assinatura
+// que chegam por e-mail — nunca a URL do Supabase, que não serve o frontend.
+const APP_URL = (Deno.env.get('APP_URL') ?? 'https://sistema-bender.goskip.app').replace(/\/$/, '')
 
 interface FinalizePayload {
   documento_id?: string
@@ -352,10 +356,15 @@ async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise
 
     const docName = envData?.nome_documento || 'Documentos'
 
+    // Primeiro PDF assinado do envelope: usado como link direto no e-mail de
+    // conclusão. O send-signature-email prefere `pdf_url` quando existe; só
+    // recorre ao `link` (URL do app) como fallback.
+    const pdfUrl = allDocs.find((d: any) => d.arquivo_assinado_url)?.arquivo_assinado_url ?? null
+
     for (const a of assinantes || []) {
       if (!a.email) continue
       const tokenParam = a.token_acesso ? `?token=${a.token_acesso}` : ''
-      const link = `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/assinar-envelope/${envelopeId}${tokenParam}`
+      const link = `${APP_URL}/assinar-envelope/${envelopeId}${tokenParam}`
 
       await supabase.functions.invoke('send-signature-email', {
         body: {
@@ -363,6 +372,7 @@ async function maybeCompleteEnvelope(supabase: any, envelopeId: string): Promise
           to: a.email,
           nome: a.nome_completo,
           link,
+          pdf_url: pdfUrl,
           documento_nome: docName,
           envelope_id: envelopeId,
         },

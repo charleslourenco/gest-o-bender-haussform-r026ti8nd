@@ -5,15 +5,15 @@
     "gerar-dossie": 40,
     "gerar_documento_cliente": 86,
     "send-signature-email": 10,
-    "finalize-signature-document": 149,
+    "finalize-signature-document": 150,
     "whatsapp-webhook": 40,
     "assistant-intelligence": 13,
     "financeiro-ai": 17,
     "material-normalization": 5,
     "gerar-comprovante-caixa": 2,
     "gerar-comprovante-item-cliente": 1,
-    "send-whatsapp-message": 107,
+    "send-whatsapp-message": 108,
     "merge-estoque-items": 1,
-    "processar-orcamento-ocr": 3
+    "processar-orcamento-ocr": 4
   }
 }
