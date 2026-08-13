@@ -85,8 +85,11 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
         .select('*, clientes(nome)')
         .eq('cliente_id', dossie.cliente_id)
 
+      // Mostra todos os documentos do cliente vinculados a este projeto
+      // (quando houver) E também os documentos sem projeto (projeto_id NULL),
+      // evitando que documentos upados antes do vínculo fiquem invisíveis.
       if (projetoId) {
-        docsQuery = docsQuery.eq('projeto_id', projetoId)
+        docsQuery = docsQuery.or(`projeto_id.eq.${projetoId},projeto_id.is.null`)
       } else {
         docsQuery = docsQuery.is('projeto_id', null)
       }
