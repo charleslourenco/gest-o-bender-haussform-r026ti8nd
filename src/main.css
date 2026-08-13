@@ -30,8 +30,8 @@
     --destructive: 204 6% 32%; /* Metallic Fir */
     --destructive-foreground: 180 4% 95%; /* Lucent White */
 
-    --border: 120 1% 86%; /* Cool Gray 1 XGC */
-    --input: 120 1% 86%;
+    --border: 120 1% 72%; /* Cool Gray mais escuro p/ contraste contra o card (#DBDCDB) */
+    --input: 120 1% 72%;
     --ring: 240 4% 16%; /* Black Beauty */
 
     --radius: 0.5rem;
@@ -42,7 +42,7 @@
     --sidebar-primary-foreground: 180 4% 95%; /* Lucent White */
     --sidebar-accent: 120 1% 78%; /* Cool Gray hover tint */
     --sidebar-accent-foreground: 240 4% 16%; /* Black Beauty */
-    --sidebar-border: 120 1% 78%;
+    --sidebar-border: 120 1% 68%;
     --sidebar-ring: 240 4% 16%;
 
     --chart-1: 240 4% 16%;
@@ -69,7 +69,7 @@
     --accent-foreground: 180 4% 95%; /* Lucent White */
     --destructive: 204 6% 42%; /* Metallic Fir (lighter) */
     --destructive-foreground: 180 4% 95%; /* Lucent White */
-    --border: 120 1% 86%; /* Cool Gray 1 XGC */
+    --border: 120 1% 86%; /* Cool Gray 1 XGC (#DBDCDB) — claro sobre card escuro */
     --input: 120 1% 86%; /* Cool Gray 1 XGC */
     --ring: 180 4% 95%; /* Lucent White */
     --sidebar-background: 240 4% 16%; /* Black Beauty */
@@ -78,7 +78,7 @@
     --sidebar-primary-foreground: 240 4% 16%; /* Black Beauty */
     --sidebar-accent: 190 4% 66%; /* Silver 10077 C */
     --sidebar-accent-foreground: 180 4% 95%; /* Lucent White */
-    --sidebar-border: 120 1% 86%; /* Cool Gray 1 XGC */
+    --sidebar-border: 120 1% 86%; /* Cool Gray 1 XGC — claro sobre sidebar escura */
     --sidebar-ring: 180 4% 95%; /* Lucent White */
 
     --chart-1: 180 4% 95%; /* Lucent White */
@@ -198,32 +198,36 @@
     fill: #f2f3f3;
   }
 
-  .signature-otp input,
-  .signature-otp [data-slot] {
+  /* OTP slots: borda com contraste fixo contra o fundo do card.
+     As caixinhas visíveis (InputOTPSlot) usam a classe utilitária
+     `border-input`; os <input> reais ficam ocultos, por isso o seletor
+     correto é `.border-input` e não `input`/`[data-slot]`. */
+  .signature-otp .border-input {
     border-color: #27272a !important;
     background-color: hsl(var(--background)) !important;
   }
-  .signature-otp input:hover,
-  .signature-otp [data-slot]:hover {
+  .signature-otp .border-input:hover {
     border-color: #27272a !important;
   }
-  .signature-otp input:focus,
-  .signature-otp input[data-active='true'],
-  .signature-otp [data-slot][data-active='true'] {
+  .signature-otp .border-input:focus,
+  .signature-otp .border-input:focus-visible,
+  .signature-otp .border-input[data-active='true'] {
     border-color: #27272a !important;
+    outline: 2px solid #27272a !important;
+    outline-offset: 2px;
   }
-  .dark .signature-otp input,
-  .dark .signature-otp [data-slot] {
+  .dark .signature-otp .border-input {
     border-color: hsl(var(--foreground)) !important;
     background-color: hsl(var(--background)) !important;
   }
-  .dark .signature-otp input:hover,
-  .dark .signature-otp [data-slot]:hover {
+  .dark .signature-otp .border-input:hover {
     border-color: hsl(var(--foreground)) !important;
   }
-  .dark .signature-otp input:focus,
-  .dark .signature-otp input[data-active='true'],
-  .dark .signature-otp [data-slot][data-active='true'] {
+  .dark .signature-otp .border-input:focus,
+  .dark .signature-otp .border-input:focus-visible,
+  .dark .signature-otp .border-input[data-active='true'] {
     border-color: hsl(var(--foreground)) !important;
+    outline: 2px solid hsl(var(--foreground)) !important;
+    outline-offset: 2px;
   }
 }
