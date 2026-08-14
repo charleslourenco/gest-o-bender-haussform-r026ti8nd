@@ -111,7 +111,7 @@ export function DesalocarModal({
                   className={`w-full text-left p-3 rounded-lg border transition-colors ${
                     selectedId === alloc.id
                       ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30'
-                      : 'border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-900'
+                      : 'border-border hover:bg-muted/60'
                   }`}
                 >
                   <div className="flex items-center justify-between">

@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/form'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
-import { Save, Archive, Loader2, History } from 'lucide-react'
+import { Save, Archive, ArchiveRestore, Loader2, History } from 'lucide-react'
 
 export type SolicitacaoDetalhe = {
   id: string
@@ -215,7 +215,6 @@ export function SolicitacaoCompraDetailModal({
   }, [solicitacao?.editado_por, open])
 
   const statusValue = form.watch('status')
-  const isComprado = statusValue === 'Comprado'
 
   const formatEditadoEm = useMemo(() => {
     if (!solicitacao?.editado_em) return ''
@@ -331,6 +330,32 @@ export function SolicitacaoCompraDetailModal({
       toast({
         title: 'Erro ao arquivar',
         description: err.message || 'Não foi possível arquivar a solicitação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsArchiving(false)
+    }
+  }
+
+  const handleUnarchive = async () => {
+    if (!solicitacao) return
+    setIsArchiving(true)
+    try {
+      const { error } = await supabase
+        .from('solicitacoes_compra')
+        .update({ arquivado: false } as any)
+        .eq('id', solicitacao.id)
+      if (error) throw error
+      toast({
+        title: 'Solicitação desarquivada',
+        description: 'A solicitação foi desarquivada com sucesso.',
+      })
+      onStatusChanged()
+      onOpenChange(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao desarquivar',
+        description: err.message || 'Não foi possível desarquivar a solicitação.',
         variant: 'destructive',
       })
     } finally {
@@ -654,7 +679,22 @@ export function SolicitacaoCompraDetailModal({
 
             <DialogFooter className="flex flex-wrap items-center justify-between gap-2 sm:justify-between">
               <div className="flex items-center gap-2">
-                {isComprado && !solicitacao.arquivado && (
+                {solicitacao.arquivado ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUnarchive}
+                    disabled={isArchiving || isSaving}
+                  >
+                    {isArchiving ? (
+                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    ) : (
+                      <ArchiveRestore className="w-4 h-4 mr-1" />
+                    )}
+                    Desarquivar
+                  </Button>
+                ) : (
                   <Button
                     type="button"
                     variant="outline"

@@ -50,17 +50,22 @@ export function GerarEtiquetaModal({
     if (!isValid) return
     setIsSubmitting(true)
     try {
+      // Cria N alocações individuais (cada uma com quantidade: 1) para que
+      // cada etiqueta tenha seu próprio QR Code e a baixa seja por unidade.
+      const rows = Array.from({ length: quantidade }, () => ({
+        item_id: item.id,
+        cliente_nome: clienteNome,
+        quantidade: 1,
+      }))
+
       const { data, error } = await supabase
         .from('estoque_alocacoes' as any)
-        .insert({
-          item_id: item.id,
-          cliente_nome: clienteNome,
-          quantidade,
-        })
-        .select()
-        .single()
+        .insert(rows)
+        .select('id')
 
       if (error) throw error
+
+      const alocacaoIds = (data || []).map((d: any) => d.id)
 
       toast({ title: 'Alocação salva e etiquetas geradas!' })
 
@@ -72,8 +77,7 @@ export function GerarEtiquetaModal({
         espessura: item.espessura_mm,
         largura: item.largura_mm,
         comprimento: item.comprimento_m,
-        quantidade: quantidade,
-        alocacaoId: data.id,
+        alocacaoIds,
       })
 
       onSave()
@@ -107,7 +111,7 @@ export function GerarEtiquetaModal({
 
         <div className="flex flex-col md:flex-row gap-6 py-4">
           <div className="flex-1 space-y-4">
-            <div className="bg-gray-50 dark:bg-slate-900/50 border dark:border-slate-800 p-4 rounded-lg space-y-3">
+            <div className="bg-muted/50 border border-border p-4 rounded-lg space-y-3">
               <div className="space-y-1">
                 <Label className="text-gray-500 text-xs uppercase tracking-wider">Item</Label>
                 <p className="font-semibold text-sm leading-tight text-slate-800 dark:text-slate-200">
@@ -176,7 +180,7 @@ export function GerarEtiquetaModal({
             </div>
           </div>
 
-          <div className="w-full md:w-[320px] flex flex-col items-center justify-start space-y-2 pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-gray-200 dark:border-slate-800 md:pl-6">
+          <div className="w-full md:w-[320px] flex flex-col items-center justify-start space-y-2 pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-border md:pl-6">
             <Label className="text-gray-500 font-semibold uppercase text-xs tracking-wider">
               Prévia da Etiqueta (Lote)
             </Label>

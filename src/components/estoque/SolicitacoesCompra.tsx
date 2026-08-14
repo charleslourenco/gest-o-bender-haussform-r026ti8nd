@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
-import { RefreshCw, Clock, ShoppingBag, Archive } from 'lucide-react'
+import { RefreshCw, Clock, ShoppingBag, Archive, Loader2 } from 'lucide-react'
 import { SolicitacaoCompraDetailModal, SolicitacaoDetalhe } from './SolicitacaoCompraDetailModal'
 import { SolicitacaoCompraDialog } from '@/components/SolicitacaoCompraDialog'
 
@@ -20,6 +20,7 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
   const [selected, setSelected] = useState<Solicitacao | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [mostrarArquivados, setMostrarArquivados] = useState(false)
+  const [archivingId, setArchivingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const fetchSolicitacoes = useCallback(async () => {
@@ -70,6 +71,31 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
   const handleRowClick = (s: Solicitacao) => {
     setSelected(s)
     setDetailOpen(true)
+  }
+
+  const handleQuickArchive = async (e: React.MouseEvent, s: Solicitacao) => {
+    e.stopPropagation()
+    setArchivingId(s.id)
+    try {
+      const novoArquivado = !s.arquivado
+      const { error } = await supabase
+        .from('solicitacoes_compra')
+        .update({ arquivado: novoArquivado } as any)
+        .eq('id', s.id)
+      if (error) throw error
+      toast({
+        title: novoArquivado ? 'Solicitação arquivada' : 'Solicitação desarquivada',
+      })
+      fetchSolicitacoes()
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Não foi possível alterar o arquivamento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setArchivingId(null)
+    }
   }
 
   const pendingCount = solicitacoes.filter((s) => s.status === 'Pendente').length
@@ -207,6 +233,22 @@ export function SolicitacoesCompra({ onDataChange }: { onDataChange?: () => void
                         {s.status === 'Pendente' && <Clock className="w-3 h-3 mr-1" />}
                         {s.status}
                       </Badge>
+                    </div>
+                    <div className="shrink-0 pl-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => handleQuickArchive(e, s)}
+                        disabled={archivingId === s.id}
+                        title={isArchived ? 'Desarquivar' : 'Arquivar'}
+                      >
+                        {archivingId === s.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Archive className="w-4 h-4" />
+                        )}
+                      </Button>
                     </div>
                   </button>
                 )

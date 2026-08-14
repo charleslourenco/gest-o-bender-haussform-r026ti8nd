@@ -271,7 +271,7 @@ export function ConciliacaoListas() {
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
                   isDragging
                     ? 'border-steel-blue bg-steel-blue/5 dark:border-blue-500 dark:bg-blue-900/20'
-                    : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-900/50'
+                    : 'border-border bg-muted'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault()
@@ -391,7 +391,7 @@ export function ConciliacaoListas() {
                   {isConciliado && lista.itens && lista.itens.length > 0 && (
                     <div className="mt-6 border dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
                       <Table>
-                        <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                        <TableHeader className="bg-muted">
                           <TableRow>
                             <TableHead className="font-bold text-slate-700 dark:text-slate-300">
                               Item (Projeto)

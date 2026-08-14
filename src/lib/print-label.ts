@@ -6,18 +6,18 @@ export function printAllocationLabels(params: {
   espessura: number | null
   largura: number | null
   comprimento: number | null
-  quantidade: number
-  alocacaoId: string
+  alocacaoIds: string[]
 }) {
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
 
   const dateStr = new Date().toLocaleDateString('pt-BR')
+  const total = params.alocacaoIds.length
 
   let labelsHtml = ''
-  for (let i = 0; i < params.quantidade; i++) {
+  for (let i = 0; i < total; i++) {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
-      `${window.location.origin}/baixa-alocacao/${params.alocacaoId}`,
+      `${window.location.origin}/baixa-alocacao/${params.alocacaoIds[i]}`,
     )}`
 
     let dim = []
@@ -40,7 +40,7 @@ export function printAllocationLabels(params: {
         </div>
         <div class="qr-container">
           <img src="${qrUrl}" alt="QR Code" />
-          <div class="qr-label">Unid. ${i + 1}/${params.quantidade}</div>
+          <div class="qr-label">Unid. ${i + 1}/${total}</div>
         </div>
       </div>
     `
