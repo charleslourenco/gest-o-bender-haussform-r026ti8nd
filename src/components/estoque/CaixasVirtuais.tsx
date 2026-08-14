@@ -197,7 +197,7 @@ export function CaixasVirtuais() {
             key={caixa.id}
             className={`border-2 ${caixa.status === 'entregue' ? 'border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-steel-blue/20 dark:border-blue-800/30'}`}
           >
-            <CardHeader className="pb-3 border-b border-border bg-muted/50 dark:bg-muted/50">
+            <CardHeader className="pb-3 border-b border-border bg-muted/50">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -290,10 +290,7 @@ export function CaixasVirtuais() {
                           {item.item?.nome}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge
-                            variant="outline"
-                            className="font-mono bg-gray-50 dark:bg-slate-800"
-                          >
+                          <Badge variant="outline" className="font-mono bg-muted">
                             {item.quantidade} {item.item?.unidade}
                           </Badge>
                           {item.status === 'entregue' && (
@@ -388,7 +385,7 @@ export function CaixasVirtuais() {
             <div className="space-y-2">
               <Label>Item do Estoque</Label>
               {novoItem.item_id && novoItem.nome ? (
-                <div className="flex items-center justify-between gap-2 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 px-3 py-2">
+                <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate">
                       {novoItem.nome}

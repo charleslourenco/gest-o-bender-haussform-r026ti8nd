@@ -670,7 +670,7 @@ export function EstoqueLista() {
             placeholder="Buscar item, marca ou categoria..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 dark:bg-slate-900 dark:border-slate-800"
+            className="pl-9"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -683,11 +683,7 @@ export function EstoqueLista() {
                 <span className="text-slate-400">|</span>
                 <span className="font-medium">Duplicados: {duplicateIds.length}</span>
               </div>
-              <Button
-                variant="outline"
-                onClick={exitMergeMode}
-                className="border-gray-200 dark:border-slate-800"
-              >
+              <Button variant="outline" onClick={exitMergeMode} className="border-border">
                 <X className="h-4 w-4 mr-2" /> Cancelar
               </Button>
               <Button
@@ -704,7 +700,7 @@ export function EstoqueLista() {
                 variant="outline"
                 onClick={handleExportCSV}
                 disabled={filteredItems.length === 0}
-                className="border-gray-200 dark:border-slate-800"
+                className="border-border"
               >
                 <Download className="h-4 w-4 mr-2" /> Exportar CSV
               </Button>
@@ -747,7 +743,7 @@ export function EstoqueLista() {
             variant="outline"
             size="icon"
             onClick={scrollLeft}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-l-none rounded-r-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-l-0 transition-opacity"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-l-none rounded-r-md bg-card/70 hover:bg-card/90 backdrop-blur-sm shadow-md border-l-0 transition-opacity"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
@@ -757,7 +753,7 @@ export function EstoqueLista() {
             variant="outline"
             size="icon"
             onClick={scrollRight}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-r-none rounded-l-md bg-white/70 hover:bg-white/90 dark:bg-slate-900/70 dark:hover:bg-slate-900/90 backdrop-blur-sm shadow-md border-r-0 transition-opacity"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-8 rounded-r-none rounded-l-md bg-card/70 hover:bg-card/90 backdrop-blur-sm shadow-md border-r-0 transition-opacity"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>

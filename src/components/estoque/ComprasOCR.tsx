@@ -423,12 +423,9 @@ export function ComprasOCR() {
                     nota.status_reconciliacao === 'pendente_revisao' || pendingCount > 0
                   const isExpanded = expandedNota === nota.id
                   return (
-                    <div
-                      key={nota.id}
-                      className="border dark:border-slate-800 rounded-lg overflow-hidden"
-                    >
+                    <div key={nota.id} className="border border-border rounded-lg overflow-hidden">
                       <div
-                        className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-4 hover:bg-muted transition-colors cursor-pointer"
                         onClick={() => setExpandedNota(isExpanded ? null : nota.id)}
                       >
                         <div className="flex items-center gap-4">

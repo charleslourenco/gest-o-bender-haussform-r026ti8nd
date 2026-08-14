@@ -127,9 +127,9 @@ export function ListasMateriais() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-border bg-card overflow-auto">
+      <div className="rounded-md border border-border bg-card overflow-auto min-w-[800px]">
         <Table className="min-w-[800px]">
-          <TableHeader>
+          <TableHeader className="bg-muted">
             <TableRow>
               <TableHead>Documento</TableHead>
               <TableHead>Cliente</TableHead>
@@ -310,26 +310,24 @@ export function OldListasMateriais() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-        Carregando listas de materiais...
-      </div>
+      <div className="p-8 text-center text-muted-foreground">Carregando listas de materiais...</div>
     )
   }
 
   if (listas.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-950 rounded-lg border dark:border-slate-800 shadow-sm flex flex-col items-center">
-        <FileText className="w-12 h-12 text-slate-300 dark:text-slate-600 mb-3" />
+      <div className="p-8 text-center text-muted-foreground bg-card rounded-lg border border-border shadow-sm flex flex-col items-center">
+        <FileText className="w-12 h-12 text-muted-foreground/40 mb-3" />
         <p>Nenhuma lista de materiais encontrada no sistema.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white dark:bg-slate-950 rounded-lg border dark:border-slate-800 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
-          <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-800">
+    <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+      <div className="overflow-auto">
+        <table className="w-full text-sm text-left min-w-[800px]">
+          <thead className="text-xs text-muted-foreground uppercase bg-muted border-b border-border">
             <tr>
               <th className="px-6 py-3 font-semibold">Documento</th>
               <th className="px-6 py-3 font-semibold">Cliente</th>
@@ -338,26 +336,21 @@ export function OldListasMateriais() {
               <th className="px-6 py-3 font-semibold text-right">Ação</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-border">
             {listas.map((doc) => {
               const isUnread = doc.status === 'pendente' || !doc.status || doc.status === 'novo'
 
               return (
-                <tr
-                  key={doc.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <tr key={doc.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-6 py-4 font-medium flex items-center gap-2">
                     <FileText
                       className={`w-4 h-4 ${isUnread ? 'text-orange-500 dark:text-orange-400' : 'text-blue-500 dark:text-blue-400'}`}
                     />
                     {doc.template_nome || 'Lista de Materiais'}
                   </td>
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                    {doc.clientes?.nome || 'N/A'}
-                  </td>
+                  <td className="px-6 py-4 text-muted-foreground">{doc.clientes?.nome || 'N/A'}</td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Clock className="w-3.5 h-3.5" />
                       {format(new Date(doc.criado_em), 'dd/MM/yyyy HH:mm')}
                     </div>
@@ -385,7 +378,7 @@ export function OldListasMateriais() {
                               doc.template_nome || 'Lista_de_Materiais',
                             )
                           }
-                          className="h-8 gap-1.5 bg-white dark:bg-slate-950"
+                          className="h-8 gap-1.5"
                         >
                           <Download className="w-3.5 h-3.5" />
                           Baixar
