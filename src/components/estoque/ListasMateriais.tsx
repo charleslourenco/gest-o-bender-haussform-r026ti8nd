@@ -127,8 +127,8 @@ export function ListasMateriais() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border bg-card">
-        <Table>
+      <div className="rounded-md border border-border bg-card overflow-auto">
+        <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead>Documento</TableHead>

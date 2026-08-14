@@ -153,7 +153,7 @@ export function GestaoSobras() {
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
                 <Table className="min-w-[1000px]">
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                  <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
                       <TableHead className="whitespace-nowrap">Nome do MDF</TableHead>
@@ -278,7 +278,7 @@ export function GestaoSobras() {
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
                 <Table className="min-w-[800px]">
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                  <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
                       <TableHead className="whitespace-nowrap">Nome do MDF</TableHead>
@@ -384,7 +384,7 @@ export function GestaoSobras() {
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
                 <Table className="min-w-[800px]">
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                  <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
                       <TableHead className="whitespace-nowrap">Item</TableHead>
@@ -497,7 +497,7 @@ export function GestaoSobras() {
             <CardContent className="p-0">
               <div className="overflow-auto max-h-[calc(100vh-300px)] rounded-b-lg">
                 <Table className="min-w-[800px]">
-                  <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+                  <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">Cliente/Projeto</TableHead>
                       <TableHead className="whitespace-nowrap">Item</TableHead>

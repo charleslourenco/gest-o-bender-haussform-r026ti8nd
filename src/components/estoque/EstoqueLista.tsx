@@ -625,7 +625,7 @@ export function EstoqueLista() {
   }
 
   return (
-    <div className="h-full flex flex-col space-y-4 bg-white dark:bg-slate-950 p-6 rounded-xl border dark:border-slate-800 min-h-0">
+    <div className="h-full flex flex-col space-y-4 bg-card p-6 rounded-xl border border-border min-h-0">
       {itemsSemMetadados > 0 && isAdmin && (
         <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4 flex items-center justify-between mb-4 flex-none">
           <div>
@@ -741,7 +741,7 @@ export function EstoqueLista() {
         </div>
       )}
 
-      <div className="flex-1 rounded-md border dark:border-slate-800 overflow-hidden flex flex-col min-h-0 relative group">
+      <div className="flex-1 rounded-md border border-border overflow-hidden flex flex-col min-h-0 relative group">
         {canScrollLeft && (
           <Button
             variant="outline"
@@ -762,13 +762,10 @@ export function EstoqueLista() {
             <ChevronRight className="h-5 w-5" />
           </Button>
         )}
-        <div
-          ref={scrollRef}
-          onScroll={checkScroll}
-          className="overflow-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        >
+        <div ref={scrollRef} onScroll={checkScroll} className="overflow-auto flex-1">
+          {' '}
           <Table className="min-w-[900px] relative">
-            <TableHeader className="bg-gray-50 dark:bg-slate-900 sticky top-0 z-10 shadow-sm">
+            <TableHeader className="bg-muted sticky top-0 z-10 shadow-sm">
               <TableRow>
                 {mergeMode && (
                   <TableHead className="w-[110px] text-center whitespace-nowrap px-2">
@@ -1000,7 +997,7 @@ export function EstoqueLista() {
               </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-slate-900/50 p-4 rounded-lg space-y-4 border border-gray-100 dark:border-slate-800">
+            <div className="bg-muted/50 p-4 rounded-lg space-y-4 border border-border">
               <h4 className="font-medium text-sm text-gray-700 dark:text-slate-300">
                 Atributos Técnicos (Opcional)
               </h4>

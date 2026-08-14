@@ -197,7 +197,7 @@ export function CaixasVirtuais() {
             key={caixa.id}
             className={`border-2 ${caixa.status === 'entregue' ? 'border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/30' : 'border-steel-blue/20 dark:border-blue-800/30'}`}
           >
-            <CardHeader className="pb-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50">
+            <CardHeader className="pb-3 border-b border-border bg-muted/50 dark:bg-muted/50">
               <div className="flex justify-between items-start">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -284,7 +284,7 @@ export function CaixasVirtuais() {
                     {caixa.itens.map((item: any) => (
                       <li
                         key={item.id}
-                        className="flex justify-between items-center text-sm p-2 rounded-md bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm"
+                        className="flex justify-between items-center text-sm p-2 rounded-md bg-card dark:bg-card border border-border shadow-sm"
                       >
                         <span className="truncate pr-2 font-medium text-gray-700 dark:text-slate-300">
                           {item.item?.nome}

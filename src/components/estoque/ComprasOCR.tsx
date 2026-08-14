@@ -348,7 +348,7 @@ export function ComprasOCR() {
               className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
                 isDragging
                   ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20'
-                  : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-900/50'
+                  : 'border-border bg-muted dark:bg-muted'
               }`}
               onDragOver={(e) => {
                 e.preventDefault()
