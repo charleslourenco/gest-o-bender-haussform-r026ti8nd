@@ -36,7 +36,7 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
     <AuthProvider>
       <AppProvider>
-        <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+        <BrowserRouter>
           <TooltipProvider>
             <Toaster />
             <Sonner position="top-center" duration={5000} />

@@ -244,8 +244,17 @@ export function ClienteDocumentos({ dossie, onReload }: { dossie: any; onReload:
 
       if (error)
         throw new Error(error.message || 'Falha na comunicação com o servidor ao gerar documento')
-      if (data && !data.success)
-        throw new Error(data.error || 'Erro desconhecido retornado pelo servidor')
+      if (data && !data.success) {
+        // A edge function faz o polling do PDFMonkey (15×2s = 30s) dentro da
+        // mesma chamada. Ao estourar o timeout ou falhar a geração, ela marca o
+        // documento como 'erro_geracao' no banco e retorna success=false.
+        // Traduzimos para uma mensagem amigável em vez do toast de sucesso
+        // genérico, para que o usuário descubra a falha imediatamente.
+        const rawError = data.error || 'Erro desconhecido retornado pelo servidor'
+        const isTimeout =
+          rawError.toLowerCase().includes('timeout') || rawError.toLowerCase().includes('pdfmonkey')
+        throw new Error(isTimeout ? 'Falha na geração do documento. Tente novamente.' : rawError)
+      }
 
       const { data: authData } = await supabase.auth.getUser()
       const userName = authData.user?.user_metadata?.nome || authData.user?.email || 'Sistema'

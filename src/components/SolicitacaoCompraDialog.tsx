@@ -75,7 +75,7 @@ export function SolicitacaoCompraDialog({ onCreated, trigger }: Props) {
   })
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       nome_item: '',
       motivo: '',

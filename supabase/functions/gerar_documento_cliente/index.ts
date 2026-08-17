@@ -300,6 +300,64 @@ Deno.serve(async (req: Request) => {
         if (user && user.nome) vendedorNome = user.nome
       }
 
+      // Dados da empresa: busca na tabela `empresa` (primeiro registro).
+      // Mantém fallback hardcoded se a tabela não existir ou estiver vazia.
+      let empresaCnpj = '00.000.000/0001-00'
+      let empresaTelefone = '(00) 0000-0000'
+      try {
+        const { data: empresaData, error: empresaError } = await supabaseClient
+          .from('empresa')
+          .select('cnpj, telefone')
+          .limit(1)
+          .maybeSingle()
+
+        if (empresaError) {
+          console.warn(
+            'Aviso: não foi possível ler a tabela empresa (mantendo fallback). Detalhe:',
+            empresaError.message,
+          )
+        } else if (empresaData) {
+          if (empresaData.cnpj) empresaCnpj = empresaData.cnpj
+          if (empresaData.telefone) empresaTelefone = empresaData.telefone
+        } else {
+          console.warn(
+            'Aviso: tabela empresa está vazia — mantendo valores de fallback para CNPJ/telefone.',
+          )
+        }
+      } catch (empresaEx: any) {
+        console.warn(
+          'Aviso: erro ao consultar tabela empresa (mantendo fallback). Detalhe:',
+          empresaEx?.message || empresaEx,
+        )
+      }
+
+      // Assinaturas vinculadas ao cliente, para popular o placeholder do PDFMonkey.
+      // Mantém [] se não houver dados ou se a leitura falhar (não quebra o payload).
+      let assinaturasPayload: any[] = []
+      try {
+        const { data: assinaturasData } = await supabaseClient
+          .from('assinaturas')
+          .select(
+            'signatario_nome, signatario_cpf, signatario_email, signatario_tipo, status, data_assinatura',
+          )
+          .eq('cliente_id', effectiveClienteId)
+        if (assinaturasData && assinaturasData.length > 0) {
+          assinaturasPayload = assinaturasData.map((a: any) => ({
+            nome: a.signatario_nome || '',
+            cpf: a.signatario_cpf || '',
+            email: a.signatario_email || '',
+            tipo: a.signatario_tipo || '',
+            status: a.status || '',
+            data: a.data_assinatura || '',
+          }))
+        }
+      } catch (assinaturasEx: any) {
+        console.warn(
+          'Aviso: não foi possível popular assinaturas (mantendo []).',
+          assinaturasEx?.message || assinaturasEx,
+        )
+      }
+
       const placeholders: any = {
         NOME_CLIENTE: clienteNome,
         CLIENTE_NOME: clienteNome,
@@ -386,9 +444,9 @@ Deno.serve(async (req: Request) => {
         VENDEDOR_NOME: vendedorNome,
         NUMERO_PROJETO: form.id.substring(0, 8).toUpperCase(),
         EMPRESA_NOME: 'Bender Haussform',
-        EMPRESA_CNPJ: '00.000.000/0001-00',
+        EMPRESA_CNPJ: empresaCnpj,
         EMPRESA_ENDERECO: 'Balneário Piçarras - SC',
-        EMPRESA_TELEFONE: '(00) 0000-0000',
+        EMPRESA_TELEFONE: empresaTelefone,
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
         produtos: produtos.map((p: any) => {
           const quantidade = Number(p.qtd || p.quantidade) || 1
@@ -416,7 +474,7 @@ Deno.serve(async (req: Request) => {
         })),
         pagamentos: pagamentos,
         is_assinado: false,
-        assinaturas: [],
+        assinaturas: assinaturasPayload,
       }
 
       const pdfMonkeyApiKey = Deno.env.get('PDFMONKEY_API_KEY')
