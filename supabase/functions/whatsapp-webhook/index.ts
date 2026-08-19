@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
           status: 'Novo Lead',
           notas: '',
           atualizado_em: nowStr,
-          kanban_ativo: false,
+          kanban_ativo: true,
         })
         .select('*')
         .single()
