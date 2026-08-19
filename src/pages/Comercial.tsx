@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { KanbanBoard } from '@/components/comercial/KanbanBoard'
+import { KanbanNaoComercial } from '@/components/comercial/KanbanNaoComercial'
 import { ComercialList } from '@/components/comercial/ComercialList'
 import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { supabase } from '@/lib/supabase/client'
@@ -10,6 +11,7 @@ import {
   BarChart3,
   MessageCircle,
   Archive,
+  Inbox,
 } from 'lucide-react'
 import { ConversasView } from '@/components/comercial/ConversasView'
 import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
@@ -233,6 +235,14 @@ export default function Comercial() {
               Kanban
             </TabsTrigger>
             <TabsTrigger
+              value="nao-comercial"
+              onClick={() => setActiveTab('nao-comercial')}
+              className="py-1.5 px-3 rounded-md transition-colors"
+            >
+              <Inbox className="w-4 h-4 mr-2" />
+              Não Comercial
+            </TabsTrigger>
+            <TabsTrigger
               value="lista"
               onClick={() => setActiveTab('lista')}
               className="py-1.5 px-3 rounded-md transition-colors"
@@ -290,6 +300,18 @@ export default function Comercial() {
 
           <div ref={kanbanWrapperRef} className="flex-1 overflow-hidden flex flex-col min-h-0">
             <KanbanBoard toolbarPortal={toolbarNode} isActive={activeTab === 'kanban'} />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="nao-comercial"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+        >
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <KanbanNaoComercial
+              toolbarPortal={toolbarNode}
+              isActive={activeTab === 'nao-comercial'}
+            />
           </div>
         </TabsContent>
 

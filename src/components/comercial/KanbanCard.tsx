@@ -10,6 +10,11 @@ import {
   HardHat,
   User,
   Archive,
+  ArrowRightLeft,
+  FileText,
+  Truck,
+  PencilRuler,
+  Wrench,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -26,8 +31,9 @@ interface Props {
   onDragStart: (e: React.DragEvent) => void
   onDragEnd: (e: React.DragEvent) => void
   onEdit: () => void
-  onDelete: () => void
+  onDelete?: () => void
   onArchive?: () => void
+  onMoveToNaoComercial?: () => void
   onStatusChange: (id: string, newStatus: string) => void
   columns: string[]
 }
@@ -57,6 +63,36 @@ const categoryConfig = {
     bg: 'bg-orange-100/50 dark:bg-orange-500/10',
     border: 'border-orange-200 dark:border-orange-500/20',
   },
+  Currículo: {
+    icon: FileText,
+    color: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-100/50 dark:bg-green-400/10',
+    border: 'border-green-200 dark:border-green-400/20',
+  },
+  Fornecedor: {
+    icon: Truck,
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-100/50 dark:bg-orange-500/10',
+    border: 'border-orange-200 dark:border-orange-500/20',
+  },
+  'Arquiteto Externo': {
+    icon: PencilRuler,
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-100/50 dark:bg-amber-400/10',
+    border: 'border-amber-200 dark:border-amber-400/20',
+  },
+  Assistência: {
+    icon: Wrench,
+    color: 'text-rose-600 dark:text-rose-400',
+    bg: 'bg-rose-100/50 dark:bg-rose-400/10',
+    border: 'border-rose-200 dark:border-rose-400/20',
+  },
+  'Já é Cliente': {
+    icon: Briefcase,
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-100/50 dark:bg-blue-400/10',
+    border: 'border-blue-200 dark:border-blue-400/20',
+  },
 }
 
 export function KanbanCard({
@@ -67,6 +103,7 @@ export function KanbanCard({
   onEdit,
   onDelete,
   onArchive,
+  onMoveToNaoComercial,
   onStatusChange,
   columns,
 }: Props) {
@@ -135,6 +172,18 @@ export function KanbanCard({
           <span className="line-clamp-2">{lead.nome}</span>
         </h4>
         <div className="flex items-center gap-0.5 shrink-0 -mt-1 -mr-1">
+          {onMoveToNaoComercial && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onMoveToNaoComercial()
+              }}
+              className="text-muted-foreground hover:text-purple-600 dark:hover:text-purple-400 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Mover para Não Comercial"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
           {onArchive && (
             <button
               onClick={(e) => {
@@ -147,15 +196,18 @@ export function KanbanCard({
               <Archive className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="text-muted-foreground hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="text-muted-foreground hover:text-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Excluir"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 

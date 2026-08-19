@@ -39,6 +39,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [leadToSell, setLeadToSell] = useState<Lead | null>(null)
+  const [leadToMove, setLeadToMove] = useState<Lead | null>(null)
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
@@ -161,6 +162,18 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     }
   }
 
+  const handleConfirmMoveNaoComercial = async (categoria: string) => {
+    if (!leadToMove) return
+    try {
+      await updateLead(leadToMove.id, { categoria, status: 'Novo' })
+      toast({ description: 'Lead movido para Não Comercial!' })
+      setLeadToMove(null)
+      loadData()
+    } catch (e: any) {
+      toast({ description: e.message, variant: 'destructive' })
+    }
+  }
+
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
     setDragOverCol(null)
@@ -186,9 +199,10 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       leads.filter((l) => {
         if (!l.kanban_ativo) return false
         if ((l as any).arquivado_comercial) return false
+        if (!isCategoriaComercial(l.categoria)) return false
         const matchS =
-          l.nome.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-          l.email.toLowerCase().includes(debouncedSearch.toLowerCase())
+          (l.nome || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          (l.email || '').toLowerCase().includes(debouncedSearch.toLowerCase())
         const matchO = sourceFilter ? l.origem === sourceFilter : true
         const matchCat = categoryFilter ? l.categoria === categoryFilter : true
         const matchC = consultantFilter ? l.consultor_id === consultantFilter : true
@@ -342,6 +356,9 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
                       ? (lead) => handleArchiveLead(lead.id)
                       : undefined
                   }
+                  onMoveToNaoComercial={
+                    col === 'Novo Contato' ? (lead) => setLeadToMove(lead) : undefined
+                  }
                   onStatusChange={handleStatusChange}
                   columns={COLUMNS}
                   onAddLead={
@@ -375,6 +392,13 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
       )}
       {leadToSell && <ConfirmSellModal lead={leadToSell} onClose={() => setLeadToSell(null)} />}
+      {leadToMove && (
+        <MoverParaNaoComercialModal
+          leadNome={leadToMove.nome}
+          onClose={() => setLeadToMove(null)}
+          onConfirm={handleConfirmMoveNaoComercial}
+        />
+      )}
     </div>
   )
 }

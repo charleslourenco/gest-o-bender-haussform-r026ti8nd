@@ -16,8 +16,9 @@ interface Props {
   onDragEnd: (e: React.DragEvent) => void
   draggingId: string | null
   onEdit: (lead: Lead) => void
-  onDelete: (lead: Lead) => void
+  onDelete?: (lead: Lead) => void
   onArchive?: (lead: Lead) => void
+  onMoveToNaoComercial?: (lead: Lead) => void
   isCollapsed: boolean
   onToggleCollapse: () => void
   onStatusChange: (id: string, newStatus: string) => void
@@ -39,6 +40,7 @@ export function KanbanColumn({
   onEdit,
   onDelete,
   onArchive,
+  onMoveToNaoComercial,
   isCollapsed,
   onToggleCollapse,
   onStatusChange,
@@ -129,8 +131,11 @@ export function KanbanColumn({
             onDragStart={(e) => onDragStart(e, lead.id)}
             onDragEnd={onDragEnd}
             onEdit={() => onEdit(lead)}
-            onDelete={() => onDelete(lead)}
+            onDelete={onDelete ? () => onDelete(lead) : undefined}
             onArchive={onArchive ? () => onArchive(lead) : undefined}
+            onMoveToNaoComercial={
+              onMoveToNaoComercial ? () => onMoveToNaoComercial(lead) : undefined
+            }
             onStatusChange={onStatusChange}
             columns={columns}
           />

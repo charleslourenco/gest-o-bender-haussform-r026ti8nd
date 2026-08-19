@@ -21,8 +21,15 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
-import { COLUMNS } from './constants'
-import { Loader2, Sparkles, User as UserIcon, Calendar as CalendarIcon, X } from 'lucide-react'
+import { COLUMNS, isCategoriaComercial } from './constants'
+import {
+  Loader2,
+  Sparkles,
+  User as UserIcon,
+  Calendar as CalendarIcon,
+  X,
+  ArrowRightLeft,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -56,10 +63,30 @@ interface ConversasViewProps {
   isActive?: boolean
 }
 
+const categoriaDotClass = (cat?: string | null): string => {
+  switch (cat) {
+    case 'Comercial':
+    case 'Já é Cliente':
+      return 'bg-blue-500'
+    case 'Currículo':
+      return 'bg-green-500'
+    case 'Parceiro':
+      return 'bg-purple-500'
+    case 'Fornecedor':
+    case 'Arquiteto Externo':
+    case 'Equipe':
+    case 'Assistência':
+      return 'bg-orange-500'
+    default:
+      return 'bg-gray-400'
+  }
+}
+
 export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewProps = {}) {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+  const [lastMessageAt, setLastMessageAt] = useState<Record<string, string>>({})
 
   const [messages, setMessages] = useState<any[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -84,11 +111,36 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
         if (isMounted) loadData(true)
       })
       .subscribe()
+    const msgChannel = supabase
+      .channel('conversas_messages_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_messages' }, () => {
+        if (isMounted) loadLastMessageTimes()
+      })
+      .subscribe()
     return () => {
       isMounted = false
       supabase.removeChannel(channel)
+      supabase.removeChannel(msgChannel)
     }
   }, [])
+
+  const loadLastMessageTimes = async () => {
+    try {
+      const { data } = await supabase
+        .from('whatsapp_messages' as any)
+        .select('lead_id, phone, created_at')
+        .order('created_at', { ascending: false })
+        .limit(1000)
+      const map: Record<string, string> = {}
+      for (const m of data || []) {
+        const key = m.lead_id ? m.lead_id : `phone:${m.phone}`
+        if (!map[key]) map[key] = m.created_at
+      }
+      setLastMessageAt(map)
+    } catch (e) {
+      // ignore — sort falls back to lead timestamps
+    }
+  }
 
   const loadData = async (isSilent = false) => {
     try {
@@ -100,6 +152,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
         const updated = leadsData.find((l: any) => l.id === current.id)
         return updated ? (updated as any) : current
       })
+      loadLastMessageTimes()
     } catch (error) {
       console.error('Error loading Conversas data:', error)
       if (!isSilent) toast.error('Erro ao carregar dados')
@@ -169,28 +222,46 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
     }
   }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
 
-  const filteredLeads = leads.filter((l) => {
-    if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
-    if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
-    if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
+  const filteredLeads = leads
+    .filter((l) => {
+      if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
+      if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
+      if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
 
-    if (date?.from && l.created_at) {
-      const leadDate = new Date(l.created_at)
-      const from = new Date(date.from)
-      from.setHours(0, 0, 0, 0)
-      if (leadDate < from) return false
-    }
+      if (date?.from && l.created_at) {
+        const leadDate = new Date(l.created_at)
+        const from = new Date(date.from)
+        from.setHours(0, 0, 0, 0)
+        if (leadDate < from) return false
+      }
 
-    if (date?.to && l.created_at) {
-      const leadDate = new Date(l.created_at)
-      // Include the entire end day
-      const to = new Date(date.to)
-      to.setHours(23, 59, 59, 999)
-      if (leadDate > to) return false
-    }
+      if (date?.to && l.created_at) {
+        const leadDate = new Date(l.created_at)
+        // Include the entire end day
+        const to = new Date(date.to)
+        to.setHours(23, 59, 59, 999)
+        if (leadDate > to) return false
+      }
 
-    return true
-  })
+      return true
+    })
+    .sort((a, b) => {
+      const ta =
+        lastMessageAt[a.id] ||
+        lastMessageAt[`phone:${a.telefone}`] ||
+        (a as any).atualizado_em ||
+        (a as any).criado_em ||
+        a.created_at ||
+        ''
+      const tb =
+        lastMessageAt[b.id] ||
+        lastMessageAt[`phone:${b.telefone}`] ||
+        (b as any).atualizado_em ||
+        (b as any).criado_em ||
+        b.created_at ||
+        ''
+      return tb.localeCompare(ta)
+    })
 
   const handleUpdateLead = async (id: string, data: Partial<Lead>) => {
     try {
@@ -411,7 +482,16 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                     statusClasses,
                   )}
                 >
-                  <div className="font-medium truncate">{lead.nome}</div>
+                  <div className="font-medium truncate flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'h-2.5 w-2.5 rounded-full shrink-0',
+                        categoriaDotClass(lead.categoria),
+                      )}
+                      title={lead.categoria || 'Sem categoria'}
+                    />
+                    <span className="truncate">{lead.nome}</span>
+                  </div>
                   <div className="text-xs mt-1 opacity-70 truncate flex items-center gap-1">
                     <PhoneIcon className="w-3 h-3 opacity-60 shrink-0" />
                     <span className="truncate">{lead.telefone || 'Sem telefone'}</span>
@@ -799,6 +879,23 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                     onClick={() => handleUpdateLead(selectedLead.id, { kanban_ativo: true })}
                   >
                     Ativar no Kanban
+                  </Button>
+                )}
+                {isCategoriaComercial(selectedLead.categoria) && (
+                  <Button
+                    disabled={updating}
+                    variant="outline"
+                    className="w-full justify-center bg-background"
+                    onClick={() => {
+                      handleUpdateLead(selectedLead.id, {
+                        categoria: 'Outros Assuntos',
+                        status: 'Novo',
+                      })
+                      toast.success('Lead movido para Não Comercial')
+                    }}
+                  >
+                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                    Mover para Não Comercial
                   </Button>
                 )}
                 <Button
