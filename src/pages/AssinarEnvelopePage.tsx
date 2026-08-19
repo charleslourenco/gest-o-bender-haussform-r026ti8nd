@@ -347,6 +347,17 @@ export default function AssinarEnvelopePage() {
     formData.dataNascimento !== '' &&
     formData.assinaturaBase64 !== ''
 
+  const activeDoc =
+    docs.find((doc) => {
+      const sig = assinaturas.find(
+        (a) =>
+          (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
+          a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+      )
+      if (!sig) return false
+      return sig.status !== 'assinado' && doc.status !== 'Assinado'
+    }) || null
+
   const signerName =
     assinante?.nome_completo ||
     (verified ? myAssinaturas[0]?.signatario_nome : null) ||
@@ -553,45 +564,17 @@ export default function AssinarEnvelopePage() {
                 />
               </div>
 
-              <div className="space-y-2 pt-4 border-t">
-                <Label className="text-sm">Assinar Documentos</Label>
-                {docs.map((doc, idx) => {
-                  const sig = assinaturas.find(
-                    (a) =>
-                      (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
-                      a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
-                  )
-                  const signed = sig?.status === 'assinado' || doc.status === 'Assinado'
-                  return (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between gap-2 p-2 border rounded"
-                    >
-                      <span className="text-sm font-medium truncate">
-                        {idx + 1}. {doc.template_nome || doc.tipo}
-                      </span>
-                      <div className="flex gap-1 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => handleVisualizarDoc(doc)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        {signed ? (
-                          <span className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                            <CheckCircle className="w-4 h-4" /> Assinado
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            onClick={() => handleSignDoc(doc)}
-                            disabled={!isFormValid || submitting}
-                          >
-                            <PenTool className="w-4 h-4 mr-1" /> Assinar
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              {activeDoc && (
+                <div className="pt-4 border-t">
+                  <Button
+                    className="w-full"
+                    onClick={() => handleSignDoc(activeDoc)}
+                    disabled={!isFormValid || submitting}
+                  >
+                    <PenTool className="w-4 h-4 mr-1" /> Assinar
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
