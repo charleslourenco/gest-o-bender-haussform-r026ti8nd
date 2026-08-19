@@ -92,8 +92,8 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         const userName = user?.user_metadata?.nome || user?.email?.split('@')[0] || 'Desconhecido'
         await createLead({
           ...data,
-          status: 'Novo Lead',
-          ordem: leads.filter((l) => l.kanban_ativo && l.status === 'Novo Lead').length,
+          status: 'Novo Contato',
+          ordem: leads.filter((l) => l.kanban_ativo && l.status === 'Novo Contato').length,
           criado_por_nome: userName,
           kanban_ativo: true,
         })

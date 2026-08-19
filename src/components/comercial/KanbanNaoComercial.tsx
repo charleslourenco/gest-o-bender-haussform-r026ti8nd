@@ -8,7 +8,12 @@ import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { createPortal } from 'react-dom'
-import { NAO_COMERCIAL_COLUMNS, NAO_COMERCIAL_CATEGORIAS, isCategoriaComercial } from './constants'
+import {
+  COLUMNS,
+  NAO_COMERCIAL_COLUMNS,
+  NAO_COMERCIAL_CATEGORIAS,
+  isCategoriaComercial,
+} from './constants'
 
 interface KanbanNaoComercialProps {
   toolbarPortal?: HTMLDivElement | null
@@ -122,10 +127,17 @@ export function KanbanNaoComercial({ toolbarPortal, isActive = true }: KanbanNao
     [leads, debouncedSearch, categoryFilter],
   )
 
+  // Blindagem: status null/undefined ou desconhecido (não está nem em NAO_COMERCIAL_COLUMNS
+  // nem em COLUMNS) cai na coluna 'Novo' como fallback. Status comerciais válidos não
+  // são jogados em 'Novo' (continuam sem coluna própria neste kanban).
   const leadsForCol = (col: string) =>
-    filteredLeads.filter((l) =>
-      NAO_COMERCIAL_COLUMNS.includes(l.status) ? l.status === col : col === 'Novo',
-    )
+    filteredLeads.filter((l) => {
+      const status = l.status
+      if (!status || (!NAO_COMERCIAL_COLUMNS.includes(status) && !COLUMNS.includes(status))) {
+        return col === 'Novo'
+      }
+      return NAO_COMERCIAL_COLUMNS.includes(status) && status === col
+    })
 
   const toggleCollapse = (col: string) => {
     setCollapsedCols((prev) =>

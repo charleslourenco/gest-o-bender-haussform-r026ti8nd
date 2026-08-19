@@ -389,7 +389,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Todos">Todos os Status</SelectItem>
-                <SelectItem value="Novo Lead">Novo Lead</SelectItem>
+                <SelectItem value="Novo Contato">Novo Contato</SelectItem>
                 <SelectItem value="Aguardando Consultor">Aguardando Consultor</SelectItem>
                 <SelectItem value="Contactado">Contactado</SelectItem>
                 <SelectItem value="Em Nutrição">Em Nutrição</SelectItem>
