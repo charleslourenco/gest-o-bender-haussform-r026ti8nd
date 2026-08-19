@@ -4,6 +4,7 @@ import { KanbanColumn } from './KanbanColumn'
 import { LeadModal } from './LeadModal'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
+import { MoverParaNaoComercialModal } from './MoverParaNaoComercialModal'
 import { fetchLeads, fetchUsers, createLead, updateLead, deleteLead } from '@/services/comercial'
 import { arquivarLead } from '@/services/arquivamento'
 import { useToast } from '@/hooks/use-toast'
@@ -13,7 +14,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { createPortal } from 'react-dom'
 
-import { COLUMNS } from './constants'
+import { COLUMNS, isCategoriaComercial } from './constants'
 
 interface KanbanBoardProps {
   toolbarPortal?: HTMLDivElement | null
