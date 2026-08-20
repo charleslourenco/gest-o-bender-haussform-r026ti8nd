@@ -231,7 +231,7 @@ async function gatherSignatures(
 ): Promise<SignatureEntry[]> {
   const envelopeId = documento.envelope_id ?? payload.envelope_id
   const entries: SignatureEntry[] = []
-  const seenIds = new Set<string>()
+  const seenEmails = new Set<string>()
 
   if (envelopeId) {
     const { data: assinantesData } = await supabase
@@ -241,8 +241,9 @@ async function gatherSignatures(
       .eq('status', 'assinado')
       .order('assinado_em', { ascending: true })
     for (const a of (assinantesData ?? []) as AssinanteRow[]) {
-      if (seenIds.has(a.id)) continue
-      seenIds.add(a.id)
+      const email = a.email?.trim().toLowerCase()
+      if (email && seenEmails.has(email)) continue
+      if (email) seenEmails.add(email)
       const signature = buildSignatureFromSources(a.assinatura_base64, null)
       entries.push({
         signature,
@@ -273,8 +274,9 @@ async function gatherSignatures(
       .eq('status', 'assinado')
       .order('data_assinatura', { ascending: true })
     for (const a of (assinaturasData ?? []) as AssinaturaRow[]) {
-      if (seenIds.has(a.id)) continue
-      seenIds.add(a.id)
+      const email = a.signatario_email?.trim().toLowerCase()
+      if (email && seenEmails.has(email)) continue
+      if (email) seenEmails.add(email)
       const signature = buildSignatureFromSources(null, a.assinatura_imagem)
       entries.push({
         signature,
