@@ -391,12 +391,6 @@ async function processDocument(
   const documento = found.data
   const bucket = found.bucket
 
-  if (payload.force) {
-    // Force reprocessing: bypass idempotency to re-stamp with corrected signatures
-  } else if (documento.arquivo_assinado_url) {
-    return { success: true, url: documento.arquivo_assinado_url, idempotent: true }
-  }
-
   const sourcePath = getPathFromUrl(
     payload.force
       ? documento.arquivo_url

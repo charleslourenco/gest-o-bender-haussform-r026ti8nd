@@ -364,7 +364,7 @@ export default function AssinarEnvelopePage() {
           (a.signatario_email || '').trim().toLowerCase() === normalizedEmail,
       )
       if (!sig) return false
-      return sig.status !== 'assinado' && doc.status !== 'Assinado'
+      return sig.status !== 'assinado'
     }) || null
 
   const signerName =
