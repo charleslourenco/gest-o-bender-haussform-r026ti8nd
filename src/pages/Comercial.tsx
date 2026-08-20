@@ -105,7 +105,7 @@ export default function Comercial() {
       onValueChange={setActiveTab}
       className="h-[calc(100vh-2rem)] md:h-screen flex flex-col bg-background p-6 pt-0 space-y-4"
     >
-      <div className="flex flex-row items-center justify-between w-full bg-card border text-card-foreground px-4 py-3 mb-4 rounded-lg mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 scrollbar-hide shadow-sm">
+      <div className="flex flex-row items-center justify-between w-full bg-card border text-card-foreground px-4 py-3 mb-4 rounded-lg mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent shadow-sm">
         <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-emerald-500 hidden sm:block" />

@@ -104,7 +104,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   if (title === 'Produção') {
     return (
       <div className="w-full px-4 pt-0 mt-0">
-        <div className="flex flex-row items-center justify-between w-full bg-card border-b border-border text-card-foreground px-4 py-3 mb-4 mt-0 rounded-md flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex flex-row items-center justify-between w-full bg-card border-b border-border text-card-foreground px-4 py-3 mb-4 mt-0 rounded-md flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           <div className="flex flex-row items-center gap-4 shrink-0 whitespace-nowrap">
             <div className="flex items-center gap-2">
               <Hammer className="w-5 h-5 text-primary" />
