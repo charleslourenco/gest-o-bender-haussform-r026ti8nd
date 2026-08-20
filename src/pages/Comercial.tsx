@@ -12,21 +12,19 @@ import {
   MessageCircle,
   Archive,
   Inbox,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { ConversasView } from '@/components/comercial/ConversasView'
 import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 
 export default function Comercial() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [activeTab, setActiveTab] = useState('kanban')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
-
-  // Refs for dual scrollbar sync
-  const topScrollRef = useRef<HTMLDivElement>(null)
-  const kanbanWrapperRef = useRef<HTMLDivElement>(null)
-  const [scrollInfo, setScrollInfo] = useState({ scrollWidth: 0, clientWidth: 0 })
+  const kanbanContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -60,127 +58,15 @@ export default function Comercial() {
     }
   }, [])
 
-  useEffect(() => {
-    if (!hasPermission || !kanbanWrapperRef.current || !topScrollRef.current) return
-
-    let targetScrollEl: HTMLElement | null = null
-    let isSyncingTop = false
-    let isSyncingBottom = false
-    let resizeObs: ResizeObserver | null = null
-    let findTimeout: ReturnType<typeof setTimeout>
-
-    const updateScrollInfo = (el: HTMLElement) => {
-      setScrollInfo((prev) => {
-        if (prev.scrollWidth !== el.scrollWidth || prev.clientWidth !== el.clientWidth) {
-          return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
-        }
-        return prev
-      })
-    }
-
-    const findScrollable = () => {
-      if (!kanbanWrapperRef.current) return
-
-      try {
-        const elements = Array.from(kanbanWrapperRef.current.querySelectorAll('*')) as HTMLElement[]
-        let bestEl: HTMLElement | null = null
-        let maxScroll = 0
-
-        for (const el of elements) {
-          const style = window.getComputedStyle(el)
-          if (
-            el.scrollWidth > el.clientWidth &&
-            (style.overflowX === 'auto' ||
-              style.overflowX === 'scroll' ||
-              style.overflowX === 'overlay')
-          ) {
-            if (el.scrollWidth > maxScroll) {
-              maxScroll = el.scrollWidth
-              bestEl = el
-            }
-          }
-        }
-
-        if (bestEl && bestEl !== targetScrollEl) {
-          targetScrollEl = bestEl
-          updateScrollInfo(bestEl)
-
-          if (resizeObs) resizeObs.disconnect()
-          resizeObs = new ResizeObserver(() => {
-            if (targetScrollEl) updateScrollInfo(targetScrollEl)
-          })
-          resizeObs.observe(bestEl)
-          Array.from(bestEl.children).forEach((child) => resizeObs?.observe(child))
-        } else if (targetScrollEl) {
-          updateScrollInfo(targetScrollEl)
-        }
-      } catch (err) {
-        console.warn('Scroll sync query warning (ignorable):', err)
-      }
-    }
-
-    const onBottomScroll = (e: Event) => {
-      const target = e.target as HTMLElement
-      if (target.scrollWidth > target.clientWidth) {
-        if (target !== targetScrollEl) {
-          targetScrollEl = target
-          updateScrollInfo(target)
-        }
-
-        if (!isSyncingTop && topScrollRef.current) {
-          isSyncingBottom = true
-          topScrollRef.current.scrollLeft = target.scrollLeft
-          requestAnimationFrame(() => {
-            isSyncingBottom = false
-          })
-        }
-      }
-    }
-
-    const onTopScroll = () => {
-      if (!isSyncingBottom && targetScrollEl && topScrollRef.current) {
-        isSyncingTop = true
-        targetScrollEl.scrollLeft = topScrollRef.current.scrollLeft
-        requestAnimationFrame(() => {
-          isSyncingTop = false
-        })
-      }
-    }
-
-    const currentKanbanRef = kanbanWrapperRef.current
-    const currentTopRef = topScrollRef.current
-
-    currentKanbanRef.addEventListener('scroll', onBottomScroll, true)
-    currentTopRef.addEventListener('scroll', onTopScroll, { passive: true })
-
-    const observer = new MutationObserver(() => {
-      clearTimeout(findTimeout)
-      findTimeout = setTimeout(findScrollable, 300)
-    })
-
-    // Optimize observer to prevent loop rendering
-    observer.observe(currentKanbanRef, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'data-state'],
-    })
-
-    let timeouts = [
-      setTimeout(findScrollable, 100),
-      setTimeout(findScrollable, 500),
-      setTimeout(findScrollable, 1500),
-    ]
-
-    return () => {
-      clearTimeout(findTimeout)
-      timeouts.forEach(clearTimeout)
-      currentKanbanRef?.removeEventListener('scroll', onBottomScroll, true)
-      currentTopRef?.removeEventListener('scroll', onTopScroll)
-      observer.disconnect()
-      if (resizeObs) resizeObs.disconnect()
-    }
-  }, [hasPermission])
+  const scrollKanban = (direction: 'left' | 'right') => {
+    if (!kanbanContainerRef.current) return
+    const scrollEl = kanbanContainerRef.current.querySelector(
+      '[data-radix-scroll-area-viewport]',
+    ) as HTMLElement | null
+    const target = scrollEl || kanbanContainerRef.current
+    const amount = direction === 'left' ? -350 : 350
+    target.scrollBy({ left: amount, behavior: 'smooth' })
+  }
 
   if (hasPermission === null) {
     return (
@@ -285,29 +171,43 @@ export default function Comercial() {
       <div className="flex-1 flex flex-col min-h-0">
         <TabsContent
           value="kanban"
-          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative group"
         >
           <div
-            ref={topScrollRef}
-            className={cn(
-              'overflow-x-auto overflow-y-hidden shrink-0',
-              '[&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50 transition-colors',
-              scrollInfo.scrollWidth > scrollInfo.clientWidth + 2 ? 'block mb-2' : 'hidden',
-            )}
+            ref={kanbanContainerRef}
+            className="flex-1 overflow-hidden flex flex-col min-h-0 relative"
           >
-            <div style={{ width: scrollInfo.scrollWidth, height: '1px' }} />
-          </div>
-
-          <div ref={kanbanWrapperRef} className="flex-1 overflow-hidden flex flex-col min-h-0">
             <KanbanBoard toolbarPortal={toolbarNode} isActive={activeTab === 'kanban'} />
+            <div className="hidden md:flex items-center gap-1 absolute bottom-4 right-4 z-10 bg-background/80 backdrop-blur-sm border shadow-md rounded-lg p-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => scrollKanban('left')}
+                title="Rolar para a esquerda"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => scrollKanban('right')}
+                title="Rolar para a direita"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
         <TabsContent
           value="nao-comercial"
-          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col"
+          className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative group"
         >
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
             <KanbanNaoComercial
               toolbarPortal={toolbarNode}
               isActive={activeTab === 'nao-comercial'}

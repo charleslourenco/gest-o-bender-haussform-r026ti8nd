@@ -187,17 +187,18 @@ export default function AssinarEnvelopePage() {
     }
   }
 
+  const normalizedEmail = (signatarioEmail || assinante?.email || '').trim().toLowerCase()
+
   const myAssinaturas = verified
-    ? assinaturas.filter(
-        (s) => s.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
-      )
+    ? assinaturas.filter((s) => (s.signatario_email || '').trim().toLowerCase() === normalizedEmail)
     : []
 
   const handleSignDoc = async (doc: any) => {
+    const currentEmail = (signatarioEmail || assinante?.email || '').trim().toLowerCase()
     const sig = assinaturas.find(
       (a) =>
         (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
-        a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+        (a.signatario_email || '').trim().toLowerCase() === currentEmail,
     )
     if (!sig) {
       toast.error('Registro de assinatura não encontrado para este documento.')
@@ -281,8 +282,9 @@ export default function AssinarEnvelopePage() {
       ]
       setDocs(updatedDocs)
 
+      const currentEmail = (signatarioEmail || assinante?.email || '').trim().toLowerCase()
       const myUpdatedSigs = (updatedSigs || []).filter(
-        (s) => s.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+        (s) => (s.signatario_email || '').trim().toLowerCase() === currentEmail,
       )
       const myAllSigned =
         myUpdatedSigs.length > 0 && myUpdatedSigs.every((s) => s.status === 'assinado')
@@ -293,11 +295,17 @@ export default function AssinarEnvelopePage() {
         (updatedSigs || []).length > 0 && (updatedSigs || []).every((s) => s.status === 'assinado')
 
       if (allAssinantesSigned && allAssinaturasSigned) {
-        await supabase
+        const { error: completeErr } = await supabase
           .from('envelopes_assinatura')
           .update({ status: 'concluido', concluido_em: new Date().toISOString() })
           .eq('id', id)
-        setEnvelope({ ...envelope, status: 'concluido', concluido_em: new Date().toISOString() })
+        if (!completeErr) {
+          setEnvelope((prev: any) => ({
+            ...prev,
+            status: 'concluido',
+            concluido_em: new Date().toISOString(),
+          }))
+        }
 
         // Invoca a finalização do envelope para estampar e enviar os e-mails com os PDFs finais
         supabase.functions.invoke('finalize-signature-document', {
@@ -308,7 +316,7 @@ export default function AssinarEnvelopePage() {
       } else if (myAllSigned) {
         toast.success('Você assinou todos os seus documentos! Aguardando demais signatários.')
       } else {
-        toast.success('Documento assinado! Continue com o próximo.')
+        toast.success('Documento assinado com sucesso! Continue com o próximo.')
       }
     } catch (e: any) {
       toast.error('Erro ao assinar: ' + e.message)
@@ -337,7 +345,8 @@ export default function AssinarEnvelopePage() {
   const allSigned =
     assinantes.length > 0
       ? assinantes.every((a) => a.status === 'assinado') &&
-        (assinaturas.length === 0 || assinaturas.every((s) => s.status === 'assinado'))
+        assinaturas.length > 0 &&
+        assinaturas.every((s) => s.status === 'assinado')
       : assinaturas.length > 0 && assinaturas.every((s) => s.status === 'assinado')
   const myAllSigned =
     myAssinaturas.length > 0 && myAssinaturas.every((s) => s.status === 'assinado')
@@ -352,7 +361,7 @@ export default function AssinarEnvelopePage() {
       const sig = assinaturas.find(
         (a) =>
           (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
-          a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase(),
+          (a.signatario_email || '').trim().toLowerCase() === normalizedEmail,
       )
       if (!sig) return false
       return sig.status !== 'assinado' && doc.status !== 'Assinado'
@@ -400,7 +409,7 @@ export default function AssinarEnvelopePage() {
                 (a) =>
                   (a.documento_id === doc.arquivo_url || a.documento_id === doc.id) &&
                   (!verified ||
-                    a.signatario_email?.toLowerCase() === signatarioEmail.trim().toLowerCase()),
+                    (a.signatario_email || '').trim().toLowerCase() === normalizedEmail),
               )
               const signed = sig?.status === 'assinado' || doc.status === 'Assinado'
               return (
@@ -509,6 +518,17 @@ export default function AssinarEnvelopePage() {
               >
                 Verificar Código
               </Button>
+            </CardContent>
+          </Card>
+        ) : myAssinaturas.length === 0 ? (
+          <Card className="shadow-lg border-amber-500/30">
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-amber-600 mx-auto mb-3" />
+              <p className="font-bold text-lg">Nenhum Documento Pendente Encontrado</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Não foram encontrados documentos pendentes de assinatura para o e-mail{' '}
+                <strong>{normalizedEmail}</strong> neste envelope.
+              </p>
             </CardContent>
           </Card>
         ) : myAllSigned ? (
