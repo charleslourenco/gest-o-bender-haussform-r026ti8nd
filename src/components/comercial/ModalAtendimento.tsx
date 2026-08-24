@@ -287,7 +287,7 @@ export function ModalAtendimento({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col gap-0 overflow-hidden bg-background">
+      <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 flex flex-col gap-0 overflow-hidden bg-background">
         <DialogHeader className="p-4 sm:p-5 border-b bg-muted/30 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
@@ -380,7 +380,7 @@ export function ModalAtendimento({
             className="flex-1 flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-[#EFEAE2] dark:bg-[#0b141a]"
           >
             <ScrollArea className="flex-1 p-4 sm:p-6">
-              <div className="space-y-3.5 max-w-3xl mx-auto pb-4">
+              <div className="space-y-3.5 max-w-5xl mx-auto pb-4">
                 {loadingMessages ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -410,7 +410,7 @@ export function ModalAtendimento({
                     if (isSystem) {
                       return (
                         <div key={msg.id || i} className="flex justify-center my-3">
-                          <div className="bg-background/90 backdrop-blur-sm text-muted-foreground rounded-lg p-2.5 text-xs max-w-[85%] border shadow-xs text-center">
+                          <div className="bg-background/90 backdrop-blur-sm text-muted-foreground rounded-lg p-2.5 text-xs max-w-[90%] border shadow-xs text-center">
                             <span className="text-[10px] font-bold uppercase tracking-wider block opacity-70 mb-0.5">
                               {senderLabel}
                             </span>
@@ -439,7 +439,7 @@ export function ModalAtendimento({
                       >
                         <div
                           className={cn(
-                            'max-w-[85%] sm:max-w-[75%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
+                            'max-w-[90%] sm:max-w-[90%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
                             !isClient
                               ? 'rounded-l-xl rounded-br-sm rounded-tr-xl bg-[#DCF8C6] dark:bg-[#005c4b] text-[#303030] dark:text-[#e9edef]'
                               : 'rounded-r-xl rounded-bl-sm rounded-tl-xl bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-black/5 dark:border-white/5',

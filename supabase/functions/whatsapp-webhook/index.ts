@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
           telefone: phone,
           email: `${phone}@whatsapp.com`,
           origem: 'WhatsApp',
-          status: 'Novo Lead',
+          status: 'Novo contato',
           notas: '',
           atualizado_em: nowStr,
           kanban_ativo: true,
@@ -142,15 +142,9 @@ Deno.serve(async (req) => {
     // Logged for history/context. No automated follow-up is performed.
     if (payload.fromMe) {
       if (lead) {
-        let newStatus = lead.status
-        if (lead.status === 'Novo Lead') {
-          newStatus = 'Aguardando Consultor'
-        }
-
         const { error: leadUpdateErr } = await supabase
           .from('leads')
           .update({
-            status: newStatus,
             status_atendimento: 'em_atendimento',
             atualizado_em: nowStr,
           })
@@ -216,12 +210,6 @@ Deno.serve(async (req) => {
       const updatePayload: any = {
         atualizado_em: nowStr,
         status_atendimento: 'aguardando_resposta',
-      }
-
-      // Auto-advance brand-new leads to "Aguardando Consultor" so they appear
-      // in the team's manual pipeline. No AI response is sent.
-      if (lead.status === 'Novo Lead') {
-        updatePayload.status = 'Aguardando Consultor'
       }
 
       const { error: leadUpdateErr } = await supabase
