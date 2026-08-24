@@ -29,6 +29,7 @@ import { Plus, Search, ChevronLeft, ChevronRight, User, Phone, Inbox, Share2 } f
 import { toast } from 'sonner'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface KanbanAtendimentosProps {
   aba: AtendimentoAbaConfig
@@ -70,12 +71,12 @@ export function KanbanAtendimentos({
     try {
       if (!silent) setLoading(true)
       const [leadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
-      setLeads((leadsData as any) || [])
-      setUsers(usersData || [])
+      setLeads(Array.isArray(leadsData) ? leadsData : [])
+      setUsers(Array.isArray(usersData) ? usersData : [])
 
       // Atualizar lead selecionado no modal se estiver aberto
       setSelectedLeadForModal((curr) => {
-        if (!curr) return null
+        if (!curr || !Array.isArray(leadsData)) return null
         const updated = leadsData.find((l: any) => l.id === curr.id)
         return updated ? (updated as any) : curr
       })
@@ -331,8 +332,10 @@ export function KanbanAtendimentos({
         belongsNaturally =
           cat.toLowerCase() === 'parceiro' ||
           cat.toLowerCase() === 'arquiteto externo' ||
-          cat.toLowerCase() === 'assistência' ||
           cat.toLowerCase() === 'equipe'
+      } else if (aba.id === 'assistencia') {
+        belongsNaturally =
+          cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
       }
 
       const isMatch = belongsNaturally || isForwardedToThisAba || isForwardedFromThisAba
@@ -419,7 +422,7 @@ export function KanbanAtendimentos({
             className="flex items-center gap-3 flex-1 flex-wrap"
           >
             <span className="text-xs font-bold text-foreground shrink-0">
-              Novo em Aba {aba.numero} ({aba.colunas[0]}):
+              Novo em {aba.titulo} ({aba.colunas[0]}):
             </span>
             <Input
               required
@@ -539,29 +542,45 @@ export function KanbanAtendimentos({
 
                 {/* Lista de Cards da Coluna */}
                 <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5 min-h-[150px]">
-                  {colLeads.map((lead) => (
-                    <CardAtendimento
-                      key={lead.id}
-                      lead={lead}
-                      currentAba={aba}
-                      users={users}
-                      isDragging={draggingId === lead.id}
-                      onDragStart={(e) => handleDragStart(e, lead.id)}
-                      onDragEnd={handleDragEnd}
-                      onClick={() => setSelectedLeadForModal(lead)}
-                      onUpdateLead={handleUpdateLead}
-                      onArchive={handleArchiveLead}
-                      onDelete={() => setLeadToDelete(lead)}
-                      onForward={handleForwardLead}
-                    />
-                  ))}
+                  <ErrorBoundary
+                    fallback={
+                      <div className="p-3 text-xs text-destructive bg-destructive/10 rounded-lg text-center">
+                        Erro ao exibir cards desta coluna
+                      </div>
+                    }
+                  >
+                    {colLeads.map((lead) => (
+                      <ErrorBoundary
+                        key={lead.id}
+                        fallback={
+                          <div className="p-2 text-xs text-destructive border border-destructive/30 rounded bg-destructive/5 mb-2">
+                            Erro ao exibir card {lead.nome || lead.id}
+                          </div>
+                        }
+                      >
+                        <CardAtendimento
+                          lead={lead}
+                          currentAba={aba}
+                          users={users}
+                          isDragging={draggingId === lead.id}
+                          onDragStart={(e) => handleDragStart(e, lead.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => setSelectedLeadForModal(lead)}
+                          onUpdateLead={handleUpdateLead}
+                          onArchive={handleArchiveLead}
+                          onDelete={() => setLeadToDelete(lead)}
+                          onForward={handleForwardLead}
+                        />
+                      </ErrorBoundary>
+                    ))}
 
-                  {colLeads.length === 0 && (
-                    <div className="h-32 border-2 border-dashed border-border/60 rounded-lg flex flex-col items-center justify-center text-muted-foreground/60 text-xs gap-1">
-                      <Inbox className="w-5 h-5 stroke-[1.5]" />
-                      <span>Nenhum card</span>
-                    </div>
-                  )}
+                    {colLeads.length === 0 && (
+                      <div className="h-32 border-2 border-dashed border-border/60 rounded-lg flex flex-col items-center justify-center text-muted-foreground/60 text-xs gap-1">
+                        <Inbox className="w-5 h-5 stroke-[1.5]" />
+                        <span>Nenhum card</span>
+                      </div>
+                    )}
+                  </ErrorBoundary>
                 </div>
               </div>
             )

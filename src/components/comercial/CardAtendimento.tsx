@@ -384,10 +384,7 @@ export function CardAtendimento({
         <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded text-[11px] text-muted-foreground font-medium">
           <CornerDownRight className="w-3 h-3 text-primary shrink-0" />
           <span className="truncate">
-            Encaminhado p/{' '}
-            <strong className="text-foreground">
-              Aba {forwardedToAba.numero} — {forwardedToAba.titulo}
-            </strong>
+            Encaminhado p/ <strong className="text-foreground">{forwardedToAba.titulo}</strong>
           </span>
         </div>
       )}
@@ -529,7 +526,7 @@ export function CardAtendimento({
             <SelectContent>
               {ATENDIMENTO_ABAS.filter((aba) => aba.id !== currentAba.id).map((aba) => (
                 <SelectItem key={aba.id} value={aba.id} className="text-xs">
-                  Aba {aba.numero} — {aba.titulo}
+                  {aba.titulo}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -542,12 +539,13 @@ export function CardAtendimento({
         <span className="flex items-center gap-1" title="Data do último movimento">
           <CalendarIcon className="w-2.5 h-2.5 opacity-60" />
           {(() => {
-            if (!lead.criado_em) return ''
+            const rawDate = (lead as any).atualizado_em || lead.criado_em
+            if (!rawDate) return '-'
             try {
-              const d = new Date(lead.criado_em)
-              return isNaN(d.getTime()) ? '' : format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })
+              const d = new Date(rawDate)
+              return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })
             } catch {
-              return ''
+              return '-'
             }
           })()}
         </span>

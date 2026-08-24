@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { fetchLeadMessages, sendWhatsAppMessage } from '@/services/comercial'
@@ -80,7 +80,10 @@ export function ModalAtendimento({
   const [loadingTimeline, setLoadingTimeline] = useState(false)
 
   // Metadados
-  const { notas: rawNotasClean, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+  const { notas: rawNotasClean, meta } = useMemo(
+    () => parseLeadMetadados((lead as any)?.notas_pessoais),
+    [(lead as any)?.notas_pessoais],
+  )
 
   useEffect(() => {
     if (lead) {
@@ -187,9 +190,7 @@ export function ModalAtendimento({
         items.push({
           id: `forward-${lead.id}`,
           titulo: 'Card Encaminhado de Aba',
-          descricao: `Card encaminhado para a Aba ${dest?.numero || ''} — ${
-            dest?.titulo || meta.encaminhado_para_aba
-          }.`,
+          descricao: `Card encaminhado para "${dest?.titulo || meta.encaminhado_para_aba}".`,
           data: meta.encaminhado_em,
           icone: 'forward',
         })
@@ -297,7 +298,7 @@ export function ModalAtendimento({
                 {lead.status}
               </Badge>
               <Badge variant="secondary" className="text-xs">
-                Aba {currentAba.numero} — {currentAba.titulo}
+                {currentAba.titulo}
               </Badge>
             </div>
 
@@ -416,7 +417,14 @@ export function ModalAtendimento({
                             <p className="whitespace-pre-wrap">{msg.content || msg.text || ''}</p>
                             {msg.created_at && (
                               <span className="text-[10px] opacity-60 block mt-1">
-                                {format(new Date(msg.created_at), 'dd/MM/yyyy HH:mm')}
+                                {(() => {
+                                  try {
+                                    const d = new Date(msg.created_at)
+                                    return isNaN(d.getTime()) ? '' : format(d, 'dd/MM/yyyy HH:mm')
+                                  } catch {
+                                    return ''
+                                  }
+                                })()}
                               </span>
                             )}
                           </div>
@@ -460,9 +468,17 @@ export function ModalAtendimento({
                               'text-[#667781] dark:text-[#8696a0]',
                             )}
                           >
-                            {msg.created_at
-                              ? format(new Date(msg.created_at), 'HH:mm', { locale: ptBR })
-                              : ''}
+                            {(() => {
+                              if (!msg.created_at) return ''
+                              try {
+                                const d = new Date(msg.created_at)
+                                return isNaN(d.getTime())
+                                  ? ''
+                                  : format(d, 'HH:mm', { locale: ptBR })
+                              } catch {
+                                return ''
+                              }
+                            })()}
                           </span>
                         </div>
                       </div>

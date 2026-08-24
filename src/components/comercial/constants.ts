@@ -76,6 +76,14 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
     colunas: ['Contactado', 'Em Nutrição'],
     categoriaPadrao: 'Parceiro',
   },
+  {
+    id: 'assistencia',
+    numero: '08',
+    titulo: 'Assistência',
+    descricao: 'Solicitações de assistência técnica e pós-obra',
+    colunas: ['Novo', 'Em Atendimento', 'Resolvido'],
+    categoriaPadrao: 'Assistência',
+  },
 ]
 
 // Lista legada para compatibilidade se algum componente ainda importar COLUMNS
@@ -133,8 +141,9 @@ export interface LeadMetadados {
 
 const META_PREFIX = '___META_JSON___:'
 
-export function parseLeadMetadados(raw?: string | null): { notas: string; meta: LeadMetadados } {
+export function parseLeadMetadados(raw?: unknown): { notas: string; meta: LeadMetadados } {
   if (!raw) return { notas: '', meta: {} }
+  if (typeof raw !== 'string') return { notas: '', meta: {} }
   const idx = raw.indexOf(META_PREFIX)
   if (idx === -1) {
     return { notas: raw, meta: {} }
@@ -143,15 +152,16 @@ export function parseLeadMetadados(raw?: string | null): { notas: string; meta: 
   const jsonStr = raw.slice(idx + META_PREFIX.length).trim()
   try {
     const meta = JSON.parse(jsonStr)
-    return { notas: cleanNotas, meta }
+    return { notas: cleanNotas, meta: meta && typeof meta === 'object' ? meta : {} }
   } catch (e) {
     return { notas: raw, meta: {} }
   }
 }
 
 export function stringifyLeadMetadados(notas: string, meta: LeadMetadados): string {
-  const cleanNotas = (notas || '').trimEnd()
-  const hasMeta = Object.keys(meta).length > 0
+  const cleanNotas = (typeof notas === 'string' ? notas : '').trimEnd()
+  const validMeta = meta && typeof meta === 'object' ? meta : {}
+  const hasMeta = Object.keys(validMeta).length > 0
   if (!hasMeta) return cleanNotas
-  return (cleanNotas ? `${cleanNotas}\n\n` : '') + `${META_PREFIX}${JSON.stringify(meta)}`
+  return (cleanNotas ? `${cleanNotas}\n\n` : '') + `${META_PREFIX}${JSON.stringify(validMeta)}`
 }
