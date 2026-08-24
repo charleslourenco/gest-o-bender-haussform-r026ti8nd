@@ -269,19 +269,23 @@ export function KanbanAtendimentos({
 
   // Filtragem dos Leads pertencentes a esta Aba
   const tabLeads = useMemo(() => {
+    if (!Array.isArray(leads)) return []
     return leads.filter((l) => {
       try {
+        if (!l || typeof l !== 'object') return false
         if ((l as any).arquivado_comercial || (l as any).excluido) return false
 
-        const cat = (l.categoria || 'Comercial').trim()
-        const status = (l.status || '').trim()
+        const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
+        const status = typeof l.status === 'string' ? l.status.trim() : ''
         const { meta } = parseLeadMetadados((l as any).notas_pessoais)
 
         // Regra 1: Se este card foi encaminhado PARA esta aba
-        const isForwardedToThisAba = meta?.encaminhado_para_aba === aba.id
+        const isForwardedToThisAba = Boolean(
+          meta?.encaminhado_para_aba && meta.encaminhado_para_aba === aba.id,
+        )
 
         // Regra 2: Se o card foi encaminhado DAQUI para outra aba
-        const isForwardedFromThisAba = meta?.origem_aba === aba.id
+        const isForwardedFromThisAba = Boolean(meta?.origem_aba && meta.origem_aba === aba.id)
 
         // Regra 3: Pertence naturalmente a esta aba por categoria/status
         let belongsNaturally = false
@@ -308,7 +312,7 @@ export function KanbanAtendimentos({
           ]
           belongsNaturally =
             (cat === 'Comercial' || cat === 'Já é Cliente') &&
-            (consultoriaStatuses.includes(status) || l.kanban_ativo)
+            (consultoriaStatuses.includes(status) || Boolean(l.kanban_ativo))
         } else if (aba.id === 'lead-followup') {
           belongsNaturally =
             cat.toLowerCase() === 'follow up' ||
@@ -345,8 +349,10 @@ export function KanbanAtendimentos({
         // Aplicar filtros de busca e responsável
         if (search) {
           const q = search.toLowerCase()
-          const matchName = (l.nome || '').toLowerCase().includes(q)
-          const matchTel = (l.telefone || '').includes(q)
+          const matchName = String(l.nome || '')
+            .toLowerCase()
+            .includes(q)
+          const matchTel = String(l.telefone || '').includes(q)
           if (!matchName && !matchTel) return false
         }
 
@@ -470,57 +476,61 @@ export function KanbanAtendimentos({
         >
           {aba.colunas.map((coluna, colIdx) => {
             // Filtrar os leads que pertencem a esta coluna específica da aba
-            const colLeads = tabLeads.filter((l) => {
-              try {
-                const status = (l.status || '').trim()
-                const { meta } = parseLeadMetadados((l as any).notas_pessoais)
+            const colLeads = Array.isArray(tabLeads)
+              ? tabLeads.filter((l) => {
+                  try {
+                    if (!l || typeof l !== 'object') return false
+                    const status = typeof l.status === 'string' ? l.status.trim() : ''
+                    const { meta } = parseLeadMetadados((l as any).notas_pessoais)
 
-                // Se a coluna for de encaminhado
-                const isEncaminhadoCol = coluna.toLowerCase().includes('encaminhado')
+                    // Se a coluna for de encaminhado
+                    const isEncaminhadoCol =
+                      typeof coluna === 'string' && coluna.toLowerCase().includes('encaminhado')
 
-                if (isEncaminhadoCol) {
-                  return (
-                    status === coluna ||
-                    status.toLowerCase().includes('encaminhado') ||
-                    meta?.encaminhado_para_aba !== undefined
-                  )
-                }
+                    if (isEncaminhadoCol) {
+                      return (
+                        status === coluna ||
+                        status.toLowerCase().includes('encaminhado') ||
+                        meta?.encaminhado_para_aba !== undefined
+                      )
+                    }
 
-                // Se este card foi encaminhado para esta aba e está na primeira coluna
-                if (meta?.encaminhado_para_aba === aba.id && colIdx === 0) {
-                  if (status === coluna || !aba.colunas.includes(status)) return true
-                }
+                    // Se este card foi encaminhado para esta aba e está na primeira coluna
+                    if (meta?.encaminhado_para_aba === aba.id && colIdx === 0) {
+                      if (status === coluna || !aba.colunas.includes(status)) return true
+                    }
 
-                // Mapeamento normal
-                if (status === coluna) return true
+                    // Mapeamento normal
+                    if (status === coluna) return true
 
-                // Compatibilidade de status legados na primeira coluna da aba correspondente
-                if (colIdx === 0) {
-                  if (
-                    aba.id === 'lead-consultoria' &&
-                    (status === 'Novo Lead' ||
-                      status === 'Aguardando Consultor' ||
-                      status === 'Designar Consultor')
-                  ) {
-                    return true
+                    // Compatibilidade de status legados na primeira coluna da aba correspondente
+                    if (colIdx === 0) {
+                      if (
+                        aba.id === 'lead-consultoria' &&
+                        (status === 'Novo Lead' ||
+                          status === 'Aguardando Consultor' ||
+                          status === 'Designar Consultor')
+                      ) {
+                        return true
+                      }
+                      if (aba.id === 'novo-contato' && status === 'Novo Lead') {
+                        return true
+                      }
+                      if (
+                        !aba.colunas.includes(status) &&
+                        !status.toLowerCase().includes('encaminhado')
+                      ) {
+                        return true
+                      }
+                    }
+
+                    return false
+                  } catch (err) {
+                    console.error('Erro ao processar lead no filtro de coluna:', err)
+                    return false
                   }
-                  if (aba.id === 'novo-contato' && status === 'Novo Lead') {
-                    return true
-                  }
-                  if (
-                    !aba.colunas.includes(status) &&
-                    !status.toLowerCase().includes('encaminhado')
-                  ) {
-                    return true
-                  }
-                }
-
-                return false
-              } catch (err) {
-                console.error('Erro ao processar lead no filtro de coluna:', err)
-                return false
-              }
-            })
+                })
+              : []
 
             const isDropTarget = dragOverCol === coluna
 

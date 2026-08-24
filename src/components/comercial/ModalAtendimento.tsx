@@ -159,7 +159,7 @@ export function ModalAtendimento({
           titulo: 'Lead Criado no Sistema',
           descricao: `Lead registrado via ${lead.origem || 'WhatsApp'}${
             lead.criado_por_nome ? ` por ${lead.criado_por_nome}` : ''
-          }. Estágio inicial: "${lead.status}".`,
+          }. Estágio inicial: "${lead.status || '-'}".`,
           data: lead.criado_em,
           usuarioNome: lead.criado_por_nome || undefined,
           icone: 'created',
@@ -174,17 +174,19 @@ export function ModalAtendimento({
 
       if (notifs && notifs.length > 0) {
         notifs.forEach((n) => {
-          items.push({
-            id: n.id,
-            titulo: n.titulo || 'Movimentação de Estágio',
-            descricao: n.mensagem || '',
-            data: n.criado_em,
-            icone: 'status',
-          })
+          if (n?.criado_em) {
+            items.push({
+              id: n.id,
+              titulo: n.titulo || 'Movimentação de Estágio',
+              descricao: n.mensagem || '',
+              data: n.criado_em,
+              icone: 'status',
+            })
+          }
         })
       }
 
-      if (meta.encaminhado_para_aba && meta.encaminhado_em) {
+      if (meta?.encaminhado_para_aba && meta?.encaminhado_em) {
         const dest = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
         items.push({
           id: `forward-${lead.id}`,
@@ -195,12 +197,12 @@ export function ModalAtendimento({
         })
       }
 
-      const updatedAt = (lead as any).atualizado_em
+      const updatedAt = (lead as any)?.atualizado_em
       if (updatedAt && updatedAt !== lead.criado_em) {
         items.push({
           id: `update-${lead.id}`,
           titulo: 'Última Atualização Registrada',
-          descricao: `Status atual: "${lead.status}" | Categoria: "${
+          descricao: `Status atual: "${lead.status || '-'}" | Categoria: "${
             lead.categoria || 'Comercial'
           }"`,
           data: updatedAt,
@@ -208,11 +210,18 @@ export function ModalAtendimento({
         })
       }
 
-      items.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+      const validItems = items.filter((item) => {
+        if (!item.data) return false
+        const t = new Date(item.data).getTime()
+        return !isNaN(t)
+      })
 
-      for (let i = 0; i < items.length - 1; i++) {
-        const dCurrent = new Date(items[i].data).getTime()
-        const dPrev = new Date(items[i + 1].data).getTime()
+      validItems.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+
+      for (let i = 0; i < validItems.length - 1; i++) {
+        const dCurrent = new Date(validItems[i].data).getTime()
+        const dPrev = new Date(validItems[i + 1].data).getTime()
+        if (isNaN(dCurrent) || isNaN(dPrev)) continue
         const diffMs = Math.max(0, dCurrent - dPrev)
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
         const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
@@ -222,10 +231,10 @@ export function ModalAtendimento({
         if (days > 0) durStr += `${days}d `
         if (hours > 0 || days > 0) durStr += `${hours}h `
         durStr += `${mins}m`
-        items[i].duracao = durStr
+        validItems[i].duracao = durStr
       }
 
-      setTimelineItems(items)
+      setTimelineItems(validItems)
     } catch (err) {
       console.error('Erro ao carregar timeline:', err)
     } finally {
@@ -293,10 +302,10 @@ export function ModalAtendimento({
               <DialogTitle className="text-xl font-bold text-foreground">
                 {lead.nome || 'Lead sem nome'}
               </DialogTitle>
-              <Badge variant="outline" className="bg-background text-xs font-medium">
-                {lead.status}
+              <Badge variant="outline" className="bg-background text-xs font-semibold">
+                {lead.status || 'Sem status'}
               </Badge>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs font-semibold">
                 {currentAba.titulo}
               </Badge>
             </div>
@@ -339,7 +348,7 @@ export function ModalAtendimento({
                 onClick={() => {
                   onTriggerSellModal(lead)
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 font-semibold"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fechar Venda
               </Button>
@@ -349,24 +358,24 @@ export function ModalAtendimento({
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as any)}
-          className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          className="flex-1 flex flex-col min-h-0 h-full overflow-hidden"
         >
-          <div className="px-4 sm:px-5 pt-3 border-b bg-background shrink-0">
+          <div className="px-4 sm:px-5 pt-3 pb-2 border-b bg-background shrink-0">
             <TabsList className="bg-muted/60 p-1">
-              <TabsTrigger value="conversas" className="flex items-center gap-2">
+              <TabsTrigger value="conversas" className="flex items-center gap-2 font-semibold">
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
                 Conversas
                 {messages.length > 0 && (
-                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-1.5 py-0.2 rounded-full">
+                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold px-1.5 py-0.2 rounded-full">
                     {messages.length}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="anotacoes" className="flex items-center gap-2">
+              <TabsTrigger value="anotacoes" className="flex items-center gap-2 font-semibold">
                 <FileText className="w-4 h-4 text-amber-600" />
                 Anotações
               </TabsTrigger>
-              <TabsTrigger value="timeline" className="flex items-center gap-2">
+              <TabsTrigger value="timeline" className="flex items-center gap-2 font-semibold">
                 <History className="w-4 h-4 text-blue-600" />
                 Timeline
               </TabsTrigger>
@@ -376,13 +385,13 @@ export function ModalAtendimento({
           {/* TAB 1: CONVERSAS WHATSAPP */}
           <TabsContent
             value="conversas"
-            className="flex-1 flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-[#EFEAE2] dark:bg-[#0b141a]"
+            className="flex-1 flex flex-col min-h-0 h-full m-0 p-0 overflow-hidden bg-[#EFEAE2] dark:bg-[#0b141a] data-[state=inactive]:hidden"
           >
-            <div className="flex-1 overflow-y-auto px-4 py-2 sm:px-6 sm:py-4">
-              <div className="space-y-3.5 max-w-5xl mx-auto pb-4">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 sm:px-8 sm:py-5">
+              <div className="space-y-4 max-w-4xl w-full mx-auto pb-4">
                 {loadingMessages ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+                    <Loader2 className="w-7 h-7 animate-spin text-primary" />
                     <span className="text-xs">Carregando histórico do WhatsApp...</span>
                   </div>
                 ) : messages.length > 0 ? (
@@ -409,7 +418,7 @@ export function ModalAtendimento({
                     if (isSystem) {
                       return (
                         <div key={msg.id || i} className="flex justify-center my-3">
-                          <div className="bg-background/90 backdrop-blur-sm text-muted-foreground rounded-lg p-2.5 text-xs max-w-[90%] border shadow-xs text-center">
+                          <div className="bg-background/90 backdrop-blur-sm text-muted-foreground rounded-lg p-2.5 text-xs max-w-[85%] border shadow-xs text-center">
                             <span className="text-[10px] font-bold uppercase tracking-wider block opacity-70 mb-0.5">
                               {senderLabel}
                             </span>
@@ -434,33 +443,33 @@ export function ModalAtendimento({
                     return (
                       <div
                         key={msg.id || i}
-                        className={cn('flex', isClient ? 'justify-start' : 'justify-end')}
+                        className={cn('flex w-full', isClient ? 'justify-start' : 'justify-end')}
                       >
                         <div
                           className={cn(
-                            'max-w-[90%] sm:max-w-[90%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
+                            'max-w-[85%] sm:max-w-[78%] md:max-w-[72%] p-3.5 shadow-sm relative text-[13.5px] leading-relaxed whitespace-pre-wrap',
                             !isClient
-                              ? 'rounded-l-xl rounded-br-sm rounded-tr-xl bg-[#DCF8C6] dark:bg-[#005c4b] text-[#303030] dark:text-[#e9edef]'
-                              : 'rounded-r-xl rounded-bl-sm rounded-tl-xl bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-black/5 dark:border-white/5',
+                              ? 'rounded-l-2xl rounded-br-sm rounded-tr-2xl bg-[#DCF8C6] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef]'
+                              : 'rounded-r-2xl rounded-bl-sm rounded-tl-2xl bg-white dark:bg-[#202c33] text-[#111b21] dark:text-[#e9edef] border border-black/5 dark:border-white/5',
                           )}
                         >
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 mb-1.5">
                             {isAssistant && (
                               <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-300" />
                             )}
                             {isAna && <UserIcon className="w-3.5 h-3.5 opacity-70" />}
                             <span
                               className={cn(
-                                'text-[10px] font-bold uppercase tracking-wider',
+                                'text-[11px] font-bold tracking-wide',
                                 isAssistant
                                   ? 'text-purple-700 dark:text-purple-300'
-                                  : 'text-[#667781] dark:text-[#8696a0]',
+                                  : 'text-[#54656f] dark:text-[#8696a0]',
                               )}
                             >
                               {senderLabel}
                             </span>
                           </div>
-                          <p>{msg.content || msg.text || msg.body || ''}</p>
+                          <p className="break-words">{msg.content || msg.text || msg.body || ''}</p>
                           <span
                             className={cn(
                               'text-[10px] block text-right mt-1.5 font-medium',
@@ -484,11 +493,13 @@ export function ModalAtendimento({
                     )
                   })
                 ) : (
-                  <div className="text-center py-12 text-muted-foreground text-sm bg-background/60 rounded-lg p-6 border">
-                    <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p className="font-medium">Nenhuma mensagem registrada no WhatsApp.</p>
-                    <p className="text-xs opacity-75 mt-1">
-                      Você pode iniciar uma conversa enviando uma mensagem abaixo.
+                  <div className="text-center py-16 text-muted-foreground text-sm bg-background/70 rounded-xl p-8 border shadow-xs max-w-lg mx-auto">
+                    <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-40 text-primary" />
+                    <p className="font-semibold text-foreground">
+                      Nenhuma mensagem registrada no WhatsApp.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Você pode iniciar uma conversa enviando uma mensagem no campo abaixo.
                     </p>
                   </div>
                 )}
@@ -508,18 +519,18 @@ export function ModalAtendimento({
                   }
                 }}
                 disabled={sendingMessage}
-                className="flex-1 text-sm bg-muted/20"
+                className="flex-1 text-sm bg-muted/20 h-10"
               />
               <Button
                 onClick={handleSendMessage}
                 disabled={!newMessage.trim() || sendingMessage}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 h-10 px-4 font-semibold"
               >
                 {sendingMessage ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <Send className="w-4 h-4 mr-1 sm:inline hidden" /> Enviar
+                    <Send className="w-4 h-4 mr-1.5 sm:inline hidden" /> Enviar
                   </>
                 )}
               </Button>
@@ -529,7 +540,7 @@ export function ModalAtendimento({
           {/* TAB 2: ANOTAÇÕES */}
           <TabsContent
             value="anotacoes"
-            className="flex-1 flex flex-col min-h-0 m-0 p-4 sm:p-6 overflow-y-auto bg-background"
+            className="flex-1 flex flex-col min-h-0 h-full m-0 p-4 sm:p-6 overflow-y-auto bg-background data-[state=inactive]:hidden"
           >
             <div className="max-w-3xl w-full mx-auto space-y-5">
               <div className="space-y-2">
@@ -563,7 +574,7 @@ export function ModalAtendimento({
                 <Button
                   onClick={handleSaveNotas}
                   disabled={savingNotas}
-                  className="bg-primary text-primary-foreground"
+                  className="bg-primary text-primary-foreground font-semibold"
                 >
                   {savingNotas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                   Salvar Anotações
@@ -575,7 +586,7 @@ export function ModalAtendimento({
           {/* TAB 3: TIMELINE VERTICAL */}
           <TabsContent
             value="timeline"
-            className="flex-1 flex flex-col min-h-0 m-0 p-4 sm:p-6 overflow-y-auto bg-background"
+            className="flex-1 flex flex-col min-h-0 h-full m-0 p-4 sm:p-6 overflow-y-auto bg-background data-[state=inactive]:hidden"
           >
             <div className="max-w-2xl w-full mx-auto">
               <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">

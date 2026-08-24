@@ -62,17 +62,17 @@ export function CardAtendimento({
   onDelete,
   onForward,
 }: CardAtendimentoProps) {
-  const { notas, meta } = parseLeadMetadados((lead as any).notas_pessoais)
+  const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
 
   // Estados locais para edição inline
   const [isEditingNome, setIsEditingNome] = useState(false)
-  const [nomeValue, setNomeValue] = useState(lead.nome || '')
+  const [nomeValue, setNomeValue] = useState(lead?.nome || '')
 
   const [isEditingTelefone, setIsEditingTelefone] = useState(false)
-  const [telefoneValue, setTelefoneValue] = useState(lead.telefone || '')
+  const [telefoneValue, setTelefoneValue] = useState(lead?.telefone || '')
 
   const [isEditingDescricao, setIsEditingDescricao] = useState(false)
-  const [descricaoValue, setDescricaoValue] = useState(meta.descricao_projeto || '')
+  const [descricaoValue, setDescricaoValue] = useState(meta?.descricao_projeto || '')
 
   const [elapsed, setElapsed] = useState('')
 
@@ -80,16 +80,16 @@ export function CardAtendimento({
   const telefoneInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setNomeValue(lead.nome || '')
-  }, [lead.nome])
+    setNomeValue(lead?.nome || '')
+  }, [lead?.nome])
 
   useEffect(() => {
-    setTelefoneValue(lead.telefone || '')
-  }, [lead.telefone])
+    setTelefoneValue(lead?.telefone || '')
+  }, [lead?.telefone])
 
   useEffect(() => {
-    setDescricaoValue(meta.descricao_projeto || '')
-  }, [meta.descricao_projeto])
+    setDescricaoValue(meta?.descricao_projeto || '')
+  }, [meta?.descricao_projeto])
 
   useEffect(() => {
     if (isEditingNome) nomeInputRef.current?.focus()
@@ -130,11 +130,11 @@ export function CardAtendimento({
   const handleSaveNome = async () => {
     const trimmed = nomeValue.trim()
     if (!trimmed) {
-      setNomeValue(lead.nome)
+      setNomeValue(lead?.nome || '')
       setIsEditingNome(false)
       return
     }
-    if (trimmed !== lead.nome) {
+    if (trimmed !== lead?.nome) {
       await onUpdateLead(lead.id, { nome: trimmed })
     }
     setIsEditingNome(false)
@@ -143,11 +143,11 @@ export function CardAtendimento({
   const handleSaveTelefone = async () => {
     const trimmed = telefoneValue.trim()
     if (!trimmed) {
-      setTelefoneValue(lead.telefone)
+      setTelefoneValue(lead?.telefone || '')
       setIsEditingTelefone(false)
       return
     }
-    if (trimmed !== lead.telefone) {
+    if (trimmed !== lead?.telefone) {
       await onUpdateLead(lead.id, { telefone: trimmed })
     }
     setIsEditingTelefone(false)
@@ -193,11 +193,16 @@ export function CardAtendimento({
     }
   }
 
-  const consultorRaw = lead.consultor || (lead as any).users
-  const consultorNome = Array.isArray(consultorRaw) ? consultorRaw[0]?.nome : consultorRaw?.nome
+  const consultorRaw = lead?.consultor || (lead as any)?.users
+  const consultorNome = Array.isArray(consultorRaw)
+    ? consultorRaw[0]?.nome
+    : typeof consultorRaw === 'object' && consultorRaw !== null
+      ? (consultorRaw as any).nome
+      : undefined
 
-  const isEncaminhado = (lead.status || '').toLowerCase().includes('encaminhado')
-  const forwardedToAba = meta.encaminhado_para_aba
+  const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
+  const isEncaminhado = leadStatus.toLowerCase().includes('encaminhado')
+  const forwardedToAba = meta?.encaminhado_para_aba
     ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
     : null
 
@@ -230,6 +235,8 @@ export function CardAtendimento({
         )
     }
   }
+
+  if (!lead || !lead.id) return null
 
   return (
     <div

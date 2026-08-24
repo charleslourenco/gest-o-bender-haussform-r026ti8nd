@@ -76,7 +76,7 @@ export default function Comercial() {
                 <TabsTrigger
                   key={aba.id}
                   value={aba.id}
-                  className="py-1 px-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                  className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
                 >
                   {aba.titulo}
                 </TabsTrigger>
@@ -88,14 +88,14 @@ export default function Comercial() {
               {/* ABAS AUXILIARES */}
               <TabsTrigger
                 value="lista"
-                className="py-1 px-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
               >
                 <ListIcon className="w-3.5 h-3.5 mr-1" />
                 Lista
               </TabsTrigger>
               <TabsTrigger
                 value="arquivados"
-                className="py-1 px-2.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
               >
                 <Archive className="w-3.5 h-3.5 mr-1" />
                 Arquivados

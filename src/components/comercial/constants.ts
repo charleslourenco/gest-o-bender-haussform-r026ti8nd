@@ -142,32 +142,59 @@ export interface LeadMetadados {
 const META_PREFIX = '___META_JSON___:'
 
 export function parseLeadMetadados(raw?: unknown): { notas: string; meta: LeadMetadados } {
-  // Se raw não for string, tenta serializar; se falhar, retorna default
-  if (typeof raw !== 'string') {
+  if (raw === null || raw === undefined) {
+    return { notas: '', meta: {} }
+  }
+
+  let text = ''
+  if (typeof raw === 'string') {
+    text = raw
+  } else if (typeof raw === 'object') {
     try {
-      raw = JSON.stringify(raw)
+      // Se for um objeto já parseado
+      return { notas: '', meta: (raw as any) || {} }
+    } catch {
+      return { notas: '', meta: {} }
+    }
+  } else {
+    try {
+      text = String(raw)
     } catch {
       return { notas: '', meta: {} }
     }
   }
-  if (!raw) return { notas: '', meta: {} }
-  if (typeof raw !== 'string') return { notas: '', meta: {} }
-  const idx = raw.indexOf(META_PREFIX)
+
+  if (!text) return { notas: '', meta: {} }
+
+  const idx = text.indexOf(META_PREFIX)
   if (idx === -1) {
-    return { notas: raw, meta: {} }
+    // Se o texto for exatamente "null" ou "undefined", desconsiderar como nota
+    const trimmed = text.trim()
+    if (trimmed === 'null' || trimmed === 'undefined') {
+      return { notas: '', meta: {} }
+    }
+    return { notas: text, meta: {} }
   }
-  const cleanNotas = raw.slice(0, idx).trimEnd()
-  const jsonStr = raw.slice(idx + META_PREFIX.length).trim()
+
+  let cleanNotas = text.slice(0, idx).trimEnd()
+  if (cleanNotas.trim() === 'null' || cleanNotas.trim() === 'undefined') {
+    cleanNotas = ''
+  }
+
+  const jsonStr = text.slice(idx + META_PREFIX.length).trim()
   try {
     const meta = JSON.parse(jsonStr)
     return { notas: cleanNotas, meta: meta && typeof meta === 'object' ? meta : {} }
-  } catch (e) {
-    return { notas: raw, meta: {} }
+  } catch {
+    return { notas: cleanNotas || text, meta: {} }
   }
 }
 
 export function stringifyLeadMetadados(notas: string, meta: LeadMetadados): string {
-  const cleanNotas = (typeof notas === 'string' ? notas : '').trimEnd()
+  let cleanNotas = (typeof notas === 'string' ? notas : '').trimEnd()
+  if (cleanNotas === 'null' || cleanNotas === 'undefined') {
+    cleanNotas = ''
+  }
   const validMeta = meta && typeof meta === 'object' ? meta : {}
   const hasMeta = Object.keys(validMeta).length > 0
   if (!hasMeta) return cleanNotas
