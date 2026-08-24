@@ -1,0 +1,617 @@
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Lead } from '@/types'
+import { supabase } from '@/lib/supabase/client'
+import { fetchLeadMessages, sendWhatsAppMessage } from '@/services/comercial'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import {
+  MessageCircle,
+  FileText,
+  History,
+  Send,
+  Loader2,
+  Sparkles,
+  User as UserIcon,
+  Phone,
+  Calendar,
+  Clock,
+  CheckCircle2,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import {
+  ATENDIMENTO_ABAS,
+  AtendimentoAbaConfig,
+  parseLeadMetadados,
+  stringifyLeadMetadados,
+} from './constants'
+
+export interface ModalAtendimentoProps {
+  lead: Lead | null
+  currentAba: AtendimentoAbaConfig
+  users: Array<{ id: string; nome: string }>
+  open: boolean
+  onClose: () => void
+  onUpdateLead: (id: string, updates: Partial<Lead>) => Promise<void> | void
+  onTriggerSellModal?: (lead: Lead) => void
+}
+
+interface TimelineItem {
+  id: string
+  titulo: string
+  descricao: string
+  data: string
+  usuarioNome?: string
+  icone: 'status' | 'forward' | 'created' | 'note' | 'message'
+  duracao?: string
+}
+
+export function ModalAtendimento({
+  lead,
+  currentAba,
+  users,
+  open,
+  onClose,
+  onUpdateLead,
+  onTriggerSellModal,
+}: ModalAtendimentoProps) {
+  const [activeTab, setActiveTab] = useState<'conversas' | 'anotacoes' | 'timeline'>('conversas')
+
+  // WhatsApp Messages
+  const [messages, setMessages] = useState<any[]>([])
+  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Notas e Notas Pessoais
+  const [notasIa, setNotasIa] = useState('')
+  const [notasPessoaisClean, setNotasPessoaisClean] = useState('')
+  const [savingNotas, setSavingNotas] = useState(false)
+
+  // Timeline
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([])
+  const [loadingTimeline, setLoadingTimeline] = useState(false)
+
+  // Metadados
+  const { notas: rawNotasClean, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+
+  useEffect(() => {
+    if (lead) {
+      setNotasIa(lead.notas || '')
+      setNotasPessoaisClean(rawNotasClean || '')
+    }
+  }, [lead?.id, (lead as any)?.notas_pessoais, lead?.notas])
+
+  // Carregar mensagens do WhatsApp
+  const loadMessages = useCallback(
+    async (silent = false) => {
+      if (!lead?.id) return
+      if (!silent) setLoadingMessages(true)
+      try {
+        const data = await fetchLeadMessages(lead.id, lead.telefone)
+        setMessages(data || [])
+      } catch (err) {
+        console.error('Erro ao buscar mensagens:', err)
+      } finally {
+        if (!silent) setLoadingMessages(false)
+      }
+    },
+    [lead?.id, lead?.telefone],
+  )
+
+  useEffect(() => {
+    if (open && lead?.id) {
+      loadMessages()
+    } else {
+      setMessages([])
+    }
+  }, [open, lead?.id, loadMessages])
+
+  // Scroll automatico para a ultima mensagem
+  useEffect(() => {
+    if (messages.length > 0 && activeTab === 'conversas') {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, activeTab])
+
+  // Inscricao Realtime de Mensagens
+  useEffect(() => {
+    if (!open || !lead?.id) return
+
+    const channel = supabase
+      .channel(`modal_messages_${lead.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whatsapp_messages' },
+        (payload: any) => {
+          const newMsg = payload.new
+          if (newMsg && (newMsg.lead_id === lead.id || newMsg.phone === lead.telefone)) {
+            loadMessages(true)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [open, lead?.id, lead?.telefone, loadMessages])
+
+  // Carregar Timeline de eventos
+  const loadTimeline = useCallback(async () => {
+    if (!lead?.id) return
+    setLoadingTimeline(true)
+    try {
+      const items: TimelineItem[] = []
+
+      if (lead.criado_em) {
+        items.push({
+          id: `create-${lead.id}`,
+          titulo: 'Lead Criado no Sistema',
+          descricao: `Lead registrado via ${lead.origem || 'WhatsApp'}${
+            lead.criado_por_nome ? ` por ${lead.criado_por_nome}` : ''
+          }. Estágio inicial: "${lead.status}".`,
+          data: lead.criado_em,
+          usuarioNome: lead.criado_por_nome || undefined,
+          icone: 'created',
+        })
+      }
+
+      const { data: notifs } = await supabase
+        .from('notificacoes')
+        .select('*')
+        .like('link', `%lead_id=${lead.id}%`)
+        .order('criado_em', { ascending: false })
+
+      if (notifs && notifs.length > 0) {
+        notifs.forEach((n) => {
+          items.push({
+            id: n.id,
+            titulo: n.titulo || 'Movimentação de Estágio',
+            descricao: n.mensagem || '',
+            data: n.criado_em,
+            icone: 'status',
+          })
+        })
+      }
+
+      if (meta.encaminhado_para_aba && meta.encaminhado_em) {
+        const dest = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
+        items.push({
+          id: `forward-${lead.id}`,
+          titulo: 'Card Encaminhado de Aba',
+          descricao: `Card encaminhado para a Aba ${dest?.numero || ''} — ${
+            dest?.titulo || meta.encaminhado_para_aba
+          }.`,
+          data: meta.encaminhado_em,
+          icone: 'forward',
+        })
+      }
+
+      const updatedAt = (lead as any).atualizado_em
+      if (updatedAt && updatedAt !== lead.criado_em) {
+        items.push({
+          id: `update-${lead.id}`,
+          titulo: 'Última Atualização Registrada',
+          descricao: `Status atual: "${lead.status}" | Categoria: "${
+            lead.categoria || 'Comercial'
+          }"`,
+          data: updatedAt,
+          icone: 'note',
+        })
+      }
+
+      items.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+
+      for (let i = 0; i < items.length - 1; i++) {
+        const dCurrent = new Date(items[i].data).getTime()
+        const dPrev = new Date(items[i + 1].data).getTime()
+        const diffMs = Math.max(0, dCurrent - dPrev)
+        const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
+        const mins = Math.floor((diffMs / 1000 / 60) % 60)
+
+        let durStr = ''
+        if (days > 0) durStr += `${days}d `
+        if (hours > 0 || days > 0) durStr += `${hours}h `
+        durStr += `${mins}m`
+        items[i].duracao = durStr
+      }
+
+      setTimelineItems(items)
+    } catch (err) {
+      console.error('Erro ao carregar timeline:', err)
+    } finally {
+      setLoadingTimeline(false)
+    }
+  }, [lead, meta])
+
+  useEffect(() => {
+    if (open && activeTab === 'timeline') {
+      loadTimeline()
+    }
+  }, [open, activeTab, loadTimeline])
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !lead) return
+    const textToSend = newMessage.trim()
+    try {
+      setSendingMessage(true)
+      const res = await sendWhatsAppMessage(lead.id, lead.telefone, textToSend)
+      if (res?.message) {
+        setMessages((prev) => [...prev, res.message])
+      }
+      setNewMessage('')
+      toast.success('Mensagem enviada com sucesso!')
+
+      await onUpdateLead(lead.id, {
+        status_atendimento: 'em_atendimento',
+      } as any)
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Erro ao enviar mensagem: ' + (err.message || 'Falha na conexão'))
+    } finally {
+      setSendingMessage(false)
+    }
+  }
+
+  const handleSaveNotas = async () => {
+    if (!lead) return
+    try {
+      setSavingNotas(true)
+      const newNotasPessoais = stringifyLeadMetadados(notasPessoaisClean, meta)
+      await onUpdateLead(lead.id, {
+        notas: notasIa,
+        notas_pessoais: newNotasPessoais,
+      } as any)
+      toast.success('Anotações salvas!')
+    } catch (err: any) {
+      toast.error('Erro ao salvar anotações: ' + err.message)
+    } finally {
+      setSavingNotas(false)
+    }
+  }
+
+  if (!lead) return null
+
+  const consultorRaw = lead.consultor || (lead as any).users
+  const consultorNome = Array.isArray(consultorRaw) ? consultorRaw[0]?.nome : consultorRaw?.nome
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-4xl w-[95vw] h-[85vh] p-0 flex flex-col gap-0 overflow-hidden bg-background">
+        <DialogHeader className="p-4 sm:p-5 border-b bg-muted/30 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <DialogTitle className="text-xl font-bold text-foreground">
+                {lead.nome || 'Lead sem nome'}
+              </DialogTitle>
+              <Badge variant="outline" className="bg-background text-xs font-medium">
+                {lead.status}
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                Aba {currentAba.numero} — {currentAba.titulo}
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+              <span className="flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5 text-primary" />
+                <strong className="font-mono text-foreground">{lead.telefone || 'Nenhum'}</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <UserIcon className="w-3.5 h-3.5" />
+                <span>Responsável: </span>
+                <strong className="text-foreground">{consultorNome || 'Não atribuído'}</strong>
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Criado em: </span>
+                <strong className="text-foreground">
+                  {lead.criado_em
+                    ? format(new Date(lead.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                    : 'N/D'}
+                </strong>
+              </span>
+            </div>
+          </div>
+
+          {currentAba.colunas.includes('Vendido') &&
+            lead.status !== 'Vendido' &&
+            onTriggerSellModal && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  onTriggerSellModal(lead)
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fechar Venda
+              </Button>
+            )}
+        </DialogHeader>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as any)}
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        >
+          <div className="px-4 sm:px-5 pt-3 border-b bg-background shrink-0">
+            <TabsList className="bg-muted/60 p-1">
+              <TabsTrigger value="conversas" className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-emerald-600" />
+                Conversas
+                {messages.length > 0 && (
+                  <span className="ml-1 text-[10px] bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-semibold px-1.5 py-0.2 rounded-full">
+                    {messages.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="anotacoes" className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-600" />
+                Anotações
+              </TabsTrigger>
+              <TabsTrigger value="timeline" className="flex items-center gap-2">
+                <History className="w-4 h-4 text-blue-600" />
+                Timeline
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          {/* TAB 1: CONVERSAS WHATSAPP */}
+          <TabsContent
+            value="conversas"
+            className="flex-1 flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-[#EFEAE2] dark:bg-[#0b141a]"
+          >
+            <ScrollArea className="flex-1 p-4 sm:p-6">
+              <div className="space-y-3.5 max-w-3xl mx-auto pb-4">
+                {loadingMessages ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="text-xs">Carregando histórico do WhatsApp...</span>
+                  </div>
+                ) : messages.length > 0 ? (
+                  messages.map((msg, i) => {
+                    const isClient =
+                      msg.sender_type === 'lead' ||
+                      msg.sender_type === 'cliente' ||
+                      (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                    const isSystem = msg.sender_type === 'system'
+                    const isAssistant =
+                      msg.sender_type === 'catarina' || msg.sender_type === 'assistant'
+                    const isAna = msg.sender_type === 'ana'
+
+                    const senderLabel =
+                      msg.sender_name ||
+                      (isAssistant
+                        ? 'Catarina (IA)'
+                        : isAna
+                          ? 'Ana'
+                          : isClient
+                            ? lead.nome || 'Cliente'
+                            : 'Equipe')
+
+                    if (isSystem) {
+                      return (
+                        <div key={msg.id || i} className="flex justify-center my-3">
+                          <div className="bg-background/90 backdrop-blur-sm text-muted-foreground rounded-lg p-2.5 text-xs max-w-[85%] border shadow-xs text-center">
+                            <span className="text-[10px] font-bold uppercase tracking-wider block opacity-70 mb-0.5">
+                              {senderLabel}
+                            </span>
+                            <p className="whitespace-pre-wrap">{msg.content || msg.text || ''}</p>
+                            {msg.created_at && (
+                              <span className="text-[10px] opacity-60 block mt-1">
+                                {format(new Date(msg.created_at), 'dd/MM/yyyy HH:mm')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div
+                        key={msg.id || i}
+                        className={cn('flex', isClient ? 'justify-start' : 'justify-end')}
+                      >
+                        <div
+                          className={cn(
+                            'max-w-[85%] sm:max-w-[75%] p-3 shadow-sm relative text-[13px] leading-relaxed whitespace-pre-wrap',
+                            !isClient
+                              ? 'rounded-l-xl rounded-br-sm rounded-tr-xl bg-[#DCF8C6] dark:bg-[#005c4b] text-[#303030] dark:text-[#e9edef]'
+                              : 'rounded-r-xl rounded-bl-sm rounded-tl-xl bg-white dark:bg-[#202c33] text-[#303030] dark:text-[#e9edef] border border-black/5 dark:border-white/5',
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {isAssistant && (
+                              <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-300" />
+                            )}
+                            {isAna && <UserIcon className="w-3.5 h-3.5 opacity-70" />}
+                            <span
+                              className={cn(
+                                'text-[10px] font-bold uppercase tracking-wider',
+                                isAssistant
+                                  ? 'text-purple-700 dark:text-purple-300'
+                                  : 'text-[#667781] dark:text-[#8696a0]',
+                              )}
+                            >
+                              {senderLabel}
+                            </span>
+                          </div>
+                          <p>{msg.content || msg.text || msg.body || ''}</p>
+                          <span
+                            className={cn(
+                              'text-[10px] block text-right mt-1.5 font-medium',
+                              'text-[#667781] dark:text-[#8696a0]',
+                            )}
+                          >
+                            {msg.created_at
+                              ? format(new Date(msg.created_at), 'HH:mm', { locale: ptBR })
+                              : ''}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground text-sm bg-background/60 rounded-lg p-6 border">
+                    <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="font-medium">Nenhuma mensagem registrada no WhatsApp.</p>
+                    <p className="text-xs opacity-75 mt-1">
+                      Você pode iniciar uma conversa enviando uma mensagem abaixo.
+                    </p>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            <div className="p-3 sm:p-4 bg-background border-t shrink-0 flex items-center gap-2">
+              <Input
+                placeholder="Digite uma mensagem para responder pelo WhatsApp..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                disabled={sendingMessage}
+                className="flex-1 text-sm bg-muted/20"
+              />
+              <Button
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim() || sendingMessage}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+              >
+                {sendingMessage ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-1 sm:inline hidden" /> Enviar
+                  </>
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+
+          {/* TAB 2: ANOTAÇÕES */}
+          <TabsContent
+            value="anotacoes"
+            className="flex-1 flex flex-col min-h-0 m-0 p-4 sm:p-6 overflow-y-auto bg-background"
+          >
+            <div className="max-w-3xl w-full mx-auto space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Notas / Resumo da IA
+                </label>
+                <textarea
+                  value={notasIa}
+                  onChange={(e) => setNotasIa(e.target.value)}
+                  rows={4}
+                  placeholder="Resumo gerado pela IA ou observações gerais..."
+                  className="w-full bg-yellow-50/40 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/50 text-yellow-950 dark:text-yellow-100 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-yellow-400 placeholder:text-yellow-700/40 resize-y shadow-xs"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-blue-500" /> Anotações Internas / Notas
+                  Pessoais
+                </label>
+                <textarea
+                  value={notasPessoaisClean}
+                  onChange={(e) => setNotasPessoaisClean(e.target.value)}
+                  rows={5}
+                  placeholder="Anotações internas sobre o cliente, preferências, detalhes do projeto..."
+                  className="w-full bg-blue-50/40 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 text-blue-950 dark:text-blue-100 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-blue-700/40 resize-y shadow-xs"
+                />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={handleSaveNotas}
+                  disabled={savingNotas}
+                  className="bg-primary text-primary-foreground"
+                >
+                  {savingNotas ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Salvar Anotações
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* TAB 3: TIMELINE VERTICAL */}
+          <TabsContent
+            value="timeline"
+            className="flex-1 flex flex-col min-h-0 m-0 p-4 sm:p-6 overflow-y-auto bg-background"
+          >
+            <div className="max-w-2xl w-full mx-auto">
+              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" /> Histórico de Movimentações
+              </h3>
+
+              {loadingTimeline ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="text-xs">Carregando histórico...</span>
+                </div>
+              ) : timelineItems.length > 0 ? (
+                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+                  {timelineItems.map((item, idx) => (
+                    <div key={item.id || idx} className="relative group">
+                      <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-background border-2 border-primary flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-primary" />
+                      </div>
+
+                      <div className="bg-card border rounded-lg p-3.5 shadow-xs space-y-1 hover:border-primary/50 transition-colors">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <h4 className="font-semibold text-sm text-foreground">{item.titulo}</h4>
+                          <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {item.data
+                              ? format(new Date(item.data), "dd/MM/yyyy 'às' HH:mm", {
+                                  locale: ptBR,
+                                })
+                              : ''}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-foreground/85 leading-relaxed">
+                          {item.descricao}
+                        </p>
+
+                        {item.duracao && (
+                          <div className="text-[10px] text-muted-foreground pt-1 flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5 opacity-70" />
+                            <span>
+                              Tempo neste estágio:{' '}
+                              <strong className="text-foreground">{item.duracao}</strong>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground text-sm border rounded-lg p-6">
+                  <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="font-medium">Nenhum evento registrado na timeline.</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  )
+}
