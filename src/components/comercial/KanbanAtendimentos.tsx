@@ -71,13 +71,15 @@ export function KanbanAtendimentos({
     try {
       if (!silent) setLoading(true)
       const [leadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
-      setLeads(Array.isArray(leadsData) ? leadsData : [])
-      setUsers(Array.isArray(usersData) ? usersData : [])
+      const safeLeads = Array.isArray(leadsData) ? leadsData : []
+      const safeUsers = Array.isArray(usersData) ? usersData : []
+      setLeads(safeLeads)
+      setUsers(safeUsers)
 
       // Atualizar lead selecionado no modal se estiver aberto
       setSelectedLeadForModal((curr) => {
-        if (!curr || !Array.isArray(leadsData)) return null
-        const updated = leadsData.find((l: any) => l.id === curr.id)
+        if (!curr) return null
+        const updated = safeLeads.find((l: any) => l.id === curr.id)
         return updated ? (updated as any) : curr
       })
     } catch (err: any) {
