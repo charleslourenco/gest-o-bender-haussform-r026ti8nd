@@ -102,19 +102,24 @@ export function CardAtendimento({
   // Timer de permanência
   useEffect(() => {
     const updateTimer = () => {
-      const baseDate = (lead as any).atualizado_em || lead.criado_em
-      const start = baseDate ? new Date(baseDate).getTime() : Date.now()
-      const diff = Math.max(0, Date.now() - start)
+      try {
+        const baseDate = (lead as any).atualizado_em || lead.criado_em
+        const parsed = baseDate ? new Date(baseDate).getTime() : Date.now()
+        const start = isNaN(parsed) ? Date.now() : parsed
+        const diff = Math.max(0, Date.now() - start)
 
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
-      const mins = Math.floor((diff / 1000 / 60) % 60)
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
+        const mins = Math.floor((diff / 1000 / 60) % 60)
 
-      let str = ''
-      if (days > 0) str += `${days}d `
-      if (hours > 0 || days > 0) str += `${hours}h `
-      str += `${mins}m`
-      setElapsed(str)
+        let str = ''
+        if (days > 0) str += `${days}d `
+        if (hours > 0 || days > 0) str += `${hours}h `
+        str += `${mins}m`
+        setElapsed(str)
+      } catch {
+        setElapsed('-')
+      }
     }
 
     updateTimer()
@@ -536,16 +541,22 @@ export function CardAtendimento({
       <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
         <span className="flex items-center gap-1" title="Data do último movimento">
           <CalendarIcon className="w-2.5 h-2.5 opacity-60" />
-          {lead.criado_em
-            ? format(new Date(lead.criado_em), 'dd/MM/yyyy HH:mm', { locale: ptBR })
-            : ''}
+          {(() => {
+            if (!lead.criado_em) return ''
+            try {
+              const d = new Date(lead.criado_em)
+              return isNaN(d.getTime()) ? '' : format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })
+            } catch {
+              return ''
+            }
+          })()}
         </span>
         <span
           className="flex items-center gap-1 font-medium text-foreground/80"
           title="Tempo no estágio atual"
         >
           <Clock className="w-2.5 h-2.5 opacity-60" />
-          {elapsed}
+          {elapsed || '-'}
         </span>
       </div>
     </div>

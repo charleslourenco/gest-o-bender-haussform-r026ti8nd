@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { KanbanCard } from './KanbanCard'
 import { Maximize2, Minimize2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cleanColumnTitle } from './constants'
 
 interface Props {
   title: string
@@ -77,7 +78,7 @@ export function KanbanColumn({
             className="text-foreground font-bold text-sm whitespace-nowrap rotate-180"
             style={{ writingMode: 'vertical-rl' }}
           >
-            {title} ({leads.length})
+            {cleanColumnTitle(title)} ({leads.length})
           </span>
         </div>
       </div>
@@ -97,7 +98,7 @@ export function KanbanColumn({
     >
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-foreground font-bold text-[15px] flex items-center gap-2">
-          {title}{' '}
+          {cleanColumnTitle(title)}{' '}
           <span className="text-muted-foreground text-[13px] font-normal">({leads.length})</span>
         </h3>
         <div className="flex items-center gap-1">

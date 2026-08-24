@@ -8,6 +8,7 @@ import {
   ATENDIMENTO_ABAS,
   parseLeadMetadados,
   stringifyLeadMetadados,
+  cleanColumnTitle,
   LeadMetadados,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
@@ -392,13 +393,17 @@ export function KanbanAtendimentos({
         </SelectContent>
       </Select>
 
-      <Button
-        size="sm"
-        onClick={() => setIsCreatingQuickLead(true)}
-        className="h-8 text-xs bg-primary text-primary-foreground gap-1 shrink-0"
-      >
-        <Plus className="w-3.5 h-3.5" /> Novo Atendimento
-      </Button>
+      {/* Botão (+) exclusivo da aba 01 - Novo Contato */}
+      {aba.id === 'novo-contato' && (
+        <Button
+          size="sm"
+          onClick={() => setIsCreatingQuickLead(true)}
+          className="h-8 w-8 p-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center shrink-0 shadow-sm"
+          title="Novo Contato"
+        >
+          <Plus className="w-4 h-4" strokeWidth={2.5} />
+        </Button>
+      )}
     </div>
   )
 
@@ -524,7 +529,7 @@ export function KanbanAtendimentos({
                 <div className="p-3 border-b border-border/60 flex items-center justify-between shrink-0 bg-background/50 rounded-t-xl">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-xs text-foreground tracking-wide uppercase">
-                      {coluna}
+                      {cleanColumnTitle(coluna)}
                     </h3>
                     <span className="text-[11px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                       {colLeads.length}

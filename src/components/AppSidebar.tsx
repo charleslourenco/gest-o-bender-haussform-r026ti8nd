@@ -9,7 +9,7 @@ import {
   Wallet,
   Settings,
   UserCog,
-  Target,
+  Phone,
   Lock,
   ClipboardList,
   Factory,
@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
-  { title: 'Atendimentos', icon: Target, url: '/comercial', module: 'Comercial' },
+  { title: 'Atendimentos', icon: Phone, url: '/comercial', module: 'Comercial' },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
     title: 'Análise Técnica',

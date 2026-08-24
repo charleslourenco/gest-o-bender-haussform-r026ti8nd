@@ -76,7 +76,16 @@ export function LeadsArquivados() {
               </Badge>
             </TableCell>
             <TableCell className="text-gray-600">
-              {format(new Date(lead.atualizado_em), 'dd/MM/yyyy HH:mm')}
+              {(() => {
+                const dt = lead.atualizado_em || lead.criado_em
+                if (!dt) return '-'
+                try {
+                  const d = new Date(dt)
+                  return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
+                } catch {
+                  return '-'
+                }
+              })()}
             </TableCell>
             <TableCell className="text-right">
               <Button

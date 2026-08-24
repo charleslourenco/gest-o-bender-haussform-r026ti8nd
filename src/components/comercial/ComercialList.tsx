@@ -132,7 +132,15 @@ export function ComercialList() {
                 </Badge>
               </TableCell>
               <TableCell className="text-gray-600">
-                {lead.criado_em ? format(new Date(lead.criado_em), 'dd/MM/yyyy HH:mm') : '-'}
+                {(() => {
+                  if (!lead.criado_em) return '-'
+                  try {
+                    const d = new Date(lead.criado_em)
+                    return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
+                  } catch {
+                    return '-'
+                  }
+                })()}
               </TableCell>
               <TableCell className="text-right text-gray-600">
                 {consultorNome || 'Não atribuído'}

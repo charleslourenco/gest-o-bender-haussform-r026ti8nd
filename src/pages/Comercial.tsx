@@ -1,51 +1,24 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { useState } from 'react'
+import { useAuth } from '@/hooks/use-auth'
 import { ATENDIMENTO_ABAS } from '@/components/comercial/constants'
 import { KanbanAtendimentos } from '@/components/comercial/KanbanAtendimentos'
 import { ComercialList } from '@/components/comercial/ComercialList'
-import { ComercialIndicators } from '@/components/comercial/ComercialIndicators'
 import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TrendingUp, Headphones, List as ListIcon, BarChart3, Archive, Layers } from 'lucide-react'
+import { Phone, List as ListIcon, Archive } from 'lucide-react'
 
 export default function Comercial() {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+  const { user, permissions, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<string>('novo-contato')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    let isMounted = true
-    const check = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession()
-        if (error || !data.session) {
-          if (isMounted) setHasPermission(false)
-          return
-        }
+  const isSuperAdmin = user?.email === 'admin@bender.com'
+  const userAccess = isSuperAdmin ? 'Admin' : permissions?.['Comercial']
+  const hasPermission = Boolean(
+    isSuperAdmin || (userAccess && ['Admin', 'Editor', 'Visualizador'].includes(userAccess)),
+  )
 
-        const res = await supabase.functions.invoke('check-permission', {
-          body: { action: 'read', modulo: 'Comercial' },
-        })
-
-        if (!isMounted) return
-
-        if (res.data?.allowed && ['Admin', 'Editor'].includes(res.data?.level)) {
-          setHasPermission(true)
-        } else {
-          setHasPermission(false)
-        }
-      } catch (err) {
-        console.error('Erro ao verificar permissões:', err)
-        if (isMounted) setHasPermission(false)
-      }
-    }
-    check()
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  if (hasPermission === null) {
+  if (loading) {
     return (
       <div className="h-full flex flex-col bg-background">
         <div className="bg-muted/50 p-6 shrink-0 border-b">
@@ -87,7 +60,7 @@ export default function Comercial() {
         {/* Título e Abas Principais de Atendimento */}
         <div className="flex items-center gap-3 min-w-0 flex-1 overflow-x-auto scrollbar-none py-1">
           <h1 className="text-lg font-bold flex items-center gap-2 shrink-0">
-            <Headphones className="h-5 w-5 text-emerald-500" />
+            <Phone className="h-5 w-5 text-emerald-500" />
             <span>Atendimentos</span>
           </h1>
 
@@ -114,13 +87,6 @@ export default function Comercial() {
             >
               <ListIcon className="w-3.5 h-3.5 mr-1" />
               Lista
-            </TabsTrigger>
-            <TabsTrigger
-              value="indicadores"
-              className="py-1 px-2.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
-            >
-              <BarChart3 className="w-3.5 h-3.5 mr-1" />
-              Indicadores
             </TabsTrigger>
             <TabsTrigger
               value="arquivados"
@@ -159,14 +125,6 @@ export default function Comercial() {
           className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
         >
           <ComercialList />
-        </TabsContent>
-
-        {/* ABA AUXILIAR: INDICADORES */}
-        <TabsContent
-          value="indicadores"
-          className="flex-1 overflow-y-auto min-h-0 m-0 data-[state=active]:flex flex-col p-6"
-        >
-          <ComercialIndicators />
         </TabsContent>
 
         {/* ABA AUXILIAR: ARQUIVADOS */}

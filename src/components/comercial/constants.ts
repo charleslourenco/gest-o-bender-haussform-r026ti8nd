@@ -108,6 +108,12 @@ export function isCategoriaComercial(categoria?: string | null): boolean {
 // Colunas do kanban Não Comercial legado
 export const NAO_COMERCIAL_COLUMNS = ['Novo', 'Em Análise', 'Respondido', 'Arquivado']
 
+// Helper para limpar prefixos numéricos dos nomes de coluna (ex: "3 Consultoria Inicial" -> "Consultoria Inicial", "01 Novo Contato" -> "Novo Contato")
+export function cleanColumnTitle(coluna: string): string {
+  if (!coluna) return ''
+  return coluna.replace(/^(\d+[.\-\s_]*|\d+\s+)/, '').trim() || coluna
+}
+
 // Helper para checar se uma coluna é de encaminhado
 export function isColunaEncaminhado(coluna: string): boolean {
   const norm = coluna.toLowerCase()

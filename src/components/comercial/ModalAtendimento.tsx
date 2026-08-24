@@ -315,9 +315,17 @@ export function ModalAtendimento({
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Criado em: </span>
                 <strong className="text-foreground">
-                  {lead.criado_em
-                    ? format(new Date(lead.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                    : 'N/D'}
+                  {(() => {
+                    if (!lead.criado_em) return 'N/D'
+                    try {
+                      const d = new Date(lead.criado_em)
+                      return isNaN(d.getTime())
+                        ? 'N/D'
+                        : format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                    } catch {
+                      return 'N/D'
+                    }
+                  })()}
                 </strong>
               </span>
             </div>
@@ -577,11 +585,17 @@ export function ModalAtendimento({
                           <h4 className="font-semibold text-sm text-foreground">{item.titulo}</h4>
                           <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {item.data
-                              ? format(new Date(item.data), "dd/MM/yyyy 'às' HH:mm", {
-                                  locale: ptBR,
-                                })
-                              : ''}
+                            {(() => {
+                              if (!item.data) return ''
+                              try {
+                                const d = new Date(item.data)
+                                return isNaN(d.getTime())
+                                  ? ''
+                                  : format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                              } catch {
+                                return ''
+                              }
+                            })()}
                           </span>
                         </div>
 
