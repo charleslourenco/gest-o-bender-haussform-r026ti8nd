@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import {
   MessageCircle,
@@ -379,7 +378,7 @@ export function ModalAtendimento({
             value="conversas"
             className="flex-1 flex flex-col min-h-0 m-0 p-0 overflow-hidden bg-[#EFEAE2] dark:bg-[#0b141a]"
           >
-            <ScrollArea className="flex-1 p-4 sm:p-6">
+            <div className="flex-1 overflow-y-auto px-4 py-2 sm:px-6 sm:py-4">
               <div className="space-y-3.5 max-w-5xl mx-auto pb-4">
                 {loadingMessages ? (
                   <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
@@ -495,7 +494,7 @@ export function ModalAtendimento({
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            </ScrollArea>
+            </div>
 
             <div className="p-3 sm:p-4 bg-background border-t shrink-0 flex items-center gap-2">
               <Input

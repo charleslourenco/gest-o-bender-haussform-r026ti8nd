@@ -142,6 +142,14 @@ export interface LeadMetadados {
 const META_PREFIX = '___META_JSON___:'
 
 export function parseLeadMetadados(raw?: unknown): { notas: string; meta: LeadMetadados } {
+  // Se raw não for string, tenta serializar; se falhar, retorna default
+  if (typeof raw !== 'string') {
+    try {
+      raw = JSON.stringify(raw)
+    } catch {
+      return { notas: '', meta: {} }
+    }
+  }
   if (!raw) return { notas: '', meta: {} }
   if (typeof raw !== 'string') return { notas: '', meta: {} }
   const idx = raw.indexOf(META_PREFIX)
