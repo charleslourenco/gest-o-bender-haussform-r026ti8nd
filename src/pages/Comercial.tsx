@@ -107,40 +107,45 @@ export default function Comercial() {
         {/* Conteúdo das 8 Abas Kanban e Abas Auxiliares */}
         <div className="flex-1 flex flex-col min-h-0 bg-card rounded-xl border shadow-xs overflow-hidden">
           {/* AS 8 ABAS DE ATENDIMENTOS (lazy load: monta apenas a aba ativa) */}
-          {ATENDIMENTO_ABAS.filter((aba) => aba.id === activeTab).map((aba) => (
+          {ATENDIMENTO_ABAS.map((aba) => (
             <TabsContent
               key={aba.id}
               value={aba.id}
+              forceMount={aba.id === activeTab}
               className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
             >
-              <ErrorBoundary>
-                <KanbanAtendimentos
-                  aba={aba}
-                  toolbarPortal={toolbarNode}
-                  isActive={activeTab === aba.id}
-                />
-              </ErrorBoundary>
+              {aba.id === activeTab && (
+                <ErrorBoundary>
+                  <KanbanAtendimentos aba={aba} toolbarPortal={toolbarNode} isActive={true} />
+                </ErrorBoundary>
+              )}
             </TabsContent>
           ))}
 
           {/* ABA AUXILIAR: LISTA */}
           <TabsContent
             value="lista"
+            forceMount={activeTab === 'lista'}
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
-            <ErrorBoundary>
-              <ComercialList />
-            </ErrorBoundary>
+            {activeTab === 'lista' && (
+              <ErrorBoundary>
+                <ComercialList />
+              </ErrorBoundary>
+            )}
           </TabsContent>
 
           {/* ABA AUXILIAR: ARQUIVADOS */}
           <TabsContent
             value="arquivados"
+            forceMount={activeTab === 'arquivados'}
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
-            <ErrorBoundary>
-              <LeadsArquivados />
-            </ErrorBoundary>
+            {activeTab === 'arquivados' && (
+              <ErrorBoundary>
+                <LeadsArquivados />
+              </ErrorBoundary>
+            )}
           </TabsContent>
         </div>
       </Tabs>

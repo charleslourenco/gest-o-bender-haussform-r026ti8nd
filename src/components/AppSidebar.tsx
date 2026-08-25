@@ -13,6 +13,7 @@ import {
   Lock,
   ClipboardList,
   Factory,
+  Wrench,
   Hammer,
   Package,
   ClipboardCheck,
@@ -34,7 +35,7 @@ const menuItems = [
     module: 'Análise Técnica',
   },
   { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
-  { title: 'Montagem', icon: Hammer, url: '/montagem', module: 'Montagem' },
+  { title: 'Montagem & Assistência', icon: Wrench, url: '/montagem', module: 'Montagem' },
   {
     title: 'Acompanhamentos',
     icon: ClipboardCheck,
