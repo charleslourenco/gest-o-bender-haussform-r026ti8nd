@@ -1,16 +1,53 @@
 import { useMemo } from 'react'
 import { Transaction } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
-import { Bar, BarChart, CartesianGrid, XAxis, Tooltip } from 'recharts'
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-const chartConfig = {
-  receitas: { label: 'Receitas', color: '#10b981' },
-  despesas: { label: 'Despesas', color: '#f43f5e' },
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
 }
 
-export function FinanceiroDashboard({ transactions }: { transactions: Transaction[] }) {
+function CustomChartTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (!active || !payload || !payload.length) {
+    return null
+  }
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 shadow-lg rounded-lg border border-border p-2.5 text-xs">
+      <p className="font-semibold mb-1.5 text-foreground">{label}</p>
+      <div className="space-y-1">
+        {payload.map((item: any, idx: number) => {
+          const isReceita = item.dataKey === 'receitas'
+          const name = isReceita ? 'Receitas' : 'Despesas'
+          const color = isReceita ? '#10b981' : '#f43f5e'
+          return (
+            <div key={idx} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-sm inline-block shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-muted-foreground">{name}:</span>
+              </div>
+              <span className="font-medium text-foreground">
+                {formatCurrency(Number(item.value) || 0)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function FinanceiroDashboardContent({ transactions }: { transactions: Transaction[] }) {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
@@ -98,15 +135,18 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
         </CardHeader>
         <CardContent className="h-[350px]">
           {chartData.length > 0 ? (
-            <ChartContainer config={chartConfig} className="w-full h-full">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData.slice(-6)}>
-                <CartesianGrid vertical={false} />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <Tooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                  content={<CustomChartTooltip />}
+                />
+                <Bar dataKey="receitas" fill="#10b981" radius={[4, 4, 0, 0]} name="Receitas" />
+                <Bar dataKey="despesas" fill="#f43f5e" radius={[4, 4, 0, 0]} name="Despesas" />
               </BarChart>
-            </ChartContainer>
+            </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-full text-sm text-gray-500">
               Sem dados suficientes para exibir o fluxo mensal.
@@ -115,5 +155,25 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export function FinanceiroDashboard({ transactions }: { transactions: Transaction[] }) {
+  return (
+    <ErrorBoundary
+      fallback={
+        <div className="flex flex-col items-center justify-center min-h-[300px] p-6 text-center bg-card rounded-lg border border-border">
+          <AlertCircle className="w-8 h-8 text-destructive mb-2" />
+          <p className="text-sm font-medium text-foreground">
+            Não foi possível carregar o dashboard financeiro.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tente atualizar os filtros ou recarregar a página.
+          </p>
+        </div>
+      }
+    >
+      <FinanceiroDashboardContent transactions={transactions} />
+    </ErrorBoundary>
   )
 }

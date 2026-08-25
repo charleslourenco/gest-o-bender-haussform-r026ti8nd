@@ -82,8 +82,16 @@ export default function Financeiro() {
 
       setTransactions(
         [...recebimentos, ...pagamentos].sort((a, b) => {
-          const aTime = a.dueDate ? new Date(a.dueDate).getTime() : 0
-          const bTime = b.dueDate ? new Date(b.dueDate).getTime() : 0
+          const aTime = a.dueDate
+            ? new Date(a.dueDate).getTime()
+            : a.createdAt
+              ? new Date(a.createdAt).getTime()
+              : 0
+          const bTime = b.dueDate
+            ? new Date(b.dueDate).getTime()
+            : b.createdAt
+              ? new Date(b.createdAt).getTime()
+              : 0
           return bTime - aTime
         }),
       )
@@ -104,8 +112,9 @@ export default function Financeiro() {
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
-      if (startDate && (t.dueDate || '') < startDate) return false
-      if (endDate && (t.dueDate || '') > endDate) return false
+      const effectiveDate = t.dueDate || t.createdAt || ''
+      if (startDate && effectiveDate < startDate) return false
+      if (endDate && effectiveDate > endDate) return false
 
       if (globalSearch) {
         const term = globalSearch.toLowerCase()
