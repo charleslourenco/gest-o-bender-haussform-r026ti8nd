@@ -106,8 +106,8 @@ export default function Comercial() {
 
         {/* Conteúdo das 8 Abas Kanban e Abas Auxiliares */}
         <div className="flex-1 flex flex-col min-h-0 bg-card rounded-xl border shadow-xs overflow-hidden">
-          {/* AS 8 ABAS DE ATENDIMENTOS */}
-          {ATENDIMENTO_ABAS.map((aba) => (
+          {/* AS 8 ABAS DE ATENDIMENTOS (lazy load: monta apenas a aba ativa) */}
+          {ATENDIMENTO_ABAS.filter((aba) => aba.id === activeTab).map((aba) => (
             <TabsContent
               key={aba.id}
               value={aba.id}
