@@ -94,6 +94,106 @@ export function getAbaConfig(abaId: string): AtendimentoAbaConfig {
   return ATENDIMENTO_ABAS.find((a) => a.id === abaId) || ATENDIMENTO_ABAS[0]
 }
 
+/**
+ * Retorna a aba correspondente a um determinado Lead
+ */
+export function getLeadAba(lead: {
+  status?: string | null
+  categoria?: string | null
+  kanban_ativo?: boolean | null
+  notas_pessoais?: unknown
+}): AtendimentoAbaConfig {
+  const cat = typeof lead?.categoria === 'string' ? lead.categoria.trim() : 'Comercial'
+  const status = typeof lead?.status === 'string' ? lead.status.trim() : ''
+  const { meta } = parseLeadMetadados(lead?.notas_pessoais)
+
+  if (meta?.encaminhado_para_aba) {
+    const found = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
+    if (found) return found
+  }
+
+  // 1. Novo Contato
+  if (
+    status === 'Novo contato' ||
+    status === 'Novo Contato' ||
+    status === 'Novo Lead' ||
+    status === 'Novo' ||
+    (cat === 'Comercial' && !lead?.kanban_ativo)
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'novo-contato') || ATENDIMENTO_ABAS[0]
+  }
+
+  // 2. Lead p/ Consultoria
+  const consultoriaStatuses = [
+    'Consultoria Inicial',
+    'Projeto',
+    'Apresentação',
+    'Negociação',
+    'Stand By',
+    'Vendido',
+    'Perdido',
+    'Aguardando Consultor',
+    'Ação Gerente',
+    'Designar Consultor',
+  ]
+  if (
+    (cat === 'Comercial' || cat === 'Já é Cliente') &&
+    (consultoriaStatuses.includes(status) || Boolean(lead?.kanban_ativo))
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-consultoria') || ATENDIMENTO_ABAS[1]
+  }
+
+  // 3. Follow up
+  if (
+    cat.toLowerCase() === 'follow up' ||
+    status === 'Follow up' ||
+    status === 'Encaminhado p/ Consultoria'
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-followup') || ATENDIMENTO_ABAS[2]
+  }
+
+  // 4. Currículos
+  if (
+    cat.toLowerCase() === 'currículo' ||
+    cat.toLowerCase() === 'curriculo' ||
+    status === 'Candidato' ||
+    status === 'Encaminhado p/ RH'
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'curriculos') || ATENDIMENTO_ABAS[3]
+  }
+
+  // 5. Orçamentos
+  if (
+    cat.toLowerCase() === 'orçamento' ||
+    cat.toLowerCase() === 'orcamento' ||
+    status === 'Novo Orçamento' ||
+    status === 'Em andamento'
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-orcamentos') || ATENDIMENTO_ABAS[4]
+  }
+
+  // 6. Fornecedores
+  if (cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras') {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'fornecedores') || ATENDIMENTO_ABAS[5]
+  }
+
+  // 7. Parceiros
+  if (
+    cat.toLowerCase() === 'parceiro' ||
+    cat.toLowerCase() === 'arquiteto externo' ||
+    cat.toLowerCase() === 'equipe'
+  ) {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'parceiros') || ATENDIMENTO_ABAS[6]
+  }
+
+  // 8. Assistência
+  if (cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia') {
+    return ATENDIMENTO_ABAS.find((a) => a.id === 'assistencia') || ATENDIMENTO_ABAS[7]
+  }
+
+  return ATENDIMENTO_ABAS[0]
+}
+
 // Categorias que NÃO são comerciais (para compatibilidade de código auxiliar)
 export const NAO_COMERCIAL_CATEGORIAS = [
   'Currículo',

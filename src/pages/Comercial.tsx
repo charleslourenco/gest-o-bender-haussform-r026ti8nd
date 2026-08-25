@@ -1,23 +1,40 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { ATENDIMENTO_ABAS } from '@/components/comercial/constants'
+import { ATENDIMENTO_ABAS, getLeadAba } from '@/components/comercial/constants'
 import { KanbanAtendimentos } from '@/components/comercial/KanbanAtendimentos'
+import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
+import { fetchUsers } from '@/services/comercial'
 import { ComercialList } from '@/components/comercial/ComercialList'
 import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Phone, List as ListIcon, Archive } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { Toaster } from 'sonner'
 
 export default function Comercial() {
   const { user, permissions, loading } = useAuth()
   const [activeTab, setActiveTab] = useState<string>('novo-contato')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
+  const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
+  const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+
+  const globalModalAba = leadForGlobalModal ? getLeadAba(leadForGlobalModal) : ATENDIMENTO_ABAS[0]
+
+  const handleOpenLeadModalGlobal = (lead: any) => {
+    setLeadForGlobalModal(lead)
+  }
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
   const userAccess = isSuperAdmin ? 'Admin' : permissions?.['Comercial']
   const hasPermission = Boolean(
     isSuperAdmin || (userAccess && ['Admin', 'Editor', 'Visualizador'].includes(userAccess)),
   )
+
+  useEffect(() => {
+    fetchUsers()
+      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => setUsers([]))
+  }, [])
 
   if (loading) {
     return (
@@ -52,6 +69,18 @@ export default function Comercial() {
 
   return (
     <ErrorBoundary>
+      <Toaster position="bottom-right" richColors expand={true} />
+      {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
+      {leadForGlobalModal && (
+        <ModalAtendimento
+          lead={leadForGlobalModal}
+          currentAba={globalModalAba}
+          users={users}
+          open={Boolean(leadForGlobalModal)}
+          onClose={() => setLeadForGlobalModal(null)}
+          onUpdateLead={() => {}}
+        />
+      )}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
@@ -116,7 +145,12 @@ export default function Comercial() {
             >
               {aba.id === activeTab && (
                 <ErrorBoundary>
-                  <KanbanAtendimentos aba={aba} toolbarPortal={toolbarNode} isActive={true} />
+                  <KanbanAtendimentos
+                    aba={aba}
+                    toolbarPortal={toolbarNode}
+                    isActive={true}
+                    onOpenLeadGlobal={handleOpenLeadModalGlobal}
+                  />
                 </ErrorBoundary>
               )}
             </TabsContent>

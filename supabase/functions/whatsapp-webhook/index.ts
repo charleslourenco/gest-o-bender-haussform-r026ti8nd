@@ -76,9 +76,10 @@ Deno.serve(async (req) => {
     if (leadsError) console.error('Erro ao buscar leads:', leadsError)
 
     let lead = leads && leads.length > 0 ? leads[0] : null
+    const isNewContact = !lead
     const nowStr = new Date().toISOString()
 
-    if (!lead) {
+    if (isNewContact) {
       const { data: newLead, error } = await supabase
         .from('leads')
         .insert({
@@ -207,6 +208,8 @@ Deno.serve(async (req) => {
     }
 
     if (lead) {
+      // Para contatos que JÁ EXISTEM no sistema, NUNCA alterar status, coluna ou pipeline.
+      // Apenas atualizar atualizado_em e status_atendimento para indicação de resposta pendente.
       const updatePayload: any = {
         atualizado_em: nowStr,
         status_atendimento: 'aguardando_resposta',

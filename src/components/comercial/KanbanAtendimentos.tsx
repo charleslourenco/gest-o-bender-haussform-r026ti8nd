@@ -6,6 +6,7 @@ import { arquivarLead } from '@/services/arquivamento'
 import {
   AtendimentoAbaConfig,
   ATENDIMENTO_ABAS,
+  getLeadAba,
   parseLeadMetadados,
   stringifyLeadMetadados,
   cleanColumnTitle,
@@ -30,21 +31,28 @@ import { toast } from 'sonner'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { useAuth } from '@/hooks/use-auth'
 
 export interface KanbanAtendimentosProps {
   aba: AtendimentoAbaConfig
   toolbarPortal?: HTMLDivElement | null
   isActive?: boolean
+  onOpenLeadGlobal?: (lead: Lead) => void
 }
 
 export function KanbanAtendimentos({
   aba,
   toolbarPortal,
   isActive = true,
+  onOpenLeadGlobal,
 }: KanbanAtendimentosProps) {
+  const { user, loading: authLoading } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
   const [loading, setLoading] = useState(true)
+
+  // Unread badge counts per lead
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
   // Filtros
   const [search, setSearch] = useState('')
@@ -65,6 +73,21 @@ export function KanbanAtendimentos({
   const [quickTelefone, setQuickTelefone] = useState('')
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const leadsRef = useRef<Lead[]>([])
+  leadsRef.current = leads
+
+  // Limpar contagem de não lidas quando abrir o modal de conversa
+  const handleOpenLeadModal = (lead: Lead) => {
+    if (lead?.id) {
+      setUnreadCounts((prev) => {
+        if (!prev[lead.id]) return prev
+        const copy = { ...prev }
+        delete copy[lead.id]
+        return copy
+      })
+    }
+    setSelectedLeadForModal(lead)
+  }
 
   // Carregar dados
   const loadData = async (silent = false) => {
@@ -94,16 +117,98 @@ export function KanbanAtendimentos({
     let isMounted = true
     loadData()
 
-    const channel = supabase
-      .channel(`kanban_leads_${aba.id}`)
+    // Realtime channel para leads
+    const leadsChannel = supabase
+      .channel(`kanban_leads_${aba.id}_${Date.now()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
         if (isMounted) loadData(true)
       })
       .subscribe()
 
+    // Realtime channel para novas mensagens do WhatsApp
+    const msgChannel = supabase
+      .channel(`kanban_msgs_${aba.id}_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
+        async (payload) => {
+          if (!isMounted) return
+          const newMsg = payload.new as any
+          if (!newMsg) return
+
+          // Ignorar mensagens de saída enviadas por operadores humanos/sistema
+          const isClientInbound =
+            newMsg.direction === 'inbound' ||
+            newMsg.sender_type === 'cliente' ||
+            newMsg.sender_type === 'lead'
+
+          if (!isClientInbound) return
+
+          // Localizar o lead correspondente
+          const currentList = leadsRef.current
+          let matchedLead = currentList.find(
+            (l) => l.id === newMsg.lead_id || (newMsg.phone && l.telefone === newMsg.phone),
+          )
+
+          // Se não encontrou no estado em memória, buscar do banco
+          if (!matchedLead && (newMsg.lead_id || newMsg.phone)) {
+            try {
+              let query = supabase
+                .from('leads')
+                .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+              if (newMsg.lead_id) {
+                query = query.eq('id', newMsg.lead_id)
+              } else if (newMsg.phone) {
+                query = query.eq('telefone', newMsg.phone)
+              }
+              const { data: leadFound } = await query.maybeSingle()
+              if (leadFound) matchedLead = leadFound as any
+            } catch (err) {
+              console.error('Erro ao localizar lead da mensagem:', err)
+            }
+          }
+
+          if (matchedLead) {
+            // Incrementar badge visual de mensagens não lidas
+            setUnreadCounts((prev) => ({
+              ...prev,
+              [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
+            }))
+
+            // Determinar a aba a que o lead pertence
+            const targetAba = getLeadAba(matchedLead)
+            const leadName = matchedLead.nome || 'Lead'
+            const abaTitle = targetAba.titulo || 'Atendimentos'
+
+            // Disparar o toast com auto-dismiss de 8 segundos e clique para abrir modal
+            const toastMessage = `🟢 ${leadName} (${abaTitle}) mandou nova mensagem`
+            const previewText = newMsg.content
+              ? `"${newMsg.content.substring(0, 70)}${newMsg.content.length > 70 ? '...' : ''}"`
+              : undefined
+
+            toast(toastMessage, {
+              description: previewText,
+              duration: 8000,
+              action: {
+                label: 'Ver Conversa',
+                onClick: () => {
+                  if (onOpenLeadGlobal) {
+                    onOpenLeadGlobal(matchedLead!)
+                  } else {
+                    handleOpenLeadModal(matchedLead!)
+                  }
+                },
+              },
+            })
+          }
+        },
+      )
+      .subscribe()
+
     return () => {
       isMounted = false
-      supabase.removeChannel(channel)
+      supabase.removeChannel(leadsChannel)
+      supabase.removeChannel(msgChannel)
     }
   }, [aba.id])
 
@@ -209,10 +314,9 @@ export function KanbanAtendimentos({
 
     try {
       const { data: sessionData } = await supabase.auth.getSession()
+      const currentAuthUser = user || sessionData?.session?.user
       const userName =
-        sessionData.session?.user?.user_metadata?.nome ||
-        sessionData.session?.user?.email?.split('@')[0] ||
-        'Sistema'
+        currentAuthUser?.user_metadata?.nome || currentAuthUser?.email?.split('@')[0] || 'Sistema'
 
       let phoneDigits = quickTelefone.replace(/\D/g, '')
       if (phoneDigits.length === 10)
@@ -373,6 +477,19 @@ export function KanbanAtendimentos({
       }
     })
   }, [leads, aba.id, aba.categoriaPadrao, search, responsavelFilter])
+
+  if (authLoading || (loading && leads.length === 0)) {
+    return (
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
+        {aba.colunas.map((c) => (
+          <div
+            key={c}
+            className="w-80 shrink-0 h-full bg-muted/40 animate-pulse rounded-xl border border-border/70"
+          />
+        ))}
+      </div>
+    )
+  }
 
   // Scroll horizontal buttons
   const handleScroll = (dir: 'left' | 'right') => {
@@ -585,9 +702,10 @@ export function KanbanAtendimentos({
                           currentAba={aba}
                           users={users}
                           isDragging={draggingId === lead.id}
+                          unreadCount={unreadCounts[lead.id] || 0}
                           onDragStart={(e) => handleDragStart(e, lead.id)}
                           onDragEnd={handleDragEnd}
-                          onClick={() => setSelectedLeadForModal(lead)}
+                          onClick={() => handleOpenLeadModal(lead)}
                           onUpdateLead={handleUpdateLead}
                           onArchive={handleArchiveLead}
                           onDelete={() => setLeadToDelete(lead)}

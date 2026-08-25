@@ -14,6 +14,7 @@ import {
   AlertCircle,
   FileText,
   CornerDownRight,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -40,6 +41,7 @@ export interface CardAtendimentoProps {
   currentAba: AtendimentoAbaConfig
   users: Array<{ id: string; nome: string }>
   isDragging?: boolean
+  unreadCount?: number
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onClick?: () => void
@@ -54,6 +56,7 @@ export function CardAtendimento({
   currentAba,
   users,
   isDragging = false,
+  unreadCount = 0,
   onDragStart,
   onDragEnd,
   onClick,
@@ -254,11 +257,11 @@ export function CardAtendimento({
         isEncaminhado && 'bg-muted/30 border-dashed',
       )}
     >
-      {/* Header do Card: Nome inline + Botões de Ação */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+      {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="flex-1 min-w-0">
           {isEditingNome ? (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Input
                 ref={nomeInputRef}
                 value={nomeValue}
@@ -273,6 +276,7 @@ export function CardAtendimento({
                 className="h-7 text-xs font-semibold py-0 px-1.5"
               />
               <button
+                type="button"
                 onClick={handleSaveNome}
                 className="p-1 hover:bg-emerald-500/10 text-emerald-600 rounded"
                 title="Salvar"
@@ -280,6 +284,7 @@ export function CardAtendimento({
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
+                type="button"
                 onClick={() => {
                   setNomeValue(lead.nome)
                   setIsEditingNome(false)
@@ -291,28 +296,61 @@ export function CardAtendimento({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 group/nome">
-              <h4 className="font-semibold text-sm text-foreground truncate leading-tight">
-                {lead.nome || 'Sem nome'}
-              </h4>
+            <div className="flex items-center gap-1.5 group/nome flex-wrap">
               <button
-                onClick={() => setIsEditingNome(true)}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClick?.()
+                }}
+                className="font-semibold text-sm text-foreground hover:text-primary transition-colors text-left truncate leading-tight focus:outline-none"
+                title="Abrir conversa do lead"
+              >
+                {lead.nome || 'Sem nome'}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsEditingNome(true)
+                }}
                 className="opacity-0 group-hover/nome:opacity-100 text-muted-foreground hover:text-foreground p-0.5 transition-opacity"
                 title="Editar nome"
               >
                 <Pencil className="w-3 h-3" />
               </button>
+              {unreadCount > 0 && (
+                <Badge
+                  className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0 rounded-full shadow-xs flex items-center gap-1 shrink-0 animate-pulse"
+                  title={`${unreadCount} nova(s) mensagem(ns)`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClick?.()
+                  }}
+                >
+                  <span>🔵</span> {unreadCount === 1 ? '1 nova msg' : `${unreadCount} novas msgs`}
+                </Badge>
+              )}
             </div>
           )}
         </div>
 
-        {/* Botões de Ação do Card: Arquivar e Excluir */}
+        {/* Botões de Ação do Card: Abrir Chat 💬, Arquivar e Excluir */}
         <div
           className="flex items-center gap-0.5 shrink-0 -mt-0.5"
           onClick={(e) => e.stopPropagation()}
         >
+          <button
+            type="button"
+            onClick={() => onClick?.()}
+            className="p-1.5 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-md transition-colors"
+            title="Abrir conversa (WhatsApp)"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
           {onArchive && (
             <button
+              type="button"
               onClick={() => onArchive(lead.id)}
               className="p-1 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded hover:bg-muted transition-colors"
               title="Arquivar lead"
@@ -322,6 +360,7 @@ export function CardAtendimento({
           )}
           {onDelete && (
             <button
+              type="button"
               onClick={() => onDelete(lead.id)}
               className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors"
               title="Excluir lead"
