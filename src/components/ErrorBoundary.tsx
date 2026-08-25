@@ -10,19 +10,22 @@ interface Props {
 interface State {
   hasError: boolean
   error: Error | null
+  errorInfo: ErrorInfo | null
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    errorInfo: null,
   }
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error }
+    return { hasError: true, error, errorInfo: null }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    this.setState({ errorInfo })
     console.error('Uncaught error in component:', error, errorInfo)
   }
 
@@ -54,8 +57,23 @@ export class ErrorBoundary extends Component<Props, State> {
             </Button>
           </div>
           {this.state.error && (
-            <div className="mt-8 p-4 bg-muted/50 rounded-lg max-w-2xl text-left overflow-auto text-xs text-muted-foreground border border-border">
-              <p className="font-mono">{this.state.error.toString()}</p>
+            <div className="mt-8 p-4 bg-muted/50 rounded-lg max-w-2xl text-left overflow-auto text-xs text-muted-foreground border border-border space-y-2">
+              <p className="font-mono font-bold text-destructive">{this.state.error.toString()}</p>
+              {this.state.error.stack && (
+                <pre className="font-mono text-[11px] whitespace-pre-wrap opacity-80 max-h-40 overflow-y-auto">
+                  {this.state.error.stack}
+                </pre>
+              )}
+              {this.state.errorInfo?.componentStack && (
+                <details className="mt-2 text-muted-foreground">
+                  <summary className="cursor-pointer font-medium hover:underline text-[11px]">
+                    Component Stack
+                  </summary>
+                  <pre className="font-mono text-[10px] whitespace-pre-wrap opacity-70 mt-1 max-h-40 overflow-y-auto">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
+                </details>
+              )}
             </div>
           )}
         </div>

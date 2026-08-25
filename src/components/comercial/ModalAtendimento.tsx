@@ -292,6 +292,7 @@ export function ModalAtendimento({
 
   const consultorRaw = lead.consultor || (lead as any).users
   const consultorNome = Array.isArray(consultorRaw) ? consultorRaw[0]?.nome : consultorRaw?.nome
+  const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -306,7 +307,7 @@ export function ModalAtendimento({
                 {lead.status || 'Sem status'}
               </Badge>
               <Badge variant="secondary" className="text-xs font-semibold">
-                {currentAba.titulo}
+                {currentAba?.titulo || 'Atendimentos'}
               </Badge>
             </div>
 
@@ -340,19 +341,17 @@ export function ModalAtendimento({
             </div>
           </div>
 
-          {currentAba.colunas.includes('Vendido') &&
-            lead.status !== 'Vendido' &&
-            onTriggerSellModal && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  onTriggerSellModal(lead)
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 font-semibold"
-              >
-                <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fechar Venda
-              </Button>
-            )}
+          {colunas.includes('Vendido') && lead.status !== 'Vendido' && onTriggerSellModal && (
+            <Button
+              size="sm"
+              onClick={() => {
+                onTriggerSellModal(lead)
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 font-semibold"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1.5" /> Fechar Venda
+            </Button>
+          )}
         </DialogHeader>
 
         <Tabs

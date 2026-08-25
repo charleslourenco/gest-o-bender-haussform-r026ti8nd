@@ -191,7 +191,7 @@ export function CardAtendimento({
   }
 
   const handleForwardSelect = (destinoAbaId: string) => {
-    if (onForward && destinoAbaId) {
+    if (onForward && destinoAbaId && destinoAbaId !== 'none') {
       onForward(lead.id, destinoAbaId)
     }
   }
@@ -565,11 +565,14 @@ export function CardAtendimento({
         {/* Dropdown "Encaminhar para" */}
         <div className="flex items-center gap-1.5">
           <Share2 className="w-3 h-3 text-muted-foreground shrink-0" />
-          <Select onValueChange={handleForwardSelect} value="">
+          <Select onValueChange={handleForwardSelect} value="none">
             <SelectTrigger className="h-7 text-xs bg-muted/30 border-border/60 text-foreground w-full font-normal">
               <SelectValue placeholder="Encaminhar para..." />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="none" disabled className="text-xs text-muted-foreground hidden">
+                Encaminhar para...
+              </SelectItem>
               {ATENDIMENTO_ABAS.filter((aba) => aba.id !== currentAba.id).map((aba) => (
                 <SelectItem key={aba.id} value={aba.id} className="text-xs">
                   {aba.titulo}

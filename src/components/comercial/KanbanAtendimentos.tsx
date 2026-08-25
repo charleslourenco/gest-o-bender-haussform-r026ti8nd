@@ -93,7 +93,17 @@ export function KanbanAtendimentos({
   const loadData = async (silent = false) => {
     try {
       if (!silent) setLoading(true)
-      const [leadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
+      const [leadsRes, usersRes] = await Promise.allSettled([fetchLeads(), fetchUsers()])
+      const leadsData = leadsRes.status === 'fulfilled' ? leadsRes.value : []
+      const usersData = usersRes.status === 'fulfilled' ? usersRes.value : []
+
+      if (leadsRes.status === 'rejected') {
+        console.error('Erro ao buscar leads:', leadsRes.reason)
+      }
+      if (usersRes.status === 'rejected') {
+        console.error('Erro ao buscar users:', usersRes.reason)
+      }
+
       const safeLeads = Array.isArray(leadsData) ? leadsData : []
       const safeUsers = Array.isArray(usersData) ? usersData : []
       setLeads(safeLeads)
@@ -481,12 +491,13 @@ export function KanbanAtendimentos({
   if (authLoading || (loading && leads.length === 0)) {
     return (
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-        {aba.colunas.map((c) => (
-          <div
-            key={c}
-            className="w-80 shrink-0 h-full bg-muted/40 animate-pulse rounded-xl border border-border/70"
-          />
-        ))}
+        {Array.isArray(aba?.colunas) &&
+          aba.colunas.map((c) => (
+            <div
+              key={c}
+              className="w-80 shrink-0 h-full bg-muted/40 animate-pulse rounded-xl border border-border/70"
+            />
+          ))}
       </div>
     )
   }
@@ -527,7 +538,7 @@ export function KanbanAtendimentos({
       </Select>
 
       {/* Botão (+) exclusivo da aba 01 - Novo Contato */}
-      {aba.id === 'novo-contato' && (
+      {aba?.id === 'novo-contato' && (
         <Button
           size="sm"
           onClick={() => setIsCreatingQuickLead(true)}
@@ -593,138 +604,139 @@ export function KanbanAtendimentos({
           ref={scrollRef}
           className="h-full w-full overflow-x-auto overflow-y-hidden p-4 flex gap-4 scroll-smooth"
         >
-          {aba.colunas.map((coluna, colIdx) => {
-            // Filtrar os leads que pertencem a esta coluna específica da aba
-            const colLeads = Array.isArray(tabLeads)
-              ? tabLeads.filter((l) => {
-                  try {
-                    if (!l || typeof l !== 'object') return false
-                    const status = typeof l.status === 'string' ? l.status.trim() : ''
-                    const { meta } = parseLeadMetadados((l as any).notas_pessoais)
+          {Array.isArray(aba?.colunas) &&
+            aba.colunas.map((coluna, colIdx) => {
+              // Filtrar os leads que pertencem a esta coluna específica da aba
+              const colLeads = Array.isArray(tabLeads)
+                ? tabLeads.filter((l) => {
+                    try {
+                      if (!l || typeof l !== 'object') return false
+                      const status = typeof l.status === 'string' ? l.status.trim() : ''
+                      const { meta } = parseLeadMetadados((l as any).notas_pessoais)
 
-                    // Se a coluna for de encaminhado
-                    const isEncaminhadoCol =
-                      typeof coluna === 'string' && coluna.toLowerCase().includes('encaminhado')
+                      // Se a coluna for de encaminhado
+                      const isEncaminhadoCol =
+                        typeof coluna === 'string' && coluna.toLowerCase().includes('encaminhado')
 
-                    if (isEncaminhadoCol) {
-                      return (
-                        status === coluna ||
-                        status.toLowerCase().includes('encaminhado') ||
-                        meta?.encaminhado_para_aba !== undefined
-                      )
-                    }
-
-                    // Se este card foi encaminhado para esta aba e está na primeira coluna
-                    if (meta?.encaminhado_para_aba === aba.id && colIdx === 0) {
-                      if (status === coluna || !aba.colunas.includes(status)) return true
-                    }
-
-                    // Mapeamento normal
-                    if (status === coluna) return true
-
-                    // Compatibilidade de status legados na primeira coluna da aba correspondente
-                    if (colIdx === 0) {
-                      if (
-                        aba.id === 'lead-consultoria' &&
-                        (status === 'Novo Lead' ||
-                          status === 'Aguardando Consultor' ||
-                          status === 'Designar Consultor')
-                      ) {
-                        return true
+                      if (isEncaminhadoCol) {
+                        return (
+                          status === coluna ||
+                          status.toLowerCase().includes('encaminhado') ||
+                          meta?.encaminhado_para_aba !== undefined
+                        )
                       }
-                      if (aba.id === 'novo-contato' && status === 'Novo Lead') {
-                        return true
+
+                      // Se este card foi encaminhado para esta aba e está na primeira coluna
+                      if (meta?.encaminhado_para_aba === aba.id && colIdx === 0) {
+                        if (status === coluna || !aba.colunas.includes(status)) return true
                       }
-                      if (
-                        !aba.colunas.includes(status) &&
-                        !status.toLowerCase().includes('encaminhado')
-                      ) {
-                        return true
+
+                      // Mapeamento normal
+                      if (status === coluna) return true
+
+                      // Compatibilidade de status legados na primeira coluna da aba correspondente
+                      if (colIdx === 0) {
+                        if (
+                          aba.id === 'lead-consultoria' &&
+                          (status === 'Novo Lead' ||
+                            status === 'Aguardando Consultor' ||
+                            status === 'Designar Consultor')
+                        ) {
+                          return true
+                        }
+                        if (aba.id === 'novo-contato' && status === 'Novo Lead') {
+                          return true
+                        }
+                        if (
+                          !aba.colunas.includes(status) &&
+                          !status.toLowerCase().includes('encaminhado')
+                        ) {
+                          return true
+                        }
                       }
+
+                      return false
+                    } catch (err) {
+                      console.error('Erro ao processar lead no filtro de coluna:', err)
+                      return false
                     }
+                  })
+                : []
 
-                    return false
-                  } catch (err) {
-                    console.error('Erro ao processar lead no filtro de coluna:', err)
-                    return false
-                  }
-                })
-              : []
+              const isDropTarget = dragOverCol === coluna
 
-            const isDropTarget = dragOverCol === coluna
+              return (
+                <div
+                  key={coluna}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    if (dragOverCol !== coluna) setDragOverCol(coluna)
+                  }}
+                  onDragLeave={() => setDragOverCol(null)}
+                  onDrop={(e) => handleDrop(e, coluna)}
+                  className={cn(
+                    'w-80 shrink-0 flex flex-col rounded-xl bg-muted/40 border border-border/70 transition-colors',
+                    isDropTarget && 'bg-primary/5 border-primary/50 ring-2 ring-primary/20',
+                  )}
+                >
+                  {/* Cabeçalho da Coluna */}
+                  <div className="p-3 border-b border-border/60 flex items-center justify-between shrink-0 bg-background/50 rounded-t-xl">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-xs text-foreground tracking-wide uppercase">
+                        {cleanColumnTitle(coluna)}
+                      </h3>
+                      <span className="text-[11px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                        {colLeads.length}
+                      </span>
+                    </div>
+                  </div>
 
-            return (
-              <div
-                key={coluna}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  if (dragOverCol !== coluna) setDragOverCol(coluna)
-                }}
-                onDragLeave={() => setDragOverCol(null)}
-                onDrop={(e) => handleDrop(e, coluna)}
-                className={cn(
-                  'w-80 shrink-0 flex flex-col rounded-xl bg-muted/40 border border-border/70 transition-colors',
-                  isDropTarget && 'bg-primary/5 border-primary/50 ring-2 ring-primary/20',
-                )}
-              >
-                {/* Cabeçalho da Coluna */}
-                <div className="p-3 border-b border-border/60 flex items-center justify-between shrink-0 bg-background/50 rounded-t-xl">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-xs text-foreground tracking-wide uppercase">
-                      {cleanColumnTitle(coluna)}
-                    </h3>
-                    <span className="text-[11px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                      {colLeads.length}
-                    </span>
+                  {/* Lista de Cards da Coluna */}
+                  <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5 min-h-[150px]">
+                    <ErrorBoundary
+                      fallback={
+                        <div className="p-3 text-xs text-destructive bg-destructive/10 rounded-lg text-center">
+                          Erro ao exibir cards desta coluna
+                        </div>
+                      }
+                    >
+                      {colLeads.map((lead) => (
+                        <ErrorBoundary
+                          key={lead.id}
+                          fallback={
+                            <div className="p-2 text-xs text-destructive border border-destructive/30 rounded bg-destructive/5 mb-2">
+                              Erro ao exibir card {lead.nome || lead.id}
+                            </div>
+                          }
+                        >
+                          <CardAtendimento
+                            lead={lead}
+                            currentAba={aba}
+                            users={users}
+                            isDragging={draggingId === lead.id}
+                            unreadCount={unreadCounts[lead.id] || 0}
+                            onDragStart={(e) => handleDragStart(e, lead.id)}
+                            onDragEnd={handleDragEnd}
+                            onClick={() => handleOpenLeadModal(lead)}
+                            onUpdateLead={handleUpdateLead}
+                            onArchive={handleArchiveLead}
+                            onDelete={() => setLeadToDelete(lead)}
+                            onForward={handleForwardLead}
+                          />
+                        </ErrorBoundary>
+                      ))}
+
+                      {colLeads.length === 0 && (
+                        <div className="h-32 border-2 border-dashed border-border/60 rounded-lg flex flex-col items-center justify-center text-muted-foreground/60 text-xs gap-1">
+                          <Inbox className="w-5 h-5 stroke-[1.5]" />
+                          <span>Nenhum card</span>
+                        </div>
+                      )}
+                    </ErrorBoundary>
                   </div>
                 </div>
-
-                {/* Lista de Cards da Coluna */}
-                <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5 min-h-[150px]">
-                  <ErrorBoundary
-                    fallback={
-                      <div className="p-3 text-xs text-destructive bg-destructive/10 rounded-lg text-center">
-                        Erro ao exibir cards desta coluna
-                      </div>
-                    }
-                  >
-                    {colLeads.map((lead) => (
-                      <ErrorBoundary
-                        key={lead.id}
-                        fallback={
-                          <div className="p-2 text-xs text-destructive border border-destructive/30 rounded bg-destructive/5 mb-2">
-                            Erro ao exibir card {lead.nome || lead.id}
-                          </div>
-                        }
-                      >
-                        <CardAtendimento
-                          lead={lead}
-                          currentAba={aba}
-                          users={users}
-                          isDragging={draggingId === lead.id}
-                          unreadCount={unreadCounts[lead.id] || 0}
-                          onDragStart={(e) => handleDragStart(e, lead.id)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => handleOpenLeadModal(lead)}
-                          onUpdateLead={handleUpdateLead}
-                          onArchive={handleArchiveLead}
-                          onDelete={() => setLeadToDelete(lead)}
-                          onForward={handleForwardLead}
-                        />
-                      </ErrorBoundary>
-                    ))}
-
-                    {colLeads.length === 0 && (
-                      <div className="h-32 border-2 border-dashed border-border/60 rounded-lg flex flex-col items-center justify-center text-muted-foreground/60 text-xs gap-1">
-                        <Inbox className="w-5 h-5 stroke-[1.5]" />
-                        <span>Nenhum card</span>
-                      </div>
-                    )}
-                  </ErrorBoundary>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
         </div>
 
         {/* Botões de Rolagem Lateral Desktop */}

@@ -72,14 +72,16 @@ export default function Comercial() {
       <Toaster position="bottom-right" richColors expand={true} />
       {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
       {leadForGlobalModal && (
-        <ModalAtendimento
-          lead={leadForGlobalModal}
-          currentAba={globalModalAba}
-          users={users}
-          open={Boolean(leadForGlobalModal)}
-          onClose={() => setLeadForGlobalModal(null)}
-          onUpdateLead={() => {}}
-        />
+        <ErrorBoundary>
+          <ModalAtendimento
+            lead={leadForGlobalModal}
+            currentAba={globalModalAba}
+            users={users}
+            open={Boolean(leadForGlobalModal)}
+            onClose={() => setLeadForGlobalModal(null)}
+            onUpdateLead={() => {}}
+          />
+        </ErrorBoundary>
       )}
       <Tabs
         value={activeTab}
@@ -140,7 +142,6 @@ export default function Comercial() {
             <TabsContent
               key={aba.id}
               value={aba.id}
-              forceMount={aba.id === activeTab}
               className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
             >
               {aba.id === activeTab && (
@@ -159,7 +160,6 @@ export default function Comercial() {
           {/* ABA AUXILIAR: LISTA */}
           <TabsContent
             value="lista"
-            forceMount={activeTab === 'lista'}
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
             {activeTab === 'lista' && (
@@ -172,7 +172,6 @@ export default function Comercial() {
           {/* ABA AUXILIAR: ARQUIVADOS */}
           <TabsContent
             value="arquivados"
-            forceMount={activeTab === 'arquivados'}
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
             {activeTab === 'arquivados' && (
