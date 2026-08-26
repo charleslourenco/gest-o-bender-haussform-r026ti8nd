@@ -143,8 +143,8 @@ export function KanbanAtendimentos({
     // Realtime channel para leads com identificador único da aba
     let leadsChannel: any = null
     try {
-      leadsChannel = supabase
-        .channel(`kanban_leads_${channelId}`)
+      const channel = supabase.channel(`kanban_leads_${channelId}`)
+      channel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
           if (isMounted) loadData(true)
         })
@@ -153,6 +153,7 @@ export function KanbanAtendimentos({
             console.warn('Realtime kanban_leads channel status/error:', status, err)
           }
         })
+      leadsChannel = channel
     } catch (err) {
       console.warn('Falha ao inicializar canal Realtime kanban_leads:', err)
     }
@@ -160,80 +161,84 @@ export function KanbanAtendimentos({
     // Realtime channel para novas mensagens do WhatsApp
     let msgChannel: any = null
     try {
-      msgChannel = supabase
-        .channel(`kanban_msgs_${channelId}`)
+      const channel = supabase.channel(`kanban_msgs_${channelId}`)
+      channel
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
           async (payload) => {
-            if (!isMounted) return
-            const newMsg = payload.new as any
-            if (!newMsg) return
+            try {
+              if (!isMounted) return
+              const newMsg = payload?.new as any
+              if (!newMsg) return
 
-            // Ignorar mensagens de saída enviadas por operadores humanos/sistema
-            const isClientInbound =
-              newMsg.direction === 'inbound' ||
-              newMsg.sender_type === 'cliente' ||
-              newMsg.sender_type === 'lead'
+              // Ignorar mensagens de saída enviadas por operadores humanos/sistema
+              const isClientInbound =
+                newMsg.direction === 'inbound' ||
+                newMsg.sender_type === 'cliente' ||
+                newMsg.sender_type === 'lead'
 
-            if (!isClientInbound) return
+              if (!isClientInbound) return
 
-            // Localizar o lead correspondente
-            const currentList = leadsRef.current
-            let matchedLead = currentList.find(
-              (l) => l.id === newMsg.lead_id || (newMsg.phone && l.telefone === newMsg.phone),
-            )
+              // Localizar o lead correspondente
+              const currentList = leadsRef.current
+              let matchedLead = currentList.find(
+                (l) => l.id === newMsg.lead_id || (newMsg.phone && l.telefone === newMsg.phone),
+              )
 
-            // Se não encontrou no estado em memória, buscar do banco
-            if (!matchedLead && (newMsg.lead_id || newMsg.phone)) {
-              try {
-                let query = supabase
-                  .from('leads')
-                  .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-                if (newMsg.lead_id) {
-                  query = query.eq('id', newMsg.lead_id)
-                } else if (newMsg.phone) {
-                  query = query.eq('telefone', newMsg.phone)
+              // Se não encontrou no estado em memória, buscar do banco
+              if (!matchedLead && (newMsg.lead_id || newMsg.phone)) {
+                try {
+                  let query = supabase
+                    .from('leads')
+                    .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+                  if (newMsg.lead_id) {
+                    query = query.eq('id', newMsg.lead_id)
+                  } else if (newMsg.phone) {
+                    query = query.eq('telefone', newMsg.phone)
+                  }
+                  const { data: leadFound } = await query.maybeSingle()
+                  if (leadFound) matchedLead = leadFound as any
+                } catch (err) {
+                  console.error('Erro ao localizar lead da mensagem:', err)
                 }
-                const { data: leadFound } = await query.maybeSingle()
-                if (leadFound) matchedLead = leadFound as any
-              } catch (err) {
-                console.error('Erro ao localizar lead da mensagem:', err)
               }
-            }
 
-            if (matchedLead) {
-              // Incrementar badge visual de mensagens não lidas
-              setUnreadCounts((prev) => ({
-                ...prev,
-                [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
-              }))
+              if (matchedLead) {
+                // Incrementar badge visual de mensagens não lidas
+                setUnreadCounts((prev) => ({
+                  ...prev,
+                  [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
+                }))
 
-              // Determinar a aba a que o lead pertence
-              const targetAba = getLeadAba(matchedLead)
-              const leadName = matchedLead.nome || 'Lead'
-              const abaTitle = targetAba.titulo || 'Atendimentos'
+                // Determinar a aba a que o lead pertence
+                const targetAba = getLeadAba(matchedLead)
+                const leadName = matchedLead.nome || 'Lead'
+                const abaTitle = targetAba.titulo || 'Atendimentos'
 
-              // Disparar o toast com auto-dismiss de 8 segundos e clique para abrir modal
-              const toastMessage = `🟢 ${leadName} (${abaTitle}) mandou nova mensagem`
-              const previewText = newMsg.content
-                ? `"${newMsg.content.substring(0, 70)}${newMsg.content.length > 70 ? '...' : ''}"`
-                : undefined
+                // Disparar o toast com auto-dismiss de 8 segundos e clique para abrir modal
+                const toastMessage = `🟢 ${leadName} (${abaTitle}) mandou nova mensagem`
+                const previewText = newMsg.content
+                  ? `"${newMsg.content.substring(0, 70)}${newMsg.content.length > 70 ? '...' : ''}"`
+                  : undefined
 
-              toast(toastMessage, {
-                description: previewText,
-                duration: 8000,
-                action: {
-                  label: 'Ver Conversa',
-                  onClick: () => {
-                    if (onOpenLeadGlobal) {
-                      onOpenLeadGlobal(matchedLead!)
-                    } else {
-                      handleOpenLeadModal(matchedLead!)
-                    }
+                toast(toastMessage, {
+                  description: previewText,
+                  duration: 8000,
+                  action: {
+                    label: 'Ver Conversa',
+                    onClick: () => {
+                      if (onOpenLeadGlobal) {
+                        onOpenLeadGlobal(matchedLead!)
+                      } else {
+                        handleOpenLeadModal(matchedLead!)
+                      }
+                    },
                   },
-                },
-              })
+                })
+              }
+            } catch (innerErr) {
+              console.warn('Erro ao processar mensagem realtime:', innerErr)
             }
           },
         )
@@ -242,6 +247,7 @@ export function KanbanAtendimentos({
             console.warn('Realtime kanban_msgs channel status/error:', status, err)
           }
         })
+      msgChannel = channel
     } catch (err) {
       console.warn('Falha ao inicializar canal Realtime kanban_msgs:', err)
     }
@@ -728,12 +734,12 @@ export function KanbanAtendimentos({
                   onDragLeave={() => setDragOverCol(null)}
                   onDrop={(e) => handleDrop(e, coluna)}
                   className={cn(
-                    'w-80 shrink-0 flex flex-col rounded-xl bg-muted/40 border border-border/70 transition-colors',
+                    'w-80 shrink-0 flex flex-col rounded-xl bg-[#F8F9FA] dark:bg-[#161B22] border border-border/70 transition-colors',
                     isDropTarget && 'bg-primary/5 border-primary/50 ring-2 ring-primary/20',
                   )}
                 >
                   {/* Cabeçalho da Coluna */}
-                  <div className="p-3 border-b border-border/60 flex items-center justify-between shrink-0 bg-background/50 rounded-t-xl">
+                  <div className="p-3 border-b border-border/60 flex items-center justify-between shrink-0 bg-transparent rounded-t-xl">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-xs text-foreground tracking-wide uppercase">
                         {cleanColumnTitle(coluna)}

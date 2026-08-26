@@ -204,6 +204,9 @@ export function CardAtendimento({
       : undefined
 
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
+  const isAguardandoConsultor =
+    leadStatus.toLowerCase().trim() === 'aguardando consultor' ||
+    leadStatus.toLowerCase().trim() === 'aguardando_consultor'
   const isEncaminhado = leadStatus.toLowerCase().includes('encaminhado')
   const forwardedToAba = meta?.encaminhado_para_aba
     ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
@@ -254,10 +257,23 @@ export function CardAtendimento({
         onClick?.()
       }}
       className={cn(
-        'bg-card border border-border/80 dark:border-border rounded-lg p-3.5 mb-3 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group relative flex flex-col gap-2.5',
-        'hover:border-primary/50 dark:hover:border-primary/50',
+        'rounded-lg p-4 mb-3 transition-all duration-200 cursor-pointer group relative flex flex-col gap-2.5',
+        // Cards Normais: Nível 2
+        !isAguardandoConsultor && [
+          'bg-[#FFFFFF] dark:bg-[#21262D]',
+          'border border-solid border-[#E5E7EB] dark:border-[#30363D]',
+          'shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)]',
+          'hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50',
+        ],
+        // Cards de AÇÃO URGENTE (laranja) - "Aguardando Consultor":
+        isAguardandoConsultor && [
+          'bg-[#F97316] text-[#FFFFFF]',
+          'border border-solid border-[#EA580C]',
+          'shadow-[0_0_20px_rgba(249,115,22,0.55)] dark:shadow-[0_0_24px_rgba(249,115,22,0.65)]',
+          'hover:shadow-[0_0_28px_rgba(249,115,22,0.75)] hover:border-[#EA580C]',
+        ],
         isDragging && 'opacity-50 ring-2 ring-primary border-primary',
-        isEncaminhado && 'bg-muted/30 border-dashed',
+        isEncaminhado && !isAguardandoConsultor && 'bg-muted/30 border-solid border-border/80',
       )}
     >
       {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
@@ -306,7 +322,12 @@ export function CardAtendimento({
                   e.stopPropagation()
                   onClick?.()
                 }}
-                className="font-semibold text-sm text-foreground hover:text-primary transition-colors text-left truncate leading-tight focus:outline-none"
+                className={cn(
+                  'font-semibold text-sm transition-colors text-left truncate leading-tight focus:outline-none',
+                  isAguardandoConsultor
+                    ? 'text-white hover:text-white/90 font-bold'
+                    : 'text-foreground hover:text-primary',
+                )}
                 title="Abrir conversa do lead"
               >
                 {lead.nome || 'Sem nome'}
@@ -317,7 +338,12 @@ export function CardAtendimento({
                   e.stopPropagation()
                   setIsEditingNome(true)
                 }}
-                className="opacity-0 group-hover/nome:opacity-100 text-muted-foreground hover:text-foreground p-0.5 transition-opacity"
+                className={cn(
+                  'opacity-0 group-hover/nome:opacity-100 p-0.5 transition-opacity',
+                  isAguardandoConsultor
+                    ? 'text-white/80 hover:text-white'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
                 title="Editar nome"
               >
                 <Pencil className="w-3 h-3" />
@@ -346,7 +372,12 @@ export function CardAtendimento({
           <button
             type="button"
             onClick={() => onClick?.()}
-            className="p-1.5 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-md transition-colors"
+            className={cn(
+              'p-1.5 rounded-md transition-colors',
+              isAguardandoConsultor
+                ? 'text-white hover:text-white hover:bg-white/20'
+                : 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40',
+            )}
             title="Abrir conversa (WhatsApp)"
           >
             <MessageCircle className="w-4 h-4" />
@@ -355,7 +386,12 @@ export function CardAtendimento({
             <button
               type="button"
               onClick={() => onArchive(lead.id)}
-              className="p-1 text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 rounded hover:bg-muted transition-colors"
+              className={cn(
+                'p-1 rounded transition-colors',
+                isAguardandoConsultor
+                  ? 'text-white/80 hover:text-white hover:bg-white/20'
+                  : 'text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-muted',
+              )}
               title="Arquivar lead"
             >
               <Archive className="w-3.5 h-3.5" />
@@ -365,7 +401,12 @@ export function CardAtendimento({
             <button
               type="button"
               onClick={() => onDelete(lead.id)}
-              className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors"
+              className={cn(
+                'p-1 rounded transition-colors',
+                isAguardandoConsultor
+                  ? 'text-white/80 hover:text-white hover:bg-white/20'
+                  : 'text-muted-foreground hover:text-destructive hover:bg-muted',
+              )}
               title="Excluir lead"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -376,7 +417,10 @@ export function CardAtendimento({
 
       {/* Telefone inline */}
       <div
-        className="flex items-center gap-1.5 text-xs text-muted-foreground"
+        className={cn(
+          'flex items-center gap-1.5 text-xs',
+          isAguardandoConsultor ? 'text-white/90' : 'text-muted-foreground',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <Phone className="w-3 h-3 opacity-70 shrink-0" />
@@ -419,7 +463,12 @@ export function CardAtendimento({
             <span className="truncate font-mono">{lead.telefone || 'Sem telefone'}</span>
             <button
               onClick={() => setIsEditingTelefone(true)}
-              className="opacity-0 group-hover/tel:opacity-100 text-muted-foreground hover:text-foreground p-0.5 transition-opacity"
+              className={cn(
+                'opacity-0 group-hover/tel:opacity-100 p-0.5 transition-opacity',
+                isAguardandoConsultor
+                  ? 'text-white/80 hover:text-white'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
               title="Editar telefone"
             >
               <Pencil className="w-2.5 h-2.5" />
@@ -430,10 +479,23 @@ export function CardAtendimento({
 
       {/* Se estiver encaminhado, mostrar badge de destino */}
       {forwardedToAba && (
-        <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded text-[11px] text-muted-foreground font-medium">
-          <CornerDownRight className="w-3 h-3 text-primary shrink-0" />
+        <div
+          className={cn(
+            'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium',
+            isAguardandoConsultor ? 'bg-black/20 text-white' : 'bg-muted/60 text-muted-foreground',
+          )}
+        >
+          <CornerDownRight
+            className={cn(
+              'w-3 h-3 shrink-0',
+              isAguardandoConsultor ? 'text-white' : 'text-primary',
+            )}
+          />
           <span className="truncate">
-            Encaminhado p/ <strong className="text-foreground">{forwardedToAba.titulo}</strong>
+            Encaminhado p/{' '}
+            <strong className={isAguardandoConsultor ? 'text-white font-bold' : 'text-foreground'}>
+              {forwardedToAba.titulo}
+            </strong>
           </span>
         </div>
       )}
@@ -542,14 +604,29 @@ export function CardAtendimento({
 
       {/* Seção inferior do Card: Responsável + Encaminhar Para */}
       <div
-        className="space-y-2 pt-2 border-t border-border/60"
+        className={cn(
+          'space-y-2 pt-2 border-t',
+          isAguardandoConsultor ? 'border-white/20' : 'border-border/60',
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Dropdown de Responsável */}
         <div className="flex items-center gap-1.5">
-          <User className="w-3 h-3 text-muted-foreground shrink-0" />
+          <User
+            className={cn(
+              'w-3 h-3 shrink-0',
+              isAguardandoConsultor ? 'text-white/80' : 'text-muted-foreground',
+            )}
+          />
           <Select value={lead.consultor_id || 'unassigned'} onValueChange={handleResponsavelChange}>
-            <SelectTrigger className="h-7 text-xs bg-muted/30 border-border/60 text-foreground w-full">
+            <SelectTrigger
+              className={cn(
+                'h-7 text-xs w-full',
+                isAguardandoConsultor
+                  ? 'bg-black/20 border-white/30 text-white font-medium hover:bg-black/30'
+                  : 'bg-muted/30 border-border/60 text-foreground',
+              )}
+            >
               <SelectValue placeholder="Designar responsável...">
                 {consultorNome || 'Sem responsável'}
               </SelectValue>
@@ -567,9 +644,21 @@ export function CardAtendimento({
 
         {/* Dropdown "Encaminhar para" */}
         <div className="flex items-center gap-1.5">
-          <Share2 className="w-3 h-3 text-muted-foreground shrink-0" />
+          <Share2
+            className={cn(
+              'w-3 h-3 shrink-0',
+              isAguardandoConsultor ? 'text-white/80' : 'text-muted-foreground',
+            )}
+          />
           <Select onValueChange={handleForwardSelect} value="none">
-            <SelectTrigger className="h-7 text-xs bg-muted/30 border-border/60 text-foreground w-full font-normal">
+            <SelectTrigger
+              className={cn(
+                'h-7 text-xs w-full font-normal',
+                isAguardandoConsultor
+                  ? 'bg-black/20 border-white/30 text-white hover:bg-black/30'
+                  : 'bg-muted/30 border-border/60 text-foreground',
+              )}
+            >
               <SelectValue placeholder="Encaminhar para..." />
             </SelectTrigger>
             <SelectContent>
@@ -587,9 +676,18 @@ export function CardAtendimento({
       </div>
 
       {/* Footer do Card: Data e Tempo no estágio */}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
+      <div
+        className={cn(
+          'flex items-center justify-between text-[10px] pt-1.5 border-t',
+          isAguardandoConsultor
+            ? 'border-white/20 text-white/90'
+            : 'border-border/40 text-muted-foreground',
+        )}
+      >
         <span className="flex items-center gap-1" title="Data do último movimento">
-          <CalendarIcon className="w-2.5 h-2.5 opacity-60" />
+          <CalendarIcon
+            className={cn('w-2.5 h-2.5', isAguardandoConsultor ? 'opacity-90' : 'opacity-60')}
+          />
           {(() => {
             const rawDate = (lead as any).atualizado_em || lead.criado_em
             if (!rawDate) return '-'
@@ -602,10 +700,15 @@ export function CardAtendimento({
           })()}
         </span>
         <span
-          className="flex items-center gap-1 font-medium text-foreground/80"
+          className={cn(
+            'flex items-center gap-1 font-medium',
+            isAguardandoConsultor ? 'text-white font-semibold' : 'text-foreground/80',
+          )}
           title="Tempo no estágio atual"
         >
-          <Clock className="w-2.5 h-2.5 opacity-60" />
+          <Clock
+            className={cn('w-2.5 h-2.5', isAguardandoConsultor ? 'opacity-90' : 'opacity-60')}
+          />
           {elapsed || '-'}
         </span>
       </div>

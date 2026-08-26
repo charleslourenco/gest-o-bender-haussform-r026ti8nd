@@ -87,22 +87,46 @@ export function AnaliseProjetoKanbanBoard() {
   }
 
   useEffect(() => {
+    let isMounted = true
     loadProjects()
 
-    const sub = supabase
-      .channel('formulario_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'formulario_comercial' },
-        loadProjects,
-      )
-      .subscribe()
+    let sub: any = null
+    try {
+      sub = supabase
+        .channel('formulario_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'formulario_comercial' },
+          () => {
+            if (isMounted) loadProjects()
+          },
+        )
+        .subscribe((status, err) => {
+          if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime formulario_changes channel status/error:', status, err)
+          }
+        })
+    } catch (err) {
+      console.warn('Falha ao inicializar canal Realtime formulario_changes:', err)
+    }
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
     window.addEventListener('kanban_search_change', handleSearch)
 
     return () => {
-      supabase.removeChannel(sub)
+      isMounted = false
+      if (sub) {
+        try {
+          sub.unsubscribe()
+        } catch (e) {
+          console.warn('Erro ao cancelar inscrição de sub formulario_changes:', e)
+        }
+        try {
+          supabase.removeChannel(sub)
+        } catch (e) {
+          console.warn('Erro ao remover sub formulario_changes:', e)
+        }
+      }
       window.removeEventListener('kanban_search_change', handleSearch)
     }
   }, [])
