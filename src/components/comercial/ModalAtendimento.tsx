@@ -128,16 +128,24 @@ export function ModalAtendimento({
     if (!open || !lead?.id) return
 
     let channel: any = null
+    const uniqueChannelName = `modal_messages_${lead.id}_${Math.random().toString(36).substring(2, 9)}`
     try {
       channel = supabase
-        .channel(`modal_messages_${lead.id}`)
+        .channel(uniqueChannelName)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'whatsapp_messages' },
           (payload: any) => {
-            const newMsg = payload.new
-            if (newMsg && (newMsg.lead_id === lead.id || newMsg.phone === lead.telefone)) {
-              loadMessages(true)
+            try {
+              const newMsg = payload?.new
+              if (
+                newMsg &&
+                (newMsg.lead_id === lead.id || (lead.telefone && newMsg.phone === lead.telefone))
+              ) {
+                loadMessages(true)
+              }
+            } catch (err) {
+              console.warn('Erro no callback de realtime de mensagens:', err)
             }
           },
         )

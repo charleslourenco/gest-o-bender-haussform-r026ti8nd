@@ -219,7 +219,7 @@ export function CardAtendimento({
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
     if (isAguardandoConsultor) {
       return (
-        <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+        <span className="bg-white/20 text-[#FFFFFF] text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
           {p ? `${p === 'Alta' ? '🔴' : p === 'Média' ? '🟡' : '🟢'} ${p}` : 'Sem prioridade'}
         </span>
       )
@@ -228,25 +228,25 @@ export function CardAtendimento({
     switch (p) {
       case 'Alta':
         return (
-          <span className="bg-[#30363D] text-[#FF7B72] border border-[#F85149]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+          <span className="bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA] dark:bg-[#30363D] dark:text-[#FF7B72] dark:border-[#F85149]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🔴</span> Alta
           </span>
         )
       case 'Média':
         return (
-          <span className="bg-[#30363D] text-[#D29922] border border-[#D29922]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+          <span className="bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] dark:bg-[#30363D] dark:text-[#D29922] dark:border-[#D29922]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🟡</span> Média
           </span>
         )
       case 'Baixa':
         return (
-          <span className="bg-[#30363D] text-[#3FB950] border border-[#3FB950]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+          <span className="bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] dark:bg-[#30363D] dark:text-[#3FB950] dark:border-[#3FB950]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🟢</span> Baixa
           </span>
         )
       default:
         return (
-          <span className="bg-[#30363D] text-[#C9D1D9] text-[11px] font-normal px-2 py-0.5 rounded-md inline-flex items-center">
+          <span className="bg-[#F3F4F6] text-[#4B5563] dark:bg-[#30363D] dark:text-[#C9D1D9] text-[11px] font-normal px-2 py-0.5 rounded-md inline-flex items-center">
             Sem prioridade
           </span>
         )
@@ -271,24 +271,26 @@ export function CardAtendimento({
         marginBottom: '12px',
       }}
       className={cn(
-        'transition-all duration-200 cursor-pointer group relative flex flex-col gap-2.5',
-        // Card Normal: Fundo #1E1E1E (dark) / #FFFFFF (light), borda sólida 1px #3A3A3A (dark) / #E5E7EB (light), sombra 0 4px 16px rgba(0,0,0,0.5) + 0 0 0 1px rgba(255,255,255,0.03)
+        'transition-all duration-200 ease-out cursor-pointer group relative flex flex-col gap-2.5',
+        // CARDS NORMAIS (modo claro): Fundo #FFFFFF (branco puro), borda sólida 1px #E5E7EB, sombra [0_2px_8px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)]
+        // CARDS NORMAIS (modo escuro): Fundo #1E1E1E, borda sólida 1px #3A3A3A, sombra [0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]
         !isAguardandoConsultor && [
-          'bg-white dark:bg-[#1E1E1E]',
+          'bg-[#FFFFFF] dark:bg-[#1E1E1E]',
           'border border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
-          'shadow-sm dark:shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]',
-          'hover:bg-[#F9FAFB] dark:hover:bg-[#252525]',
-          'hover:border-primary/50 dark:hover:border-[#4A4A4A]',
-          'hover:shadow-md dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)]',
+          'shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]',
+          'hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
+          'hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)]',
         ],
-        // Card de Ação Urgente (laranja): Fundo #F97316, borda sólida 1px #FB923C, sombra 0 0 20px rgba(249,115,22,0.35) + 0 4px 12px rgba(0,0,0,0.4)
+        // CARDS DE AÇÃO URGENTE (laranja - modo claro): Fundo #F97316, borda sólida 1px #EA580C, sombra [0_4px_20px_rgba(249,115,22,0.3),0_2px_6px_rgba(0,0,0,0.1)], hover:bg-[#FB923C]
+        // CARDS DE AÇÃO URGENTE (laranja - modo escuro): Fundo #F97316, borda sólida 1px #FB923C, sombra [0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]
         isAguardandoConsultor && [
           'bg-[#F97316] text-[#FFFFFF]',
-          'border border-solid border-[#FB923C]',
-          'shadow-[0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]',
-          'hover:bg-[#FB923C] hover:shadow-[0_0_28px_rgba(249,115,22,0.5),0_6px_16px_rgba(0,0,0,0.5)]',
+          'border border-solid border-[#EA580C] dark:border-[#FB923C]',
+          'shadow-[0_4px_20px_rgba(249,115,22,0.3),0_2px_6px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]',
+          'hover:bg-[#FB923C] hover:shadow-[0_6px_24px_rgba(249,115,22,0.4),0_3px_8px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_0_28px_rgba(249,115,22,0.5),0_6px_16px_rgba(0,0,0,0.5)]',
         ],
-        isDragging && 'opacity-50 ring-2 ring-[#58A6FF] border-[#58A6FF]',
+        isDragging &&
+          'opacity-50 ring-2 ring-[#3B82F6] border-[#3B82F6] dark:ring-[#58A6FF] dark:border-[#58A6FF]',
       )}
     >
       {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
@@ -311,7 +313,7 @@ export function CardAtendimento({
                   'h-7 text-[15px] font-semibold py-0 px-1.5',
                   isAguardandoConsultor
                     ? 'bg-black/30 border-white/40 text-white'
-                    : 'bg-[#252525] border-[#4A4A4A] text-[#E6EDF3]',
+                    : 'bg-[#F9FAFB] dark:bg-[#252525] border-[#D1D5DB] dark:border-[#4A4A4A] text-[#111827] dark:text-[#E6EDF3]',
                 )}
               />
               <button
@@ -321,7 +323,7 @@ export function CardAtendimento({
                   'p-1 rounded',
                   isAguardandoConsultor
                     ? 'text-white hover:bg-white/20'
-                    : 'text-emerald-400 hover:bg-emerald-500/20',
+                    : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20',
                 )}
                 title="Salvar"
               >
@@ -337,7 +339,7 @@ export function CardAtendimento({
                   'p-1 rounded',
                   isAguardandoConsultor
                     ? 'text-white hover:bg-white/20'
-                    : 'text-rose-400 hover:bg-rose-500/20',
+                    : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20',
                 )}
                 title="Cancelar"
               >
@@ -356,7 +358,7 @@ export function CardAtendimento({
                   'text-[15px] transition-colors text-left truncate leading-tight focus:outline-none',
                   isAguardandoConsultor
                     ? 'text-[#FFFFFF] hover:text-white/90 font-bold'
-                    : 'text-foreground dark:text-[#E6EDF3] hover:text-[#58A6FF] dark:hover:text-[#58A6FF] font-semibold',
+                    : 'text-[#111827] dark:text-[#E6EDF3] hover:text-[#3B82F6] dark:hover:text-[#58A6FF] font-semibold',
                 )}
                 title="Abrir conversa do lead"
               >
@@ -372,7 +374,7 @@ export function CardAtendimento({
                   'opacity-0 group-hover/nome:opacity-100 p-0.5 transition-opacity',
                   isAguardandoConsultor
                     ? 'text-white/90 hover:text-white'
-                    : 'text-muted-foreground dark:text-[#8B949E] hover:text-foreground dark:hover:text-[#E6EDF3]',
+                    : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
                 )}
                 title="Editar nome"
               >
@@ -382,7 +384,9 @@ export function CardAtendimento({
                 <span
                   className={cn(
                     'text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 animate-pulse',
-                    isAguardandoConsultor ? 'bg-white text-[#F97316]' : 'bg-[#58A6FF] text-white',
+                    isAguardandoConsultor
+                      ? 'bg-white text-[#F97316]'
+                      : 'bg-[#3B82F6] dark:bg-[#58A6FF] text-white',
                   )}
                   title={`${unreadCount} nova(s) mensagem(ns)`}
                   onClick={(e) => {
@@ -423,7 +427,7 @@ export function CardAtendimento({
                 'p-1.5 rounded-md transition-colors',
                 isAguardandoConsultor
                   ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
-                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-amber-500 dark:hover:text-amber-400 hover:bg-muted dark:hover:bg-[#252525]',
+                  : 'text-[#6B7280] dark:text-[#8B949E] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-[#F3F4F6] dark:hover:bg-[#252525]',
               )}
               title="Arquivar lead"
             >
@@ -438,7 +442,7 @@ export function CardAtendimento({
                 'p-1.5 rounded-md transition-colors',
                 isAguardandoConsultor
                   ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
-                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-destructive hover:bg-muted dark:hover:bg-[#252525]',
+                  : 'text-[#6B7280] dark:text-[#8B949E] hover:text-destructive hover:bg-[#F3F4F6] dark:hover:bg-[#252525]',
               )}
               title="Excluir lead"
             >
@@ -452,7 +456,7 @@ export function CardAtendimento({
       <div
         className={cn(
           'flex items-center gap-1.5 text-[13px] font-normal',
-          isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-muted-foreground dark:text-[#8B949E]',
+          isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -480,7 +484,7 @@ export function CardAtendimento({
                 'h-6 text-[13px] py-0 px-1.5 flex-1',
                 isAguardandoConsultor
                   ? 'bg-black/30 border-white/40 text-white'
-                  : 'bg-[#252525] border-[#4A4A4A] text-[#E6EDF3]',
+                  : 'bg-[#F9FAFB] dark:bg-[#252525] border-[#D1D5DB] dark:border-[#4A4A4A] text-[#111827] dark:text-[#E6EDF3]',
               )}
             />
             <button
@@ -489,7 +493,7 @@ export function CardAtendimento({
                 'p-0.5 rounded',
                 isAguardandoConsultor
                   ? 'text-white hover:bg-white/20'
-                  : 'text-emerald-400 hover:bg-emerald-500/20',
+                  : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20',
               )}
               title="Salvar"
             >
@@ -504,7 +508,7 @@ export function CardAtendimento({
                 'p-0.5 rounded',
                 isAguardandoConsultor
                   ? 'text-white hover:bg-white/20'
-                  : 'text-rose-400 hover:bg-rose-500/20',
+                  : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20',
               )}
               title="Cancelar"
             >
@@ -522,7 +526,7 @@ export function CardAtendimento({
                 'opacity-0 group-hover/tel:opacity-100 p-0.5 transition-opacity',
                 isAguardandoConsultor
                   ? 'text-white/90 hover:text-white'
-                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-foreground dark:hover:text-[#E6EDF3]',
+                  : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
               )}
               title="Editar telefone"
             >
@@ -537,20 +541,24 @@ export function CardAtendimento({
         <div
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-normal',
-            isAguardandoConsultor ? 'bg-black/20 text-[#FFFFFF]' : 'bg-[#30363D] text-[#C9D1D9]',
+            isAguardandoConsultor
+              ? 'bg-black/20 text-[#FFFFFF]'
+              : 'bg-[#F3F4F6] text-[#4B5563] dark:bg-[#30363D] dark:text-[#C9D1D9]',
           )}
         >
           <CornerDownRight
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#58A6FF]',
+              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#3B82F6] dark:text-[#58A6FF]',
             )}
           />
           <span className="truncate">
             Encaminhado p/{' '}
             <strong
               className={
-                isAguardandoConsultor ? 'text-[#FFFFFF] font-bold' : 'text-[#E6EDF3] font-semibold'
+                isAguardandoConsultor
+                  ? 'text-[#FFFFFF] font-bold'
+                  : 'text-[#111827] dark:text-[#E6EDF3] font-semibold'
               }
             >
               {forwardedToAba.titulo}
@@ -566,7 +574,7 @@ export function CardAtendimento({
             'p-2.5 rounded-lg border space-y-2 text-[13px]',
             isAguardandoConsultor
               ? 'bg-black/20 border-white/20 text-white'
-              : 'bg-[#161B22] dark:bg-[#161B22] border-[#3A3A3A] text-[#8B949E]',
+              : 'bg-[#F9FAFB] dark:bg-[#161B22] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#6B7280] dark:text-[#8B949E]',
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -576,7 +584,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 <FileText className="w-3 h-3" /> Descrição do Projeto
@@ -588,7 +596,7 @@ export function CardAtendimento({
                     'text-[11px] flex items-center gap-0.5 font-medium transition-colors',
                     isAguardandoConsultor
                       ? 'text-white/80 hover:text-white'
-                      : 'text-[#8B949E] hover:text-[#E6EDF3]',
+                      : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
                   )}
                 >
                   <Pencil className="w-2.5 h-2.5" /> Editar
@@ -607,7 +615,7 @@ export function CardAtendimento({
                     'w-full border rounded p-1.5 text-[13px] outline-none resize-y',
                     isAguardandoConsultor
                       ? 'bg-black/30 border-white/30 text-white focus:ring-1 focus:ring-white'
-                      : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3] focus:ring-1 focus:ring-[#58A6FF]',
+                      : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#D1D5DB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] focus:ring-1 focus:ring-[#3B82F6] dark:focus:ring-[#58A6FF]',
                   )}
                 />
                 <div className="flex justify-end gap-1">
@@ -616,13 +624,13 @@ export function CardAtendimento({
                       setDescricaoValue(meta.descricao_projeto || '')
                       setIsEditingDescricao(false)
                     }}
-                    className="px-2 py-0.5 text-[11px] text-muted-foreground dark:text-[#8B949E] hover:bg-muted dark:hover:bg-[#252525] rounded"
+                    className="px-2 py-0.5 text-[11px] text-[#6B7280] dark:text-[#8B949E] hover:bg-[#F3F4F6] dark:hover:bg-[#252525] rounded"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleSaveDescricao}
-                    className="px-2 py-0.5 text-[11px] bg-[#58A6FF] text-white font-medium rounded hover:bg-[#58A6FF]/90"
+                    className="px-2 py-0.5 text-[11px] bg-[#3B82F6] dark:bg-[#58A6FF] text-white font-medium rounded hover:bg-[#2563EB] dark:hover:bg-[#58A6FF]/90"
                   >
                     Salvar
                   </button>
@@ -634,7 +642,7 @@ export function CardAtendimento({
                   'text-[12px] italic line-clamp-2 p-1.5 rounded border min-h-[28px]',
                   isAguardandoConsultor
                     ? 'bg-black/20 border-white/20 text-white/90'
-                    : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#C9D1D9]',
+                    : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#4B5563] dark:text-[#C9D1D9]',
                 )}
               >
                 {meta.descricao_projeto || 'Nenhuma descrição cadastrada...'}
@@ -646,7 +654,7 @@ export function CardAtendimento({
           <div
             className={cn(
               'grid grid-cols-2 gap-2 pt-1 border-t',
-              isAguardandoConsultor ? 'border-white/20' : 'border-[#3A3A3A]',
+              isAguardandoConsultor ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
             )}
           >
             {/* Prazo */}
@@ -654,7 +662,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[10px] font-semibold uppercase tracking-wider block mb-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 Prazo
@@ -664,13 +672,13 @@ export function CardAtendimento({
                   'flex items-center gap-1 px-2 py-1 rounded border',
                   isAguardandoConsultor
                     ? 'bg-black/20 border-white/30'
-                    : 'bg-[#1E1E1E] border-[#3A3A3A]',
+                    : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A]',
                 )}
               >
                 <CalendarIcon
                   className={cn(
                     'w-3 h-3 shrink-0',
-                    isAguardandoConsultor ? 'text-white' : 'text-[#8B949E]',
+                    isAguardandoConsultor ? 'text-white' : 'text-[#6B7280] dark:text-[#8B949E]',
                   )}
                 />
                 <input
@@ -679,7 +687,7 @@ export function CardAtendimento({
                   onChange={handleUpdatePrazo}
                   className={cn(
                     'bg-transparent text-[11px] outline-none w-full font-mono cursor-pointer',
-                    isAguardandoConsultor ? 'text-white' : 'text-[#E6EDF3]',
+                    isAguardandoConsultor ? 'text-white' : 'text-[#111827] dark:text-[#E6EDF3]',
                   )}
                 />
               </div>
@@ -690,7 +698,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[10px] font-semibold uppercase tracking-wider block mb-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 Prioridade
@@ -706,14 +714,14 @@ export function CardAtendimento({
                     'h-7 text-xs',
                     isAguardandoConsultor
                       ? 'bg-black/20 border-white/30 text-white'
-                      : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3]',
+                      : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]',
                   )}
                 >
                   <SelectValue placeholder="Prioridade">
                     {getPriorityBadge(meta.prioridade)}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3]">
+                <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
                   <SelectItem value="unassigned">Sem prioridade</SelectItem>
                   <SelectItem value="Alta">🔴 Alta</SelectItem>
                   <SelectItem value="Média">🟡 Média</SelectItem>
@@ -740,9 +748,7 @@ export function CardAtendimento({
           <User
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor
-                ? 'text-[#FFFFFF]'
-                : 'text-muted-foreground dark:text-[#8B949E]',
+              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
             )}
           />
           <Select value={lead.consultor_id || 'unassigned'} onValueChange={handleResponsavelChange}>
@@ -751,14 +757,14 @@ export function CardAtendimento({
                 'h-7 text-[13px] w-full font-normal',
                 isAguardandoConsultor
                   ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] font-medium hover:bg-black/30'
-                  : 'bg-muted/30 dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-foreground dark:text-[#E6EDF3] hover:border-[#4A4A4A]',
+                  : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
               )}
             >
               <SelectValue placeholder="Designar responsável...">
                 {consultorNome || 'Sem responsável'}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="dark:bg-[#1E1E1E] dark:border-[#3A3A3A] dark:text-[#E6EDF3]">
+            <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {safeUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id} className="text-xs">
@@ -774,9 +780,7 @@ export function CardAtendimento({
           <Share2
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor
-                ? 'text-[#FFFFFF]'
-                : 'text-muted-foreground dark:text-[#8B949E]',
+              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
             )}
           />
           <Select onValueChange={handleForwardSelect} value="none">
@@ -785,12 +789,12 @@ export function CardAtendimento({
                 'h-7 text-[13px] w-full font-normal',
                 isAguardandoConsultor
                   ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] hover:bg-black/30'
-                  : 'bg-muted/30 dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-foreground dark:text-[#E6EDF3] hover:border-[#4A4A4A]',
+                  : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
               )}
             >
               <SelectValue placeholder="Encaminhar para..." />
             </SelectTrigger>
-            <SelectContent className="dark:bg-[#1E1E1E] dark:border-[#3A3A3A] dark:text-[#E6EDF3]">
+            <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
               <SelectItem value="none" disabled className="text-xs text-muted-foreground hidden">
                 Encaminhar para...
               </SelectItem>
@@ -810,7 +814,7 @@ export function CardAtendimento({
           'flex items-center justify-between text-[13px] pt-1.5 border-t font-normal',
           isAguardandoConsultor
             ? 'border-white/20 text-[#FFFFFF]'
-            : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-muted-foreground dark:text-[#8B949E]',
+            : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#6B7280] dark:text-[#8B949E]',
         )}
       >
         <span className="flex items-center gap-1 text-[12px]" title="Data do último movimento">
@@ -833,7 +837,7 @@ export function CardAtendimento({
             'flex items-center gap-1 text-[12px]',
             isAguardandoConsultor
               ? 'text-[#FFFFFF] font-bold'
-              : 'text-foreground dark:text-[#E6EDF3] font-medium',
+              : 'text-[#111827] dark:text-[#E6EDF3] font-medium',
           )}
           title="Tempo no estágio atual"
         >

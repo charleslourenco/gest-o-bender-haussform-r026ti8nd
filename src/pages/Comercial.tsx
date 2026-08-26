@@ -21,10 +21,16 @@ export default function Comercial() {
   const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
 
-  const globalModalAba =
-    leadForGlobalModal && typeof leadForGlobalModal === 'object'
-      ? getLeadAba(leadForGlobalModal)
-      : ATENDIMENTO_ABAS[0]
+  const globalModalAba = useMemo(() => {
+    try {
+      if (leadForGlobalModal && typeof leadForGlobalModal === 'object' && leadForGlobalModal.id) {
+        return getLeadAba(leadForGlobalModal)
+      }
+    } catch (e) {
+      console.warn('Erro ao calcular aba do lead no modal global:', e)
+    }
+    return ATENDIMENTO_ABAS[0]
+  }, [leadForGlobalModal])
 
   const handleOpenLeadModalGlobal = (lead: any) => {
     if (lead && typeof lead === 'object' && lead.id) {
@@ -91,15 +97,16 @@ export default function Comercial() {
   return (
     <ErrorBoundary>
       {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
-      {leadForGlobalModal && leadForGlobalModal.id && (
+      {leadForGlobalModal && typeof leadForGlobalModal === 'object' && leadForGlobalModal.id && (
         <ErrorBoundary fallback={null}>
           <ModalAtendimento
             lead={leadForGlobalModal}
             currentAba={globalModalAba}
-            users={users}
+            users={Array.isArray(users) ? users : []}
             open={Boolean(leadForGlobalModal)}
             onClose={() => setLeadForGlobalModal(null)}
             onUpdateLead={() => {}}
+            key={`global-modal-${leadForGlobalModal.id}`}
           />
         </ErrorBoundary>
       )}
