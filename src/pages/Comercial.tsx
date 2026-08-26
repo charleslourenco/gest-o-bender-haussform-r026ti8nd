@@ -99,15 +99,19 @@ export default function Comercial() {
             <div ref={setToolbarNode} className="shrink-0 flex items-center gap-2 flex-wrap" />
           </div>
 
-          {/* Linha 2 (ABAIXO): Barra de Abas com scroll horizontal funcional e scrollbar fina visível */}
-          <div className="w-full overflow-x-auto pb-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-            <TabsList className="bg-muted/60 p-1 flex items-center gap-1 h-auto rounded-lg w-max">
+          {/* Linha 2 (ABAIXO): Barra de Abas com scroll horizontal funcional e scrollbar de 6px visível */}
+          <div
+            tabIndex={0}
+            className="w-full overflow-x-auto pb-1.5 focus:outline-none scroll-smooth [&::-webkit-scrollbar]:h-[6px] [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-muted/30 [&::-webkit-scrollbar-track]:rounded-full"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            <TabsList className="bg-muted/60 p-1 flex items-center gap-1 h-auto rounded-lg w-max min-w-full sm:min-w-0">
               {/* 8 abas de kanban SEM números */}
               {ATENDIMENTO_ABAS.map((aba) => (
                 <TabsTrigger
                   key={aba.id}
                   value={aba.id}
-                  className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                  className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
                 >
                   {aba.titulo}
                 </TabsTrigger>
@@ -119,14 +123,14 @@ export default function Comercial() {
               {/* ABAS AUXILIARES */}
               <TabsTrigger
                 value="lista"
-                className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
               >
                 <ListIcon className="w-3.5 h-3.5 mr-1" />
                 Lista
               </TabsTrigger>
               <TabsTrigger
                 value="arquivados"
-                className="py-1 px-2.5 rounded-md text-xs font-bold transition-colors whitespace-nowrap data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
               >
                 <Archive className="w-3.5 h-3.5 mr-1" />
                 Arquivados

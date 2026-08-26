@@ -127,9 +127,11 @@ export function KanbanAtendimentos({
     let isMounted = true
     loadData()
 
-    // Realtime channel para leads
+    const channelId = `${aba.id}_${Math.random().toString(36).substring(2, 9)}`
+
+    // Realtime channel para leads com identificador único da aba
     const leadsChannel = supabase
-      .channel(`kanban_leads_${aba.id}_${Date.now()}`)
+      .channel(`kanban_leads_${channelId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
         if (isMounted) loadData(true)
       })
@@ -137,7 +139,7 @@ export function KanbanAtendimentos({
 
     // Realtime channel para novas mensagens do WhatsApp
     const msgChannel = supabase
-      .channel(`kanban_msgs_${aba.id}_${Date.now()}`)
+      .channel(`kanban_msgs_${channelId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
@@ -217,6 +219,8 @@ export function KanbanAtendimentos({
 
     return () => {
       isMounted = false
+      leadsChannel.unsubscribe()
+      msgChannel.unsubscribe()
       supabase.removeChannel(leadsChannel)
       supabase.removeChannel(msgChannel)
     }

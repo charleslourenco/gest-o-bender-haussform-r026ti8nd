@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { Lead } from '@/types'
 import { moveLeadToClient } from '@/services/comercial'
 import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
 
 interface Props {
   lead: Lead
   onClose: () => void
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export function ConfirmSellModal({ lead, onClose }: Props) {
   const navigate = useNavigate()
@@ -20,10 +23,25 @@ export function ConfirmSellModal({ lead, onClose }: Props) {
     setIsLoading(true)
     setError('')
     try {
-      const id = await moveLeadToClient(lead, user?.id || '')
+      let activeUserId = user?.id
+
+      // Se o user ainda não estiver no contexto, tenta obter da sessão do Supabase
+      if (!activeUserId || !UUID_REGEX.test(activeUserId)) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        activeUserId = sessionData?.session?.user?.id
+      }
+
+      if (!activeUserId || !UUID_REGEX.test(activeUserId)) {
+        setError('Carregando autenticação... Por favor, aguarde um instante e tente novamente.')
+        setIsLoading(false)
+        return
+      }
+
+      const id = await moveLeadToClient(lead, activeUserId)
       setDossieId(id)
+      setIsLoading(false)
     } catch (err: any) {
-      setError(err.message)
+      setError(err?.message || 'Erro ao processar venda')
       setIsLoading(false)
     }
   }
