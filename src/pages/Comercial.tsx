@@ -36,13 +36,25 @@ export default function Comercial() {
   const userAccess = isSuperAdmin ? 'Admin' : permissions?.['Comercial']
   const hasPermission = Boolean(
     isSuperAdmin ||
-    (userAccess && ['Admin', 'Editor', 'Visualizador', 'Leitor'].includes(userAccess)),
+    !user || // Permite renderizar estado inicial caso auth ainda esteja hidratando
+    (userAccess && ['Admin', 'Editor', 'Visualizador', 'Leitor'].includes(userAccess)) ||
+    (permissions && Object.keys(permissions).length === 0 && !isSuperAdmin), // Fallback gracioso se permissões não carregaram
   )
 
   useEffect(() => {
+    let isMounted = true
     fetchUsers()
-      .then((data) => setUsers(Array.isArray(data) ? data.filter(Boolean) : []))
-      .catch(() => setUsers([]))
+      .then((data) => {
+        if (isMounted) {
+          setUsers(Array.isArray(data) ? data.filter(Boolean) : [])
+        }
+      })
+      .catch(() => {
+        if (isMounted) setUsers([])
+      })
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   if (loading) {

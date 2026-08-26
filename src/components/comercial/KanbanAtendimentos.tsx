@@ -88,14 +88,13 @@ export function KanbanAtendimentos({
 
   // Limpar contagem de não lidas quando abrir o modal de conversa
   const handleOpenLeadModal = (lead: Lead) => {
-    if (lead?.id) {
-      setUnreadCounts((prev) => {
-        if (!prev[lead.id]) return prev
-        const copy = { ...prev }
-        delete copy[lead.id]
-        return copy
-      })
-    }
+    if (!lead || !lead.id) return
+    setUnreadCounts((prev) => {
+      if (!prev[lead.id]) return prev
+      const copy = { ...prev }
+      delete copy[lead.id]
+      return copy
+    })
     setSelectedLeadForModal(lead)
   }
 
@@ -822,7 +821,6 @@ export function KanbanAtendimentos({
           </Button>
         </div>
       </div>
-
       {/* MODAL DETALHADO (WhatsApp + Anotações + Timeline) */}
       {selectedLeadForModal && (
         <ErrorBoundary fallback={null}>

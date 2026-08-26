@@ -217,30 +217,38 @@ export function CardAtendimento({
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
+    if (isAguardandoConsultor) {
+      return (
+        <span className="bg-white/20 text-white text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+          {p ? `${p === 'Alta' ? '🔴' : p === 'Média' ? '🟡' : '🟢'} ${p}` : 'Sem prioridade'}
+        </span>
+      )
+    }
+
     switch (p) {
       case 'Alta':
         return (
-          <Badge className="bg-red-500/15 text-red-700 dark:text-red-400 border-red-300 dark:border-red-800 text-[10px] font-semibold flex items-center gap-1 hover:bg-red-500/20">
+          <span className="bg-[#30363D] text-[#FF7B72] border border-[#F85149]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🔴</span> Alta
-          </Badge>
+          </span>
         )
       case 'Média':
         return (
-          <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 text-[10px] font-semibold flex items-center gap-1 hover:bg-amber-500/20">
+          <span className="bg-[#30363D] text-[#D29922] border border-[#D29922]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🟡</span> Média
-          </Badge>
+          </span>
         )
       case 'Baixa':
         return (
-          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold flex items-center gap-1 hover:bg-emerald-500/20">
+          <span className="bg-[#30363D] text-[#3FB950] border border-[#3FB950]/40 text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
             <span>🟢</span> Baixa
-          </Badge>
+          </span>
         )
       default:
         return (
-          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+          <span className="bg-[#30363D] text-[#C9D1D9] text-[11px] font-normal px-2 py-0.5 rounded-md inline-flex items-center">
             Sem prioridade
-          </Badge>
+          </span>
         )
     }
   }
@@ -253,27 +261,34 @@ export function CardAtendimento({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button, input, select, [role="combobox"]')) return
+        if ((e.target as HTMLElement).closest('button, input, select, textarea, [role="combobox"]'))
+          return
         onClick?.()
       }}
+      style={{
+        borderRadius: '10px',
+        padding: '16px',
+        marginBottom: '12px',
+      }}
       className={cn(
-        'rounded-lg p-4 mb-3 transition-all duration-200 cursor-pointer group relative flex flex-col gap-2.5',
-        // Cards Normais: Nível 2
+        'transition-all duration-200 cursor-pointer group relative flex flex-col gap-2.5',
+        // Card Normal: Fundo #1E1E1E (dark) / #FFFFFF (light), borda sólida 1px #3A3A3A (dark) / #E5E7EB (light), sombra 0 4px 16px rgba(0,0,0,0.5) + 0 0 0 1px rgba(255,255,255,0.03)
         !isAguardandoConsultor && [
-          'bg-[#FFFFFF] dark:bg-[#21262D]',
-          'border border-solid border-[#E5E7EB] dark:border-[#30363D]',
-          'shadow-[0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)]',
-          'hover:shadow-md hover:border-primary/50 dark:hover:border-primary/50',
+          'bg-white dark:bg-[#1E1E1E]',
+          'border border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
+          'shadow-sm dark:shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]',
+          'hover:bg-[#F9FAFB] dark:hover:bg-[#252525]',
+          'hover:border-primary/50 dark:hover:border-[#4A4A4A]',
+          'hover:shadow-md dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)]',
         ],
-        // Cards de AÇÃO URGENTE (laranja) - "Aguardando Consultor":
+        // Card de Ação Urgente (laranja): Fundo #F97316, borda sólida 1px #FB923C, sombra 0 0 20px rgba(249,115,22,0.35) + 0 4px 12px rgba(0,0,0,0.4)
         isAguardandoConsultor && [
           'bg-[#F97316] text-[#FFFFFF]',
-          'border border-solid border-[#EA580C]',
-          'shadow-[0_0_20px_rgba(249,115,22,0.55)] dark:shadow-[0_0_24px_rgba(249,115,22,0.65)]',
-          'hover:shadow-[0_0_28px_rgba(249,115,22,0.75)] hover:border-[#EA580C]',
+          'border border-solid border-[#FB923C]',
+          'shadow-[0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]',
+          'hover:bg-[#FB923C] hover:shadow-[0_0_28px_rgba(249,115,22,0.5),0_6px_16px_rgba(0,0,0,0.5)]',
         ],
-        isDragging && 'opacity-50 ring-2 ring-primary border-primary',
-        isEncaminhado && !isAguardandoConsultor && 'bg-muted/30 border-solid border-border/80',
+        isDragging && 'opacity-50 ring-2 ring-[#58A6FF] border-[#58A6FF]',
       )}
     >
       {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
@@ -292,12 +307,22 @@ export function CardAtendimento({
                     setIsEditingNome(false)
                   }
                 }}
-                className="h-7 text-xs font-semibold py-0 px-1.5"
+                className={cn(
+                  'h-7 text-[15px] font-semibold py-0 px-1.5',
+                  isAguardandoConsultor
+                    ? 'bg-black/30 border-white/40 text-white'
+                    : 'bg-[#252525] border-[#4A4A4A] text-[#E6EDF3]',
+                )}
               />
               <button
                 type="button"
                 onClick={handleSaveNome}
-                className="p-1 hover:bg-emerald-500/10 text-emerald-600 rounded"
+                className={cn(
+                  'p-1 rounded',
+                  isAguardandoConsultor
+                    ? 'text-white hover:bg-white/20'
+                    : 'text-emerald-400 hover:bg-emerald-500/20',
+                )}
                 title="Salvar"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -308,7 +333,12 @@ export function CardAtendimento({
                   setNomeValue(lead.nome)
                   setIsEditingNome(false)
                 }}
-                className="p-1 hover:bg-rose-500/10 text-rose-600 rounded"
+                className={cn(
+                  'p-1 rounded',
+                  isAguardandoConsultor
+                    ? 'text-white hover:bg-white/20'
+                    : 'text-rose-400 hover:bg-rose-500/20',
+                )}
                 title="Cancelar"
               >
                 <X className="w-3.5 h-3.5" />
@@ -323,10 +353,10 @@ export function CardAtendimento({
                   onClick?.()
                 }}
                 className={cn(
-                  'font-semibold text-sm transition-colors text-left truncate leading-tight focus:outline-none',
+                  'text-[15px] transition-colors text-left truncate leading-tight focus:outline-none',
                   isAguardandoConsultor
-                    ? 'text-white hover:text-white/90 font-bold'
-                    : 'text-foreground hover:text-primary',
+                    ? 'text-[#FFFFFF] hover:text-white/90 font-bold'
+                    : 'text-foreground dark:text-[#E6EDF3] hover:text-[#58A6FF] dark:hover:text-[#58A6FF] font-semibold',
                 )}
                 title="Abrir conversa do lead"
               >
@@ -341,16 +371,19 @@ export function CardAtendimento({
                 className={cn(
                   'opacity-0 group-hover/nome:opacity-100 p-0.5 transition-opacity',
                   isAguardandoConsultor
-                    ? 'text-white/80 hover:text-white'
-                    : 'text-muted-foreground hover:text-foreground',
+                    ? 'text-white/90 hover:text-white'
+                    : 'text-muted-foreground dark:text-[#8B949E] hover:text-foreground dark:hover:text-[#E6EDF3]',
                 )}
                 title="Editar nome"
               >
                 <Pencil className="w-3 h-3" />
               </button>
               {unreadCount > 0 && (
-                <Badge
-                  className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0 rounded-full shadow-xs flex items-center gap-1 shrink-0 animate-pulse"
+                <span
+                  className={cn(
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 animate-pulse',
+                    isAguardandoConsultor ? 'bg-white text-[#F97316]' : 'bg-[#58A6FF] text-white',
+                  )}
                   title={`${unreadCount} nova(s) mensagem(ns)`}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -358,7 +391,7 @@ export function CardAtendimento({
                   }}
                 >
                   <span>🔵</span> {unreadCount === 1 ? '1 nova msg' : `${unreadCount} novas msgs`}
-                </Badge>
+                </span>
               )}
             </div>
           )}
@@ -375,8 +408,8 @@ export function CardAtendimento({
             className={cn(
               'p-1.5 rounded-md transition-colors',
               isAguardandoConsultor
-                ? 'text-white hover:text-white hover:bg-white/20'
-                : 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40',
+                ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
+                : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-[#252525]',
             )}
             title="Abrir conversa (WhatsApp)"
           >
@@ -387,10 +420,10 @@ export function CardAtendimento({
               type="button"
               onClick={() => onArchive(lead.id)}
               className={cn(
-                'p-1 rounded transition-colors',
+                'p-1.5 rounded-md transition-colors',
                 isAguardandoConsultor
-                  ? 'text-white/80 hover:text-white hover:bg-white/20'
-                  : 'text-muted-foreground hover:text-amber-600 dark:hover:text-amber-400 hover:bg-muted',
+                  ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
+                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-amber-500 dark:hover:text-amber-400 hover:bg-muted dark:hover:bg-[#252525]',
               )}
               title="Arquivar lead"
             >
@@ -402,10 +435,10 @@ export function CardAtendimento({
               type="button"
               onClick={() => onDelete(lead.id)}
               className={cn(
-                'p-1 rounded transition-colors',
+                'p-1.5 rounded-md transition-colors',
                 isAguardandoConsultor
-                  ? 'text-white/80 hover:text-white hover:bg-white/20'
-                  : 'text-muted-foreground hover:text-destructive hover:bg-muted',
+                  ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
+                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-destructive hover:bg-muted dark:hover:bg-[#252525]',
               )}
               title="Excluir lead"
             >
@@ -418,12 +451,17 @@ export function CardAtendimento({
       {/* Telefone inline */}
       <div
         className={cn(
-          'flex items-center gap-1.5 text-xs',
-          isAguardandoConsultor ? 'text-white/90' : 'text-muted-foreground',
+          'flex items-center gap-1.5 text-[13px] font-normal',
+          isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-muted-foreground dark:text-[#8B949E]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <Phone className="w-3 h-3 opacity-70 shrink-0" />
+        <Phone
+          className={cn(
+            'w-3 h-3 shrink-0',
+            isAguardandoConsultor ? 'text-[#FFFFFF] opacity-90' : 'opacity-70',
+          )}
+        />
         {isEditingTelefone ? (
           <div className="flex items-center gap-1 flex-1">
             <Input
@@ -438,11 +476,21 @@ export function CardAtendimento({
                 }
               }}
               placeholder="Telefone"
-              className="h-6 text-xs py-0 px-1.5 flex-1"
+              className={cn(
+                'h-6 text-[13px] py-0 px-1.5 flex-1',
+                isAguardandoConsultor
+                  ? 'bg-black/30 border-white/40 text-white'
+                  : 'bg-[#252525] border-[#4A4A4A] text-[#E6EDF3]',
+              )}
             />
             <button
               onClick={handleSaveTelefone}
-              className="p-0.5 hover:bg-emerald-500/10 text-emerald-600 rounded"
+              className={cn(
+                'p-0.5 rounded',
+                isAguardandoConsultor
+                  ? 'text-white hover:bg-white/20'
+                  : 'text-emerald-400 hover:bg-emerald-500/20',
+              )}
               title="Salvar"
             >
               <Check className="w-3 h-3" />
@@ -452,7 +500,12 @@ export function CardAtendimento({
                 setTelefoneValue(lead.telefone)
                 setIsEditingTelefone(false)
               }}
-              className="p-0.5 hover:bg-rose-500/10 text-rose-600 rounded"
+              className={cn(
+                'p-0.5 rounded',
+                isAguardandoConsultor
+                  ? 'text-white hover:bg-white/20'
+                  : 'text-rose-400 hover:bg-rose-500/20',
+              )}
               title="Cancelar"
             >
               <X className="w-3 h-3" />
@@ -460,14 +513,16 @@ export function CardAtendimento({
           </div>
         ) : (
           <div className="flex items-center gap-1 group/tel flex-1 min-w-0">
-            <span className="truncate font-mono">{lead.telefone || 'Sem telefone'}</span>
+            <span className="truncate font-mono text-[13px]">
+              {lead.telefone || 'Sem telefone'}
+            </span>
             <button
               onClick={() => setIsEditingTelefone(true)}
               className={cn(
                 'opacity-0 group-hover/tel:opacity-100 p-0.5 transition-opacity',
                 isAguardandoConsultor
-                  ? 'text-white/80 hover:text-white'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'text-white/90 hover:text-white'
+                  : 'text-muted-foreground dark:text-[#8B949E] hover:text-foreground dark:hover:text-[#E6EDF3]',
               )}
               title="Editar telefone"
             >
@@ -481,19 +536,23 @@ export function CardAtendimento({
       {forwardedToAba && (
         <div
           className={cn(
-            'flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium',
-            isAguardandoConsultor ? 'bg-black/20 text-white' : 'bg-muted/60 text-muted-foreground',
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-normal',
+            isAguardandoConsultor ? 'bg-black/20 text-[#FFFFFF]' : 'bg-[#30363D] text-[#C9D1D9]',
           )}
         >
           <CornerDownRight
             className={cn(
-              'w-3 h-3 shrink-0',
-              isAguardandoConsultor ? 'text-white' : 'text-primary',
+              'w-3.5 h-3.5 shrink-0',
+              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#58A6FF]',
             )}
           />
           <span className="truncate">
             Encaminhado p/{' '}
-            <strong className={isAguardandoConsultor ? 'text-white font-bold' : 'text-foreground'}>
+            <strong
+              className={
+                isAguardandoConsultor ? 'text-[#FFFFFF] font-bold' : 'text-[#E6EDF3] font-semibold'
+              }
+            >
               {forwardedToAba.titulo}
             </strong>
           </span>
@@ -503,19 +562,34 @@ export function CardAtendimento({
       {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}
       {currentAba.isOrcamentos && (
         <div
-          className="bg-muted/40 p-2.5 rounded-md border border-border/50 space-y-2 text-xs"
+          className={cn(
+            'p-2.5 rounded-lg border space-y-2 text-[13px]',
+            isAguardandoConsultor
+              ? 'bg-black/20 border-white/20 text-white'
+              : 'bg-[#161B22] dark:bg-[#161B22] border-[#3A3A3A] text-[#8B949E]',
+          )}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Descrição do Projeto inline */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-1">
+              <span
+                className={cn(
+                  'text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                )}
+              >
                 <FileText className="w-3 h-3" /> Descrição do Projeto
               </span>
               {!isEditingDescricao && (
                 <button
                   onClick={() => setIsEditingDescricao(true)}
-                  className="text-muted-foreground hover:text-foreground text-[10px] flex items-center gap-0.5 font-medium"
+                  className={cn(
+                    'text-[11px] flex items-center gap-0.5 font-medium transition-colors',
+                    isAguardandoConsultor
+                      ? 'text-white/80 hover:text-white'
+                      : 'text-[#8B949E] hover:text-[#E6EDF3]',
+                  )}
                 >
                   <Pencil className="w-2.5 h-2.5" /> Editar
                 </button>
@@ -529,7 +603,12 @@ export function CardAtendimento({
                   onChange={(e) => setDescricaoValue(e.target.value)}
                   rows={2}
                   placeholder="Descreva o escopo / especificações..."
-                  className="w-full bg-background border border-input rounded p-1.5 text-xs outline-none focus:ring-1 focus:ring-primary resize-y"
+                  className={cn(
+                    'w-full border rounded p-1.5 text-[13px] outline-none resize-y',
+                    isAguardandoConsultor
+                      ? 'bg-black/30 border-white/30 text-white focus:ring-1 focus:ring-white'
+                      : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3] focus:ring-1 focus:ring-[#58A6FF]',
+                  )}
                 />
                 <div className="flex justify-end gap-1">
                   <button
@@ -537,46 +616,83 @@ export function CardAtendimento({
                       setDescricaoValue(meta.descricao_projeto || '')
                       setIsEditingDescricao(false)
                     }}
-                    className="px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted rounded"
+                    className="px-2 py-0.5 text-[11px] text-muted-foreground dark:text-[#8B949E] hover:bg-muted dark:hover:bg-[#252525] rounded"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={handleSaveDescricao}
-                    className="px-2 py-0.5 text-[11px] bg-primary text-primary-foreground font-medium rounded hover:bg-primary/90"
+                    className="px-2 py-0.5 text-[11px] bg-[#58A6FF] text-white font-medium rounded hover:bg-[#58A6FF]/90"
                   >
                     Salvar
                   </button>
                 </div>
               </div>
             ) : (
-              <p className="text-[11px] text-foreground/90 italic line-clamp-2 bg-background/50 p-1.5 rounded border border-border/40 min-h-[28px]">
+              <p
+                className={cn(
+                  'text-[12px] italic line-clamp-2 p-1.5 rounded border min-h-[28px]',
+                  isAguardandoConsultor
+                    ? 'bg-black/20 border-white/20 text-white/90'
+                    : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#C9D1D9]',
+                )}
+              >
                 {meta.descricao_projeto || 'Nenhuma descrição cadastrada...'}
               </p>
             )}
           </div>
 
           {/* Prazo e Prioridade */}
-          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40">
+          <div
+            className={cn(
+              'grid grid-cols-2 gap-2 pt-1 border-t',
+              isAguardandoConsultor ? 'border-white/20' : 'border-[#3A3A3A]',
+            )}
+          >
             {/* Prazo */}
             <div>
-              <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block mb-1">
+              <span
+                className={cn(
+                  'text-[10px] font-semibold uppercase tracking-wider block mb-1',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                )}
+              >
                 Prazo
               </span>
-              <div className="flex items-center gap-1 bg-background px-2 py-1 rounded border border-border/60">
-                <CalendarIcon className="w-3 h-3 text-muted-foreground shrink-0" />
+              <div
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded border',
+                  isAguardandoConsultor
+                    ? 'bg-black/20 border-white/30'
+                    : 'bg-[#1E1E1E] border-[#3A3A3A]',
+                )}
+              >
+                <CalendarIcon
+                  className={cn(
+                    'w-3 h-3 shrink-0',
+                    isAguardandoConsultor ? 'text-white' : 'text-[#8B949E]',
+                  )}
+                />
                 <input
                   type="date"
                   value={meta.prazo || ''}
                   onChange={handleUpdatePrazo}
-                  className="bg-transparent text-[11px] outline-none text-foreground w-full font-mono cursor-pointer"
+                  className={cn(
+                    'bg-transparent text-[11px] outline-none w-full font-mono cursor-pointer',
+                    isAguardandoConsultor ? 'text-white' : 'text-[#E6EDF3]',
+                  )}
                 />
               </div>
             </div>
 
             {/* Prioridade */}
             <div>
-              <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider block mb-1">
+              <span
+                className={cn(
+                  'text-[10px] font-semibold uppercase tracking-wider block mb-1',
+                  isAguardandoConsultor ? 'text-white/90' : 'text-[#8B949E]',
+                )}
+              >
                 Prioridade
               </span>
               <Select
@@ -585,12 +701,19 @@ export function CardAtendimento({
                   handleUpdatePrioridade(val === 'unassigned' ? undefined : (val as any))
                 }
               >
-                <SelectTrigger className="h-7 text-xs bg-background">
+                <SelectTrigger
+                  className={cn(
+                    'h-7 text-xs',
+                    isAguardandoConsultor
+                      ? 'bg-black/20 border-white/30 text-white'
+                      : 'bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3]',
+                  )}
+                >
                   <SelectValue placeholder="Prioridade">
                     {getPriorityBadge(meta.prioridade)}
                   </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#1E1E1E] border-[#3A3A3A] text-[#E6EDF3]">
                   <SelectItem value="unassigned">Sem prioridade</SelectItem>
                   <SelectItem value="Alta">🔴 Alta</SelectItem>
                   <SelectItem value="Média">🟡 Média</SelectItem>
@@ -606,7 +729,9 @@ export function CardAtendimento({
       <div
         className={cn(
           'space-y-2 pt-2 border-t',
-          isAguardandoConsultor ? 'border-white/20' : 'border-border/60',
+          isAguardandoConsultor
+            ? 'border-white/20'
+            : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -614,24 +739,26 @@ export function CardAtendimento({
         <div className="flex items-center gap-1.5">
           <User
             className={cn(
-              'w-3 h-3 shrink-0',
-              isAguardandoConsultor ? 'text-white/80' : 'text-muted-foreground',
+              'w-3.5 h-3.5 shrink-0',
+              isAguardandoConsultor
+                ? 'text-[#FFFFFF]'
+                : 'text-muted-foreground dark:text-[#8B949E]',
             )}
           />
           <Select value={lead.consultor_id || 'unassigned'} onValueChange={handleResponsavelChange}>
             <SelectTrigger
               className={cn(
-                'h-7 text-xs w-full',
+                'h-7 text-[13px] w-full font-normal',
                 isAguardandoConsultor
-                  ? 'bg-black/20 border-white/30 text-white font-medium hover:bg-black/30'
-                  : 'bg-muted/30 border-border/60 text-foreground',
+                  ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] font-medium hover:bg-black/30'
+                  : 'bg-muted/30 dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-foreground dark:text-[#E6EDF3] hover:border-[#4A4A4A]',
               )}
             >
               <SelectValue placeholder="Designar responsável...">
                 {consultorNome || 'Sem responsável'}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1E1E1E] dark:border-[#3A3A3A] dark:text-[#E6EDF3]">
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {safeUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id} className="text-xs">
@@ -646,22 +773,24 @@ export function CardAtendimento({
         <div className="flex items-center gap-1.5">
           <Share2
             className={cn(
-              'w-3 h-3 shrink-0',
-              isAguardandoConsultor ? 'text-white/80' : 'text-muted-foreground',
+              'w-3.5 h-3.5 shrink-0',
+              isAguardandoConsultor
+                ? 'text-[#FFFFFF]'
+                : 'text-muted-foreground dark:text-[#8B949E]',
             )}
           />
           <Select onValueChange={handleForwardSelect} value="none">
             <SelectTrigger
               className={cn(
-                'h-7 text-xs w-full font-normal',
+                'h-7 text-[13px] w-full font-normal',
                 isAguardandoConsultor
-                  ? 'bg-black/20 border-white/30 text-white hover:bg-black/30'
-                  : 'bg-muted/30 border-border/60 text-foreground',
+                  ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] hover:bg-black/30'
+                  : 'bg-muted/30 dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-foreground dark:text-[#E6EDF3] hover:border-[#4A4A4A]',
               )}
             >
               <SelectValue placeholder="Encaminhar para..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="dark:bg-[#1E1E1E] dark:border-[#3A3A3A] dark:text-[#E6EDF3]">
               <SelectItem value="none" disabled className="text-xs text-muted-foreground hidden">
                 Encaminhar para...
               </SelectItem>
@@ -678,15 +807,15 @@ export function CardAtendimento({
       {/* Footer do Card: Data e Tempo no estágio */}
       <div
         className={cn(
-          'flex items-center justify-between text-[10px] pt-1.5 border-t',
+          'flex items-center justify-between text-[13px] pt-1.5 border-t font-normal',
           isAguardandoConsultor
-            ? 'border-white/20 text-white/90'
-            : 'border-border/40 text-muted-foreground',
+            ? 'border-white/20 text-[#FFFFFF]'
+            : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-muted-foreground dark:text-[#8B949E]',
         )}
       >
-        <span className="flex items-center gap-1" title="Data do último movimento">
+        <span className="flex items-center gap-1 text-[12px]" title="Data do último movimento">
           <CalendarIcon
-            className={cn('w-2.5 h-2.5', isAguardandoConsultor ? 'opacity-90' : 'opacity-60')}
+            className={cn('w-3 h-3', isAguardandoConsultor ? 'text-[#FFFFFF]' : 'opacity-70')}
           />
           {(() => {
             const rawDate = (lead as any).atualizado_em || lead.criado_em
@@ -701,13 +830,15 @@ export function CardAtendimento({
         </span>
         <span
           className={cn(
-            'flex items-center gap-1 font-medium',
-            isAguardandoConsultor ? 'text-white font-semibold' : 'text-foreground/80',
+            'flex items-center gap-1 text-[12px]',
+            isAguardandoConsultor
+              ? 'text-[#FFFFFF] font-bold'
+              : 'text-foreground dark:text-[#E6EDF3] font-medium',
           )}
           title="Tempo no estágio atual"
         >
           <Clock
-            className={cn('w-2.5 h-2.5', isAguardandoConsultor ? 'opacity-90' : 'opacity-60')}
+            className={cn('w-3 h-3', isAguardandoConsultor ? 'text-[#FFFFFF]' : 'opacity-70')}
           />
           {elapsed || '-'}
         </span>
