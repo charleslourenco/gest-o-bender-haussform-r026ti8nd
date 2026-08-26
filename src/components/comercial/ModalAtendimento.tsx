@@ -127,22 +127,42 @@ export function ModalAtendimento({
   useEffect(() => {
     if (!open || !lead?.id) return
 
-    const channel = supabase
-      .channel(`modal_messages_${lead.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'whatsapp_messages' },
-        (payload: any) => {
-          const newMsg = payload.new
-          if (newMsg && (newMsg.lead_id === lead.id || newMsg.phone === lead.telefone)) {
-            loadMessages(true)
+    let channel: any = null
+    try {
+      channel = supabase
+        .channel(`modal_messages_${lead.id}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'whatsapp_messages' },
+          (payload: any) => {
+            const newMsg = payload.new
+            if (newMsg && (newMsg.lead_id === lead.id || newMsg.phone === lead.telefone)) {
+              loadMessages(true)
+            }
+          },
+        )
+        .subscribe((status, err) => {
+          if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime modal_messages channel status/error:', status, err)
           }
-        },
-      )
-      .subscribe()
+        })
+    } catch (err) {
+      console.warn('Falha ao inicializar canal Realtime modal_messages:', err)
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) {
+        try {
+          channel.unsubscribe()
+        } catch (e) {
+          console.warn('Erro ao cancelar inscrição de modal_messages channel:', e)
+        }
+        try {
+          supabase.removeChannel(channel)
+        } catch (e) {
+          console.warn('Erro ao remover modal_messages channel:', e)
+        }
+      }
     }
   }, [open, lead?.id, lead?.telefone, loadMessages])
 
