@@ -9,30 +9,39 @@ import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Phone, List as ListIcon, Archive } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Toaster } from 'sonner'
 
 export default function Comercial() {
-  const { user, permissions, loading } = useAuth()
+  const auth = useAuth()
+  const user = auth?.user
+  const permissions = auth?.permissions || {}
+  const loading = auth?.loading ?? false
+
   const [activeTab, setActiveTab] = useState<string>('novo-contato')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
   const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
 
-  const globalModalAba = leadForGlobalModal ? getLeadAba(leadForGlobalModal) : ATENDIMENTO_ABAS[0]
+  const globalModalAba =
+    leadForGlobalModal && typeof leadForGlobalModal === 'object'
+      ? getLeadAba(leadForGlobalModal)
+      : ATENDIMENTO_ABAS[0]
 
   const handleOpenLeadModalGlobal = (lead: any) => {
-    setLeadForGlobalModal(lead)
+    if (lead && typeof lead === 'object' && lead.id) {
+      setLeadForGlobalModal(lead)
+    }
   }
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
   const userAccess = isSuperAdmin ? 'Admin' : permissions?.['Comercial']
   const hasPermission = Boolean(
-    isSuperAdmin || (userAccess && ['Admin', 'Editor', 'Visualizador'].includes(userAccess)),
+    isSuperAdmin ||
+    (userAccess && ['Admin', 'Editor', 'Visualizador', 'Leitor'].includes(userAccess)),
   )
 
   useEffect(() => {
     fetchUsers()
-      .then((data) => setUsers(Array.isArray(data) ? data : []))
+      .then((data) => setUsers(Array.isArray(data) ? data.filter(Boolean) : []))
       .catch(() => setUsers([]))
   }, [])
 
@@ -69,10 +78,9 @@ export default function Comercial() {
 
   return (
     <ErrorBoundary>
-      <Toaster position="bottom-right" richColors expand={true} />
       {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
-      {leadForGlobalModal && (
-        <ErrorBoundary>
+      {leadForGlobalModal && leadForGlobalModal.id && (
+        <ErrorBoundary fallback={null}>
           <ModalAtendimento
             lead={leadForGlobalModal}
             currentAba={globalModalAba}

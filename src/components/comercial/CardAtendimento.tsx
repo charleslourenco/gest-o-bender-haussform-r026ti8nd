@@ -106,7 +106,7 @@ export function CardAtendimento({
   useEffect(() => {
     const updateTimer = () => {
       try {
-        const baseDate = (lead as any).atualizado_em || lead.criado_em
+        const baseDate = (lead as any)?.atualizado_em || lead?.criado_em
         const parsed = baseDate ? new Date(baseDate).getTime() : Date.now()
         const start = isNaN(parsed) ? Date.now() : parsed
         const diff = Math.max(0, Date.now() - start)
@@ -128,7 +128,7 @@ export function CardAtendimento({
     updateTimer()
     const interval = setInterval(updateTimer, 60000)
     return () => clearInterval(interval)
-  }, [(lead as any).atualizado_em, lead.criado_em])
+  }, [(lead as any)?.atualizado_em, lead?.criado_em])
 
   const handleSaveNome = async () => {
     const trimmed = nomeValue.trim()
@@ -208,6 +208,9 @@ export function CardAtendimento({
   const forwardedToAba = meta?.encaminhado_para_aba
     ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
     : null
+
+  const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
+  const safeCurrentAbaId = currentAba?.id || ''
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
@@ -553,7 +556,7 @@ export function CardAtendimento({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unassigned">Sem responsável</SelectItem>
-              {users.map((u) => (
+              {safeUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id} className="text-xs">
                   {u.nome}
                 </SelectItem>
@@ -573,7 +576,7 @@ export function CardAtendimento({
               <SelectItem value="none" disabled className="text-xs text-muted-foreground hidden">
                 Encaminhar para...
               </SelectItem>
-              {ATENDIMENTO_ABAS.filter((aba) => aba.id !== currentAba.id).map((aba) => (
+              {ATENDIMENTO_ABAS.filter((aba) => aba.id !== safeCurrentAbaId).map((aba) => (
                 <SelectItem key={aba.id} value={aba.id} className="text-xs">
                   {aba.titulo}
                 </SelectItem>

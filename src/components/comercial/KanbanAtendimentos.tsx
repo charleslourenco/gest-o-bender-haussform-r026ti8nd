@@ -46,7 +46,17 @@ export function KanbanAtendimentos({
   isActive = true,
   onOpenLeadGlobal,
 }: KanbanAtendimentosProps) {
-  const { user, loading: authLoading } = useAuth()
+  const auth = useAuth()
+  const user = auth?.user
+  const authLoading = auth?.loading ?? false
+
+  const safeAba = useMemo(() => {
+    if (aba && typeof aba === 'object' && Array.isArray(aba.colunas)) {
+      return aba
+    }
+    return ATENDIMENTO_ABAS[0]
+  }, [aba])
+
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
   const [loading, setLoading] = useState(true)
@@ -127,7 +137,8 @@ export function KanbanAtendimentos({
     let isMounted = true
     loadData()
 
-    const channelId = `${aba.id}_${Math.random().toString(36).substring(2, 9)}`
+    const currentAbaId = safeAba?.id || 'novo-contato'
+    const channelId = `${currentAbaId}_${Math.random().toString(36).substring(2, 9)}`
 
     // Realtime channel para leads com identificador único da aba
     let leadsChannel: any = null
@@ -302,10 +313,10 @@ export function KanbanAtendimentos({
     if (!destinoAba) return
 
     try {
-      const { notas, meta } = parseLeadMetadados((lead as any).notas_pessoais)
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
       const newMeta: LeadMetadados = {
         ...meta,
-        origem_aba: aba.id,
+        origem_aba: safeAba.id,
         encaminhado_para_aba: destinoAbaId,
         encaminhado_em: new Date().toISOString(),
       }
@@ -313,8 +324,8 @@ export function KanbanAtendimentos({
 
       // Se a aba de origem tiver coluna "Encaminhado Para" ou similar, coloca lá
       const encaminhadoCol =
-        aba.colunas.find((c) => c.toLowerCase().includes('encaminhado')) ||
-        aba.colunas[aba.colunas.length - 1]
+        safeAba.colunas.find((c) => c.toLowerCase().includes('encaminhado')) ||
+        safeAba.colunas[safeAba.colunas.length - 1]
 
       await updateLead(leadId, {
         status: encaminhadoCol,
@@ -377,8 +388,8 @@ export function KanbanAtendimentos({
       else if (phoneDigits.length === 12 && phoneDigits.startsWith('55'))
         phoneDigits = '55' + phoneDigits.slice(2, 4) + '9' + phoneDigits.slice(4)
 
-      const initialStatus = aba.colunas[0]
-      const initialCategoria = aba.categoriaPadrao
+      const initialStatus = safeAba.colunas[0] || 'Novo contato'
+      const initialCategoria = safeAba.categoriaPadrao || 'Comercial'
 
       await createLead({
         nome: quickNome.trim(),
@@ -435,20 +446,20 @@ export function KanbanAtendimentos({
 
         const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
         const status = typeof l.status === 'string' ? l.status.trim() : ''
-        const { meta } = parseLeadMetadados((l as any).notas_pessoais)
+        const { meta } = parseLeadMetadados((l as any)?.notas_pessoais)
 
         // Regra 1: Se este card foi encaminhado PARA esta aba
         const isForwardedToThisAba = Boolean(
-          meta?.encaminhado_para_aba && meta.encaminhado_para_aba === aba.id,
+          meta?.encaminhado_para_aba && meta.encaminhado_para_aba === safeAba.id,
         )
 
         // Regra 2: Se o card foi encaminhado DAQUI para outra aba
-        const isForwardedFromThisAba = Boolean(meta?.origem_aba && meta.origem_aba === aba.id)
+        const isForwardedFromThisAba = Boolean(meta?.origem_aba && meta.origem_aba === safeAba.id)
 
         // Regra 3: Pertence naturalmente a esta aba por categoria/status
         let belongsNaturally = false
 
-        if (aba.id === 'novo-contato') {
+        if (safeAba.id === 'novo-contato') {
           belongsNaturally =
             status === 'Novo contato' ||
             status === 'Novo Contato' ||
@@ -456,7 +467,7 @@ export function KanbanAtendimentos({
             status === 'Novo' ||
             status === 'Encaminhado Para' ||
             (cat === 'Comercial' && !l.kanban_ativo)
-        } else if (aba.id === 'lead-consultoria') {
+        } else if (safeAba.id === 'lead-consultoria') {
           const consultoriaStatuses = [
             'Consultoria Inicial',
             'Projeto',
@@ -471,32 +482,32 @@ export function KanbanAtendimentos({
           ]
           belongsNaturally =
             (cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)
-        } else if (aba.id === 'lead-followup') {
+        } else if (safeAba.id === 'lead-followup') {
           belongsNaturally =
             cat.toLowerCase() === 'follow up' ||
             status === 'Follow up' ||
             status === 'Encaminhado p/ Consultoria'
-        } else if (aba.id === 'curriculos') {
+        } else if (safeAba.id === 'curriculos') {
           belongsNaturally =
             cat.toLowerCase() === 'currículo' ||
             cat.toLowerCase() === 'curriculo' ||
             status === 'Candidato' ||
             status === 'Encaminhado p/ RH'
-        } else if (aba.id === 'lead-orcamentos') {
+        } else if (safeAba.id === 'lead-orcamentos') {
           belongsNaturally =
             cat.toLowerCase() === 'orçamento' ||
             cat.toLowerCase() === 'orcamento' ||
             status === 'Novo Orçamento' ||
             status === 'Em andamento'
-        } else if (aba.id === 'fornecedores') {
+        } else if (safeAba.id === 'fornecedores') {
           belongsNaturally =
             cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras'
-        } else if (aba.id === 'parceiros') {
+        } else if (safeAba.id === 'parceiros') {
           belongsNaturally =
             cat.toLowerCase() === 'parceiro' ||
             cat.toLowerCase() === 'arquiteto externo' ||
             cat.toLowerCase() === 'equipe'
-        } else if (aba.id === 'assistencia') {
+        } else if (safeAba.id === 'assistencia') {
           belongsNaturally =
             cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
         }
@@ -528,13 +539,13 @@ export function KanbanAtendimentos({
         return false
       }
     })
-  }, [leads, aba.id, aba.categoriaPadrao, search, responsavelFilter])
+  }, [leads, safeAba.id, safeAba.categoriaPadrao, search, responsavelFilter])
 
   if (authLoading || (loading && leads.length === 0)) {
     return (
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-        {Array.isArray(aba?.colunas) &&
-          aba.colunas.map((c) => (
+        {Array.isArray(safeAba?.colunas) &&
+          safeAba.colunas.map((c) => (
             <div
               key={c}
               className="w-80 shrink-0 h-full bg-muted/40 animate-pulse rounded-xl border border-border/70"
@@ -580,7 +591,7 @@ export function KanbanAtendimentos({
       </Select>
 
       {/* Botão (+) exclusivo da aba 01 - Novo Contato */}
-      {aba?.id === 'novo-contato' && (
+      {safeAba?.id === 'novo-contato' && (
         <Button
           size="sm"
           onClick={() => setIsCreatingQuickLead(true)}
@@ -605,7 +616,7 @@ export function KanbanAtendimentos({
             className="flex items-center gap-3 flex-1 flex-wrap"
           >
             <span className="text-xs font-bold text-foreground shrink-0">
-              Novo em {aba.titulo} ({aba.colunas[0]}):
+              Novo em {safeAba.titulo} ({safeAba.colunas[0]}):
             </span>
             <Input
               required
@@ -646,15 +657,15 @@ export function KanbanAtendimentos({
           ref={scrollRef}
           className="h-full w-full overflow-x-auto overflow-y-hidden p-4 flex gap-4 scroll-smooth"
         >
-          {Array.isArray(aba?.colunas) &&
-            aba.colunas.map((coluna, colIdx) => {
+          {Array.isArray(safeAba?.colunas) &&
+            safeAba.colunas.map((coluna, colIdx) => {
               // Filtrar os leads que pertencem a esta coluna específica da aba
               const colLeads = Array.isArray(tabLeads)
                 ? tabLeads.filter((l) => {
                     try {
                       if (!l || typeof l !== 'object') return false
                       const status = typeof l.status === 'string' ? l.status.trim() : ''
-                      const { meta } = parseLeadMetadados((l as any).notas_pessoais)
+                      const { meta } = parseLeadMetadados((l as any)?.notas_pessoais)
 
                       // Se a coluna for de encaminhado
                       const isEncaminhadoCol =
@@ -669,8 +680,8 @@ export function KanbanAtendimentos({
                       }
 
                       // Se este card foi encaminhado para esta aba e está na primeira coluna
-                      if (meta?.encaminhado_para_aba === aba.id && colIdx === 0) {
-                        if (status === coluna || !aba.colunas.includes(status)) return true
+                      if (meta?.encaminhado_para_aba === safeAba.id && colIdx === 0) {
+                        if (status === coluna || !safeAba.colunas.includes(status)) return true
                       }
 
                       // Mapeamento normal
@@ -679,18 +690,18 @@ export function KanbanAtendimentos({
                       // Compatibilidade de status legados na primeira coluna da aba correspondente
                       if (colIdx === 0) {
                         if (
-                          aba.id === 'lead-consultoria' &&
+                          safeAba.id === 'lead-consultoria' &&
                           (status === 'Novo Lead' ||
                             status === 'Aguardando Consultor' ||
                             status === 'Designar Consultor')
                         ) {
                           return true
                         }
-                        if (aba.id === 'novo-contato' && status === 'Novo Lead') {
+                        if (safeAba.id === 'novo-contato' && status === 'Novo Lead') {
                           return true
                         }
                         if (
-                          !aba.colunas.includes(status) &&
+                          !safeAba.colunas.includes(status) &&
                           !status.toLowerCase().includes('encaminhado')
                         ) {
                           return true
@@ -753,7 +764,7 @@ export function KanbanAtendimentos({
                         >
                           <CardAtendimento
                             lead={lead}
-                            currentAba={aba}
+                            currentAba={safeAba}
                             users={users}
                             isDragging={draggingId === lead.id}
                             unreadCount={unreadCounts[lead.id] || 0}
@@ -808,18 +819,20 @@ export function KanbanAtendimentos({
 
       {/* MODAL DETALHADO (WhatsApp + Anotações + Timeline) */}
       {selectedLeadForModal && (
-        <ModalAtendimento
-          lead={selectedLeadForModal}
-          currentAba={aba}
-          users={users}
-          open={Boolean(selectedLeadForModal)}
-          onClose={() => setSelectedLeadForModal(null)}
-          onUpdateLead={handleUpdateLead}
-          onTriggerSellModal={(l) => {
-            setSelectedLeadForModal(null)
-            setLeadToSell(l)
-          }}
-        />
+        <ErrorBoundary fallback={null}>
+          <ModalAtendimento
+            lead={selectedLeadForModal}
+            currentAba={safeAba}
+            users={users}
+            open={Boolean(selectedLeadForModal)}
+            onClose={() => setSelectedLeadForModal(null)}
+            onUpdateLead={handleUpdateLead}
+            onTriggerSellModal={(l) => {
+              setSelectedLeadForModal(null)
+              setLeadToSell(l)
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Modal de Fechamento de Venda (Dossiê/Contrato) */}

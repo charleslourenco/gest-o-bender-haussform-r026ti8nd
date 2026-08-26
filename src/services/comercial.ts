@@ -93,16 +93,16 @@ export const fetchLeadMessages = async (leadId: string, phone: string) => {
 }
 
 export const moveLeadToClient = async (lead: any, userId: string) => {
-  // Passo 1: Verificar se o cliente já existe por EMAIL ou TELEFONE (normalizado)
+  // Passo 1: Verificar se o cliente já existe por EMAIL ou TELEFONE (apenas clientes não excluídos)
   let novo_cliente_id: string | null = null
 
   if (lead.email && lead.email.trim() !== '') {
     const { data: existingClients, error: lookupErr } = await supabase
       .from('clientes')
       .select('id, excluido')
-      .eq('email', lead.email)
-      .order('excluido', { ascending: true })
-      .order('criado_em', { ascending: true })
+      .eq('email', lead.email.trim())
+      .eq('excluido', false)
+      .order('criado_em', { ascending: false })
       .limit(1)
 
     if (lookupErr) {
@@ -113,7 +113,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
     }
   }
 
-  // Critério secundário: telefone normalizado (apenas dígitos)
+  // Critério secundário: telefone normalizado (apenas dígitos) em clientes não excluídos
   if (!novo_cliente_id && lead.telefone) {
     const phoneVariants = phoneSearchVariants(lead.telefone)
     if (phoneVariants.length > 0) {
@@ -121,9 +121,9 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
       const { data: phoneClients, error: phoneErr } = await supabase
         .from('clientes')
         .select('id, excluido')
+        .eq('excluido', false)
         .or(orFilter)
-        .order('excluido', { ascending: true })
-        .order('criado_em', { ascending: true })
+        .order('criado_em', { ascending: false })
         .limit(1)
 
       if (phoneErr) {
@@ -135,7 +135,59 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
     }
   }
 
-  // Passo 2: Se o cliente não existir, criar
+  // Passo 1b: Se não encontrou cliente ativo, verificar se existe cliente excluído para reativar
+  if (!novo_cliente_id) {
+    let clienteExcluidoId: string | null = null
+
+    if (lead.email && lead.email.trim() !== '') {
+      const { data: excByEmail } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('email', lead.email.trim())
+        .eq('excluido', true)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+
+      if (excByEmail && excByEmail.length > 0) {
+        clienteExcluidoId = excByEmail[0].id
+      }
+    }
+
+    if (!clienteExcluidoId && lead.telefone) {
+      const phoneVariants = phoneSearchVariants(lead.telefone)
+      if (phoneVariants.length > 0) {
+        const orFilter = phoneVariants.map((p) => `telefone.eq.${p}`).join(',')
+        const { data: excByPhone } = await supabase
+          .from('clientes')
+          .select('id')
+          .eq('excluido', true)
+          .or(orFilter)
+          .order('criado_em', { ascending: false })
+          .limit(1)
+
+        if (excByPhone && excByPhone.length > 0) {
+          clienteExcluidoId = excByPhone[0].id
+        }
+      }
+    }
+
+    if (clienteExcluidoId) {
+      const { error: reactivateErr } = await supabase
+        .from('clientes')
+        .update({
+          excluido: false,
+          usuario_id: userId,
+          status: 'Ativo',
+        })
+        .eq('id', clienteExcluidoId)
+
+      if (!reactivateErr) {
+        novo_cliente_id = clienteExcluidoId
+      }
+    }
+  }
+
+  // Passo 2: Se o cliente ainda não existir, criar um novo cliente
   if (!novo_cliente_id) {
     const { data: newClient, error: err1 } = await supabase
       .from('clientes')
