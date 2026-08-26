@@ -7,7 +7,7 @@ export const fetchLeads = async () => {
     .select('*, consultor:users!leads_consultor_id_fkey(nome)')
     .eq('arquivado_comercial' as any, false)
     .eq('excluido' as any, false)
-    .order('ordem', { ascending: true })
+    .order('criado_em', { ascending: false })
   if (error) throw error
   return data
 }

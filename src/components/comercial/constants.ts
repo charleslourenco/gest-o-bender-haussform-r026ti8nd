@@ -118,6 +118,7 @@ export function getLeadAba(lead: {
     status === 'Novo Contato' ||
     status === 'Novo Lead' ||
     status === 'Novo' ||
+    status === 'Encaminhado Para' ||
     (cat === 'Comercial' && !lead?.kanban_ativo)
   ) {
     return ATENDIMENTO_ABAS.find((a) => a.id === 'novo-contato') || ATENDIMENTO_ABAS[0]
@@ -136,10 +137,7 @@ export function getLeadAba(lead: {
     'Ação Gerente',
     'Designar Consultor',
   ]
-  if (
-    (cat === 'Comercial' || cat === 'Já é Cliente') &&
-    (consultoriaStatuses.includes(status) || Boolean(lead?.kanban_ativo))
-  ) {
+  if ((cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)) {
     return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-consultoria') || ATENDIMENTO_ABAS[1]
   }
 

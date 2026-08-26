@@ -454,6 +454,7 @@ export function KanbanAtendimentos({
             status === 'Novo Contato' ||
             status === 'Novo Lead' ||
             status === 'Novo' ||
+            status === 'Encaminhado Para' ||
             (cat === 'Comercial' && !l.kanban_ativo)
         } else if (aba.id === 'lead-consultoria') {
           const consultoriaStatuses = [
@@ -469,8 +470,7 @@ export function KanbanAtendimentos({
             'Designar Consultor',
           ]
           belongsNaturally =
-            (cat === 'Comercial' || cat === 'Já é Cliente') &&
-            (consultoriaStatuses.includes(status) || Boolean(l.kanban_ativo))
+            (cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)
         } else if (aba.id === 'lead-followup') {
           belongsNaturally =
             cat.toLowerCase() === 'follow up' ||
