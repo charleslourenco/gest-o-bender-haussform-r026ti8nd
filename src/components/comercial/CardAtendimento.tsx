@@ -5,18 +5,14 @@ import {
   Archive,
   Phone,
   User,
-  Share2,
   Check,
   X,
   Pencil,
   Clock,
   Calendar as CalendarIcon,
-  AlertCircle,
   FileText,
-  CornerDownRight,
   MessageCircle,
   Move,
-  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -76,7 +72,7 @@ export function CardAtendimento({
   onUpdateLead,
   onArchive,
   onDelete,
-  onForward,
+  onForward: _onForward,
   onMoveTo,
 }: CardAtendimentoProps) {
   const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
@@ -204,12 +200,6 @@ export function CardAtendimento({
     await onUpdateLead(lead.id, { consultor_id: val })
   }
 
-  const handleForwardSelect = (destinoAbaId: string) => {
-    if (onForward && destinoAbaId && destinoAbaId !== 'none') {
-      onForward(lead.id, destinoAbaId)
-    }
-  }
-
   const consultorRaw = lead?.consultor || (lead as any)?.users
   const consultorNome = Array.isArray(consultorRaw)
     ? consultorRaw[0]?.nome
@@ -224,9 +214,6 @@ export function CardAtendimento({
   const isEncaminhado =
     leadStatus.toLowerCase().includes('encaminhado') || meta?.origem_aba !== undefined
   const isNovoContato = safeCurrentAbaId === 'novo-contato' && !isEncaminhado
-  const forwardedToAba = meta?.encaminhado_para_aba
-    ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
-    : null
 
   const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
 
@@ -439,10 +426,18 @@ export function CardAtendimento({
                 align="end"
                 className="w-56 bg-popover border border-border text-popover-foreground shadow-md rounded-lg p-1 text-xs"
               >
-                {/* Nível 1: Outras abas (exclui a aba atual do card) */}
-                {ATENDIMENTO_ABAS.filter((aba) => aba.id !== safeCurrentAbaId).map((targetAba) => {
-                  // Filtrar colunas do submenu (exclui se for a mesma coluna do lead)
+                {/* Nível 1: Todas as abas disponíveis (incluindo a aba atual para movimentação entre colunas) */}
+                {ATENDIMENTO_ABAS.map((targetAba) => {
+                  // Filtrar colunas do submenu (exclui apenas se for exatamente a mesma coluna onde o lead já se encontra)
                   const colunasDestino = Array.isArray(targetAba.colunas) ? targetAba.colunas : []
+                  const availableColunas = colunasDestino.filter((coluna) => {
+                    const isSameColumn =
+                      targetAba.id === safeCurrentAbaId &&
+                      leadStatus.trim().toLowerCase() === coluna.trim().toLowerCase()
+                    return !isSameColumn
+                  })
+
+                  if (availableColunas.length === 0) return null
 
                   return (
                     <DropdownMenuSub key={targetAba.id}>
@@ -450,22 +445,15 @@ export function CardAtendimento({
                         <span>{targetAba.titulo}</span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-52 bg-popover border border-border text-popover-foreground shadow-md rounded-lg p-1 text-xs">
-                        {colunasDestino.map((coluna) => {
-                          const isSameColumn =
-                            targetAba.id === safeCurrentAbaId && leadStatus === coluna
-
-                          if (isSameColumn) return null
-
-                          return (
-                            <DropdownMenuItem
-                              key={coluna}
-                              onClick={() => onMoveTo(targetAba.id, coluna)}
-                              className="text-xs py-1.5 px-2 cursor-pointer rounded-sm hover:bg-accent focus:bg-accent"
-                            >
-                              {cleanColumnTitle(coluna)}
-                            </DropdownMenuItem>
-                          )
-                        })}
+                        {availableColunas.map((coluna) => (
+                          <DropdownMenuItem
+                            key={coluna}
+                            onClick={() => onMoveTo(targetAba.id, coluna)}
+                            className="text-xs py-1.5 px-2 cursor-pointer rounded-sm hover:bg-accent focus:bg-accent"
+                          >
+                            {cleanColumnTitle(coluna)}
+                          </DropdownMenuItem>
+                        ))}
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )
@@ -601,37 +589,7 @@ export function CardAtendimento({
           </div>
         )}
       </div>
-      {/* Se estiver encaminhado, mostrar badge de destino */}
-      {forwardedToAba && (
-        <div
-          className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-normal',
-            isNovoContato
-              ? 'bg-black/20 text-[#FFFFFF]'
-              : 'bg-[#F3F4F6] text-[#4B5563] dark:bg-[#30363D] dark:text-[#C9D1D9]',
-          )}
-        >
-          <CornerDownRight
-            className={cn(
-              'w-3.5 h-3.5 shrink-0',
-              isNovoContato ? 'text-[#FFFFFF]' : 'text-[#3B82F6] dark:text-[#58A6FF]',
-            )}
-          />
-          <span className="truncate">
-            Encaminhado p/{' '}
-            <strong
-              className={
-                isNovoContato
-                  ? 'text-[#FFFFFF] font-bold'
-                  : 'text-[#111827] dark:text-[#E6EDF3] font-semibold'
-              }
-            >
-              {forwardedToAba.titulo}
-            </strong>
-          </span>
-        </div>
-      )}
-      {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}
+      {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}{' '}
       {currentAba?.isOrcamentos && (
         <div
           className={cn(
@@ -796,10 +754,10 @@ export function CardAtendimento({
           </div>
         </div>
       )}
-      {/* Seção inferior do Card: Responsável + Encaminhar Para */}
+      {/* Seção inferior do Card: Responsável (Consultor) */}
       <div
         className={cn(
-          'space-y-2 pt-2 border-t',
+          'pt-2 border-t',
           isNovoContato ? 'border-white/20' : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
         )}
         onClick={(e) => e.stopPropagation()}
@@ -830,38 +788,6 @@ export function CardAtendimento({
               {safeUsers.map((u) => (
                 <SelectItem key={u.id} value={u.id} className="text-xs">
                   {u.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Dropdown "Encaminhar para" */}
-        <div className="flex items-center gap-1.5">
-          <Share2
-            className={cn(
-              'w-3.5 h-3.5 shrink-0',
-              isNovoContato ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
-            )}
-          />
-          <Select onValueChange={handleForwardSelect} value="none">
-            <SelectTrigger
-              className={cn(
-                'h-7 text-[13px] w-full font-normal',
-                isNovoContato
-                  ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] hover:bg-black/30'
-                  : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
-              )}
-            >
-              <SelectValue placeholder="Encaminhar para..." />
-            </SelectTrigger>
-            <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
-              <SelectItem value="none" disabled className="text-xs text-muted-foreground hidden">
-                Encaminhar para...
-              </SelectItem>
-              {ATENDIMENTO_ABAS.filter((aba) => aba.id !== safeCurrentAbaId).map((aba) => (
-                <SelectItem key={aba.id} value={aba.id} className="text-xs">
-                  {aba.titulo}
                 </SelectItem>
               ))}
             </SelectContent>
