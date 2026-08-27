@@ -15,6 +15,8 @@ import {
   FileText,
   CornerDownRight,
   MessageCircle,
+  Move,
+  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -24,6 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -32,6 +43,7 @@ import {
   LeadMetadados,
   parseLeadMetadados,
   stringifyLeadMetadados,
+  cleanColumnTitle,
 } from './constants'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -49,6 +61,7 @@ export interface CardAtendimentoProps {
   onArchive?: (id: string) => void
   onDelete?: (id: string) => void
   onForward?: (id: string, destinoAbaId: string) => void
+  onMoveTo?: (abaId: string, coluna: string) => void
 }
 
 export function CardAtendimento({
@@ -64,6 +77,7 @@ export function CardAtendimento({
   onArchive,
   onDelete,
   onForward,
+  onMoveTo,
 }: CardAtendimentoProps) {
   const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
 
@@ -400,11 +414,65 @@ export function CardAtendimento({
           )}
         </div>
 
-        {/* Botões de Ação do Card: Abrir Chat 💬, Arquivar e Excluir */}
+        {/* Botões de Ação do Card: Mover (dropdown 2 níveis), Abrir Chat 💬, Arquivar e Excluir */}
         <div
           className="flex items-center gap-0.5 shrink-0 -mt-0.5"
           onClick={(e) => e.stopPropagation()}
         >
+          {onMoveTo && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'p-1.5 rounded-md transition-colors',
+                    isNovoContato
+                      ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
+                      : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3] hover:bg-[#F3F4F6] dark:hover:bg-[#252525]',
+                  )}
+                  title="Mover lead para outra aba ou coluna"
+                >
+                  <Move className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 bg-popover border border-border text-popover-foreground shadow-md rounded-lg p-1 text-xs"
+              >
+                {/* Nível 1: Outras abas (exclui a aba atual do card) */}
+                {ATENDIMENTO_ABAS.filter((aba) => aba.id !== safeCurrentAbaId).map((targetAba) => {
+                  // Filtrar colunas do submenu (exclui se for a mesma coluna do lead)
+                  const colunasDestino = Array.isArray(targetAba.colunas) ? targetAba.colunas : []
+
+                  return (
+                    <DropdownMenuSub key={targetAba.id}>
+                      <DropdownMenuSubTrigger className="flex items-center justify-between text-xs py-1.5 px-2 cursor-pointer rounded-sm hover:bg-accent focus:bg-accent">
+                        <span>{targetAba.titulo}</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-52 bg-popover border border-border text-popover-foreground shadow-md rounded-lg p-1 text-xs">
+                        {colunasDestino.map((coluna) => {
+                          const isSameColumn =
+                            targetAba.id === safeCurrentAbaId && leadStatus === coluna
+
+                          if (isSameColumn) return null
+
+                          return (
+                            <DropdownMenuItem
+                              key={coluna}
+                              onClick={() => onMoveTo(targetAba.id, coluna)}
+                              className="text-xs py-1.5 px-2 cursor-pointer rounded-sm hover:bg-accent focus:bg-accent"
+                            >
+                              {cleanColumnTitle(coluna)}
+                            </DropdownMenuItem>
+                          )
+                        })}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <button
             type="button"
             onClick={() => onClick?.()}

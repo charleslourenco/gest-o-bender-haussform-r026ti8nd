@@ -132,7 +132,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
         .order('created_at', { ascending: false })
         .limit(1000)
       const map: Record<string, string> = {}
-      for (const m of data || []) {
+      for (const m of (data as any[]) || []) {
         const key = m.lead_id ? m.lead_id : `phone:${m.phone}`
         if (!map[key]) map[key] = m.created_at
       }

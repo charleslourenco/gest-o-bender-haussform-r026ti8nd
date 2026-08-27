@@ -235,7 +235,7 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
       <div className="bg-card p-6 rounded-lg text-center border">
         <p className="text-foreground font-bold text-lg mb-4">{error}</p>
         <button
-          onClick={loadData}
+          onClick={() => loadData()}
           className="bg-primary text-primary-foreground px-6 py-3 rounded-lg hover:bg-primary/90 min-h-[44px] transition-colors duration-200"
         >
           Tentar Novamente

@@ -394,6 +394,36 @@ export function KanbanAtendimentos({
     }
   }
 
+  // Mover card para outra aba e coluna específica via Dropdown de 2 níveis
+  const handleMoveToAbaColuna = async (lead: Lead, targetAbaId: string, targetColuna: string) => {
+    if (!lead || !lead.id) return
+
+    const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === targetAbaId)
+    if (!targetAba) return
+
+    try {
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+      const newMeta: LeadMetadados = {
+        ...meta,
+        origem_aba: safeAba.id,
+        encaminhado_para_aba: targetAbaId,
+        encaminhado_em: new Date().toISOString(),
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      await handleUpdateLead(lead.id, {
+        status: targetColuna,
+        categoria: targetAba.categoriaPadrao,
+        notas_pessoais: newNotasPessoais,
+      } as any)
+
+      toast.success(`Card movido para "${targetAba.titulo} > ${cleanColumnTitle(targetColuna)}"`)
+    } catch (err: any) {
+      console.error('Erro ao mover card:', err)
+      toast.error('Erro ao mover lead')
+    }
+  }
+
   // Encaminhar card para outra aba
   const handleForwardLead = async (leadId: string, destinoAbaId: string) => {
     const lead = leads.find((l) => l.id === leadId)
@@ -417,14 +447,13 @@ export function KanbanAtendimentos({
         safeAba.colunas.find((c) => c.toLowerCase().includes('encaminhado')) ||
         safeAba.colunas[safeAba.colunas.length - 1]
 
-      await updateLead(leadId, {
+      await handleUpdateLead(leadId, {
         status: encaminhadoCol,
         categoria: destinoAba.categoriaPadrao,
         notas_pessoais: newNotasPessoais,
       } as any)
 
       toast.success(`Card encaminhado com sucesso para "${destinoAba.titulo}"!`)
-      loadData(true)
     } catch (err: any) {
       console.error('Erro ao encaminhar card:', err)
       toast.error('Erro ao encaminhar lead')
@@ -919,6 +948,9 @@ export function KanbanAtendimentos({
                             onArchive={handleArchiveLead}
                             onDelete={() => setLeadToDelete(lead)}
                             onForward={handleForwardLead}
+                            onMoveTo={(targetAbaId, targetColuna) =>
+                              handleMoveToAbaColuna(lead, targetAbaId, targetColuna)
+                            }
                           />
                         </ErrorBoundary>
                       ))}

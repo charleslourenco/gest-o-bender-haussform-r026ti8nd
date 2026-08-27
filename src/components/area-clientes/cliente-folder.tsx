@@ -87,7 +87,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
             .single()
           if (uData) vendedor = uData.nome
         }
-        data.vendedorNome = vendedor
+        ;(data as any).vendedorNome = vendedor
         setDossie(data)
 
         // Load ALL sales (dossiês + formulários) for this client

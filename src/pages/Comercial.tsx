@@ -23,6 +23,14 @@ export default function Comercial() {
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
   const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   // Suporte a abertura direta por link/notificação (/comercial?lead_id=UUID)
   useEffect(() => {
@@ -32,21 +40,21 @@ export default function Comercial() {
     let isMounted = true
     const fetchLeadFromParam = async () => {
       try {
-        const { data: leadData } = await supabase
+        const { data: leadData, error: leadErr } = await supabase
           .from('leads')
           .select('*, consultor:users!leads_consultor_id_fkey(nome)')
           .eq('id', leadIdParam)
           .maybeSingle()
 
-        if (leadData && isMounted) {
+        if (!leadErr && leadData && isMounted && isMountedRef.current) {
           setLeadForGlobalModal(leadData)
           try {
             const targetAba = getLeadAba(leadData)
             if (targetAba?.id) {
               setActiveTab(targetAba.id)
             }
-          } catch {
-            // Ignora erro no cálculo da aba
+          } catch (e) {
+            console.warn('Erro ao calcular aba do lead da URL:', e)
           }
         }
       } catch (err) {
@@ -78,12 +86,16 @@ export default function Comercial() {
   }
 
   const isSuperAdmin = user?.email === 'admin@bender.com'
-  const userAccess = isSuperAdmin ? 'Admin' : permissions?.['Comercial']
+  const userAccess = isSuperAdmin ? 'Admin' : permissions ? permissions['Comercial'] : undefined
   const hasPermission = Boolean(
     isSuperAdmin ||
     !user || // Permite renderizar estado inicial caso auth ainda esteja hidratando
-    (userAccess && ['Admin', 'Editor', 'Visualizador', 'Leitor'].includes(userAccess)) ||
-    (permissions && Object.keys(permissions).length === 0 && !isSuperAdmin), // Fallback gracioso se permissões não carregaram
+    (typeof userAccess === 'string' &&
+      ['Admin', 'Editor', 'Visualizador', 'Leitor'].includes(userAccess)) ||
+    (permissions &&
+      typeof permissions === 'object' &&
+      Object.keys(permissions).length === 0 &&
+      !isSuperAdmin), // Fallback gracioso se permissões não carregaram
   )
 
   useEffect(() => {

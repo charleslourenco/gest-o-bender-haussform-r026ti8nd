@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo })
-    console.error('Uncaught error in component:', error, errorInfo)
+    console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo)
   }
 
   public render() {
