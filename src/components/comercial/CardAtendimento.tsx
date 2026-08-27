@@ -207,7 +207,8 @@ export function CardAtendimento({
 
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
-  const isEncaminhado = leadStatus.toLowerCase().includes('encaminhado')
+  const isEncaminhado =
+    leadStatus.toLowerCase().includes('encaminhado') || meta?.origem_aba !== undefined
   const isNovoContato = safeCurrentAbaId === 'novo-contato' && !isEncaminhado
   const forwardedToAba = meta?.encaminhado_para_aba
     ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)

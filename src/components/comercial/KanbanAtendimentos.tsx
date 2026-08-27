@@ -758,7 +758,8 @@ export function KanbanAtendimentos({
                         }
                         if (
                           !safeAba.colunas.includes(status) &&
-                          !status.toLowerCase().includes('encaminhado')
+                          !status.toLowerCase().includes('encaminhado') &&
+                          meta?.origem_aba !== safeAba.id
                         ) {
                           return true
                         }
