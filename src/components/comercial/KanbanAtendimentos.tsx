@@ -85,6 +85,8 @@ export function KanbanAtendimentos({
   const scrollRef = useRef<HTMLDivElement>(null)
   const leadsRef = useRef<Lead[]>([])
   leadsRef.current = leads
+  const usersRef = useRef<Array<{ id: string; nome: string }>>([])
+  usersRef.current = users
 
   // Limpar contagem de não lidas quando abrir o modal de conversa
   const handleOpenLeadModal = (lead: Lead) => {
@@ -145,9 +147,71 @@ export function KanbanAtendimentos({
       if (supabase && typeof supabase.channel === 'function') {
         const channel = supabase.channel(`kanban_leads_${channelId}`)
         channel
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-            if (isMounted) loadData(true)
-          })
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'leads' },
+            (payload: any) => {
+              if (!isMounted) return
+
+              // Tratamento imediato de UPDATE no estado local
+              if (payload?.eventType === 'UPDATE' && payload?.new) {
+                const updatedRow = payload.new
+                const leadId = updatedRow.id
+                const consultorId =
+                  updatedRow.consultor_id || updatedRow.responsavel_id || updatedRow.responsavel
+
+                // Descobrir nome do consultor/responsável pelos users conhecidos
+                let consultorObj: { nome: string } | null = null
+                if (consultorId) {
+                  const currentUsers = usersRef.current || []
+                  const matchedUser = currentUsers.find((u) => u.id === consultorId)
+                  if (matchedUser) {
+                    consultorObj = { nome: matchedUser.nome }
+                  } else if (updatedRow.responsavel_nome) {
+                    consultorObj = { nome: updatedRow.responsavel_nome }
+                  }
+                }
+
+                setLeads((prevLeads) =>
+                  prevLeads.map((l) => {
+                    if (l.id !== leadId) return l
+                    return {
+                      ...l,
+                      ...updatedRow,
+                      ...(consultorId !== undefined
+                        ? {
+                            consultor_id: consultorId,
+                            consultor: consultorObj ?? (consultorId ? l.consultor : null),
+                          }
+                        : {}),
+                      ...(updatedRow.responsavel_nome
+                        ? { consultor: { nome: updatedRow.responsavel_nome } }
+                        : {}),
+                    }
+                  }),
+                )
+
+                setSelectedLeadForModal((curr) => {
+                  if (!curr || curr.id !== leadId) return curr
+                  return {
+                    ...curr,
+                    ...updatedRow,
+                    ...(consultorId !== undefined
+                      ? {
+                          consultor_id: consultorId,
+                          consultor: consultorObj ?? (consultorId ? (curr as any).consultor : null),
+                        }
+                      : {}),
+                    ...(updatedRow.responsavel_nome
+                      ? { consultor: { nome: updatedRow.responsavel_nome } }
+                      : {}),
+                  } as any
+                })
+              }
+
+              if (isMounted) loadData(true)
+            },
+          )
           .subscribe((status: any, err: any) => {
             if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
               console.warn('Realtime kanban_leads channel status/error:', status, err)
@@ -288,14 +352,30 @@ export function KanbanAtendimentos({
   // Atualizar Lead (reutilizável)
   const handleUpdateLead = async (id: string, updates: Partial<Lead>) => {
     try {
+      // Obter nome do consultor se consultor_id foi alterado
+      let consultorObj: { nome: string } | null | undefined = undefined
+      if ('consultor_id' in updates) {
+        if (!updates.consultor_id) {
+          consultorObj = null
+        } else {
+          const matchedUser = users.find((u) => u.id === updates.consultor_id)
+          consultorObj = matchedUser ? { nome: matchedUser.nome } : null
+        }
+      }
+
+      const mergedUpdates = {
+        ...updates,
+        ...(consultorObj !== undefined ? { consultor: consultorObj } : {}),
+      }
+
       // Otimista
       setLeads((prev) =>
         prev.map((l) =>
-          l.id === id ? { ...l, ...updates, atualizado_em: new Date().toISOString() } : l,
+          l.id === id ? { ...l, ...mergedUpdates, atualizado_em: new Date().toISOString() } : l,
         ),
       )
       if (selectedLeadForModal?.id === id) {
-        setSelectedLeadForModal((prev) => (prev ? { ...prev, ...updates } : null))
+        setSelectedLeadForModal((prev) => (prev ? { ...prev, ...mergedUpdates } : null))
       }
 
       await updateLead(id, updates)
@@ -736,7 +816,14 @@ export function KanbanAtendimentos({
                       }
 
                       // Se este card foi encaminhado para esta aba e está na primeira coluna
-                      if (meta?.encaminhado_para_aba === safeAba.id && colIdx === 0) {
+                      const hasEncaminhadoCol = safeAba.colunas.some((c: string) =>
+                        c.toLowerCase().includes('encaminhado'),
+                      )
+                      if (
+                        !hasEncaminhadoCol &&
+                        meta?.encaminhado_para_aba === safeAba.id &&
+                        colIdx === 0
+                      ) {
                         if (status === coluna || !safeAba.colunas.includes(status)) return true
                       }
 
