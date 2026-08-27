@@ -172,6 +172,28 @@
     animation: shake 0.3s ease-in-out;
   }
 
+  @keyframes pulse-laranja {
+    0%,
+    100% {
+      background-color: #f97316;
+      border-color: #ea580c;
+      box-shadow:
+        0 0 15px rgba(249, 115, 22, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    50% {
+      background-color: #fb923c;
+      border-color: #f97316;
+      box-shadow:
+        0 0 28px rgba(249, 115, 22, 0.75),
+        0 6px 20px rgba(249, 115, 22, 0.35);
+    }
+  }
+
+  .animate-pulse-laranja {
+    animation: pulse-laranja 2.5s ease-in-out infinite;
+  }
+
   .custom-scrollbar-top::-webkit-scrollbar {
     height: 10px;
   }

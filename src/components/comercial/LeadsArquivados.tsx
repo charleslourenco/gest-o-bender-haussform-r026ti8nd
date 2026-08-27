@@ -62,44 +62,50 @@ export function LeadsArquivados() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {leads.map((lead) => (
-          <TableRow key={lead.id} className="hover:bg-slate-50 transition-colors">
-            <TableCell className="font-medium text-midnight-navy">{lead.nome}</TableCell>
-            <TableCell className="text-gray-600">{lead.email}</TableCell>
-            <TableCell className="text-gray-600">{lead.telefone}</TableCell>
-            <TableCell>
-              <Badge variant="secondary">{lead.status}</Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">
-                {lead.origem}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-gray-600">
-              {(() => {
-                const dt = lead.atualizado_em || lead.criado_em
-                if (!dt) return '-'
-                try {
-                  const d = new Date(dt)
-                  return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
-                } catch {
-                  return '-'
-                }
-              })()}
-            </TableCell>
-            <TableCell className="text-right">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleUnarchive(lead.id)}
-                className="text-steel-blue hover:text-steel-blue/80 hover:bg-steel-blue/5"
-              >
-                <RotateCcw className="w-4 h-4 mr-1" />
-                Desarquivar
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
+        {Array.isArray(leads) &&
+          leads.filter(Boolean).map((lead) => (
+            <TableRow
+              key={lead?.id || Math.random()}
+              className="hover:bg-slate-50 transition-colors"
+            >
+              <TableCell className="font-medium text-midnight-navy">{lead?.nome || '-'}</TableCell>
+              <TableCell className="text-gray-600">{lead?.email || '-'}</TableCell>
+              <TableCell className="text-gray-600">{lead?.telefone || '-'}</TableCell>
+              <TableCell>
+                <Badge variant="secondary">{lead?.status || '-'}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">
+                  {lead?.origem || '-'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-gray-600">
+                {(() => {
+                  const dt = lead?.atualizado_em || lead?.criado_em
+                  if (!dt) return '-'
+                  try {
+                    const d = new Date(dt)
+                    return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
+                  } catch {
+                    return '-'
+                  }
+                })()}
+              </TableCell>
+              <TableCell className="text-right">
+                {lead?.id && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleUnarchive(lead.id)}
+                    className="text-steel-blue hover:text-steel-blue/80 hover:bg-steel-blue/5"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Desarquivar
+                  </Button>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
         {leads.length === 0 && (
           <TableRow>
             <TableCell colSpan={7} className="text-center text-gray-500 py-8">

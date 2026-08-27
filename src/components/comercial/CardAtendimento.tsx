@@ -201,23 +201,24 @@ export function CardAtendimento({
     ? consultorRaw[0]?.nome
     : typeof consultorRaw === 'object' && consultorRaw !== null
       ? (consultorRaw as any).nome
-      : undefined
+      : typeof lead?.consultor === 'string'
+        ? lead.consultor
+        : undefined
 
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
-  const isAguardandoConsultor =
-    leadStatus.toLowerCase().trim() === 'aguardando consultor' ||
-    leadStatus.toLowerCase().trim() === 'aguardando_consultor'
+  const safeCurrentAbaId = currentAba?.id || ''
+  const isNovoContato = safeCurrentAbaId === 'novo-contato'
+
   const isEncaminhado = leadStatus.toLowerCase().includes('encaminhado')
   const forwardedToAba = meta?.encaminhado_para_aba
     ? ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
     : null
 
   const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
-  const safeCurrentAbaId = currentAba?.id || ''
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
-    if (isAguardandoConsultor) {
+    if (isNovoContato) {
       return (
         <span className="bg-white/20 text-[#FFFFFF] text-[11px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1">
           {p ? `${p === 'Alta' ? '🔴' : p === 'Média' ? '🟡' : '🟢'} ${p}` : 'Sem prioridade'}
@@ -274,20 +275,18 @@ export function CardAtendimento({
         'transition-all duration-200 ease-out cursor-pointer group relative flex flex-col gap-2.5',
         // CARDS NORMAIS (modo claro): Fundo #FFFFFF (branco puro), borda sólida 1px #E5E7EB, sombra [0_2px_8px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)]
         // CARDS NORMAIS (modo escuro): Fundo #1E1E1E, borda sólida 1px #3A3A3A, sombra [0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]
-        !isAguardandoConsultor && [
+        !isNovoContato && [
           'bg-[#FFFFFF] dark:bg-[#1E1E1E]',
           'border border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
           'shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.03)]',
           'hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
           'hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_6px_20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.05)]',
         ],
-        // CARDS DE AÇÃO URGENTE (laranja - modo claro): Fundo #F97316, borda sólida 1px #EA580C, sombra [0_4px_20px_rgba(249,115,22,0.3),0_2px_6px_rgba(0,0,0,0.1)], hover:bg-[#FB923C]
-        // CARDS DE AÇÃO URGENTE (laranja - modo escuro): Fundo #F97316, borda sólida 1px #FB923C, sombra [0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]
-        isAguardandoConsultor && [
+        // CARDS DE NOVO CONTATO (laranja pulsante): Fundo #F97316, borda sólida #EA580C, texto branco, animação de pulsar suave
+        isNovoContato && [
           'bg-[#F97316] text-[#FFFFFF]',
           'border border-solid border-[#EA580C] dark:border-[#FB923C]',
-          'shadow-[0_4px_20px_rgba(249,115,22,0.3),0_2px_6px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(249,115,22,0.35),0_4px_12px_rgba(0,0,0,0.4)]',
-          'hover:bg-[#FB923C] hover:shadow-[0_6px_24px_rgba(249,115,22,0.4),0_3px_8px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_0_28px_rgba(249,115,22,0.5),0_6px_16px_rgba(0,0,0,0.5)]',
+          'animate-pulse-laranja',
         ],
         isDragging &&
           'opacity-50 ring-2 ring-[#3B82F6] border-[#3B82F6] dark:ring-[#58A6FF] dark:border-[#58A6FF]',
@@ -311,7 +310,7 @@ export function CardAtendimento({
                 }}
                 className={cn(
                   'h-7 text-[15px] font-semibold py-0 px-1.5',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'bg-black/30 border-white/40 text-white'
                     : 'bg-[#F9FAFB] dark:bg-[#252525] border-[#D1D5DB] dark:border-[#4A4A4A] text-[#111827] dark:text-[#E6EDF3]',
                 )}
@@ -321,7 +320,7 @@ export function CardAtendimento({
                 onClick={handleSaveNome}
                 className={cn(
                   'p-1 rounded',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'text-white hover:bg-white/20'
                     : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20',
                 )}
@@ -337,7 +336,7 @@ export function CardAtendimento({
                 }}
                 className={cn(
                   'p-1 rounded',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'text-white hover:bg-white/20'
                     : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20',
                 )}
@@ -356,7 +355,7 @@ export function CardAtendimento({
                 }}
                 className={cn(
                   'text-[15px] transition-colors text-left truncate leading-tight focus:outline-none',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'text-[#FFFFFF] hover:text-white/90 font-bold'
                     : 'text-[#111827] dark:text-[#E6EDF3] hover:text-[#3B82F6] dark:hover:text-[#58A6FF] font-semibold',
                 )}
@@ -372,7 +371,7 @@ export function CardAtendimento({
                 }}
                 className={cn(
                   'opacity-0 group-hover/nome:opacity-100 p-0.5 transition-opacity',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'text-white/90 hover:text-white'
                     : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
                 )}
@@ -384,7 +383,7 @@ export function CardAtendimento({
                 <span
                   className={cn(
                     'text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 animate-pulse',
-                    isAguardandoConsultor
+                    isNovoContato
                       ? 'bg-white text-[#F97316]'
                       : 'bg-[#3B82F6] dark:bg-[#58A6FF] text-white',
                   )}
@@ -411,7 +410,7 @@ export function CardAtendimento({
             onClick={() => onClick?.()}
             className={cn(
               'p-1.5 rounded-md transition-colors',
-              isAguardandoConsultor
+              isNovoContato
                 ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
                 : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-[#252525]',
             )}
@@ -425,7 +424,7 @@ export function CardAtendimento({
               onClick={() => onArchive(lead.id)}
               className={cn(
                 'p-1.5 rounded-md transition-colors',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
                   : 'text-[#6B7280] dark:text-[#8B949E] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-[#F3F4F6] dark:hover:bg-[#252525]',
               )}
@@ -440,7 +439,7 @@ export function CardAtendimento({
               onClick={() => onDelete(lead.id)}
               className={cn(
                 'p-1.5 rounded-md transition-colors',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-[#FFFFFF] hover:text-white hover:bg-white/20'
                   : 'text-[#6B7280] dark:text-[#8B949E] hover:text-destructive hover:bg-[#F3F4F6] dark:hover:bg-[#252525]',
               )}
@@ -451,19 +450,18 @@ export function CardAtendimento({
           )}
         </div>
       </div>
-
       {/* Telefone inline */}
       <div
         className={cn(
           'flex items-center gap-1.5 text-[13px] font-normal',
-          isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
+          isNovoContato ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
         <Phone
           className={cn(
             'w-3 h-3 shrink-0',
-            isAguardandoConsultor ? 'text-[#FFFFFF] opacity-90' : 'opacity-70',
+            isNovoContato ? 'text-[#FFFFFF] opacity-90' : 'opacity-70',
           )}
         />
         {isEditingTelefone ? (
@@ -482,7 +480,7 @@ export function CardAtendimento({
               placeholder="Telefone"
               className={cn(
                 'h-6 text-[13px] py-0 px-1.5 flex-1',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'bg-black/30 border-white/40 text-white'
                   : 'bg-[#F9FAFB] dark:bg-[#252525] border-[#D1D5DB] dark:border-[#4A4A4A] text-[#111827] dark:text-[#E6EDF3]',
               )}
@@ -491,7 +489,7 @@ export function CardAtendimento({
               onClick={handleSaveTelefone}
               className={cn(
                 'p-0.5 rounded',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-white hover:bg-white/20'
                   : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20',
               )}
@@ -506,7 +504,7 @@ export function CardAtendimento({
               }}
               className={cn(
                 'p-0.5 rounded',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-white hover:bg-white/20'
                   : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/20',
               )}
@@ -524,7 +522,7 @@ export function CardAtendimento({
               onClick={() => setIsEditingTelefone(true)}
               className={cn(
                 'opacity-0 group-hover/tel:opacity-100 p-0.5 transition-opacity',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-white/90 hover:text-white'
                   : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
               )}
@@ -535,13 +533,12 @@ export function CardAtendimento({
           </div>
         )}
       </div>
-
       {/* Se estiver encaminhado, mostrar badge de destino */}
       {forwardedToAba && (
         <div
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-normal',
-            isAguardandoConsultor
+            isNovoContato
               ? 'bg-black/20 text-[#FFFFFF]'
               : 'bg-[#F3F4F6] text-[#4B5563] dark:bg-[#30363D] dark:text-[#C9D1D9]',
           )}
@@ -549,14 +546,14 @@ export function CardAtendimento({
           <CornerDownRight
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#3B82F6] dark:text-[#58A6FF]',
+              isNovoContato ? 'text-[#FFFFFF]' : 'text-[#3B82F6] dark:text-[#58A6FF]',
             )}
           />
           <span className="truncate">
             Encaminhado p/{' '}
             <strong
               className={
-                isAguardandoConsultor
+                isNovoContato
                   ? 'text-[#FFFFFF] font-bold'
                   : 'text-[#111827] dark:text-[#E6EDF3] font-semibold'
               }
@@ -566,13 +563,12 @@ export function CardAtendimento({
           </span>
         </div>
       )}
-
       {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}
-      {currentAba.isOrcamentos && (
+      {currentAba?.isOrcamentos && (
         <div
           className={cn(
             'p-2.5 rounded-lg border space-y-2 text-[13px]',
-            isAguardandoConsultor
+            isNovoContato
               ? 'bg-black/20 border-white/20 text-white'
               : 'bg-[#F9FAFB] dark:bg-[#161B22] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#6B7280] dark:text-[#8B949E]',
           )}
@@ -584,7 +580,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+                  isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 <FileText className="w-3 h-3" /> Descrição do Projeto
@@ -594,7 +590,7 @@ export function CardAtendimento({
                   onClick={() => setIsEditingDescricao(true)}
                   className={cn(
                     'text-[11px] flex items-center gap-0.5 font-medium transition-colors',
-                    isAguardandoConsultor
+                    isNovoContato
                       ? 'text-white/80 hover:text-white'
                       : 'text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3]',
                   )}
@@ -613,7 +609,7 @@ export function CardAtendimento({
                   placeholder="Descreva o escopo / especificações..."
                   className={cn(
                     'w-full border rounded p-1.5 text-[13px] outline-none resize-y',
-                    isAguardandoConsultor
+                    isNovoContato
                       ? 'bg-black/30 border-white/30 text-white focus:ring-1 focus:ring-white'
                       : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#D1D5DB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] focus:ring-1 focus:ring-[#3B82F6] dark:focus:ring-[#58A6FF]',
                   )}
@@ -640,7 +636,7 @@ export function CardAtendimento({
               <p
                 className={cn(
                   'text-[12px] italic line-clamp-2 p-1.5 rounded border min-h-[28px]',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'bg-black/20 border-white/20 text-white/90'
                     : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#4B5563] dark:text-[#C9D1D9]',
                 )}
@@ -654,7 +650,7 @@ export function CardAtendimento({
           <div
             className={cn(
               'grid grid-cols-2 gap-2 pt-1 border-t',
-              isAguardandoConsultor ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
+              isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
             )}
           >
             {/* Prazo */}
@@ -662,7 +658,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[10px] font-semibold uppercase tracking-wider block mb-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+                  isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 Prazo
@@ -670,7 +666,7 @@ export function CardAtendimento({
               <div
                 className={cn(
                   'flex items-center gap-1 px-2 py-1 rounded border',
-                  isAguardandoConsultor
+                  isNovoContato
                     ? 'bg-black/20 border-white/30'
                     : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A]',
                 )}
@@ -678,7 +674,7 @@ export function CardAtendimento({
                 <CalendarIcon
                   className={cn(
                     'w-3 h-3 shrink-0',
-                    isAguardandoConsultor ? 'text-white' : 'text-[#6B7280] dark:text-[#8B949E]',
+                    isNovoContato ? 'text-white' : 'text-[#6B7280] dark:text-[#8B949E]',
                   )}
                 />
                 <input
@@ -687,7 +683,7 @@ export function CardAtendimento({
                   onChange={handleUpdatePrazo}
                   className={cn(
                     'bg-transparent text-[11px] outline-none w-full font-mono cursor-pointer',
-                    isAguardandoConsultor ? 'text-white' : 'text-[#111827] dark:text-[#E6EDF3]',
+                    isNovoContato ? 'text-white' : 'text-[#111827] dark:text-[#E6EDF3]',
                   )}
                 />
               </div>
@@ -698,7 +694,7 @@ export function CardAtendimento({
               <span
                 className={cn(
                   'text-[10px] font-semibold uppercase tracking-wider block mb-1',
-                  isAguardandoConsultor ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+                  isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
                 )}
               >
                 Prioridade
@@ -712,7 +708,7 @@ export function CardAtendimento({
                 <SelectTrigger
                   className={cn(
                     'h-7 text-xs',
-                    isAguardandoConsultor
+                    isNovoContato
                       ? 'bg-black/20 border-white/30 text-white'
                       : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]',
                   )}
@@ -732,14 +728,11 @@ export function CardAtendimento({
           </div>
         </div>
       )}
-
       {/* Seção inferior do Card: Responsável + Encaminhar Para */}
       <div
         className={cn(
           'space-y-2 pt-2 border-t',
-          isAguardandoConsultor
-            ? 'border-white/20'
-            : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
+          isNovoContato ? 'border-white/20' : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
@@ -748,14 +741,14 @@ export function CardAtendimento({
           <User
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
+              isNovoContato ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
             )}
           />
           <Select value={lead.consultor_id || 'unassigned'} onValueChange={handleResponsavelChange}>
             <SelectTrigger
               className={cn(
                 'h-7 text-[13px] w-full font-normal',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] font-medium hover:bg-black/30'
                   : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
               )}
@@ -780,14 +773,14 @@ export function CardAtendimento({
           <Share2
             className={cn(
               'w-3.5 h-3.5 shrink-0',
-              isAguardandoConsultor ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
+              isNovoContato ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
             )}
           />
           <Select onValueChange={handleForwardSelect} value="none">
             <SelectTrigger
               className={cn(
                 'h-7 text-[13px] w-full font-normal',
-                isAguardandoConsultor
+                isNovoContato
                   ? 'bg-black/20 border-solid border-white/30 text-[#FFFFFF] hover:bg-black/30'
                   : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
               )}
@@ -807,19 +800,18 @@ export function CardAtendimento({
           </Select>
         </div>
       </div>
-
       {/* Footer do Card: Data e Tempo no estágio */}
       <div
         className={cn(
           'flex items-center justify-between text-[13px] pt-1.5 border-t font-normal',
-          isAguardandoConsultor
+          isNovoContato
             ? 'border-white/20 text-[#FFFFFF]'
             : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#6B7280] dark:text-[#8B949E]',
         )}
       >
         <span className="flex items-center gap-1 text-[12px]" title="Data do último movimento">
           <CalendarIcon
-            className={cn('w-3 h-3', isAguardandoConsultor ? 'text-[#FFFFFF]' : 'opacity-70')}
+            className={cn('w-3 h-3', isNovoContato ? 'text-[#FFFFFF]' : 'opacity-70')}
           />
           {(() => {
             const rawDate = (lead as any).atualizado_em || lead.criado_em
@@ -835,18 +827,16 @@ export function CardAtendimento({
         <span
           className={cn(
             'flex items-center gap-1 text-[12px]',
-            isAguardandoConsultor
+            isNovoContato
               ? 'text-[#FFFFFF] font-bold'
               : 'text-[#111827] dark:text-[#E6EDF3] font-medium',
           )}
           title="Tempo no estágio atual"
         >
-          <Clock
-            className={cn('w-3 h-3', isAguardandoConsultor ? 'text-[#FFFFFF]' : 'opacity-70')}
-          />
+          <Clock className={cn('w-3 h-3', isNovoContato ? 'text-[#FFFFFF]' : 'opacity-70')} />
           {elapsed || '-'}
         </span>
-      </div>
+      </div>{' '}
     </div>
   )
 }

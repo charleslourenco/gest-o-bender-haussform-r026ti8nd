@@ -142,17 +142,19 @@ export function KanbanAtendimentos({
     // Realtime channel para leads com identificador único da aba
     let leadsChannel: any = null
     try {
-      const channel = supabase.channel(`kanban_leads_${channelId}`)
-      channel
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-          if (isMounted) loadData(true)
-        })
-        .subscribe((status, err) => {
-          if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('Realtime kanban_leads channel status/error:', status, err)
-          }
-        })
-      leadsChannel = channel
+      if (supabase && typeof supabase.channel === 'function') {
+        const channel = supabase.channel(`kanban_leads_${channelId}`)
+        channel
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+            if (isMounted) loadData(true)
+          })
+          .subscribe((status: any, err: any) => {
+            if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn('Realtime kanban_leads channel status/error:', status, err)
+            }
+          })
+        leadsChannel = channel
+      }
     } catch (err) {
       console.warn('Falha ao inicializar canal Realtime kanban_leads:', err)
     }
@@ -160,93 +162,96 @@ export function KanbanAtendimentos({
     // Realtime channel para novas mensagens do WhatsApp
     let msgChannel: any = null
     try {
-      const channel = supabase.channel(`kanban_msgs_${channelId}`)
-      channel
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
-          async (payload) => {
-            try {
-              if (!isMounted) return
-              const newMsg = payload?.new as any
-              if (!newMsg) return
+      if (supabase && typeof supabase.channel === 'function') {
+        const channel = supabase.channel(`kanban_msgs_${channelId}`)
+        channel
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' },
+            async (payload: any) => {
+              try {
+                if (!isMounted) return
+                const newMsg = payload?.new as any
+                if (!newMsg) return
 
-              // Ignorar mensagens de saída enviadas por operadores humanos/sistema
-              const isClientInbound =
-                newMsg.direction === 'inbound' ||
-                newMsg.sender_type === 'cliente' ||
-                newMsg.sender_type === 'lead'
+                // Ignorar mensagens de saída enviadas por operadores humanos/sistema
+                const isClientInbound =
+                  newMsg.direction === 'inbound' ||
+                  newMsg.sender_type === 'cliente' ||
+                  newMsg.sender_type === 'lead'
 
-              if (!isClientInbound) return
+                if (!isClientInbound) return
 
-              // Localizar o lead correspondente
-              const currentList = leadsRef.current
-              let matchedLead = currentList.find(
-                (l) => l.id === newMsg.lead_id || (newMsg.phone && l.telefone === newMsg.phone),
-              )
+                // Localizar o lead correspondente
+                const currentList = Array.isArray(leadsRef.current) ? leadsRef.current : []
+                let matchedLead = currentList.find(
+                  (l) =>
+                    l && (l.id === newMsg.lead_id || (newMsg.phone && l.telefone === newMsg.phone)),
+                )
 
-              // Se não encontrou no estado em memória, buscar do banco
-              if (!matchedLead && (newMsg.lead_id || newMsg.phone)) {
-                try {
-                  let query = supabase
-                    .from('leads')
-                    .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-                  if (newMsg.lead_id) {
-                    query = query.eq('id', newMsg.lead_id)
-                  } else if (newMsg.phone) {
-                    query = query.eq('telefone', newMsg.phone)
+                // Se não encontrou no estado em memória, buscar do banco
+                if (!matchedLead && (newMsg.lead_id || newMsg.phone)) {
+                  try {
+                    let query = supabase
+                      .from('leads')
+                      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+                    if (newMsg.lead_id) {
+                      query = query.eq('id', newMsg.lead_id)
+                    } else if (newMsg.phone) {
+                      query = query.eq('telefone', newMsg.phone)
+                    }
+                    const { data: leadFound } = await query.maybeSingle()
+                    if (leadFound) matchedLead = leadFound as any
+                  } catch (err) {
+                    console.error('Erro ao localizar lead da mensagem:', err)
                   }
-                  const { data: leadFound } = await query.maybeSingle()
-                  if (leadFound) matchedLead = leadFound as any
-                } catch (err) {
-                  console.error('Erro ao localizar lead da mensagem:', err)
                 }
-              }
 
-              if (matchedLead) {
-                // Incrementar badge visual de mensagens não lidas
-                setUnreadCounts((prev) => ({
-                  ...prev,
-                  [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
-                }))
+                if (matchedLead) {
+                  // Incrementar badge visual de mensagens não lidas
+                  setUnreadCounts((prev) => ({
+                    ...prev,
+                    [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
+                  }))
 
-                // Determinar a aba a que o lead pertence
-                const targetAba = getLeadAba(matchedLead)
-                const leadName = matchedLead.nome || 'Lead'
-                const abaTitle = targetAba.titulo || 'Atendimentos'
+                  // Determinar a aba a que o lead pertence
+                  const targetAba = getLeadAba(matchedLead)
+                  const leadName = matchedLead.nome || 'Lead'
+                  const abaTitle = targetAba?.titulo || 'Atendimentos'
 
-                // Disparar o toast com auto-dismiss de 8 segundos e clique para abrir modal
-                const toastMessage = `🟢 ${leadName} (${abaTitle}) mandou nova mensagem`
-                const previewText = newMsg.content
-                  ? `"${newMsg.content.substring(0, 70)}${newMsg.content.length > 70 ? '...' : ''}"`
-                  : undefined
+                  // Disparar o toast com auto-dismiss de 8 segundos e clique para abrir modal
+                  const toastMessage = `🟢 ${leadName} (${abaTitle}) mandou nova mensagem`
+                  const previewText = newMsg.content
+                    ? `"${newMsg.content.substring(0, 70)}${newMsg.content.length > 70 ? '...' : ''}"`
+                    : undefined
 
-                toast(toastMessage, {
-                  description: previewText,
-                  duration: 8000,
-                  action: {
-                    label: 'Ver Conversa',
-                    onClick: () => {
-                      if (onOpenLeadGlobal) {
-                        onOpenLeadGlobal(matchedLead!)
-                      } else {
-                        handleOpenLeadModal(matchedLead!)
-                      }
+                  toast(toastMessage, {
+                    description: previewText,
+                    duration: 8000,
+                    action: {
+                      label: 'Ver Conversa',
+                      onClick: () => {
+                        if (onOpenLeadGlobal) {
+                          onOpenLeadGlobal(matchedLead!)
+                        } else {
+                          handleOpenLeadModal(matchedLead!)
+                        }
+                      },
                     },
-                  },
-                })
+                  })
+                }
+              } catch (innerErr) {
+                console.warn('Erro ao processar mensagem realtime:', innerErr)
               }
-            } catch (innerErr) {
-              console.warn('Erro ao processar mensagem realtime:', innerErr)
+            },
+          )
+          .subscribe((status: any, err: any) => {
+            if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn('Realtime kanban_msgs channel status/error:', status, err)
             }
-          },
-        )
-        .subscribe((status, err) => {
-          if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('Realtime kanban_msgs channel status/error:', status, err)
-          }
-        })
-      msgChannel = channel
+          })
+        msgChannel = channel
+      }
     } catch (err) {
       console.warn('Falha ao inicializar canal Realtime kanban_msgs:', err)
     }
@@ -255,7 +260,7 @@ export function KanbanAtendimentos({
       isMounted = false
       if (leadsChannel) {
         try {
-          leadsChannel.unsubscribe()
+          leadsChannel.unsubscribe?.()
         } catch (e) {
           console.warn('Erro ao cancelar inscrição de leadsChannel:', e)
         }
@@ -267,7 +272,7 @@ export function KanbanAtendimentos({
       }
       if (msgChannel) {
         try {
-          msgChannel.unsubscribe()
+          msgChannel.unsubscribe?.()
         } catch (e) {
           console.warn('Erro ao cancelar inscrição de msgChannel:', e)
         }
@@ -346,29 +351,64 @@ export function KanbanAtendimentos({
     }
   }
 
-  // Arquivar
+  // Arquivar (somente na aba atual via notas_pessoais)
   const handleArchiveLead = async (id: string) => {
+    const lead = leads.find((l) => l.id === id)
+    if (!lead) return
     try {
-      await arquivarLead(id)
-      setLeads((prev) => prev.filter((l) => l.id !== id))
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+      const currentArquivamentos = Array.isArray(meta.arquivamentos) ? [...meta.arquivamentos] : []
+      if (!currentArquivamentos.some((a) => a.aba === safeAba.id)) {
+        currentArquivamentos.push({
+          aba: safeAba.id,
+          data: new Date().toISOString(),
+        })
+      }
+      const newMeta: LeadMetadados = {
+        ...meta,
+        arquivamentos: currentArquivamentos,
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      await handleUpdateLead(id, {
+        notas_pessoais: newNotasPessoais,
+      } as any)
+
       if (selectedLeadForModal?.id === id) setSelectedLeadForModal(null)
-      toast.success('Lead arquivado com sucesso!')
+      toast.success(`Lead arquivado da aba "${safeAba.titulo}"!`)
     } catch (err: any) {
-      toast.error('Erro ao arquivar lead: ' + err.message)
+      toast.error('Erro ao arquivar lead: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
-  // Deletar
+  // Deletar (somente na aba atual via notas_pessoais)
   const handleConfirmDelete = async () => {
     if (!leadToDelete) return
+    const id = leadToDelete.id
     try {
-      await deleteLead(leadToDelete.id)
-      setLeads((prev) => prev.filter((l) => l.id !== leadToDelete.id))
-      if (selectedLeadForModal?.id === leadToDelete.id) setSelectedLeadForModal(null)
+      const { notas, meta } = parseLeadMetadados((leadToDelete as any)?.notas_pessoais)
+      const currentExclusoes = Array.isArray(meta.exclusoes) ? [...meta.exclusoes] : []
+      if (!currentExclusoes.some((e) => e.aba === safeAba.id)) {
+        currentExclusoes.push({
+          aba: safeAba.id,
+          data: new Date().toISOString(),
+        })
+      }
+      const newMeta: LeadMetadados = {
+        ...meta,
+        exclusoes: currentExclusoes,
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      await handleUpdateLead(id, {
+        notas_pessoais: newNotasPessoais,
+      } as any)
+
+      if (selectedLeadForModal?.id === id) setSelectedLeadForModal(null)
       setLeadToDelete(null)
-      toast.success('Lead excluído!')
+      toast.success(`Lead excluído da aba "${safeAba.titulo}"!`)
     } catch (err: any) {
-      toast.error('Erro ao excluir: ' + err.message)
+      toast.error('Erro ao excluir: ' + (err?.message || 'Falha ao excluir'))
     }
   }
 
@@ -447,11 +487,22 @@ export function KanbanAtendimentos({
     return leads.filter((l) => {
       try {
         if (!l || typeof l !== 'object') return false
-        if ((l as any).arquivado_comercial || (l as any).excluido) return false
+
+        const { meta } = parseLeadMetadados((l as any)?.notas_pessoais)
+
+        // Verificação de exclusão/arquivamento NA ABA ATUAL
+        const isExcluidoNaAbaAtual =
+          Array.isArray(meta?.exclusoes) &&
+          meta.exclusoes.some((e: any) => e && e.aba === safeAba.id)
+        if (isExcluidoNaAbaAtual) return false
+
+        const isArquivadoNaAbaAtual =
+          Array.isArray(meta?.arquivamentos) &&
+          meta.arquivamentos.some((a: any) => a && a.aba === safeAba.id)
+        if (isArquivadoNaAbaAtual) return false
 
         const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
         const status = typeof l.status === 'string' ? l.status.trim() : ''
-        const { meta } = parseLeadMetadados((l as any)?.notas_pessoais)
 
         // Regra 1: Se este card foi encaminhado PARA esta aba
         const isForwardedToThisAba = Boolean(

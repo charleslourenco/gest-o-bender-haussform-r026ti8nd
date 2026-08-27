@@ -227,6 +227,11 @@ export function isColunaEncaminhado(coluna: string): boolean {
 }
 
 // Helper de mapeamento de tags/metadados no campo notas_pessoais
+export interface AbaAcaoRegistro {
+  aba: string
+  data: string
+}
+
 export interface LeadMetadados {
   descricao_projeto?: string
   prazo?: string
@@ -234,6 +239,8 @@ export interface LeadMetadados {
   origem_aba?: string
   encaminhado_para_aba?: string
   encaminhado_em?: string
+  exclusoes?: AbaAcaoRegistro[]
+  arquivamentos?: AbaAcaoRegistro[]
   [key: string]: any
 }
 

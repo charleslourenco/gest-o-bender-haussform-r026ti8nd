@@ -98,7 +98,7 @@ export default function Comercial() {
     <ErrorBoundary>
       {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
       {leadForGlobalModal && typeof leadForGlobalModal === 'object' && leadForGlobalModal.id && (
-        <ErrorBoundary fallback={null}>
+        <ErrorBoundary fallback={null} key={`global-modal-eb-${leadForGlobalModal.id}`}>
           <ModalAtendimento
             lead={leadForGlobalModal}
             currentAba={globalModalAba}
@@ -176,7 +176,7 @@ export default function Comercial() {
               className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
             >
               {aba.id === activeTab && (
-                <ErrorBoundary>
+                <ErrorBoundary key={`eb-kanban-${aba.id}`}>
                   <KanbanAtendimentos
                     aba={aba}
                     toolbarPortal={toolbarNode}

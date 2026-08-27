@@ -130,30 +130,32 @@ export function ModalAtendimento({
     let channel: any = null
     const uniqueChannelName = `modal_messages_${lead.id}_${Math.random().toString(36).substring(2, 9)}`
     try {
-      channel = supabase
-        .channel(uniqueChannelName)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'whatsapp_messages' },
-          (payload: any) => {
-            try {
-              const newMsg = payload?.new
-              if (
-                newMsg &&
-                (newMsg.lead_id === lead.id || (lead.telefone && newMsg.phone === lead.telefone))
-              ) {
-                loadMessages(true)
+      if (supabase && typeof supabase.channel === 'function') {
+        channel = supabase
+          .channel(uniqueChannelName)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'whatsapp_messages' },
+            (payload: any) => {
+              try {
+                const newMsg = payload?.new
+                if (
+                  newMsg &&
+                  (newMsg.lead_id === lead.id || (lead.telefone && newMsg.phone === lead.telefone))
+                ) {
+                  loadMessages(true)
+                }
+              } catch (err) {
+                console.warn('Erro no callback de realtime de mensagens:', err)
               }
-            } catch (err) {
-              console.warn('Erro no callback de realtime de mensagens:', err)
+            },
+          )
+          .subscribe((status: any, err: any) => {
+            if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn('Realtime modal_messages channel status/error:', status, err)
             }
-          },
-        )
-        .subscribe((status, err) => {
-          if (err || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('Realtime modal_messages channel status/error:', status, err)
-          }
-        })
+          })
+      }
     } catch (err) {
       console.warn('Falha ao inicializar canal Realtime modal_messages:', err)
     }
@@ -161,7 +163,7 @@ export function ModalAtendimento({
     return () => {
       if (channel) {
         try {
-          channel.unsubscribe()
+          channel.unsubscribe?.()
         } catch (e) {
           console.warn('Erro ao cancelar inscrição de modal_messages channel:', e)
         }
@@ -319,7 +321,13 @@ export function ModalAtendimento({
   if (!lead) return null
 
   const consultorRaw = lead.consultor || (lead as any).users
-  const consultorNome = Array.isArray(consultorRaw) ? consultorRaw[0]?.nome : consultorRaw?.nome
+  const consultorNome = Array.isArray(consultorRaw)
+    ? consultorRaw[0]?.nome
+    : typeof consultorRaw === 'object' && consultorRaw !== null
+      ? (consultorRaw as any).nome
+      : typeof lead.consultor === 'string'
+        ? lead.consultor
+        : undefined
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
   return (
