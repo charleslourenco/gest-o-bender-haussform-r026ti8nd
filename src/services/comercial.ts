@@ -5,8 +5,6 @@ export const fetchLeads = async () => {
   const { data, error } = await supabase
     .from('leads')
     .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-    .eq('arquivado_comercial' as any, false)
-    .eq('excluido' as any, false)
     .order('criado_em', { ascending: false })
   if (error) throw error
   return data
