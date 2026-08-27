@@ -320,18 +320,18 @@ export function ModalAtendimento({
 
   if (!lead) return null
 
-  const consultorRaw = lead.consultor || (lead as any).users
+  const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = Array.isArray(consultorRaw)
     ? consultorRaw[0]?.nome
     : typeof consultorRaw === 'object' && consultorRaw !== null
       ? (consultorRaw as any).nome
-      : typeof lead.consultor === 'string'
-        ? lead.consultor
+      : typeof (lead as any)?.consultor === 'string'
+        ? (lead as any).consultor
         : undefined
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog open={Boolean(open)} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 flex flex-col gap-0 overflow-hidden bg-background">
         <DialogHeader className="p-4 sm:p-5 border-b bg-muted/30 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="space-y-1">

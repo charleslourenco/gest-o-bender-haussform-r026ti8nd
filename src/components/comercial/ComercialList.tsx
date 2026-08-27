@@ -99,11 +99,11 @@ export function ComercialList() {
       </TableHeader>
       <TableBody>
         {safeLeads.filter(Boolean).map((lead) => {
-          const consultorRaw = lead.consultor || lead.users
+          const consultorRaw = lead?.consultor || lead?.users
           const consultorNome = Array.isArray(consultorRaw)
             ? consultorRaw[0]?.nome
             : typeof consultorRaw === 'object' && consultorRaw !== null
-              ? consultorRaw.nome
+              ? (consultorRaw as any).nome
               : typeof consultorRaw === 'string'
                 ? consultorRaw
                 : undefined

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { ATENDIMENTO_ABAS, getLeadAba } from '@/components/comercial/constants'
 import { KanbanAtendimentos } from '@/components/comercial/KanbanAtendimentos'
@@ -9,6 +10,7 @@ import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Phone, List as ListIcon, Archive } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Comercial() {
   const auth = useAuth()
@@ -16,10 +18,47 @@ export default function Comercial() {
   const permissions = auth?.permissions || {}
   const loading = auth?.loading ?? false
 
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<string>('novo-contato')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
   const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+
+  // Suporte a abertura direta por link/notificação (/comercial?lead_id=UUID)
+  useEffect(() => {
+    const leadIdParam = searchParams.get('lead_id')
+    if (!leadIdParam) return
+
+    let isMounted = true
+    const fetchLeadFromParam = async () => {
+      try {
+        const { data: leadData } = await supabase
+          .from('leads')
+          .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+          .eq('id', leadIdParam)
+          .maybeSingle()
+
+        if (leadData && isMounted) {
+          setLeadForGlobalModal(leadData)
+          try {
+            const targetAba = getLeadAba(leadData)
+            if (targetAba?.id) {
+              setActiveTab(targetAba.id)
+            }
+          } catch {
+            // Ignora erro no cálculo da aba
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar lead a partir da URL:', err)
+      }
+    }
+
+    fetchLeadFromParam()
+    return () => {
+      isMounted = false
+    }
+  }, [searchParams])
 
   const globalModalAba = useMemo(() => {
     try {
