@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { ATENDIMENTO_ABAS, getLeadAba } from '@/components/comercial/constants'
