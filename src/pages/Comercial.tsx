@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { ATENDIMENTO_ABAS, getLeadAba } from '@/components/comercial/constants'
 import { KanbanAtendimentos } from '@/components/comercial/KanbanAtendimentos'
