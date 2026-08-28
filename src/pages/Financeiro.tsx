@@ -15,9 +15,11 @@ import { useToast } from '@/hooks/use-toast'
 import { NovaContaPagarDialog } from '@/components/financeiro/NovaContaPagarDialog'
 import { NovaContaReceberDialog } from '@/components/financeiro/NovaContaReceberDialog'
 import { Input } from '@/components/ui/input'
+import { fetchContasBancarias, ContaBancaria } from '@/services/contas-bancarias'
 
 export default function Financeiro() {
   const [transactions, setTransactions] = useState<ExtendedTransaction[]>([])
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>([])
   const [loading, setLoading] = useState(true)
   const [globalSearch, setGlobalSearch] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -27,13 +29,15 @@ export default function Financeiro() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const [receberRes, pagarRes] = await Promise.all([
+      const [receberRes, pagarRes, contasData] = await Promise.all([
         supabase.from('contas_receber').select('*, cliente:clientes(nome)'),
         supabase
           .from('contas_pagar' as any)
           .select('*')
           .neq('status_pagamento', 'agrupado'),
+        fetchContasBancarias().catch(() => [] as ContaBancaria[]),
       ])
+      setContasBancarias(contasData)
 
       if (receberRes.error) throw receberRes.error
       if (pagarRes.error && pagarRes.error.code !== '42P01') throw pagarRes.error
@@ -231,7 +235,10 @@ export default function Financeiro() {
 
         <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
           <TabsContent value="dashboard" className="m-0 border-none outline-none">
-            <FinanceiroDashboard transactions={filteredTransactions as Transaction[]} />
+            <FinanceiroDashboard
+              transactions={filteredTransactions as Transaction[]}
+              contasBancarias={contasBancarias}
+            />
           </TabsContent>
           <TabsContent value="movimentacoes" className="m-0 border-none outline-none">
             <FinanceiroMovimentacoes transactions={filteredTransactions} onRefresh={fetchData} />

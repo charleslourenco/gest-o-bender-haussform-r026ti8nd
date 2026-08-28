@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast'
 import { AgruparContasDialog } from '@/components/financeiro/AgruparContasDialog'
 import { EditarContaDialog } from '@/components/financeiro/EditarContaDialog'
 import { DetalhesContaDialog } from '@/components/financeiro/DetalhesContaDialog'
-import { supabase } from '@/lib/supabase/client'
+import { MarcarPagoDialog } from '@/components/financeiro/MarcarPagoDialog'
 import { getInvoiceSignedUrl } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
 
@@ -93,7 +93,8 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   const [selPagar, setSelPagar] = useState<string[]>([])
   const [selReceber, setSelReceber] = useState<string[]>([])
   const [showAgrupar, setShowAgrupar] = useState(false)
-  const [marking, setMarking] = useState(false)
+  const [marcarPagoOpen, setMarcarPagoOpen] = useState(false)
+  const [marcarPagoTipo, setMarcarPagoTipo] = useState<'pagar' | 'receber'>('pagar')
   const [editOpen, setEditOpen] = useState(false)
   const [editTipo, setEditTipo] = useState<'pagar' | 'receber'>('pagar')
   const [editConta, setEditConta] = useState<any>(null)
@@ -111,6 +112,10 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   )
   const receber = useMemo(() => transactions.filter((t) => t.type === 'receita'), [transactions])
   const selPagarTx = useMemo(() => pagar.filter((t) => selPagar.includes(t.id)), [pagar, selPagar])
+  const selReceberTx = useMemo(
+    () => receber.filter((t) => selReceber.includes(t.id)),
+    [receber, selReceber],
+  )
 
   const toggle = (id: string, sel: string[], set: (v: string[]) => void) =>
     set(sel.includes(id) ? sel.filter((i) => i !== id) : [...sel, id])
@@ -143,27 +148,9 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
     setDetalhesOpen(true)
   }
 
-  async function markPaid(
-    table: 'contas_pagar' | 'contas_receber',
-    ids: string[],
-    clear: () => void,
-  ) {
-    setMarking(true)
-    try {
-      const today = new Date().toISOString().split('T')[0]
-      const { error } = await supabase
-        .from(table)
-        .update({ status_pagamento: 'pago', data_pagamento: today })
-        .in('id', ids)
-      if (error) throw error
-      toast({ title: 'Sucesso', description: `${ids.length} conta(s) marcada(s) como paga.` })
-      clear()
-      onRefresh()
-    } catch {
-      toast({ title: 'Erro', description: 'Falha ao atualizar status.', variant: 'destructive' })
-    } finally {
-      setMarking(false)
-    }
+  function handleOpenMarcarPago(tipo: 'pagar' | 'receber') {
+    setMarcarPagoTipo(tipo)
+    setMarcarPagoOpen(true)
   }
 
   async function viewComp(url: string) {
@@ -309,12 +296,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
               <CardTitle>Contas a Pagar</CardTitle>
               <div className="flex gap-2">
                 {selPagar.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={marking}
-                    onClick={() => markPaid('contas_pagar', selPagar, () => setSelPagar([]))}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => handleOpenMarcarPago('pagar')}>
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar Pago ({selPagar.length})
                   </Button>
                 )}
@@ -335,12 +317,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Contas a Receber</CardTitle>
               {selReceber.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={marking}
-                  onClick={() => markPaid('contas_receber', selReceber, () => setSelReceber([]))}
-                >
+                <Button variant="outline" size="sm" onClick={() => handleOpenMarcarPago('receber')}>
                   <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar Pago ({selReceber.length})
                 </Button>
               )}
@@ -370,6 +347,20 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
         tipo={detalhesTipo}
         conta={detalhesConta}
         onSuccess={onRefresh}
+      />
+      <MarcarPagoDialog
+        open={marcarPagoOpen}
+        onOpenChange={setMarcarPagoOpen}
+        tipo={marcarPagoTipo}
+        selectedTransactions={marcarPagoTipo === 'pagar' ? selPagarTx : selReceberTx}
+        onSuccess={() => {
+          if (marcarPagoTipo === 'pagar') {
+            setSelPagar([])
+          } else {
+            setSelReceber([])
+          }
+          onRefresh()
+        }}
       />
     </div>
   )

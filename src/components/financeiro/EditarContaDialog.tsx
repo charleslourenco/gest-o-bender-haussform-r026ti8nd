@@ -20,12 +20,7 @@ import {
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import {
-  updateContaPagar,
-  deleteContaPagar,
-  updateContaReceber,
-  deleteContaReceber,
-} from '@/services/contas-financeiras'
+import { deleteContaPagar, deleteContaReceber } from '@/services/contas-financeiras'
 
 export type EditarTipo = 'pagar' | 'receber'
 
@@ -62,7 +57,12 @@ export function EditarContaDialog({
   const [entidade, setEntidade] = useState('')
   const [categoria, setCategoria] = useState('')
   const [status, setStatus] = useState('aguardando')
+  const [meioPagamento, setMeioPagamento] = useState('')
+  const [contaBancariaId, setContaBancariaId] = useState('none')
+  const [dataPagamento, setDataPagamento] = useState('')
+  const [antecipado, setAntecipado] = useState(false)
   const [clientes, setClientes] = useState<any[]>([])
+  const [contasBancarias, setContasBancarias] = useState<any[]>([])
 
   useEffect(() => {
     if (open && conta) {
@@ -71,13 +71,19 @@ export function EditarContaDialog({
       setDataVencimento(conta.data_vencimento || '')
       setEntidade(tipo === 'pagar' ? conta.fornecedor || '' : conta.cliente_id || 'none')
       setCategoria(conta.categoria || '')
-      setStatus(conta.status_pagamento || 'aguardando')
+      setStatus((conta.status_pagamento || 'aguardando').toLowerCase())
+      setMeioPagamento(conta.meio_pagamento || 'Pix')
+      setContaBancariaId(conta.conta_bancaria_id || 'none')
+      setDataPagamento(conta.data_pagamento || new Date().toISOString().split('T')[0])
+      setAntecipado(!!conta.antecipado)
       setConfirmDelete(false)
     }
   }, [open, conta, tipo])
 
   useEffect(() => {
-    if (open && tipo === 'receber') {
+    if (!open) return
+
+    if (tipo === 'receber') {
       supabase
         .from('clientes')
         .select('id, nome')
@@ -86,6 +92,15 @@ export function EditarContaDialog({
           if (data) setClientes(data)
         })
     }
+
+    supabase
+      .from('contas_bancarias')
+      .select('id, nome_exibicao, banco, status')
+      .eq('status', true)
+      .order('nome_exibicao')
+      .then(({ data }) => {
+        if (data) setContasBancarias(data)
+      })
   }, [open, tipo])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,25 +109,39 @@ export function EditarContaDialog({
     setLoading(true)
     try {
       const valorNum = Number(valor) || 0
-      if (tipo === 'pagar') {
-        const { error } = await updateContaPagar(conta.id, {
-          descricao: descricao || null,
-          valor: valorNum,
-          data_vencimento: dataVencimento || null,
-          fornecedor: entidade || 'Desconhecido',
-          categoria: categoria || null,
-          status_pagamento: status,
+      const isPago = status.toLowerCase() === 'pago'
+
+      if (isPago && (!contaBancariaId || contaBancariaId === 'none')) {
+        toast({
+          title: 'Conta bancária obrigatória',
+          description:
+            'Ao definir status como Pago, selecione a conta bancária para atualizar o saldo.',
+          variant: 'destructive',
         })
+        setLoading(false)
+        return
+      }
+
+      const payload: any = {
+        descricao: descricao || null,
+        valor: valorNum,
+        data_vencimento: dataVencimento || null,
+        categoria: categoria || null,
+        status_pagamento: status,
+        meio_pagamento: isPago ? meioPagamento || null : null,
+        conta_bancaria_id: isPago ? (contaBancariaId === 'none' ? null : contaBancariaId) : null,
+        data_pagamento: isPago ? dataPagamento || new Date().toISOString().split('T')[0] : null,
+        antecipado: isPago ? antecipado : false,
+        atualizado_em: new Date().toISOString(),
+      }
+
+      if (tipo === 'pagar') {
+        payload.fornecedor = entidade || 'Desconhecido'
+        const { error } = await supabase.from('contas_pagar').update(payload).eq('id', conta.id)
         if (error) throw error
       } else {
-        const { error } = await updateContaReceber(conta.id, {
-          descricao: descricao || null,
-          valor: valorNum,
-          data_vencimento: dataVencimento || null,
-          cliente_id: entidade === 'none' ? null : entidade,
-          categoria: categoria || null,
-          status_pagamento: status,
-        })
+        payload.cliente_id = entidade === 'none' ? null : entidade
+        const { error } = await supabase.from('contas_receber').update(payload).eq('id', conta.id)
         if (error) throw error
       }
       toast({ title: 'Sucesso', description: 'Lançamento atualizado.' })
@@ -238,6 +267,65 @@ export function EditarContaDialog({
               </Select>
             </div>
           </div>
+
+          {status.toLowerCase() === 'pago' && (
+            <div className="rounded-md border p-3 space-y-3 bg-muted/40">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Dados de Pagamento / Baixa Bancária
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-conta-bancaria" className="text-xs">
+                    Conta Bancária <span className="text-rose-500">*</span>
+                  </Label>
+                  <Select value={contaBancariaId} onValueChange={setContaBancariaId}>
+                    <SelectTrigger id="edit-conta-bancaria" className="h-9">
+                      <SelectValue placeholder="Selecione a conta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecione...</SelectItem>
+                      {contasBancarias.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome_exibicao}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-meio-pagamento" className="text-xs">
+                    Meio de Pagamento <span className="text-rose-500">*</span>
+                  </Label>
+                  <Select value={meioPagamento} onValueChange={setMeioPagamento}>
+                    <SelectTrigger id="edit-meio-pagamento" className="h-9">
+                      <SelectValue placeholder="Selecione o meio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['Pix', 'Boleto', 'Transferência', 'Cartão', 'Dinheiro', 'Cheque'].map(
+                        (m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-data-pagamento" className="text-xs">
+                  Data do Pagamento
+                </Label>
+                <Input
+                  id="edit-data-pagamento"
+                  type="date"
+                  className="h-9"
+                  value={dataPagamento}
+                  onChange={(e) => setDataPagamento(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
             <div className="flex gap-2">

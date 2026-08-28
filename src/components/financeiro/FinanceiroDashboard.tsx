@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Transaction } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Landmark, AlertCircle } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { fetchContasBancarias, ContaBancaria } from '@/services/contas-bancarias'
 
 interface CustomTooltipProps {
   active?: boolean
@@ -47,32 +48,65 @@ function CustomChartTooltip({ active, payload, label }: CustomTooltipProps) {
   )
 }
 
-function FinanceiroDashboardContent({ transactions }: { transactions: Transaction[] }) {
+interface FinanceiroDashboardProps {
+  transactions: Transaction[]
+  contasBancarias?: ContaBancaria[]
+}
+
+function FinanceiroDashboardContent({
+  transactions,
+  contasBancarias: initialContas,
+}: FinanceiroDashboardProps) {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   const today = new Date().toISOString().split('T')[0]
 
   const safeTransactions = Array.isArray(transactions) ? transactions : []
+  const [contasBancarias, setContasBancarias] = useState<ContaBancaria[]>(initialContas || [])
+  const [loadingContas, setLoadingContas] = useState(!initialContas || initialContas.length === 0)
 
-  const { receitasHoje, despesasHoje, saldoPrevisto } = useMemo(() => {
+  const loadContas = useCallback(async () => {
+    try {
+      setLoadingContas(true)
+      const data = await fetchContasBancarias()
+      setContasBancarias(data)
+    } catch {
+      // Falha silenciosa no card, mantém array vazio
+    } finally {
+      setLoadingContas(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (initialContas !== undefined) {
+      setContasBancarias(initialContas)
+      setLoadingContas(false)
+    } else {
+      loadContas()
+    }
+  }, [initialContas, loadContas])
+
+  const saldoBancosReal = useMemo(() => {
+    return (contasBancarias || [])
+      .filter((c) => c.status !== false)
+      .reduce((sum, c) => sum + (Number(c.saldo_atual) || 0), 0)
+  }, [contasBancarias])
+
+  const { receitasHoje, despesasHoje } = useMemo(() => {
     let rH = 0,
-      dH = 0,
-      saldo = 0
+      dH = 0
     safeTransactions.forEach((t) => {
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
       const amount = Number(t.amount) || 0
-      if (statusLower === 'pago') {
-        saldo += t.type === 'receita' ? amount : -amount
-      }
       if (t.dueDate === today && statusLower !== 'pago') {
         if (t.type === 'receita') rH += amount
         else dH += amount
       }
     })
-    return { receitasHoje: rH, despesasHoje: dH, saldoPrevisto: saldo }
+    return { receitasHoje: rH, despesasHoje: dH }
   }, [safeTransactions, today])
 
   const chartData = useMemo(() => {
@@ -100,13 +134,19 @@ function FinanceiroDashboardContent({ transactions }: { transactions: Transactio
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">Saldo Atualizado</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
+            <Landmark className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(saldoPrevisto)}
+            <div
+              className={`text-2xl font-bold ${
+                saldoBancosReal >= 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              }`}
+            >
+              {loadingContas ? 'Carregando...' : formatCurrency(saldoBancosReal)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Baseado em lançamentos pagos</p>
+            <p className="text-xs text-gray-500 mt-1">Soma das contas bancárias ativas</p>
           </CardContent>
         </Card>
         <Card>
@@ -164,7 +204,7 @@ function FinanceiroDashboardContent({ transactions }: { transactions: Transactio
   )
 }
 
-export function FinanceiroDashboard({ transactions }: { transactions: Transaction[] }) {
+export function FinanceiroDashboard({ transactions, contasBancarias }: FinanceiroDashboardProps) {
   return (
     <ErrorBoundary
       fallback={
@@ -179,7 +219,7 @@ export function FinanceiroDashboard({ transactions }: { transactions: Transactio
         </div>
       }
     >
-      <FinanceiroDashboardContent transactions={transactions} />
+      <FinanceiroDashboardContent transactions={transactions} contasBancarias={contasBancarias} />
     </ErrorBoundary>
   )
 }
