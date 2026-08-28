@@ -33,7 +33,10 @@ export function ContasPagarTable({
   async function loadContas() {
     setLoading(true)
     const { data } = await fetchContasPagar()
-    setContas(data || [])
+    const filtered = (data || []).filter(
+      (c) => (c.status_pagamento || '').toLowerCase() !== 'a_classificar',
+    )
+    setContas(filtered)
     setLoading(false)
   }
 
@@ -79,8 +82,9 @@ export function ContasPagarTable({
       {contas.map((conta) => {
         const needsAction = !conta.data_vencimento
         const isSelected = selectedIds.includes(conta.id)
-        const isGrouped = conta.status_pagamento.toLowerCase() === 'agrupado'
-        const isPaid = conta.status_pagamento.toLowerCase() === 'pago'
+        const statusLower = (conta.status_pagamento || '').toLowerCase()
+        const isGrouped = statusLower === 'agrupado'
+        const isPaid = statusLower === 'pago'
         const canSelect = !isGrouped && !isPaid
 
         return (

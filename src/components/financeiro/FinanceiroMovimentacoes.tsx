@@ -62,6 +62,12 @@ function StatusBadge({ status }: { status: string }) {
         Aguardando
       </Badge>
     )
+  if (s === 'a_classificar')
+    return (
+      <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800">
+        A Classificar
+      </Badge>
+    )
   if (s === 'agrupado')
     return (
       <Badge
@@ -96,7 +102,13 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   const [detalhesTipo, setDetalhesTipo] = useState<'pagar' | 'receber'>('pagar')
   const { toast } = useToast()
 
-  const pagar = useMemo(() => transactions.filter((t) => t.type === 'despesa'), [transactions])
+  const pagar = useMemo(
+    () =>
+      transactions.filter(
+        (t) => t.type === 'despesa' && (t.status || '').toLowerCase() !== 'a_classificar',
+      ),
+    [transactions],
+  )
   const receber = useMemo(() => transactions.filter((t) => t.type === 'receita'), [transactions])
   const selPagarTx = useMemo(() => pagar.filter((t) => selPagar.includes(t.id)), [pagar, selPagar])
 

@@ -39,6 +39,7 @@ interface EditarContaDialogProps {
 
 const STATUS_OPTIONS = [
   { value: 'aguardando', label: 'Aguardando' },
+  { value: 'a_classificar', label: 'A Classificar' },
   { value: 'pago', label: 'Pago' },
   { value: 'agrupado', label: 'Agrupado' },
 ]

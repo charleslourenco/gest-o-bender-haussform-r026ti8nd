@@ -60,11 +60,14 @@ function FinanceiroDashboardContent({ transactions }: { transactions: Transactio
       dH = 0,
       saldo = 0
     safeTransactions.forEach((t) => {
+      const statusLower = (t.status || '').toLowerCase()
+      if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
+
       const amount = Number(t.amount) || 0
-      if (t.status === 'pago') {
+      if (statusLower === 'pago') {
         saldo += t.type === 'receita' ? amount : -amount
       }
-      if (t.dueDate === today && t.status !== 'pago') {
+      if (t.dueDate === today && statusLower !== 'pago') {
         if (t.type === 'receita') rH += amount
         else dH += amount
       }
@@ -75,6 +78,9 @@ function FinanceiroDashboardContent({ transactions }: { transactions: Transactio
   const chartData = useMemo(() => {
     const groups: Record<string, { receitas: number; despesas: number }> = {}
     safeTransactions.forEach((t) => {
+      const statusLower = (t.status || '').toLowerCase()
+      if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
+
       const date = t.paidDate || t.dueDate
       if (!date || typeof date !== 'string') return
       const month = date.substring(0, 7)

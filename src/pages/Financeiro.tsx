@@ -10,6 +10,7 @@ import {
 } from '@/components/financeiro/FinanceiroMovimentacoes'
 import { FinanceiroDRE } from '@/components/financeiro/FinanceiroDRE'
 import { ContasBancariasTab } from '@/components/financeiro/ContasBancariasTab'
+import { NotasAClassificarTab } from '@/components/financeiro/NotasAClassificarTab'
 import { useToast } from '@/hooks/use-toast'
 import { NovaContaPagarDialog } from '@/components/financeiro/NovaContaPagarDialog'
 import { NovaContaReceberDialog } from '@/components/financeiro/NovaContaReceberDialog'
@@ -31,7 +32,7 @@ export default function Financeiro() {
         supabase
           .from('contas_pagar' as any)
           .select('*')
-          .neq('status_pagamento', 'Agrupado'),
+          .neq('status_pagamento', 'agrupado'),
       ])
 
       if (receberRes.error) throw receberRes.error
@@ -110,6 +111,10 @@ export default function Financeiro() {
     fetchData()
   }, [fetchData])
 
+  const aClassificarCount = useMemo(() => {
+    return transactions.filter((t) => (t.status || '').toLowerCase() === 'a_classificar').length
+  }, [transactions])
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
       const effectiveDate = t.dueDate || t.createdAt || ''
@@ -160,6 +165,17 @@ export default function Financeiro() {
                 className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
                 Lançamentos & IA
+              </TabsTrigger>
+              <TabsTrigger
+                value="a_classificar"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60 relative"
+              >
+                Notas a Classificar
+                {aClassificarCount > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-orange-500 text-white">
+                    {aClassificarCount}
+                  </span>
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="dre"
@@ -219,6 +235,9 @@ export default function Financeiro() {
           </TabsContent>
           <TabsContent value="movimentacoes" className="m-0 border-none outline-none">
             <FinanceiroMovimentacoes transactions={filteredTransactions} onRefresh={fetchData} />
+          </TabsContent>
+          <TabsContent value="a_classificar" className="m-0 border-none outline-none">
+            <NotasAClassificarTab transactions={filteredTransactions} onRefresh={fetchData} />
           </TabsContent>
           <TabsContent value="dre" className="m-0 border-none outline-none">
             <FinanceiroDRE transactions={filteredTransactions as Transaction[]} />

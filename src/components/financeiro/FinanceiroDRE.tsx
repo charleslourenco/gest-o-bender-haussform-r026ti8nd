@@ -14,6 +14,9 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
   const dreData = useMemo(() => {
     const groups: Record<string, { receitas: number; despesas: number }> = {}
     transactions.forEach((t) => {
+      const statusLower = (t.status || '').toLowerCase()
+      if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
+
       const date = t.paidDate || t.dueDate
       if (!date) return
       const month = date.substring(0, 7)

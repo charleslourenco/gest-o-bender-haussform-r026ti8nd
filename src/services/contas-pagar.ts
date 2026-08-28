@@ -58,10 +58,18 @@ export async function fetchContasPagarSemVencimento(): Promise<{
 export async function updateDataVencimento(
   id: string,
   dataVencimento: string,
+  novoStatus?: string,
 ): Promise<{ data: ContaPagar | null; error: string | null }> {
+  const payload: any = {
+    data_vencimento: dataVencimento,
+    atualizado_em: new Date().toISOString(),
+  }
+  if (novoStatus) {
+    payload.status_pagamento = novoStatus
+  }
   const { data, error } = await supabase
     .from('contas_pagar')
-    .update({ data_vencimento: dataVencimento, atualizado_em: new Date().toISOString() })
+    .update(payload)
     .eq('id', id)
     .select()
     .single()
