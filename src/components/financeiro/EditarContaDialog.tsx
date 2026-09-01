@@ -26,14 +26,12 @@ import { deleteContaPagar, deleteContaReceber } from '@/services/contas-financei
 import { getInvoiceSignedUrl, uploadInvoiceFile } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
 import {
-  FileText,
   Paperclip,
   Trash2,
   Upload,
   ExternalLink,
   Layers,
   Building2,
-  Calendar,
   AlertCircle,
   Loader2,
 } from 'lucide-react'
