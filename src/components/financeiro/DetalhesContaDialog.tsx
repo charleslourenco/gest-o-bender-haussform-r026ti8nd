@@ -18,10 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, Save } from 'lucide-react'
+import { Loader2, Save, Pencil, Paperclip, ExternalLink } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
+import { getInvoiceSignedUrl } from '@/services/notas-fiscais-storage'
 
 interface DetalhesContaDialogProps {
   open: boolean
@@ -29,6 +30,7 @@ interface DetalhesContaDialogProps {
   tipo: 'pagar' | 'receber'
   conta: any
   onSuccess: () => void
+  onEdit?: (tipo: 'pagar' | 'receber', conta: any) => void
 }
 
 const STATUS_OPTIONS = [
@@ -75,6 +77,7 @@ export function DetalhesContaDialog({
   tipo,
   conta,
   onSuccess,
+  onEdit,
 }: DetalhesContaDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -148,7 +151,7 @@ export function DetalhesContaDialog({
           if (nfIds.length > 0) {
             const { data: nfs } = await supabase
               .from('notas_fiscais')
-              .select('id, numero_nota, fornecedor, valor_total, data_emissao')
+              .select('id, numero_nota, fornecedor, valor_total, data_emissao, arquivo_url')
               .in('id', nfIds)
             if (!cancelled) setOrigins(nfs || [])
           }
@@ -180,6 +183,26 @@ export function DetalhesContaDialog({
   }, [open, conta, table, tipo])
 
   const isPago = status.toLowerCase() === 'pago'
+
+  const handleViewComprovante = async (url: string) => {
+    const { url: signed, error } = await getInvoiceSignedUrl(url)
+    if (error || !signed) {
+      toast({
+        title: 'Erro ao acessar anexo',
+        description: error || 'Não foi possível gerar o link do comprovante.',
+        variant: 'destructive',
+      })
+      return
+    }
+    window.open(signed, '_blank')
+  }
+
+  const handleOpenEdit = () => {
+    onOpenChange(false)
+    if (onEdit && conta) {
+      onEdit(tipo, conta)
+    }
+  }
 
   const handleSave = async () => {
     if (!conta) return
@@ -245,9 +268,18 @@ export function DetalhesContaDialog({
             <Section title="Informações Gerais">
               <InfoRow label={entityLabel} value={entityName} />
               <InfoRow label="Descrição" value={conta.descricao || '-'} />
-              <InfoRow label="Valor Total" value={formatCurrency(totalValue)} />
+              <InfoRow
+                label="Valor do Lançamento"
+                value={formatCurrency(Number(conta.valor) || 0)}
+              />
+              {installments.length > 1 && (
+                <InfoRow label="Valor Total (Grupo)" value={formatCurrency(totalValue)} />
+              )}
               <InfoRow label="Categoria" value={conta.categoria || '-'} />
               <InfoRow label="Vencimento" value={fmtDate(conta.data_vencimento)} />
+              {tipo === 'receber' && conta.numero_parcela && (
+                <InfoRow label="Nº da Parcela" value={conta.numero_parcela} />
+              )}
 
               <div className="flex flex-col gap-2 pt-2 border-t mt-2">
                 <Label htmlFor="detalhe-status" className="text-sm font-medium">
@@ -269,15 +301,17 @@ export function DetalhesContaDialog({
             </Section>
 
             {conta.grupo_id ? (
-              <Section title={`Parcelas (${installments.length})`}>
+              <Section title={`Parcelas do Grupo (${installments.length})`}>
                 <div className="space-y-1">
                   {installments.map((inst, idx) => (
                     <div
                       key={inst.id}
-                      className="flex items-center justify-between text-sm py-1 border-b last:border-0 gap-2"
+                      className={`flex items-center justify-between text-sm py-1 border-b last:border-0 gap-2 ${
+                        inst.id === conta.id ? 'font-semibold text-primary' : ''
+                      }`}
                     >
-                      <span className="font-medium shrink-0">
-                        {idx + 1}/{installments.length}
+                      <span className="shrink-0">
+                        {idx + 1}/{installments.length} {inst.id === conta.id ? '(atual)' : ''}
                       </span>
                       <span>{fmtDate(inst.data_vencimento)}</span>
                       <span>{formatCurrency(Number(inst.valor) || 0)}</span>
@@ -303,11 +337,27 @@ export function DetalhesContaDialog({
               {tipo === 'pagar' ? (
                 origins.length > 0 ? (
                   origins.map((nf) => (
-                    <div key={nf.id} className="text-sm">
-                      <span className="font-medium">NF: {nf.numero_nota || 'S/N'}</span> —{' '}
-                      {nf.fornecedor} — {formatCurrency(Number(nf.valor_total) || 0)}
-                      {nf.data_emissao &&
-                        ` — ${new Date(nf.data_emissao).toLocaleDateString('pt-BR')}`}
+                    <div
+                      key={nf.id}
+                      className="text-sm flex items-center justify-between gap-2 border-b last:border-0 py-1"
+                    >
+                      <div>
+                        <span className="font-medium">NF: {nf.numero_nota || 'S/N'}</span> —{' '}
+                        {nf.fornecedor} — {formatCurrency(Number(nf.valor_total) || 0)}
+                        {nf.data_emissao &&
+                          ` — ${new Date(nf.data_emissao).toLocaleDateString('pt-BR')}`}
+                      </div>
+                      {nf.arquivo_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-blue-600"
+                          onClick={() => handleViewComprovante(nf.arquivo_url)}
+                        >
+                          <Paperclip className="w-3.5 h-3.5 mr-1" /> Ver NF
+                        </Button>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -317,11 +367,33 @@ export function DetalhesContaDialog({
                 <>
                   <InfoRow label="Cliente" value={clienteName || '-'} />
                   {conta.formulario_comercial_id && (
-                    <InfoRow label="Formulário" value={conta.formulario_comercial_id} />
+                    <InfoRow label="Formulário Comercial" value={conta.formulario_comercial_id} />
                   )}
                 </>
               )}
             </Section>
+
+            {conta.comprovante_url && (
+              <Section title="Anexo / Comprovante">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <div className="flex items-center gap-2 truncate">
+                    <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="truncate text-xs text-muted-foreground">
+                      {conta.comprovante_url}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs shrink-0 text-blue-600"
+                    onClick={() => handleViewComprovante(conta.comprovante_url)}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Abrir Anexo
+                  </Button>
+                </div>
+              </Section>
+            )}
 
             <Section title={tipo === 'pagar' ? 'Pagamento' : 'Recebimento'}>
               {isPago ? (
@@ -404,18 +476,33 @@ export function DetalhesContaDialog({
               />
             </Section>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Fechar
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? (
-                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4 mr-1" />
+            <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2 border-t">
+              <div>
+                {onEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={handleOpenEdit}
+                  >
+                    <Pencil className="w-4 h-4 mr-1.5" /> Editar Lançamento Completo
+                  </Button>
                 )}
-                {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Fechar
+                </Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-1" />
+                  )}
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
             </div>
           </div>
         )}

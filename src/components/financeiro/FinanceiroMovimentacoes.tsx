@@ -137,18 +137,33 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
   const canSelReceber = (t: ExtendedTransaction) => (t.status || '').toLowerCase() !== 'pago'
 
   function openEdit(tipo: 'pagar' | 'receber', conta: any) {
+    // Trava anti-empilhamento: fecha os outros modais
+    setDetalhesOpen(false)
+    setMarcarPagoOpen(false)
+    setShowAgrupar(false)
+
     setEditTipo(tipo)
     setEditConta(conta)
     setEditOpen(true)
   }
 
   function openDetails(tipo: 'pagar' | 'receber', conta: any) {
+    // Trava anti-empilhamento: fecha os outros modais
+    setEditOpen(false)
+    setMarcarPagoOpen(false)
+    setShowAgrupar(false)
+
     setDetalhesTipo(tipo)
     setDetalhesConta(conta)
     setDetalhesOpen(true)
   }
 
   function handleOpenMarcarPago(tipo: 'pagar' | 'receber') {
+    // Trava anti-empilhamento: fecha os outros modais
+    setDetalhesOpen(false)
+    setEditOpen(false)
+    setShowAgrupar(false)
+
     setMarcarPagoTipo(tipo)
     setMarcarPagoOpen(true)
   }
@@ -205,20 +220,24 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
             {items.map((t) => (
               <TableRow
                 key={t.id}
-                className="cursor-pointer"
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={(e) => {
                   const target = e.target as HTMLElement
                   if (
                     target.closest('button') ||
                     target.closest('input') ||
-                    target.closest('[role="checkbox"]')
+                    target.closest('[role="checkbox"]') ||
+                    target.closest('[role="menu"]') ||
+                    target.closest('[role="menuitem"]') ||
+                    target.closest('[data-radix-dropdown-menu-content]') ||
+                    target.closest('[data-action-cell]')
                   )
                     return
                   openDetails(isPagar ? 'pagar' : 'receber', t.source)
                 }}
                 data-state={sel.includes(t.id) ? 'selected' : undefined}
               >
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   {canSel(t) && (
                     <Checkbox
                       checked={sel.includes(t.id)}
@@ -242,33 +261,47 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
                 <TableCell>
                   <StatusBadge status={t.status} />
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   {t.comprovanteUrl && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0"
-                      onClick={() => viewComp(t.comprovanteUrl!)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        viewComp(t.comprovanteUrl!)
+                      }}
                     >
                       <Paperclip className="w-4 h-4" />
                     </Button>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-action-cell="true" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuItem
-                        onClick={() => openDetails(isPagar ? 'pagar' : 'receber', t.source)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openDetails(isPagar ? 'pagar' : 'receber', t.source)
+                        }}
                       >
                         <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => openEdit(isPagar ? 'pagar' : 'receber', t.source)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openEdit(isPagar ? 'pagar' : 'receber', t.source)
+                        }}
                       >
                         <Pencil className="w-4 h-4 mr-2" /> Editar
                       </DropdownMenuItem>
@@ -347,6 +380,7 @@ export function FinanceiroMovimentacoes({ transactions, onRefresh }: Props) {
         tipo={detalhesTipo}
         conta={detalhesConta}
         onSuccess={onRefresh}
+        onEdit={(t, c) => openEdit(t, c)}
       />
       <MarcarPagoDialog
         open={marcarPagoOpen}

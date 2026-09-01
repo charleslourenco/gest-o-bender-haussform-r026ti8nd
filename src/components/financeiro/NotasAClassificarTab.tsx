@@ -92,8 +92,27 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
   }
 
   const handleOpenDefinirVencimento = (conta: ExtendedTransaction) => {
+    setDetalhesOpen(false)
+    setEditOpen(false)
+    setShowAgrupar(false)
     setDefinirDialogConta(conta)
     setDataVencimento(conta.dueDate || '')
+  }
+
+  const openDetails = (conta: any) => {
+    setEditOpen(false)
+    setDefinirDialogConta(null)
+    setShowAgrupar(false)
+    setDetalhesConta(conta)
+    setDetalhesOpen(true)
+  }
+
+  const openEdit = (conta: any) => {
+    setDetalhesOpen(false)
+    setDefinirDialogConta(null)
+    setShowAgrupar(false)
+    setEditConta(conta)
+    setEditOpen(true)
   }
 
   const handleSalvarVencimento = async () => {
@@ -241,15 +260,18 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
                           if (
                             target.closest('button') ||
                             target.closest('input') ||
-                            target.closest('[role="checkbox"]')
+                            target.closest('[role="checkbox"]') ||
+                            target.closest('[role="menu"]') ||
+                            target.closest('[role="menuitem"]') ||
+                            target.closest('[data-radix-dropdown-menu-content]') ||
+                            target.closest('[data-action-cell]')
                           ) {
                             return
                           }
-                          setDetalhesConta(conta.source)
-                          setDetalhesOpen(true)
+                          openDetails(conta.source)
                         }}
                       >
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => toggleSelect(conta.id)}
@@ -279,13 +301,16 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
                             A Classificar
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           {conta.comprovanteUrl ? (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => handleViewComprovante(conta.comprovanteUrl!)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleViewComprovante(conta.comprovanteUrl!)
+                              }}
                               title="Ver arquivo da Nota Fiscal"
                             >
                               <Paperclip className="w-4 h-4 text-blue-600" />
@@ -294,13 +319,20 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
                             <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell
+                          className="text-right"
+                          data-action-cell="true"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center justify-end gap-1.5">
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-8 px-2.5 text-xs text-primary border-primary/30 hover:bg-primary/10"
-                              onClick={() => handleOpenDefinirVencimento(conta)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleOpenDefinirVencimento(conta)
+                              }}
                             >
                               <Calendar className="w-3.5 h-3.5 mr-1" />
                               Definir Vencimento
@@ -308,23 +340,28 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
 
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    setDetalhesConta(conta.source)
-                                    setDetalhesOpen(true)
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openDetails(conta.source)
                                   }}
                                 >
                                   <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    setEditConta(conta.source)
-                                    setEditOpen(true)
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openEdit(conta.source)
                                   }}
                                 >
                                   <Pencil className="w-4 h-4 mr-2" /> Editar
@@ -432,6 +469,7 @@ export function NotasAClassificarTab({ transactions, onRefresh }: NotasAClassifi
         tipo="pagar"
         conta={detalhesConta}
         onSuccess={onRefresh}
+        onEdit={(_tipo, conta) => openEdit(conta)}
       />
     </div>
   )
