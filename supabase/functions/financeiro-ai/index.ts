@@ -122,8 +122,9 @@ Deno.serve(async (req) => {
 
 CAMPO "fornecedor" (CRÍTICO — LEIA COM ATENÇÃO):
 - DEVE ser SEMPRE o EMITENTE da nota fiscal — a razão social/nome do VENDEDOR/FORNECEDOR que EMITIU a nota.
-- NUNCA use o destinatário/comprador (Bender Haussform) como fornecedor. A Bender Haussform é a empresa COMPRADORA, nunca a fornecedora.
-- Se o texto contiver "Bender Haussform" como fornecedor, você ERROU — revise e use o emitente correto.
+- NUNCA use o destinatário/comprador (Bender, Bender Haussform, Bender Móveis, etc.) como fornecedor. A Bender Haussform é a empresa COMPRADORA, nunca a fornecedora nesta rotina de compras.
+- NUNCA invente ou preencha o fornecedor com nenhuma variação de "Bender".
+- Se o documento mostrar a Bender como destinatária/compradora e não for possível identificar com segurança quem é o emitente/vendedor, retorne "fornecedor": null (ou string vazia "") em vez de preencher com a Bender.
 
 EXEMPLOS DE LAYOUT (como distinguir EMITENTE de DESTINATÁRIO):
 
@@ -144,9 +145,9 @@ Exemplo 2 — Texto plano / PDF flattenado:
   Quando o PDF é lido linearmente (texto corrido), a ordem geralmente é:
   1. Razão social do EMITENTE (no topo, antes dos dados do destinatário)
   2. CNPJ do emitente
-  3. Razão social do DESTINATÁRIO (geralmente "Bender Haussform" ou "BENDER HAUSSFORM")
+  3. Razão social do DESTINATÁRIO (geralmente "Bender Haussform", "Bender Móveis" ou "BENDER HAUSSFORM")
   4. CNPJ do destinatário
-  → Use SEMPRE o PRIMEIRO nome/cnpj que aparece (emitente), NUNCA o segundo (destinatário/Bender Haussform).
+  → Use SEMPRE o PRIMEIRO nome/cnpj que aparece (emitente), NUNCA o segundo (destinatário/Bender).
   Exemplo de texto extraído:
     "Ferragens Brasil Ltda
      CNPJ: 11.222.333/0001-44
@@ -160,7 +161,7 @@ Exemplo 2 — Texto plano / PDF flattenado:
 Exemplo 3 — Romaneio / Pedido de Compra:
   Em romaneios e pedidos, a empresa que VENDE/fornece os materiais é o fornecedor.
   A Bender Haussform aparece como compradora/cliente.
-  → Use a empresa fornecedora, não a Bender Haussform.
+  → Use a empresa fornecedora, não a Bender.
   Exemplo:
     "Romaneio de Entrega
      Cliente: Bender Haussform
@@ -199,13 +200,15 @@ Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs
         parsedResult = {}
       }
 
+      // Regex abrangente para detectar qualquer variação de "Bender" no fornecedor
+      const isInvalidBenderFornecedor = (name: unknown): boolean => {
+        if (!name || typeof name !== 'string') return false
+        return /\bbender\b/i.test(name.trim())
+      }
+
       const MAX_RETRIES = 2
       let retryCount = 0
-      while (
-        parsedResult.fornecedor &&
-        /bender\s*haussform/i.test(String(parsedResult.fornecedor)) &&
-        retryCount < MAX_RETRIES
-      ) {
+      while (isInvalidBenderFornecedor(parsedResult.fornecedor) && retryCount < MAX_RETRIES) {
         retryCount++
         const correctionMessages: any[] = [
           ...messages,
@@ -213,7 +216,9 @@ Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs
           {
             role: 'user',
             content:
-              'ERRO CRÍTICO: O campo "fornecedor" foi preenchido com "Bender Haussform", que é a empresa COMPRADORA (destinatário), NÃO o fornecedor. O fornecedor deve ser o EMITENTE da nota — a empresa que VENDEU/forneciu os materiais. Revise atentamente o documento: procure pelo campo "EMITENTE" ou pelo PRIMEIRO nome/cnpj que aparece no documento (o destinatário/Bender Haussform geralmente vem depois). Retorne APENAS o JSON corrigido com o fornecedor correto.',
+              'ERRO CRÍTICO: O campo "fornecedor" foi preenchido com "' +
+              String(parsedResult.fornecedor) +
+              '", que é a empresa COMPRADORA (destinatário), NÃO o fornecedor. O fornecedor deve ser o EMITENTE da nota — a empresa que VENDEU/forneceu os materiais. NUNCA utilize nenhuma variação de Bender como fornecedor. Revise atentamente o documento: procure pelo campo "EMITENTE" ou pelo PRIMEIRO nome/cnpj que aparece no documento. Se não conseguir identificar o emitente com clareza, retorne null no campo fornecedor. Retorne APENAS o JSON corrigido.',
           },
         ]
 
@@ -230,6 +235,20 @@ Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs
         } catch {
           parsedResult = {}
         }
+      }
+
+      // Validação final estrita: NUNCA permitir que o fornecedor seja Bender
+      if (isInvalidBenderFornecedor(parsedResult.fornecedor)) {
+        return new Response(
+          JSON.stringify({
+            error:
+              'Não foi possível identificar o emitente (fornecedor) da nota. Confira o documento ou insira os dados manualmente.',
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
       }
 
       return new Response(JSON.stringify(parsedResult), {
