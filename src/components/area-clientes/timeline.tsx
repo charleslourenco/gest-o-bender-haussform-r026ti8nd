@@ -82,8 +82,14 @@ export function Timeline({ clienteId, formularioId, saleCreatedAt }: TimelinePro
               {idx !== events.length - 1 && (
                 <div className="absolute top-8 bottom-[-24px] left-[15px] w-[2px] bg-border" />
               )}
-              <div className="relative z-10 w-8 h-8 rounded-full bg-background flex items-center justify-center text-primary shrink-0 border border-border shadow-sm">
-                <Clock className="w-4 h-4 text-primary" />
+              <div className="relative z-10 w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0 border border-border shadow-sm">
+                {event.icone ? (
+                  <span className="text-sm leading-none select-none" aria-hidden="true">
+                    {event.icone}
+                  </span>
+                ) : (
+                  <Clock className="w-4 h-4 text-primary" />
+                )}
               </div>
               <div className="pt-1 pb-2">
                 <div className="flex items-baseline gap-2 mb-1">
