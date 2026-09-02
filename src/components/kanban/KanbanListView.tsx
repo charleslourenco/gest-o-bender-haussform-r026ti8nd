@@ -39,7 +39,6 @@ const ALL_STAGES = [
   { id: 'embalagem', title: 'Embalagem' },
   { id: 'transporte', title: 'Transporte' },
   { id: 'montagem', title: 'Montagem' },
-  { id: 'assistencia', title: 'Assistência' },
   { id: 'concluido', title: 'Concluído' },
 ]
 

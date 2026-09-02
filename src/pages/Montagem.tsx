@@ -19,7 +19,6 @@ const COLUMNS = [
   { id: 'montagem', title: 'Em Montagem' },
   { id: 'item_terceirizado', title: 'Item Terceirizado' },
   { id: 'pendencia', title: 'Pendência' },
-  { id: 'assistencia', title: 'Assistência' },
   { id: 'concluido', title: 'Concluído' },
 ]
 

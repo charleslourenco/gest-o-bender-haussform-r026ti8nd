@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
-import { fetchLeads, fetchUsers, updateLead } from '@/services/comercial'
+import { fetchLeads, fetchUsers, updateLead, createLead } from '@/services/comercial'
+import { parseLeadMetadados, stringifyLeadMetadados } from '@/components/comercial/constants'
+import { MontadorSelect } from '@/components/kanban/MontadorSelect'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Select,
   SelectContent,
@@ -9,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +32,9 @@ import {
   User,
   Phone,
   Search,
-  Clock,
   MoveRight,
+  Plus,
+  Wrench,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -138,6 +152,7 @@ function TimeInColumn({ dateStr }: { dateStr?: string | null }) {
 export function KanbanAssistencia() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+  const [montadores, setMontadores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -145,6 +160,17 @@ export function KanbanAssistencia() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedConsultant, setSelectedConsultant] = useState('all')
   const [dragOverColId, setDragOverColId] = useState<string | null>(null)
+
+  // Modal Criar Nova Assistência
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoTelefone, setNovoTelefone] = useState('')
+  const [novoEmail, setNovoEmail] = useState('')
+  const [novoConsultorId, setNovoConsultorId] = useState('')
+  const [novoMontadoresIds, setNovoMontadoresIds] = useState<string[]>([])
+  const [novoNotas, setNovoNotas] = useState('')
+  const [novoDescricaoProjeto, setNovoDescricaoProjeto] = useState('')
 
   // Scroll horizontal suave com drag
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -175,10 +201,15 @@ export function KanbanAssistencia() {
     try {
       if (!silent) setLoading(true)
       setError(null)
-      const [allLeadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
+      const [allLeadsData, usersData, montadoresRes] = await Promise.all([
+        fetchLeads(),
+        fetchUsers(),
+        supabase.from('montadores').select('id, nome_completo, status').order('nome_completo'),
+      ])
 
       const safeLeads = Array.isArray(allLeadsData) ? allLeadsData : []
       const safeUsers = Array.isArray(usersData) ? usersData : []
+      const safeMontadores = Array.isArray(montadoresRes.data) ? montadoresRes.data : []
 
       // Filtrar para categoria Assistência, arquivado_comercial is not true, excluido is not true
       const filtered = safeLeads.filter((l: any) => {
@@ -190,6 +221,7 @@ export function KanbanAssistencia() {
 
       setLeads(filtered)
       setUsers(safeUsers)
+      setMontadores(safeMontadores)
     } catch (err: any) {
       console.error('Erro ao carregar kanban de assistência:', err)
       setError(err?.message || 'Erro ao carregar dados')
@@ -206,6 +238,9 @@ export function KanbanAssistencia() {
     const channel = supabase
       .channel('kanban_assistencia_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        if (isMounted) loadData(true)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'montadores' }, () => {
         if (isMounted) loadData(true)
       })
       .subscribe()
@@ -279,6 +314,110 @@ export function KanbanAssistencia() {
       console.error('Erro ao atribuir responsável:', err)
       toast.error('Erro ao atribuir responsável: ' + err.message)
       loadData(true)
+    }
+  }
+
+  const handleToggleMontadorInLead = async (lead: Lead, montadorId: string) => {
+    const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+    const currentMontadores = Array.isArray(meta?.montador_ids) ? meta.montador_ids : []
+    const isChecked = currentMontadores.includes(montadorId)
+    const updatedMontadores = isChecked
+      ? currentMontadores.filter((id) => id !== montadorId)
+      : [...currentMontadores, montadorId]
+
+    const newMeta = {
+      ...meta,
+      montador_ids: updatedMontadores,
+    }
+    const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+    // Otimista
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === lead.id
+          ? ({
+              ...l,
+              notas_pessoais: newNotasPessoais,
+              atualizado_em: new Date().toISOString(),
+            } as any)
+          : l,
+      ),
+    )
+
+    try {
+      await updateLead(lead.id, {
+        notas_pessoais: newNotasPessoais,
+        atualizado_em: new Date().toISOString(),
+      } as any)
+      toast.success(
+        isChecked ? 'Montador removido da assistência' : 'Montador atribuído à assistência',
+      )
+    } catch (err: any) {
+      console.error('Erro ao atualizar montadores da assistência:', err)
+      toast.error('Erro ao atualizar montadores: ' + err.message)
+      loadData(true)
+    }
+  }
+
+  const handleCreateAssistencia = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!novoNome.trim()) {
+      toast.error('Informe o nome do cliente ou solicitante')
+      return
+    }
+
+    setCreating(true)
+    try {
+      let phoneDigits = novoTelefone.replace(/\D/g, '')
+      if (phoneDigits.length === 10) {
+        phoneDigits = '55' + phoneDigits.slice(0, 2) + '9' + phoneDigits.slice(2)
+      } else if (phoneDigits.length === 11) {
+        phoneDigits = '55' + phoneDigits
+      } else if (phoneDigits.length === 12 && phoneDigits.startsWith('55')) {
+        phoneDigits = '55' + phoneDigits.slice(2, 4) + '9' + phoneDigits.slice(4)
+      } else if (!phoneDigits) {
+        phoneDigits = '5500000000000'
+      }
+
+      const meta: any = {}
+      if (novoMontadoresIds.length > 0) {
+        meta.montador_ids = novoMontadoresIds
+      }
+      if (novoDescricaoProjeto.trim()) {
+        meta.descricao_projeto = novoDescricaoProjeto.trim()
+      }
+
+      const notasPessoais = stringifyLeadMetadados(novoNotas.trim(), meta)
+
+      const payload = {
+        nome: novoNome.trim(),
+        telefone: phoneDigits,
+        email: novoEmail.trim() || null,
+        origem: 'Assistência Técnica',
+        categoria: 'Assistência',
+        status: 'Nova Assistência',
+        consultor_id: novoConsultorId || null,
+        kanban_ativo: true,
+        notas_pessoais: notasPessoais || null,
+        notas: novoDescricaoProjeto.trim() || null,
+      }
+
+      await createLead(payload)
+      toast.success('Assistência criada com sucesso!')
+      setIsCreateOpen(false)
+      setNovoNome('')
+      setNovoTelefone('')
+      setNovoEmail('')
+      setNovoConsultorId('')
+      setNovoMontadoresIds([])
+      setNovoNotas('')
+      setNovoDescricaoProjeto('')
+      loadData(true)
+    } catch (err: any) {
+      console.error('Erro ao criar assistência:', err)
+      toast.error('Erro ao criar assistência: ' + (err?.message || 'Erro desconhecido'))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -463,6 +602,15 @@ export function KanbanAssistencia() {
               })}
             </SelectContent>
           </Select>
+
+          <Button
+            size="sm"
+            onClick={() => setIsCreateOpen(true)}
+            className="h-8 text-xs font-semibold gap-1.5 whitespace-nowrap bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Criar Nova Assistência
+          </Button>
         </div>
       </div>
 
@@ -511,6 +659,18 @@ export function KanbanAssistencia() {
                       users.find((u) => u.id === lead.consultor_id)?.nome ||
                       ''
                     const currentLeadColId = getColumnIdForStatus(lead.status)
+                    const { meta, notas } = parseLeadMetadados((lead as any)?.notas_pessoais)
+                    const leadMontadorIds: string[] = Array.isArray(meta?.montador_ids)
+                      ? meta.montador_ids.filter(Boolean)
+                      : []
+
+                    const leadCardItemAdapter = {
+                      id: lead.id,
+                      cliente_id: null,
+                      montador_ids: leadMontadorIds,
+                      onToggleMontador: (montadorId: string) =>
+                        handleToggleMontadorInLead(lead, montadorId),
+                    }
 
                     return (
                       <div
@@ -580,18 +740,32 @@ export function KanbanAssistencia() {
                           >
                             {lead.nome || 'Sem nome'}
                           </h4>
-                          {lead.telefone && (
+                          {lead.telefone && lead.telefone !== '5500000000000' && (
                             <div className="flex items-center gap-1 text-[11px] text-muted-foreground font-mono">
                               <Phone className="w-3 h-3 shrink-0 opacity-70" />
                               <span className="truncate">{lead.telefone}</span>
                             </div>
                           )}
+                          {(meta?.descricao_projeto || lead.notas) && (
+                            <p
+                              className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5"
+                              title={meta?.descricao_projeto || lead.notas || ''}
+                            >
+                              {meta?.descricao_projeto || lead.notas}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Linha de Tempo na Coluna / Responsável */}
+                        {/* Linha de Tempo na Coluna / Montadores alocados / Responsável */}
                         <div className="flex items-center justify-between mt-auto pt-0.5">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <TimeInColumn dateStr={(lead as any).atualizado_em || lead.criado_em} />
+                            {leadMontadorIds.length > 0 && (
+                              <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-medium">
+                                <Wrench className="w-2.5 h-2.5" />
+                                <span>{leadMontadorIds.length} Alocado(s)</span>
+                              </div>
+                            )}
                           </div>
                           {consultorNome && (
                             <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate max-w-[120px]">
@@ -603,7 +777,7 @@ export function KanbanAssistencia() {
                           )}
                         </div>
 
-                        {/* Dropdowns de Mudança de Status e Responsável */}
+                        {/* Dropdowns de Mudança de Status, Responsável e Montadores */}
                         <div
                           className="border-t border-border pt-1.5 gap-1 flex flex-col"
                           onPointerDown={(e) => e.stopPropagation()}
@@ -650,6 +824,15 @@ export function KanbanAssistencia() {
                               ))}
                             </SelectContent>
                           </Select>
+
+                          {/* Seleção de Montadores usando MontadorSelect */}
+                          <ErrorBoundary fallback={null}>
+                            <MontadorSelect
+                              item={leadCardItemAdapter}
+                              montadores={montadores}
+                              onUpdate={() => loadData(true)}
+                            />
+                          </ErrorBoundary>
                         </div>
                       </div>
                     )
@@ -668,6 +851,136 @@ export function KanbanAssistencia() {
           })}
         </div>
       </div>
+
+      {/* Modal Criar Nova Assistência */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-md bg-card text-card-foreground border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground text-base font-bold flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-primary" />
+              Criar Nova Assistência
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Cadastre um novo lead/card de assistência na coluna "Nova Assistência".
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateAssistencia} className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground">
+                Nome do Cliente / Solicitante <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                required
+                placeholder="Ex: João Silva ou Obra Residencial Bella"
+                value={novoNome}
+                onChange={(e) => setNovoNome(e.target.value)}
+                className="h-8 text-xs bg-background border-input"
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-foreground">WhatsApp / Telefone</Label>
+                <Input
+                  placeholder="(47) 99999-9999"
+                  value={novoTelefone}
+                  onChange={(e) => setNovoTelefone(e.target.value)}
+                  className="h-8 text-xs bg-background border-input"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-semibold text-foreground">E-mail (opcional)</Label>
+                <Input
+                  type="email"
+                  placeholder="cliente@email.com"
+                  value={novoEmail}
+                  onChange={(e) => setNovoEmail(e.target.value)}
+                  className="h-8 text-xs bg-background border-input"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground">Responsável</Label>
+              <Select
+                value={novoConsultorId || 'unassigned'}
+                onValueChange={(val) => setNovoConsultorId(val === 'unassigned' ? '' : val)}
+              >
+                <SelectTrigger className="h-8 text-xs bg-background border-input text-foreground">
+                  <SelectValue placeholder="Selecione um responsável..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned" className="text-xs text-muted-foreground">
+                    Não atribuído
+                  </SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id} className="text-xs">
+                      {u.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground">Montadores</Label>
+              <ErrorBoundary fallback={null}>
+                <MontadorSelect
+                  item={{
+                    id: 'temp_new_assistencia',
+                    montador_ids: novoMontadoresIds,
+                    onToggleMontador: (mId: string) => {
+                      setNovoMontadoresIds((prev) =>
+                        prev.includes(mId) ? prev.filter((id) => id !== mId) : [...prev, mId],
+                      )
+                    },
+                  }}
+                  montadores={montadores}
+                  onUpdate={() => {}}
+                />
+              </ErrorBoundary>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground">
+                Descrição do Problema / Solicitação
+              </Label>
+              <Textarea
+                placeholder="Detalhes sobre a assistência (peça danificada, ajuste de porta, etc.)..."
+                value={novoDescricaoProjeto}
+                onChange={(e) => setNovoDescricaoProjeto(e.target.value)}
+                rows={3}
+                className="text-xs resize-none bg-background border-input"
+              />
+            </div>
+
+            <DialogFooter className="border-t border-border pt-3 mt-4 gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCreateOpen(false)}
+                disabled={creating}
+                className="h-8 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={creating || !novoNome.trim()}
+                className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {creating && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+                Criar Assistência
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

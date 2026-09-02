@@ -241,6 +241,7 @@ export interface LeadMetadados {
   encaminhado_em?: string
   exclusoes?: AbaAcaoRegistro[]
   arquivamentos?: AbaAcaoRegistro[]
+  montador_ids?: string[]
   [key: string]: any
 }
 

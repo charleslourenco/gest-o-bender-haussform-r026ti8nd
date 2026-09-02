@@ -22,15 +22,21 @@ export function MontadorSelect({
   montadores: any[]
   onUpdate: () => void
 }) {
-  const alocacoesCard = Array.isArray(item?.alocacao_montagem)
+  const alocacoesCard: string[] = Array.isArray(item?.alocacao_montagem)
     ? item.alocacao_montagem.map((a: any) => a?.montador_id).filter(Boolean)
-    : []
+    : Array.isArray(item?.montador_ids)
+      ? item.montador_ids.filter(Boolean)
+      : []
 
   const { pending, clearPending, toggleMontador, resolveChoice } = useMontadorAllocation(onUpdate)
 
   if (!item?.id) return null
 
   const handleSelect = (montadorId: string) => {
+    if (typeof item?.onToggleMontador === 'function') {
+      item.onToggleMontador(montadorId)
+      return
+    }
     const montador = montadores.find((m) => m?.id === montadorId)
     if (!montador) return
     const isChecked = alocacoesCard.includes(montadorId)
