@@ -275,7 +275,14 @@ export function DetalhesContaDialog({
               {installments.length > 1 && (
                 <InfoRow label="Valor Total (Grupo)" value={formatCurrency(totalValue)} />
               )}
-              <InfoRow label="Categoria" value={conta.categoria || '-'} />
+              <InfoRow
+                label="Categoria"
+                value={
+                  conta.natureza
+                    ? `${conta.categoria || 'Sem categoria'} (${conta.natureza})`
+                    : conta.categoria || '-'
+                }
+              />
               <InfoRow label="Vencimento" value={fmtDate(conta.data_vencimento)} />
               {tipo === 'receber' && conta.numero_parcela && (
                 <InfoRow label="Nº da Parcela" value={conta.numero_parcela} />

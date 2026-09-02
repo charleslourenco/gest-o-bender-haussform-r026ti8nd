@@ -6,6 +6,8 @@ export interface ContaPagar {
   fornecedor: string
   descricao: string | null
   categoria: string | null
+  categoria_id?: string | null
+  natureza?: string | null
   valor: number
   data_vencimento: string | null
   data_pagamento: string | null
@@ -16,6 +18,8 @@ export interface ContaPagar {
   antecipado: boolean | null
   conta_bancaria_id: string | null
   nota_fiscal_id: string | null
+  grupo_id?: string | null
+  observacoes?: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -26,10 +30,13 @@ export interface ContaPagarUpdate {
   data_vencimento?: string | null
   fornecedor?: string
   categoria?: string | null
+  categoria_id?: string | null
+  natureza?: string | null
   status_pagamento?: string
   meio_pagamento?: string | null
   antecipado?: boolean | null
   conta_bancaria_id?: string | null
+  observacoes?: string | null
 }
 
 export async function fetchContasPagar(): Promise<{

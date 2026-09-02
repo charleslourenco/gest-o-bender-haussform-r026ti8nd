@@ -17,7 +17,11 @@ export interface ContaReceber {
   comprovante_url: string | null
   descricao: string | null
   categoria: string | null
+  categoria_id?: string | null
+  natureza?: string | null
   conta_bancaria_id: string | null
+  grupo_id?: string | null
+  observacoes?: string | null
 }
 
 export interface ContaReceberUpdate {
@@ -26,10 +30,13 @@ export interface ContaReceberUpdate {
   data_vencimento?: string | null
   cliente_id?: string | null
   categoria?: string | null
+  categoria_id?: string | null
+  natureza?: string | null
   status_pagamento?: string
   meio_pagamento?: string | null
   antecipado?: boolean | null
   conta_bancaria_id?: string | null
+  observacoes?: string | null
 }
 
 export async function fetchContasReceber(): Promise<{

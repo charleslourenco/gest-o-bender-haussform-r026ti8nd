@@ -25,6 +25,8 @@ import { supabase } from '@/lib/supabase/client'
 import { deleteContaPagar, deleteContaReceber } from '@/services/contas-financeiras'
 import { getInvoiceSignedUrl, uploadInvoiceFile } from '@/services/notas-fiscais-storage'
 import { formatCurrency } from '@/lib/utils'
+import { PlanoContasSelect } from './PlanoContasSelect'
+import { PlanoContaItem } from '@/services/plano-contas'
 import {
   Paperclip,
   Trash2,
@@ -34,6 +36,7 @@ import {
   Building2,
   AlertCircle,
   Loader2,
+  BookOpen,
 } from 'lucide-react'
 
 export type EditarTipo = 'pagar' | 'receber'
@@ -88,6 +91,8 @@ export function EditarContaDialog({
   const [dataVencimento, setDataVencimento] = useState('')
   const [entidade, setEntidade] = useState('')
   const [categoria, setCategoria] = useState('')
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
+  const [natureza, setNatureza] = useState<string | null>(null)
   const [status, setStatus] = useState('aguardando')
   const [meioPagamento, setMeioPagamento] = useState('')
   const [contaBancariaId, setContaBancariaId] = useState('none')
@@ -118,6 +123,8 @@ export function EditarContaDialog({
       setDataVencimento(conta.data_vencimento || '')
       setEntidade(tipo === 'pagar' ? conta.fornecedor || '' : conta.cliente_id || 'none')
       setCategoria(conta.categoria || '')
+      setCategoriaId(conta.categoria_id || null)
+      setNatureza(conta.natureza || null)
       setStatus((conta.status_pagamento || 'aguardando').toLowerCase())
       setMeioPagamento(conta.meio_pagamento || 'Pix')
       setContaBancariaId(conta.conta_bancaria_id || 'none')
@@ -286,6 +293,8 @@ export function EditarContaDialog({
         valor: valorNum,
         data_vencimento: dataVencimento || null,
         categoria: categoria || null,
+        categoria_id: categoriaId || null,
+        natureza: natureza || null,
         status_pagamento: status,
         meio_pagamento: isPago ? meioPagamento || null : null,
         conta_bancaria_id: isPago ? (contaBancariaId === 'none' ? null : contaBancariaId) : null,
@@ -403,7 +412,7 @@ export function EditarContaDialog({
 
               <div className="space-y-1.5">
                 <Label htmlFor="edit-categoria" className="text-xs font-semibold">
-                  Categoria
+                  Classificação / Texto Categoria
                 </Label>
                 <Input
                   id="edit-categoria"
@@ -412,6 +421,35 @@ export function EditarContaDialog({
                   placeholder="Ex: Insumos / Venda de Projetos"
                 />
               </div>
+            </div>
+
+            {/* Seletor de Plano de Contas */}
+            <div className="space-y-1.5 bg-muted/20 p-2.5 rounded-lg border">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 text-primary" />
+                Categoria Contábil (Plano de Contas)
+              </Label>
+              <PlanoContasSelect
+                value={categoriaId}
+                onChange={(selected: PlanoContaItem | null) => {
+                  if (selected) {
+                    setCategoriaId(selected.id)
+                    setNatureza(selected.natureza)
+                    if (!categoria) {
+                      setCategoria(selected.nome)
+                    }
+                  } else {
+                    setCategoriaId(null)
+                    setNatureza(null)
+                  }
+                }}
+                placeholder="Vincular ao Plano de Contas..."
+              />
+              {natureza && (
+                <p className="text-[11px] text-muted-foreground">
+                  Natureza contábil associada: <strong className="uppercase">{natureza}</strong>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

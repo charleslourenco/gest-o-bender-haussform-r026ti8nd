@@ -25,6 +25,8 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { PlanoContasSelect } from './PlanoContasSelect'
+import { PlanoContaItem } from '@/services/plano-contas'
 
 export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }) {
   const [open, setOpen] = useState(false)
@@ -36,6 +38,8 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
   const [valor, setValor] = useState('')
   const [dataVencimento, setDataVencimento] = useState('')
   const [categoria, setCategoria] = useState('Venda de Projetos')
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
+  const [natureza, setNatureza] = useState<string | null>('receita')
   const [meioPagamento, setMeioPagamento] = useState('Pix')
   const [clientes, setClientes] = useState<any[]>([])
   const [clienteId, setClienteId] = useState('none')
@@ -71,7 +75,9 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
         descricao,
         valor: Number(valor),
         data_vencimento: dataVencimento,
-        categoria,
+        categoria: categoria || 'Venda de Projetos',
+        categoria_id: categoriaId || null,
+        natureza: natureza || 'receita',
         numero_parcela: '1/1',
         status_pagamento: 'aguardando',
         user_id: user?.id,
@@ -90,6 +96,8 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
       setValor('')
       setDataVencimento('')
       setCategoria('Venda de Projetos')
+      setCategoriaId(null)
+      setNatureza('receita')
       setMeioPagamento('Pix')
       setClienteId('none')
       setContaBancariaId('none')
@@ -166,19 +174,33 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Categoria Contábil (Plano de Contas)</Label>
+            <PlanoContasSelect
+              value={categoriaId}
+              naturezaFilter="receita"
+              onChange={(selected: PlanoContaItem | null) => {
+                if (selected) {
+                  setCategoriaId(selected.id)
+                  setNatureza(selected.natureza)
+                  setCategoria(selected.nome)
+                } else {
+                  setCategoriaId(null)
+                  setNatureza('receita')
+                }
+              }}
+              placeholder="Selecione categoria de receita..."
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select value={categoria} onValueChange={setCategoria}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Venda de Projetos">Venda de Projetos</SelectItem>
-                  <SelectItem value="Serviços">Serviços</SelectItem>
-                  <SelectItem value="Outras Receitas">Outras Receitas</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Classificação / Descrição Categoria</Label>
+              <Input
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                placeholder="Ex: Venda de Projetos"
+              />
             </div>
             <div className="space-y-2">
               <Label>Meio de Pagamento</Label>

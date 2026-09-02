@@ -1,8 +1,18 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HasPermission } from '@/components/HasPermission'
-import { ShieldAlert, Building, FileText, Users as UsersIcon, ShieldCheck } from 'lucide-react'
+import {
+  ShieldAlert,
+  Building,
+  FileText,
+  Users as UsersIcon,
+  ShieldCheck,
+  BookOpen,
+  Landmark,
+} from 'lucide-react'
 import { EmpresaTab } from './EmpresaTab'
 import { TemplatesTab } from './TemplatesTab'
+import { PlanoContasTab } from './PlanoContasTab'
+import { ConfiguracoesFiscaisTab } from './ConfiguracoesFiscaisTab'
 import { PermissionsMatrix } from '@/components/users/PermissionsMatrix'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
@@ -29,21 +39,35 @@ export default function AdminPage() {
           <div className="flex items-center gap-4">
             <Building className="h-10 w-10 text-off-white hidden sm:block" />
             <div>
-              <h1 className="text-[32px] font-bold text-off-white">Administrativo</h1>
+              <h1 className="text-[32px] font-bold text-off-white">
+                Administrativo & Configurações
+              </h1>
               <p className="text-off-white/70 mt-1 font-normal">
-                Gestão da Empresa, Templates e Acessos
+                Gestão da Empresa, Plano de Contas, Configurações Fiscais, Templates e Acessos
               </p>
             </div>
           </div>
         </div>
 
         <Tabs defaultValue="empresa" className="w-full space-y-6">
-          <TabsList className="bg-midnight-navy p-1 rounded-lg flex-wrap h-auto">
+          <TabsList className="bg-midnight-navy p-1 rounded-lg flex-wrap h-auto gap-1">
             <TabsTrigger
               value="empresa"
               className="data-[state=active]:bg-dark-denim data-[state=active]:text-off-white text-off-white/70 rounded-md flex items-center gap-2"
             >
               <Building className="h-4 w-4" /> Empresa
+            </TabsTrigger>
+            <TabsTrigger
+              value="plano-contas"
+              className="data-[state=active]:bg-dark-denim data-[state=active]:text-off-white text-off-white/70 rounded-md flex items-center gap-2"
+            >
+              <BookOpen className="h-4 w-4" /> Plano de Contas
+            </TabsTrigger>
+            <TabsTrigger
+              value="fiscal"
+              className="data-[state=active]:bg-dark-denim data-[state=active]:text-off-white text-off-white/70 rounded-md flex items-center gap-2"
+            >
+              <Landmark className="h-4 w-4" /> Configurações Fiscais
             </TabsTrigger>
             <TabsTrigger
               value="templates"
@@ -67,6 +91,12 @@ export default function AdminPage() {
 
           <TabsContent value="empresa" className="m-0">
             <EmpresaTab />
+          </TabsContent>
+          <TabsContent value="plano-contas" className="m-0">
+            <PlanoContasTab />
+          </TabsContent>
+          <TabsContent value="fiscal" className="m-0">
+            <ConfiguracoesFiscaisTab />
           </TabsContent>
           <TabsContent value="templates" className="m-0">
             <TemplatesTab />

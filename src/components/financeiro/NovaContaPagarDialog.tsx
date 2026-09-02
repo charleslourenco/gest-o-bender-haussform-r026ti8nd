@@ -25,6 +25,8 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { CurrencyInput } from '@/components/ui/currency-input'
 import { UnifiedPayeeSelect, PayeeOption } from './UnifiedPayeeSelect'
+import { PlanoContasSelect } from './PlanoContasSelect'
+import { PlanoContaItem } from '@/services/plano-contas'
 import { DivisaoRow } from './DivisoesRateioSection'
 import { formatCurrency } from '@/lib/utils'
 
@@ -47,6 +49,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [valor, setValor] = useState('')
   const [dataVencimento, setDataVencimento] = useState('')
   const [categoria, setCategoria] = useState('')
+  const [categoriaId, setCategoriaId] = useState<string | null>(null)
+  const [natureza, setNatureza] = useState<string | null>(null)
   const [contaBancariaId, setContaBancariaId] = useState('none')
   const [contas, setContas] = useState<any[]>([])
   const [recorrente, setRecorrente] = useState(false)
@@ -114,6 +118,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
     setValor('')
     setDataVencimento('')
     setCategoria('')
+    setCategoriaId(null)
+    setNatureza(null)
     setContaBancariaId('none')
     setRecorrente(false)
     setQtdMeses('2')
@@ -190,6 +196,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
             valor: valorNum,
             data_vencimento: addMonths(dataVencimento, i),
             categoria: categoria || null,
+            categoria_id: categoriaId || null,
+            natureza: natureza || null,
             user_id: user?.id,
             status_pagamento: 'aguardando',
             conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
@@ -270,14 +278,35 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="plano-contas-pagar">Categoria Contábil (Plano de Contas)</Label>
+            <PlanoContasSelect
+              id="plano-contas-pagar"
+              value={categoriaId}
+              onChange={(selected: PlanoContaItem | null) => {
+                if (selected) {
+                  setCategoriaId(selected.id)
+                  setNatureza(selected.natureza)
+                  if (!categoria) {
+                    setCategoria(selected.nome)
+                  }
+                } else {
+                  setCategoriaId(null)
+                  setNatureza(null)
+                }
+              }}
+              placeholder="Vincular ao Plano de Contas (opcional)..."
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="categoria">Categoria</Label>
+              <Label htmlFor="categoria">Classificação / Descrição da Categoria</Label>
               <Input
                 id="categoria"
                 value={categoria}
                 onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Ex: Material de Consumo"
+                placeholder="Ex: Material de Consumo, Fornecedor X"
               />
             </div>
             <div className="space-y-2">

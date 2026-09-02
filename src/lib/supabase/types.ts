@@ -97,6 +97,48 @@ export type Database = {
           },
         ]
       }
+      aliquotas_fiscais: {
+        Row: {
+          aliquota_percentual: number
+          ativo: boolean
+          atualizado_em: string
+          base_calculo_percentual: number | null
+          criado_em: string
+          data_fim_vigencia: string | null
+          data_inicio_vigencia: string
+          descricao: string | null
+          id: string
+          nome_imposto: string
+          regime_tributario: string
+        }
+        Insert: {
+          aliquota_percentual: number
+          ativo?: boolean
+          atualizado_em?: string
+          base_calculo_percentual?: number | null
+          criado_em?: string
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string
+          descricao?: string | null
+          id?: string
+          nome_imposto: string
+          regime_tributario: string
+        }
+        Update: {
+          aliquota_percentual?: number
+          ativo?: boolean
+          atualizado_em?: string
+          base_calculo_percentual?: number | null
+          criado_em?: string
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string
+          descricao?: string | null
+          id?: string
+          nome_imposto?: string
+          regime_tributario?: string
+        }
+        Relationships: []
+      }
       alocacao_montagem: {
         Row: {
           card_id: string
@@ -422,6 +464,39 @@ export type Database = {
           },
         ]
       }
+      configuracoes_fiscais: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          criado_em: string
+          data_fim_vigencia: string | null
+          data_inicio_vigencia: string
+          id: string
+          observacoes: string | null
+          regime_tributario: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string
+          id?: string
+          observacoes?: string | null
+          regime_tributario: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          criado_em?: string
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string
+          id?: string
+          observacoes?: string | null
+          regime_tributario?: string
+        }
+        Relationships: []
+      }
       configuracoes_sistema: {
         Row: {
           atualizado_em: string
@@ -487,6 +562,7 @@ export type Database = {
           antecipado: boolean | null
           atualizado_em: string
           categoria: string | null
+          categoria_id: string | null
           codigo_barras: string | null
           comprovante_url: string | null
           conta_bancaria_id: string | null
@@ -498,6 +574,7 @@ export type Database = {
           grupo_id: string | null
           id: string
           meio_pagamento: string | null
+          natureza: string | null
           nota_fiscal_id: string | null
           observacoes: string | null
           status_pagamento: string
@@ -508,6 +585,7 @@ export type Database = {
           antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
+          categoria_id?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -519,6 +597,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
+          natureza?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           status_pagamento?: string
@@ -529,6 +608,7 @@ export type Database = {
           antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
+          categoria_id?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -540,6 +620,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
+          natureza?: string | null
           nota_fiscal_id?: string | null
           observacoes?: string | null
           status_pagamento?: string
@@ -547,6 +628,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: 'contas_pagar_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'plano_contas'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'contas_pagar_conta_bancaria_id_fkey'
             columns: ['conta_bancaria_id']
@@ -600,6 +688,7 @@ export type Database = {
           antecipado: boolean | null
           atualizado_em: string
           categoria: string | null
+          categoria_id: string | null
           cliente_id: string | null
           comprovante_url: string | null
           conta_bancaria_id: string | null
@@ -611,6 +700,7 @@ export type Database = {
           grupo_id: string | null
           id: string
           meio_pagamento: string | null
+          natureza: string | null
           numero_parcela: string
           observacoes: string | null
           status_pagamento: string
@@ -621,6 +711,7 @@ export type Database = {
           antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
+          categoria_id?: string | null
           cliente_id?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -632,6 +723,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
+          natureza?: string | null
           numero_parcela: string
           observacoes?: string | null
           status_pagamento?: string
@@ -642,6 +734,7 @@ export type Database = {
           antecipado?: boolean | null
           atualizado_em?: string
           categoria?: string | null
+          categoria_id?: string | null
           cliente_id?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -653,6 +746,7 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           meio_pagamento?: string | null
+          natureza?: string | null
           numero_parcela?: string
           observacoes?: string | null
           status_pagamento?: string
@@ -660,6 +754,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: 'contas_receber_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'plano_contas'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'contas_receber_cliente_id_fkey'
             columns: ['cliente_id']
@@ -2413,6 +2514,59 @@ export type Database = {
         }
         Relationships: []
       }
+      plano_contas: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          codigo: string | null
+          criado_em: string
+          descricao: string | null
+          id: string
+          natureza: string
+          nome: string
+          ordem: number
+          padrao: boolean
+          pai_id: string | null
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo?: string | null
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          natureza: string
+          nome: string
+          ordem?: number
+          padrao?: boolean
+          pai_id?: string | null
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          codigo?: string | null
+          criado_em?: string
+          descricao?: string | null
+          id?: string
+          natureza?: string
+          nome?: string
+          ordem?: number
+          padrao?: boolean
+          pai_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'plano_contas_pai_id_fkey'
+            columns: ['pai_id']
+            isOneToOne: false
+            referencedRelation: 'plano_contas'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       produtos_servicos: {
         Row: {
           ambiente_id: string | null
@@ -2983,6 +3137,7 @@ export type Database = {
       insert_conta_pagar_with_divisoes: {
         Args: {
           p_categoria: string
+          p_categoria_id?: string
           p_conta_bancaria_id: string
           p_data_vencimento: string
           p_descricao: string
@@ -2990,6 +3145,7 @@ export type Database = {
           p_fornecedor: string
           p_grupo_id?: string
           p_meses: number
+          p_natureza?: string
           p_observacoes?: string
           p_user_id: string
           p_valor: number
