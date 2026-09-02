@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react'
-import { Users, ChevronRight, X, FolderSearch } from 'lucide-react'
+import { Users, ChevronRight, X, FolderSearch, HelpCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { RecuperarClienteDialog } from './recuperar-cliente-dialog'
 import { Label } from '@/components/ui/label'
 import {
@@ -90,6 +98,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   const [numVendas, setNumVendas] = useState(0)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [recuperarOpen, setRecuperarOpen] = useState(false)
+  const [ajudaCadastroOpen, setAjudaCadastroOpen] = useState(false)
 
   const nivelClientes = permissions?.['Clientes'] || permissions?.['Área de Clientes'] || ''
   const canRecuperar = nivelClientes ? nivelClientes.toLowerCase() === 'admin' : false
@@ -224,6 +233,15 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           <p className="text-muted-foreground">Gerencie o histórico e dossiês dos clientes</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setAjudaCadastroOpen(true)}
+            className="shrink-0"
+            title="Como cadastrar um novo cliente"
+          >
+            <HelpCircle className="w-4 h-4 mr-2" />
+            Como cadastrar cliente?
+          </Button>
           {canRecuperar && (
             <Button
               variant="outline"
@@ -237,6 +255,36 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           )}
         </div>
       </div>
+
+      <Dialog open={ajudaCadastroOpen} onOpenChange={setAjudaCadastroOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-primary" />
+              Como cadastrar um novo cliente
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  O único caminho para cadastrar um cliente é pelo módulo de{' '}
+                  <span className="font-semibold text-foreground">Atendimentos</span>: arraste o
+                  card do lead até a coluna{' '}
+                  <span className="font-semibold text-foreground">&quot;Vendido&quot;</span>. A
+                  partir daí, o sistema gera automaticamente o formulário comercial e o dossiê do
+                  cliente.
+                </p>
+                <p>
+                  Isso garante que todo cliente tenha venda, histórico e pasta de documentos
+                  completos.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setAjudaCadastroOpen(false)}>Entendi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <RecuperarClienteDialog
         open={recuperarOpen}
