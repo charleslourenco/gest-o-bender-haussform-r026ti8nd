@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Users, ChevronRight, UserPlus, Loader2, X, FolderSearch } from 'lucide-react'
+import { Users, ChevronRight, X, FolderSearch } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { createNewClientFlow } from '@/services/cliente-form'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -83,10 +82,9 @@ function normalizeLead(raw: any): LeadRelation | null {
 }
 
 export function ClientesList({ onSelect }: ClientesListProps) {
-  const { user, permissions, isAdmin } = useAuth()
+  const { permissions, isAdmin } = useAuth()
   const [clientesData, setClientesData] = useState<ClienteRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [totalVendido, setTotalVendido] = useState(0)
   const [numVendas, setNumVendas] = useState(0)
@@ -102,19 +100,6 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   const [consultorFilter, setConsultorFilter] = useState('all')
   const [dataVendaDe, setDataVendaDe] = useState('')
   const [dataVendaAte, setDataVendaAte] = useState('')
-
-  const handleNewClient = async () => {
-    setCreating(true)
-    try {
-      const dossieId = await createNewClientFlow(user?.id || '')
-      toast.success('Cliente criado! Preencha o formulário comercial.')
-      onSelect(dossieId)
-    } catch (e: any) {
-      toast.error('Erro ao criar cliente: ' + e.message)
-    } finally {
-      setCreating(false)
-    }
-  }
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -250,14 +235,6 @@ export function ClientesList({ onSelect }: ClientesListProps) {
               Recuperar Cliente
             </Button>
           )}
-          <Button onClick={handleNewClient} disabled={creating} className="shrink-0">
-            {creating ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <UserPlus className="w-4 h-4 mr-2" />
-            )}
-            Novo Cliente
-          </Button>
         </div>
       </div>
 
