@@ -68,4 +68,6 @@ export interface Transaction {
   entityName: string
   meioPagamento?: string
   antecipado?: boolean
+  natureza?: string
+  categoria_id?: string | null
 }

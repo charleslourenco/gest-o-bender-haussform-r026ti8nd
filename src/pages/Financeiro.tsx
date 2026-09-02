@@ -62,6 +62,8 @@ export default function Financeiro() {
         grupoId: r.grupo_id,
         observacoes: r.observacoes,
         contaBancariaId: r.conta_bancaria_id,
+        natureza: r.natureza || 'receita',
+        categoria_id: r.categoria_id || null,
       }))
 
       const pagamentos = (pagarRes.data || []).map((p: any) => ({
@@ -83,6 +85,8 @@ export default function Financeiro() {
         grupoId: p.grupo_id,
         observacoes: p.observacoes,
         contaBancariaId: p.conta_bancaria_id,
+        natureza: p.natureza || null,
+        categoria_id: p.categoria_id || null,
       }))
 
       setTransactions(
