@@ -17,6 +17,7 @@ import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDad
 import { ClienteDocumentos } from './cliente-documentos'
 import { Timeline } from './timeline'
 import { ClienteDeleteDialog } from './cliente-delete-dialog'
+import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { formatCurrency } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,7 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   const [creatingSale, setCreatingSale] = useState(false)
   const creatingSaleRef = useRef(false)
   const [clientWithoutDossie, setClientWithoutDossie] = useState<any>(null)
+  const { isAdmin } = useAuth()
 
   const handleTabChange = (value: string) => {
     setSearchParams((prev) => {
@@ -165,18 +167,20 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <ClienteDeleteDialog
-                clienteId={clientWithoutDossie.id}
-                clienteNome={clientWithoutDossie.nome}
-                onDeleted={() => {
-                  toast.success('Cliente excluído com sucesso.')
-                  navigate('/clientes')
-                }}
-                triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
-                triggerVariant="button"
-              />
+              {isAdmin && (
+                <ClienteDeleteDialog
+                  clienteId={clientWithoutDossie.id}
+                  clienteNome={clientWithoutDossie.nome}
+                  onDeleted={() => {
+                    toast.success('Cliente excluído com sucesso.')
+                    navigate('/clientes')
+                  }}
+                  triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
+                  triggerVariant="button"
+                />
+              )}
             </div>
-          </div>
+          </div>{' '}
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center text-muted-foreground max-w-md">
               <p>Este cliente não possui um dossiê vinculado.</p>
@@ -219,19 +223,20 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
             )}
             Nova Venda
           </Button>
-          <ClienteDeleteDialog
-            clienteId={dossie.cliente_id}
-            clienteNome={dossie.cliente?.nome}
-            onDeleted={() => {
-              toast.success('Cliente excluído com sucesso.')
-              navigate('/clientes')
-            }}
-            triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
-            triggerVariant="button"
-          />
+          {isAdmin && (
+            <ClienteDeleteDialog
+              clienteId={dossie.cliente_id}
+              clienteNome={dossie.cliente?.nome}
+              onDeleted={() => {
+                toast.success('Cliente excluído com sucesso.')
+                navigate('/clientes')
+              }}
+              triggerClassName="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors font-medium text-sm"
+              triggerVariant="button"
+            />
+          )}
         </div>
       </div>
-
       {/* Sales list — all independent sales for this client */}
       {sales.length > 1 && (
         <div className="shrink-0 bg-card border border-border rounded-xl p-3 shadow-sm">
