@@ -17,6 +17,7 @@ export interface Lead {
   email: string
   telefone: string
   origem: string
+  origem_pessoa?: string | null
   consultor_id: string | null
   status: string
   notas: string | null

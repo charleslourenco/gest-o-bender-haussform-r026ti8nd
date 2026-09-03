@@ -11,6 +11,8 @@ import {
   stringifyLeadMetadados,
   cleanColumnTitle,
   LeadMetadados,
+  ORIGENS_LEAD,
+  exigeNomePessoa,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
@@ -81,6 +83,8 @@ export function KanbanAtendimentos({
   const [isCreatingQuickLead, setIsCreatingQuickLead] = useState(false)
   const [quickNome, setQuickNome] = useState('')
   const [quickTelefone, setQuickTelefone] = useState('')
+  const [quickOrigem, setQuickOrigem] = useState<string>('WhatsApp')
+  const [quickOrigemPessoa, setQuickOrigemPessoa] = useState('')
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const leadsRef = useRef<Lead[]>([])
@@ -527,6 +531,11 @@ export function KanbanAtendimentos({
       return
     }
 
+    if (exigeNomePessoa(quickOrigem) && !quickOrigemPessoa.trim()) {
+      toast.error('Informe o nome da pessoa para a origem selecionada')
+      return
+    }
+
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const currentAuthUser = user || sessionData?.session?.user
@@ -546,7 +555,8 @@ export function KanbanAtendimentos({
       await createLead({
         nome: quickNome.trim(),
         telefone: phoneDigits,
-        origem: 'WhatsApp',
+        origem: quickOrigem || 'WhatsApp',
+        origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() : null,
         status: initialStatus,
         categoria: initialCategoria,
         criado_por_nome: userName,
@@ -555,6 +565,8 @@ export function KanbanAtendimentos({
 
       setQuickNome('')
       setQuickTelefone('')
+      setQuickOrigem('WhatsApp')
+      setQuickOrigemPessoa('')
       setIsCreatingQuickLead(false)
       toast.success('Lead adicionado com sucesso!')
       loadData(true)
@@ -786,7 +798,7 @@ export function KanbanAtendimentos({
               placeholder="Nome do cliente *"
               value={quickNome}
               onChange={(e) => setQuickNome(e.target.value)}
-              className="h-8 text-xs max-w-xs"
+              className="h-8 text-xs w-48"
               autoFocus
             />
             <Input
@@ -794,8 +806,37 @@ export function KanbanAtendimentos({
               placeholder="WhatsApp com DDD *"
               value={quickTelefone}
               onChange={(e) => setQuickTelefone(e.target.value)}
-              className="h-8 text-xs max-w-xs"
+              className="h-8 text-xs w-40"
             />
+            <div className="w-36">
+              <Select value={quickOrigem} onValueChange={(v) => setQuickOrigem(v)}>
+                <SelectTrigger className="h-8 text-xs bg-background">
+                  <SelectValue placeholder="Origem *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORIGENS_LEAD.map((orig) => (
+                    <SelectItem key={orig} value={orig} className="text-xs">
+                      {orig}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {exigeNomePessoa(quickOrigem) && (
+              <Input
+                required
+                placeholder={
+                  quickOrigem === 'Arquiteto'
+                    ? 'Nome do arquiteto *'
+                    : quickOrigem === 'Corretor'
+                      ? 'Nome do corretor *'
+                      : 'Nome de quem indicou *'
+                }
+                value={quickOrigemPessoa}
+                onChange={(e) => setQuickOrigemPessoa(e.target.value)}
+                className="h-8 text-xs w-48 border-amber-500/50 focus:border-amber-500"
+              />
+            )}
             <div className="flex items-center gap-1.5">
               <Button type="submit" size="sm" className="h-8 text-xs">
                 Adicionar
@@ -804,7 +845,11 @@ export function KanbanAtendimentos({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsCreatingQuickLead(false)}
+                onClick={() => {
+                  setIsCreatingQuickLead(false)
+                  setQuickOrigem('WhatsApp')
+                  setQuickOrigemPessoa('')
+                }}
                 className="h-8 text-xs"
               >
                 Cancelar

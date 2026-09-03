@@ -1987,6 +1987,7 @@ export type Database = {
           notas_pessoais: string | null
           ordem: number
           origem: string
+          origem_pessoa: string | null
           status: string
           status_atendimento: string | null
           telefone: string
@@ -2008,6 +2009,7 @@ export type Database = {
           notas_pessoais?: string | null
           ordem?: number
           origem: string
+          origem_pessoa?: string | null
           status?: string
           status_atendimento?: string | null
           telefone: string
@@ -2029,6 +2031,7 @@ export type Database = {
           notas_pessoais?: string | null
           ordem?: number
           origem?: string
+          origem_pessoa?: string | null
           status?: string
           status_atendimento?: string | null
           telefone?: string

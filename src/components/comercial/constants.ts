@@ -232,6 +232,32 @@ export interface AbaAcaoRegistro {
   data: string
 }
 
+// Lista padronizada de Origens dos Leads
+export const ORIGENS_LEAD = [
+  'WhatsApp',
+  'Instagram',
+  'Google',
+  'Indicação',
+  'Arquiteto',
+  'Corretor',
+  'Parceiros',
+  'Porta',
+  'Recompra',
+  'Assistência Técnica',
+  'Outdoor',
+  'Outro',
+] as const
+
+export type OrigemLead = (typeof ORIGENS_LEAD)[number]
+
+// Origens que exigem o campo "Nome da pessoa" (Indicação, Arquiteto, Corretor)
+export const ORIGENS_COM_PESSOA = ['Indicação', 'Arquiteto', 'Corretor'] as const
+
+export function exigeNomePessoa(origem?: string | null): boolean {
+  if (!origem) return false
+  return ORIGENS_COM_PESSOA.includes(origem as any)
+}
+
 export interface LeadMetadados {
   descricao_projeto?: string
   prazo?: string

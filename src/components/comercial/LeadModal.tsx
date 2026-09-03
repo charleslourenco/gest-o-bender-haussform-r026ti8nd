@@ -4,6 +4,7 @@ import { fetchLeadMessages } from '@/services/comercial'
 import { findExistingClient } from '@/services/vendas'
 import { useDebounce } from '@/hooks/use-debounce'
 import { MessageSquare, AlertTriangle } from 'lucide-react'
+import { ORIGENS_LEAD, exigeNomePessoa } from './constants'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -39,6 +40,8 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
   const [nome, setNome] = useState(lead?.nome || '')
   const [email, setEmail] = useState(lead?.email || '')
+  const [origem, setOrigem] = useState(lead?.origem || 'WhatsApp')
+  const [origemPessoa, setOrigemPessoa] = useState(lead?.origem_pessoa || '')
 
   const debouncedEmail = useDebounce(email, 400)
   const debouncedPhone = useDebounce(telefone, 400)
@@ -47,6 +50,8 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
     setTelefone(formatPhone(lead?.telefone || ''))
     setNome(lead?.nome || '')
     setEmail(lead?.email || '')
+    setOrigem(lead?.origem || 'WhatsApp')
+    setOrigemPessoa(lead?.origem_pessoa || '')
     setDuplicateWarning(null)
   }, [lead])
 
@@ -120,7 +125,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
-    const data = Object.fromEntries(fd.entries())
+    const data = Object.fromEntries(fd.entries()) as any
     if (!data.consultor_id) data.consultor_id = null
 
     let phoneStr = (data.telefone as string).replace(/\D/g, '')
@@ -132,6 +137,13 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
       phoneStr = '55' + phoneStr.slice(2, 4) + '9' + phoneStr.slice(4)
     }
     data.telefone = phoneStr
+
+    data.origem = origem
+    if (exigeNomePessoa(origem)) {
+      data.origem_pessoa = (origemPessoa || '').trim() || null
+    } else {
+      data.origem_pessoa = null
+    }
 
     onSave(data)
   }
@@ -229,21 +241,53 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                 <select
                   required
                   name="origem"
-                  defaultValue={lead?.origem || 'Instagram'}
+                  value={origem}
+                  onChange={(e) => setOrigem(e.target.value)}
                   className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 cursor-pointer"
                 >
-                  <option value="Instagram">Instagram</option>
-                  <option value="Google">Google</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Parceiros">Parceiros</option>
-                  <option value="Corretor">Corretor</option>
-                  <option value="Arquiteto">Arquiteto</option>
-                  <option value="Outdoor">Outdoor</option>
-                  <option value="Recompra">Recompra</option>
-                  <option value="Indicação">Indicação</option>
-                  <option value="Porta">Porta</option>
+                  {ORIGENS_LEAD.map((orig) => (
+                    <option key={orig} value={orig}>
+                      {orig}
+                    </option>
+                  ))}
+                  {/* Se o lead tiver uma origem antiga que não está na lista oficial (ex: Cadastro Direto), manter como opção para não perder */}
+                  {lead?.origem && !(ORIGENS_LEAD as readonly string[]).includes(lead.origem) && (
+                    <option value={lead.origem}>{lead.origem}</option>
+                  )}
                 </select>
               </div>
+
+              {exigeNomePessoa(origem) && (
+                <div>
+                  <label className="block text-foreground font-semibold text-[14px] mb-1.5">
+                    Nome da pessoa *
+                    <span className="text-muted-foreground font-normal text-xs ml-2">
+                      (
+                      {origem === 'Arquiteto'
+                        ? 'ex: Arq. Fulano'
+                        : origem === 'Corretor'
+                          ? 'nome do corretor'
+                          : 'quem indicou'}
+                      )
+                    </span>
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    name="origem_pessoa"
+                    value={origemPessoa}
+                    onChange={(e) => setOrigemPessoa(e.target.value)}
+                    placeholder={
+                      origem === 'Arquiteto'
+                        ? 'ex: Arq. Fulano'
+                        : origem === 'Corretor'
+                          ? 'Nome do corretor'
+                          : 'Nome de quem indicou'
+                    }
+                    className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-foreground font-semibold text-[14px] mb-1.5">
                   Consultor Responsável

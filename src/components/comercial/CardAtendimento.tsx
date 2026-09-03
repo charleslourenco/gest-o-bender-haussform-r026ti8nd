@@ -589,6 +589,38 @@ export function CardAtendimento({
           </div>
         )}
       </div>
+      {/* Origem e Nome da pessoa */}
+      {(lead.origem || lead.origem_pessoa) && (
+        <div
+          className={cn(
+            'flex items-center gap-1.5 text-[12px] flex-wrap',
+            isNovoContato ? 'text-white/95' : 'text-[#4B5563] dark:text-[#9CA3AF]',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span
+            className={cn(
+              'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border',
+              isNovoContato
+                ? 'bg-white/20 border-white/30 text-white'
+                : 'bg-[#F3F4F6] dark:bg-[#252525] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#374151] dark:text-[#D1D5DB]',
+            )}
+          >
+            {lead.origem || 'Sem origem'}
+          </span>
+          {lead.origem_pessoa && (
+            <span
+              className={cn(
+                'truncate font-medium text-[11.5px]',
+                isNovoContato ? 'text-white font-semibold' : 'text-[#1F2937] dark:text-[#F3F4F6]',
+              )}
+              title={`Indicado por: ${lead.origem_pessoa}`}
+            >
+              — {lead.origem_pessoa}
+            </span>
+          )}
+        </div>
+      )}
       {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}{' '}
       {currentAba?.isOrcamentos && (
         <div

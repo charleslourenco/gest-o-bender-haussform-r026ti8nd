@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
-import { COLUMNS, isCategoriaComercial } from './constants'
+import { COLUMNS, isCategoriaComercial, ORIGENS_LEAD, exigeNomePessoa } from './constants'
 import {
   Loader2,
   Sparkles,
@@ -752,7 +752,11 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                   value={selectedLead.origem || 'unassigned'}
                   onValueChange={(val) => {
                     const newVal = val === 'unassigned' ? null : val
-                    handleUpdateLead(selectedLead.id, { origem: newVal })
+                    const updates: any = { origem: newVal }
+                    if (!exigeNomePessoa(newVal)) {
+                      updates.origem_pessoa = null
+                    }
+                    handleUpdateLead(selectedLead.id, updates)
                   }}
                 >
                   <SelectTrigger className="h-9 bg-background">
@@ -760,20 +764,62 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Sem origem</SelectItem>
-                    <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                    <SelectItem value="Instagram">Instagram</SelectItem>
-                    <SelectItem value="Google">Google</SelectItem>
-                    <SelectItem value="Facebook">Facebook</SelectItem>
-                    <SelectItem value="Parceiros">Parceiros</SelectItem>
-                    <SelectItem value="Corretor">Corretor</SelectItem>
-                    <SelectItem value="Arquiteto">Arquiteto</SelectItem>
-                    <SelectItem value="Outdoor">Outdoor</SelectItem>
-                    <SelectItem value="Recompra">Recompra</SelectItem>
-                    <SelectItem value="Indicação">Indicação</SelectItem>
-                    <SelectItem value="Porta">Porta</SelectItem>
+                    {ORIGENS_LEAD.map((orig) => (
+                      <SelectItem key={orig} value={orig}>
+                        {orig}
+                      </SelectItem>
+                    ))}
+                    {selectedLead.origem &&
+                      !(ORIGENS_LEAD as readonly string[]).includes(selectedLead.origem) && (
+                        <SelectItem value={selectedLead.origem}>{selectedLead.origem}</SelectItem>
+                      )}
                   </SelectContent>
                 </Select>
               </div>
+
+              {exigeNomePessoa(selectedLead.origem) && (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">
+                    Nome da pessoa *
+                    <span className="text-[10px] lowercase text-muted-foreground ml-1">
+                      (
+                      {selectedLead.origem === 'Arquiteto'
+                        ? 'arquiteto'
+                        : selectedLead.origem === 'Corretor'
+                          ? 'corretor'
+                          : 'quem indicou'}
+                      )
+                    </span>
+                  </label>
+                  <Input
+                    disabled={updating}
+                    value={selectedLead.origem_pessoa || ''}
+                    placeholder={
+                      selectedLead.origem === 'Arquiteto'
+                        ? 'ex: Arq. Fulano'
+                        : selectedLead.origem === 'Corretor'
+                          ? 'Nome do corretor'
+                          : 'Nome de quem indicou'
+                    }
+                    onChange={(e) =>
+                      setSelectedLead((prev) =>
+                        prev ? { ...prev, origem_pessoa: e.target.value } : null,
+                      )
+                    }
+                    onBlur={(e) => {
+                      if (
+                        e.target.value !==
+                        leads.find((l) => l.id === selectedLead.id)?.origem_pessoa
+                      ) {
+                        handleUpdateLead(selectedLead.id, {
+                          origem_pessoa: e.target.value.trim() || null,
+                        })
+                      }
+                    }}
+                    className="h-9 text-xs bg-background"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-muted-foreground uppercase">

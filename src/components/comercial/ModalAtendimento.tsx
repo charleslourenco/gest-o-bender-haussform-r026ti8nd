@@ -358,6 +358,13 @@ export function ModalAtendimento({
                 <strong className="text-foreground">{consultorNome || 'Não atribuído'}</strong>
               </span>
               <span className="flex items-center gap-1">
+                <span>Origem: </span>
+                <strong className="text-foreground">
+                  {lead.origem || 'Não definida'}
+                  {lead.origem_pessoa ? ` — ${lead.origem_pessoa}` : ''}
+                </strong>
+              </span>
+              <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Criado em: </span>
                 <strong className="text-foreground">
