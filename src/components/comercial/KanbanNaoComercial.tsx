@@ -132,17 +132,29 @@ export function KanbanNaoComercial({ toolbarPortal, isActive = true }: KanbanNao
     [leads, debouncedSearch, categoryFilter],
   )
 
-  // Blindagem: status null/undefined ou desconhecido (não está nem em NAO_COMERCIAL_COLUMNS
-  // nem em COLUMNS) cai na coluna 'Novo' como fallback. Status comerciais válidos não
-  // são jogados em 'Novo' (continuam sem coluna própria neste kanban).
-  const leadsForCol = (col: string) =>
-    filteredLeads.filter((l) => {
+  // Agrupamento memoizado dos leads por coluna para evitar múltiplos filters em cada render
+  const leadsByColumn = useMemo(() => {
+    const map = new Map<string, Lead[]>()
+    NAO_COMERCIAL_COLUMNS.forEach((c) => map.set(c, []))
+
+    filteredLeads.forEach((l) => {
       const status = l.status
-      if (!status || (!NAO_COMERCIAL_COLUMNS.includes(status) && !COLUMNS.includes(status))) {
-        return col === 'Novo'
+      let targetCol = colForLead(status)
+      if (targetCol && map.has(targetCol)) {
+        map.get(targetCol)!.push(l)
       }
-      return NAO_COMERCIAL_COLUMNS.includes(status) && status === col
     })
+    return map
+
+    function colForLead(status?: string): string | null {
+      if (!status || (!NAO_COMERCIAL_COLUMNS.includes(status) && !COLUMNS.includes(status))) {
+        return 'Novo'
+      }
+      return NAO_COMERCIAL_COLUMNS.includes(status) ? status : null
+    }
+  }, [filteredLeads])
+
+  const leadsForCol = (col: string) => leadsByColumn.get(col) || []
 
   const toggleCollapse = (col: string) => {
     setCollapsedCols((prev) =>

@@ -42,9 +42,10 @@ export function ComercialList() {
     loadData()
   }, [])
 
-  // Memoização da lista de leads exibidos
+  // Memoização e formatação prévia dos leads da lista
   const safeLeads = useMemo(() => {
-    return Array.isArray(leads) ? leads.filter(Boolean) : []
+    if (!Array.isArray(leads)) return []
+    return leads.filter((l): l is NonNullable<typeof l> => Boolean(l && l.id))
   }, [leads])
 
   const handleStatusChange = async (id: string, newStatus: string) => {

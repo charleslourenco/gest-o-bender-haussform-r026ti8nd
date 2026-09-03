@@ -107,7 +107,7 @@ export function KanbanAtendimentos({
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Cache de parsing de metadados para evitar JSON.parse por card por render
+  // Cache global/estável em WeakMap para parsing de metadados de leads
   const metaCacheRef = useRef<WeakMap<Lead, ReturnType<typeof parseLeadMetadados>>>(new WeakMap())
   const getCachedMeta = (l: Lead) => {
     let cached = metaCacheRef.current.get(l)
@@ -143,7 +143,6 @@ export function KanbanAtendimentos({
 
       const safeLeads = Array.isArray(leadsData) ? leadsData : []
       const safeUsers = Array.isArray(usersData) ? usersData : []
-      metaCacheRef.current = new WeakMap()
       setLeads(safeLeads)
       setUsers(safeUsers)
 
@@ -696,6 +695,43 @@ export function KanbanAtendimentos({
     })
   }, [leads, safeAba.id, safeAba.categoriaPadrao, search, responsavelFilter])
 
+  // Agrupamento memoizado dos leads por coluna para evitar .filter() a cada render/coluna
+  const leadsByColumn = useMemo(() => {
+    const map = new Map<string, Lead[]>()
+    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas : []
+    colunas.forEach((c) => map.set(c, []))
+
+    const getColForLead = (l: Lead): string => {
+      const s = typeof l.status === 'string' ? l.status.trim() : ''
+      const sLower = s.toLowerCase()
+
+      const exactMatch = colunas.find((c) => c.trim().toLowerCase() === sLower)
+      if (exactMatch) return exactMatch
+
+      if (sLower.includes('encaminhado')) {
+        const encaminhadoCol = colunas.find((c) => c.toLowerCase().includes('encaminhado'))
+        if (encaminhadoCol) return encaminhadoCol
+      }
+
+      return colunas[0] || 'Novo contato'
+    }
+
+    if (Array.isArray(tabLeads)) {
+      tabLeads.forEach((l) => {
+        if (!l || typeof l !== 'object') return
+        const col = getColForLead(l)
+        const currentList = map.get(col)
+        if (currentList) {
+          currentList.push(l)
+        } else {
+          map.set(col, [l])
+        }
+      })
+    }
+
+    return map
+  }, [tabLeads, safeAba.colunas])
+
   if (authLoading || (loading && leads.length === 0)) {
     return (
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
@@ -846,43 +882,8 @@ export function KanbanAtendimentos({
           className="h-full w-full overflow-x-auto overflow-y-hidden p-4 flex gap-4 scroll-smooth"
         >
           {Array.isArray(safeAba?.colunas) &&
-            safeAba.colunas.map((coluna, colIdx) => {
-              // Determina a coluna exata à qual este lead pertence na aba atual
-              const getColForLead = (l: Lead): string => {
-                const s = typeof l.status === 'string' ? l.status.trim() : ''
-                const sLower = s.toLowerCase()
-
-                // Se o status bate exatamente com uma das colunas desta aba
-                const exactMatch = safeAba.colunas.find((c) => c.trim().toLowerCase() === sLower)
-                if (exactMatch) return exactMatch
-
-                // Se a coluna de destino tem coluna de encaminhado (ex: "Encaminhado p/ Setor de Compras", "Encaminhado p/ RH", etc.)
-                // e o status do lead é "Encaminhado Para" ou similar
-                if (sLower.includes('encaminhado')) {
-                  const encaminhadoCol = safeAba.colunas.find((c) =>
-                    c.toLowerCase().includes('encaminhado'),
-                  )
-                  if (encaminhadoCol) {
-                    return encaminhadoCol
-                  }
-                }
-
-                // Fallback de compatibilidade para a primeira coluna da aba
-                return safeAba.colunas[0]
-              }
-
-              // Filtrar os leads que pertencem a esta coluna específica da aba (particionamento mútuo exclusivo)
-              const colLeads = Array.isArray(tabLeads)
-                ? tabLeads.filter((l) => {
-                    try {
-                      if (!l || typeof l !== 'object') return false
-                      return getColForLead(l) === coluna
-                    } catch (err) {
-                      console.error('Erro ao processar lead no filtro de coluna:', err)
-                      return false
-                    }
-                  })
-                : []
+            safeAba.colunas.map((coluna) => {
+              const colLeads = leadsByColumn.get(coluna) || []
 
               const isDropTarget = dragOverCol === coluna
 

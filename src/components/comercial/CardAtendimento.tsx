@@ -75,7 +75,11 @@ function CardAtendimentoComponent({
   onForward: _onForward,
   onMoveTo,
 }: CardAtendimentoProps) {
-  const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+  // Metadados memoizados para evitar parsing desnecessário
+  const { notas, meta } = useMemo(
+    () => parseLeadMetadados((lead as any)?.notas_pessoais),
+    [(lead as any)?.notas_pessoais],
+  )
 
   // Estados locais para edição inline
   const [isEditingNome, setIsEditingNome] = useState(false)
@@ -867,4 +871,37 @@ function CardAtendimentoComponent({
   )
 }
 
-export const CardAtendimento = React.memo(CardAtendimentoComponent)
+function areCardPropsEqual(
+  prevProps: CardAtendimentoProps,
+  nextProps: CardAtendimentoProps,
+): boolean {
+  if (prevProps.isDragging !== nextProps.isDragging) return false
+  if (prevProps.unreadCount !== nextProps.unreadCount) return false
+  if (prevProps.currentAba?.id !== nextProps.currentAba?.id) return false
+  if (prevProps.currentAba?.isOrcamentos !== nextProps.currentAba?.isOrcamentos) return false
+  if (prevProps.users !== nextProps.users && prevProps.users?.length !== nextProps.users?.length)
+    return false
+
+  const prevLead = prevProps.lead as Record<string, any> | undefined
+  const nextLead = nextProps.lead as Record<string, any> | undefined
+
+  if (prevLead === nextLead) return true
+  if (!prevLead || !nextLead) return false
+
+  return (
+    prevLead.id === nextLead.id &&
+    prevLead.nome === nextLead.nome &&
+    prevLead.telefone === nextLead.telefone &&
+    prevLead.origem === nextLead.origem &&
+    prevLead.origem_pessoa === nextLead.origem_pessoa &&
+    prevLead.consultor_id === nextLead.consultor_id &&
+    prevLead.status === nextLead.status &&
+    prevLead.categoria === nextLead.categoria &&
+    prevLead.notas_pessoais === nextLead.notas_pessoais &&
+    prevLead.atualizado_em === nextLead.atualizado_em &&
+    prevLead.criado_em === nextLead.criado_em &&
+    (prevLead.consultor?.nome || '') === (nextLead.consultor?.nome || '')
+  )
+}
+
+export const CardAtendimento = React.memo(CardAtendimentoComponent, areCardPropsEqual)
