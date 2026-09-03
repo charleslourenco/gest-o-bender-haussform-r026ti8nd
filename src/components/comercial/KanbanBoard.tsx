@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Target, Search } from 'lucide-react'
 import { KanbanColumn } from './KanbanColumn'
 import { LeadModal } from './LeadModal'
@@ -15,6 +15,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { createPortal } from 'react-dom'
 
 import { COLUMNS, isCategoriaComercial } from './constants'
+import { subscribeSharedTable } from '@/lib/comercial-realtime'
 
 interface KanbanBoardProps {
   toolbarPortal?: HTMLDivElement | null
@@ -61,18 +62,22 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
     }
   }
 
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     let isMounted = true
     loadData()
-    const channel = supabase
-      .channel('leads_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        if (isMounted) loadData(true)
-      })
-      .subscribe()
+    const unsubscribe = subscribeSharedTable('leads', '*', () => {
+      if (!isMounted) return
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = setTimeout(() => {
+        loadData(true)
+      }, 400)
+    })
     return () => {
       isMounted = false
-      supabase.removeChannel(channel)
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      unsubscribe()
     }
   }, [])
 

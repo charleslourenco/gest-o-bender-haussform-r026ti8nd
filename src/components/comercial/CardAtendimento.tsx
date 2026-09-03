@@ -60,7 +60,7 @@ export interface CardAtendimentoProps {
   onMoveTo?: (abaId: string, coluna: string) => void
 }
 
-export function CardAtendimento({
+function CardAtendimentoComponent({
   lead,
   currentAba,
   users,
@@ -866,3 +866,5 @@ export function CardAtendimento({
     </div>
   )
 }
+
+export const CardAtendimento = React.memo(CardAtendimentoComponent)

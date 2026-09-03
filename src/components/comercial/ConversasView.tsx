@@ -5,10 +5,11 @@ import {
   fetchLeads,
   fetchUsers,
   updateLead,
-  moveLeadToClient,
-  fetchLeadMessages,
   sendWhatsAppMessage,
+  fetchLeadMessages,
+  moveLeadToClient,
 } from '@/services/comercial'
+import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { Phone as PhoneIcon } from 'lucide-react'
 import {
   Select,
@@ -102,25 +103,35 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const debounceLeadRef = useRef<NodeJS.Timeout | null>(null)
+  const debounceMsgRef = useRef<NodeJS.Timeout | null>(null)
+
   useEffect(() => {
     let isMounted = true
     loadData()
-    const channel = supabase
-      .channel('conversas_leads_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        if (isMounted) loadData(true)
-      })
-      .subscribe()
-    const msgChannel = supabase
-      .channel('conversas_messages_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_messages' }, () => {
-        if (isMounted) loadLastMessageTimes()
-      })
-      .subscribe()
+
+    const unsubscribeLeads = subscribeSharedTable('leads', '*', () => {
+      if (!isMounted) return
+      if (debounceLeadRef.current) clearTimeout(debounceLeadRef.current)
+      debounceLeadRef.current = setTimeout(() => {
+        loadData(true)
+      }, 400)
+    })
+
+    const unsubscribeMsgs = subscribeSharedTable('whatsapp_messages', 'INSERT', () => {
+      if (!isMounted) return
+      if (debounceMsgRef.current) clearTimeout(debounceMsgRef.current)
+      debounceMsgRef.current = setTimeout(() => {
+        loadLastMessageTimes()
+      }, 400)
+    })
+
     return () => {
       isMounted = false
-      supabase.removeChannel(channel)
-      supabase.removeChannel(msgChannel)
+      if (debounceLeadRef.current) clearTimeout(debounceLeadRef.current)
+      if (debounceMsgRef.current) clearTimeout(debounceMsgRef.current)
+      unsubscribeLeads()
+      unsubscribeMsgs()
     }
   }, [])
 
@@ -222,46 +233,49 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
     }
   }, [selectedLead?.id, selectedLead?.telefone, loadMessages])
 
-  const filteredLeads = leads
-    .filter((l) => {
-      if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
-      if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
-      if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
+  const filteredLeads = useMemo(() => {
+    return leads
+      .filter((l) => {
+        if (statusFilter !== 'Todos' && l.status !== statusFilter) return false
+        if (categoriaFilter !== 'Todas' && l.categoria !== categoriaFilter) return false
+        if (nameSearch && !l.nome?.toLowerCase().includes(nameSearch.toLowerCase())) return false
 
-      if (date?.from && l.created_at) {
-        const leadDate = new Date(l.created_at)
-        const from = new Date(date.from)
-        from.setHours(0, 0, 0, 0)
-        if (leadDate < from) return false
-      }
+        if (date?.from && (l.created_at || (l as any).criado_em)) {
+          const rawCreated = l.created_at || (l as any).criado_em
+          const leadDate = new Date(rawCreated)
+          const from = new Date(date.from)
+          from.setHours(0, 0, 0, 0)
+          if (leadDate < from) return false
+        }
 
-      if (date?.to && l.created_at) {
-        const leadDate = new Date(l.created_at)
-        // Include the entire end day
-        const to = new Date(date.to)
-        to.setHours(23, 59, 59, 999)
-        if (leadDate > to) return false
-      }
+        if (date?.to && (l.created_at || (l as any).criado_em)) {
+          const rawCreated = l.created_at || (l as any).criado_em
+          const leadDate = new Date(rawCreated)
+          const to = new Date(date.to)
+          to.setHours(23, 59, 59, 999)
+          if (leadDate > to) return false
+        }
 
-      return true
-    })
-    .sort((a, b) => {
-      const ta =
-        lastMessageAt[a.id] ||
-        lastMessageAt[`phone:${a.telefone}`] ||
-        (a as any).atualizado_em ||
-        (a as any).criado_em ||
-        a.created_at ||
-        ''
-      const tb =
-        lastMessageAt[b.id] ||
-        lastMessageAt[`phone:${b.telefone}`] ||
-        (b as any).atualizado_em ||
-        (b as any).criado_em ||
-        b.created_at ||
-        ''
-      return tb.localeCompare(ta)
-    })
+        return true
+      })
+      .sort((a, b) => {
+        const ta =
+          lastMessageAt[a.id] ||
+          lastMessageAt[`phone:${a.telefone}`] ||
+          (a as any).atualizado_em ||
+          (a as any).criado_em ||
+          a.created_at ||
+          ''
+        const tb =
+          lastMessageAt[b.id] ||
+          lastMessageAt[`phone:${b.telefone}`] ||
+          (b as any).atualizado_em ||
+          (b as any).criado_em ||
+          b.created_at ||
+          ''
+        return tb.localeCompare(ta)
+      })
+  }, [leads, statusFilter, categoriaFilter, nameSearch, date, lastMessageAt])
 
   const handleUpdateLead = async (id: string, data: Partial<Lead>) => {
     try {

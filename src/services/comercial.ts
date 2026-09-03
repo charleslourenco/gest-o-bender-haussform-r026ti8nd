@@ -1,10 +1,14 @@
 import { supabase } from '@/lib/supabase/client'
 import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
 
+// Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
+export const KANBAN_LEAD_COLUMNS =
+  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, consultor:users!leads_consultor_id_fkey(nome)'
+
 export const fetchLeads = async () => {
   const { data, error } = await supabase
     .from('leads')
-    .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+    .select(KANBAN_LEAD_COLUMNS)
     .order('criado_em', { ascending: false })
   if (error) throw error
   return data
@@ -49,29 +53,35 @@ export const sendWhatsAppMessage = async (leadId: string, phone: string, message
   return data as { success: boolean; message: any }
 }
 
-export const fetchLeadMessages = async (leadId: string, phone: string) => {
-  let { data, error } = await supabase
+export const fetchLeadMessages = async (leadId: string, phone?: string) => {
+  // Construir filtro unificado para evitar queries sequenciais redundantes
+  const normalizedPhone = phone ? phone.trim() : ''
+  let query = supabase
     .from('whatsapp_messages' as any)
     .select('*')
-    .eq('lead_id', leadId)
     .order('created_at', { ascending: true })
 
-  if (error || !data || data.length === 0) {
-    const { data: phoneData, error: phoneError } = await supabase
-      .from('whatsapp_messages' as any)
-      .select('*')
-      .eq('phone', phone)
-      .order('created_at', { ascending: true })
-
-    if (!phoneError && phoneData && phoneData.length > 0) {
-      data = phoneData
-    }
+  if (leadId && normalizedPhone) {
+    query = query.or(`lead_id.eq.${leadId},phone.eq.${normalizedPhone}`)
+  } else if (leadId) {
+    query = query.eq('lead_id', leadId)
+  } else if (normalizedPhone) {
+    query = query.eq('phone', normalizedPhone)
+  } else {
+    return []
   }
 
-  if (!data || data.length === 0) {
+  const { data, error } = await query
+
+  if (!error && Array.isArray(data) && data.length > 0) {
+    return data
+  }
+
+  // Fallback para sessão se não houver mensagens ainda
+  if (leadId) {
     const { data: sessionData } = await supabase
       .from('whatsapp_sessions')
-      .select('*')
+      .select('id, step, created_at')
       .eq('lead_id', leadId)
       .maybeSingle()
 
@@ -87,7 +97,7 @@ export const fetchLeadMessages = async (leadId: string, phone: string) => {
     }
   }
 
-  return data || []
+  return []
 }
 
 export const moveLeadToClient = async (lead: any, userId: string) => {

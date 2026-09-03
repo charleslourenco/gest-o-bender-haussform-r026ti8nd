@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { fetchLeads, updateLead } from '@/services/comercial'
 import {
   Table,
@@ -42,6 +42,11 @@ export function ComercialList() {
     loadData()
   }, [])
 
+  // Memoização da lista de leads exibidos
+  const safeLeads = useMemo(() => {
+    return Array.isArray(leads) ? leads.filter(Boolean) : []
+  }, [leads])
+
   const handleStatusChange = async (id: string, newStatus: string) => {
     setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l)))
     try {
@@ -82,8 +87,6 @@ export function ComercialList() {
     }
   }
 
-  const safeLeads = Array.isArray(leads) ? leads : []
-
   return (
     <Table>
       <TableHeader>
@@ -98,7 +101,7 @@ export function ComercialList() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {safeLeads.filter(Boolean).map((lead) => {
+        {safeLeads.map((lead) => {
           const consultorRaw = lead?.consultor || lead?.users
           const consultorNome = Array.isArray(consultorRaw)
             ? consultorRaw[0]?.nome
