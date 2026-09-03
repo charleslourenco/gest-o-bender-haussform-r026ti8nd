@@ -442,13 +442,11 @@ export function KanbanAtendimentos({
       }
       const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
 
-      // Se a aba de origem tiver coluna "Encaminhado Para" ou similar, coloca lá
-      const encaminhadoCol =
-        safeAba.colunas.find((c) => c.toLowerCase().includes('encaminhado')) ||
-        safeAba.colunas[safeAba.colunas.length - 1]
+      // Ao encaminhar para uma aba de destino, o lead assume a primeira coluna da aba de destino
+      const targetCol = destinoAba.colunas[0] || 'Novo contato'
 
       await handleUpdateLead(leadId, {
-        status: encaminhadoCol,
+        status: targetCol,
         categoria: destinoAba.categoriaPadrao,
         notas_pessoais: newNotasPessoais,
       } as any)
@@ -613,72 +611,72 @@ export function KanbanAtendimentos({
         const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
         const status = typeof l.status === 'string' ? l.status.trim() : ''
 
-        // Regra 1: Se este card foi encaminhado PARA esta aba
-        const isForwardedToThisAba = Boolean(
-          meta?.encaminhado_para_aba && meta.encaminhado_para_aba === safeAba.id,
-        )
+        // Se o card foi encaminhado para uma aba específica, ele pertence EXCLUSIVAMENTE àquela aba de destino.
+        // Ele NÃO deve aparecer na aba de origem nem em nenhuma outra aba.
+        if (meta?.encaminhado_para_aba) {
+          if (meta.encaminhado_para_aba !== safeAba.id) {
+            return false
+          }
+        } else {
+          // Card NÃO encaminhado: verificar a qual aba pertence naturalmente por categoria/status
+          let belongsNaturally = false
 
-        // Regra 2: Se o card foi encaminhado DAQUI para outra aba
-        const isForwardedFromThisAba = Boolean(meta?.origem_aba && meta.origem_aba === safeAba.id)
+          if (safeAba.id === 'novo-contato') {
+            belongsNaturally =
+              status === 'Novo contato' ||
+              status === 'Novo Contato' ||
+              status === 'Novo Lead' ||
+              status === 'Novo' ||
+              status === 'Encaminhado Para' ||
+              (cat === 'Comercial' && !l.kanban_ativo)
+          } else if (safeAba.id === 'lead-consultoria') {
+            const consultoriaStatuses = [
+              'Consultoria Inicial',
+              'Projeto',
+              'Apresentação',
+              'Negociação',
+              'Stand By',
+              'Vendido',
+              'Perdido',
+              'Aguardando Consultor',
+              'Ação Gerente',
+              'Designar Consultor',
+            ]
+            belongsNaturally =
+              (cat === 'Comercial' || cat === 'Já é Cliente') &&
+              consultoriaStatuses.includes(status)
+          } else if (safeAba.id === 'lead-followup') {
+            belongsNaturally =
+              cat.toLowerCase() === 'follow up' ||
+              status === 'Follow up' ||
+              status === 'Encaminhado p/ Consultoria'
+          } else if (safeAba.id === 'curriculos') {
+            belongsNaturally =
+              cat.toLowerCase() === 'currículo' ||
+              cat.toLowerCase() === 'curriculo' ||
+              status === 'Candidato' ||
+              status === 'Encaminhado p/ RH'
+          } else if (safeAba.id === 'lead-orcamentos') {
+            belongsNaturally =
+              cat.toLowerCase() === 'orçamento' ||
+              cat.toLowerCase() === 'orcamento' ||
+              status === 'Novo Orçamento' ||
+              status === 'Em andamento'
+          } else if (safeAba.id === 'fornecedores') {
+            belongsNaturally =
+              cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras'
+          } else if (safeAba.id === 'parceiros') {
+            belongsNaturally =
+              cat.toLowerCase() === 'parceiro' ||
+              cat.toLowerCase() === 'arquiteto externo' ||
+              cat.toLowerCase() === 'equipe'
+          } else if (safeAba.id === 'assistencia') {
+            belongsNaturally =
+              cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
+          }
 
-        // Regra 3: Pertence naturalmente a esta aba por categoria/status
-        let belongsNaturally = false
-
-        if (safeAba.id === 'novo-contato') {
-          belongsNaturally =
-            status === 'Novo contato' ||
-            status === 'Novo Contato' ||
-            status === 'Novo Lead' ||
-            status === 'Novo' ||
-            status === 'Encaminhado Para' ||
-            (cat === 'Comercial' && !l.kanban_ativo)
-        } else if (safeAba.id === 'lead-consultoria') {
-          const consultoriaStatuses = [
-            'Consultoria Inicial',
-            'Projeto',
-            'Apresentação',
-            'Negociação',
-            'Stand By',
-            'Vendido',
-            'Perdido',
-            'Aguardando Consultor',
-            'Ação Gerente',
-            'Designar Consultor',
-          ]
-          belongsNaturally =
-            (cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)
-        } else if (safeAba.id === 'lead-followup') {
-          belongsNaturally =
-            cat.toLowerCase() === 'follow up' ||
-            status === 'Follow up' ||
-            status === 'Encaminhado p/ Consultoria'
-        } else if (safeAba.id === 'curriculos') {
-          belongsNaturally =
-            cat.toLowerCase() === 'currículo' ||
-            cat.toLowerCase() === 'curriculo' ||
-            status === 'Candidato' ||
-            status === 'Encaminhado p/ RH'
-        } else if (safeAba.id === 'lead-orcamentos') {
-          belongsNaturally =
-            cat.toLowerCase() === 'orçamento' ||
-            cat.toLowerCase() === 'orcamento' ||
-            status === 'Novo Orçamento' ||
-            status === 'Em andamento'
-        } else if (safeAba.id === 'fornecedores') {
-          belongsNaturally =
-            cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras'
-        } else if (safeAba.id === 'parceiros') {
-          belongsNaturally =
-            cat.toLowerCase() === 'parceiro' ||
-            cat.toLowerCase() === 'arquiteto externo' ||
-            cat.toLowerCase() === 'equipe'
-        } else if (safeAba.id === 'assistencia') {
-          belongsNaturally =
-            cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
+          if (!belongsNaturally) return false
         }
-
-        const isMatch = belongsNaturally || isForwardedToThisAba || isForwardedFromThisAba
-        if (!isMatch) return false
 
         // Aplicar filtros de busca e responsável
         if (search) {
@@ -824,64 +822,36 @@ export function KanbanAtendimentos({
         >
           {Array.isArray(safeAba?.colunas) &&
             safeAba.colunas.map((coluna, colIdx) => {
-              // Filtrar os leads que pertencem a esta coluna específica da aba
+              // Determina a coluna exata à qual este lead pertence na aba atual
+              const getColForLead = (l: Lead): string => {
+                const s = typeof l.status === 'string' ? l.status.trim() : ''
+                const sLower = s.toLowerCase()
+
+                // Se o status bate exatamente com uma das colunas desta aba
+                const exactMatch = safeAba.colunas.find((c) => c.trim().toLowerCase() === sLower)
+                if (exactMatch) return exactMatch
+
+                // Se a coluna de destino tem coluna de encaminhado (ex: "Encaminhado p/ Setor de Compras", "Encaminhado p/ RH", etc.)
+                // e o status do lead é "Encaminhado Para" ou similar
+                if (sLower.includes('encaminhado')) {
+                  const encaminhadoCol = safeAba.colunas.find((c) =>
+                    c.toLowerCase().includes('encaminhado'),
+                  )
+                  if (encaminhadoCol) {
+                    return encaminhadoCol
+                  }
+                }
+
+                // Fallback de compatibilidade para a primeira coluna da aba
+                return safeAba.colunas[0]
+              }
+
+              // Filtrar os leads que pertencem a esta coluna específica da aba (particionamento mútuo exclusivo)
               const colLeads = Array.isArray(tabLeads)
                 ? tabLeads.filter((l) => {
                     try {
                       if (!l || typeof l !== 'object') return false
-                      const status = typeof l.status === 'string' ? l.status.trim() : ''
-                      const { meta } = parseLeadMetadados((l as any)?.notas_pessoais)
-
-                      // Se a coluna for de encaminhado
-                      const isEncaminhadoCol =
-                        typeof coluna === 'string' && coluna.toLowerCase().includes('encaminhado')
-
-                      if (isEncaminhadoCol) {
-                        return (
-                          status === coluna ||
-                          status.toLowerCase().includes('encaminhado') ||
-                          meta?.encaminhado_para_aba !== undefined
-                        )
-                      }
-
-                      // Se este card foi encaminhado para esta aba e está na primeira coluna
-                      const hasEncaminhadoCol = safeAba.colunas.some((c: string) =>
-                        c.toLowerCase().includes('encaminhado'),
-                      )
-                      if (
-                        !hasEncaminhadoCol &&
-                        meta?.encaminhado_para_aba === safeAba.id &&
-                        colIdx === 0
-                      ) {
-                        if (status === coluna || !safeAba.colunas.includes(status)) return true
-                      }
-
-                      // Mapeamento normal
-                      if (status === coluna) return true
-
-                      // Compatibilidade de status legados na primeira coluna da aba correspondente
-                      if (colIdx === 0) {
-                        if (
-                          safeAba.id === 'lead-consultoria' &&
-                          (status === 'Novo Lead' ||
-                            status === 'Aguardando Consultor' ||
-                            status === 'Designar Consultor')
-                        ) {
-                          return true
-                        }
-                        if (safeAba.id === 'novo-contato' && status === 'Novo Lead') {
-                          return true
-                        }
-                        if (
-                          !safeAba.colunas.includes(status) &&
-                          !status.toLowerCase().includes('encaminhado') &&
-                          meta?.origem_aba !== safeAba.id
-                        ) {
-                          return true
-                        }
-                      }
-
-                      return false
+                      return getColForLead(l) === coluna
                     } catch (err) {
                       console.error('Erro ao processar lead no filtro de coluna:', err)
                       return false
