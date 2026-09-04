@@ -37,6 +37,7 @@ import {
   AlertCircle,
   Loader2,
   BookOpen,
+  FolderKanban,
 } from 'lucide-react'
 
 export type EditarTipo = 'pagar' | 'receber'
@@ -102,6 +103,12 @@ export function EditarContaDialog({
   const [numeroParcela, setNumeroParcela] = useState('')
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null)
 
+  // Vínculo Projeto Comercial (Modelo Híbrido)
+  const [projetoComercialId, setProjetoComercialId] = useState<string>('none')
+  const [projetosList, setProjetosList] = useState<
+    Array<{ id: string; clienteId: string | null; label: string }>
+  >([])
+
   // Contextual data loaded asynchronously
   const [clientes, setClientes] = useState<any[]>([])
   const [contasBancarias, setContasBancarias] = useState<any[]>([])
@@ -133,6 +140,7 @@ export function EditarContaDialog({
       setObservacoes(conta.observacoes || '')
       setNumeroParcela(conta.numero_parcela || '')
       setComprovanteUrl(conta.comprovante_url || null)
+      setProjetoComercialId(conta.formulario_comercial_id || 'none')
       setConfirmDelete(false)
       setInstallments([])
       setOrigins([])
@@ -157,15 +165,31 @@ export function EditarContaDialog({
           setContasBancarias(contasData)
         }
 
-        if (tipo === 'receber') {
-          const { data: clientesData } = await supabase
-            .from('clientes')
-            .select('id, nome')
-            .order('nome')
+        const { data: clientesData } = await supabase
+          .from('clientes')
+          .select('id, nome')
+          .order('nome')
 
-          if (!cancelled && clientesData) {
-            setClientes(clientesData)
-          }
+        if (!cancelled && clientesData) {
+          setClientes(clientesData)
+        }
+
+        // Carregar lista de formulários comerciais / projetos para seleção
+        const { data: formsData } = await supabase
+          .from('formulario_comercial')
+          .select('id, cliente_id, nome_cliente, nome_fantasia')
+          .order('criado_em', { ascending: false })
+
+        if (!cancelled && formsData) {
+          const mapped = formsData.map((f: any) => {
+            const cli = f.nome_cliente || f.nome_fantasia || 'Cliente'
+            return {
+              id: f.id,
+              clienteId: f.cliente_id || null,
+              label: `${cli} (Projeto #${f.id.substring(0, 8).toUpperCase()})`,
+            }
+          })
+          setProjetosList(mapped)
         }
 
         // Group / installments inspection
@@ -307,11 +331,17 @@ export function EditarContaDialog({
 
       if (tipo === 'pagar') {
         payload.fornecedor = entidade || 'Desconhecido'
+        const selectedProj = projetosList.find((p) => p.id === projetoComercialId)
+        payload.formulario_comercial_id = projetoComercialId !== 'none' ? projetoComercialId : null
+        payload.cliente_id = selectedProj?.clienteId || conta.cliente_id || null
         const { error } = await dbContasPagar.update(payload).eq('id', conta.id)
         if (error) throw error
       } else {
         payload.cliente_id = entidade === 'none' ? null : entidade
         payload.numero_parcela = numeroParcela || '1/1'
+        if (projetoComercialId !== 'none') {
+          payload.formulario_comercial_id = projetoComercialId
+        }
         const { error } = await dbContasReceber.update(payload).eq('id', conta.id)
         if (error) throw error
       }
@@ -450,6 +480,42 @@ export function EditarContaDialog({
                   Natureza contábil associada: <strong className="uppercase">{natureza}</strong>
                 </p>
               )}
+            </div>
+
+            {/* Vínculo com Projeto Comercial (Modelo Híbrido) */}
+            <div className="space-y-1.5 bg-muted/20 p-2.5 rounded-lg border">
+              <div className="flex items-center justify-between">
+                <Label
+                  htmlFor="edit-projeto-comercial"
+                  className="text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <FolderKanban className="w-3.5 h-3.5 text-primary" />
+                  Vínculo com Projeto Comercial (DRE por Projeto)
+                </Label>
+                <span className="text-[10px] text-muted-foreground">
+                  {projetoComercialId !== 'none' ? 'Vinculado' : 'Sem vínculo'}
+                </span>
+              </div>
+              <Select value={projetoComercialId} onValueChange={setProjetoComercialId}>
+                <SelectTrigger id="edit-projeto-comercial">
+                  <SelectValue placeholder="Selecione o projeto comercial..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-56">
+                  <SelectItem value="none">
+                    Nenhum projeto vinculado (Geral / Sem projeto)
+                  </SelectItem>
+                  {projetosList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {tipo === 'pagar'
+                  ? 'Atribui este custo diretamente ao CPV e margem do projeto selecionado na visão DRE.'
+                  : 'Vincula a receita ao formulário do projeto comercial.'}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

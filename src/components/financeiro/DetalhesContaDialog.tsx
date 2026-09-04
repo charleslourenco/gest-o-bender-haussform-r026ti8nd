@@ -342,39 +342,56 @@ export function DetalhesContaDialog({
 
             <Section title="Origem">
               {tipo === 'pagar' ? (
-                origins.length > 0 ? (
-                  origins.map((nf) => (
-                    <div
-                      key={nf.id}
-                      className="text-sm flex items-center justify-between gap-2 border-b last:border-0 py-1"
-                    >
-                      <div>
-                        <span className="font-medium">NF: {nf.numero_nota || 'S/N'}</span> —{' '}
-                        {nf.fornecedor} — {formatCurrency(Number(nf.valor_total) || 0)}
-                        {nf.data_emissao &&
-                          ` — ${new Date(nf.data_emissao).toLocaleDateString('pt-BR')}`}
+                <>
+                  {origins.length > 0 ? (
+                    origins.map((nf) => (
+                      <div
+                        key={nf.id}
+                        className="text-sm flex items-center justify-between gap-2 border-b last:border-0 py-1"
+                      >
+                        <div>
+                          <span className="font-medium">NF: {nf.numero_nota || 'S/N'}</span> —{' '}
+                          {nf.fornecedor} — {formatCurrency(Number(nf.valor_total) || 0)}
+                          {nf.data_emissao &&
+                            ` — ${new Date(nf.data_emissao).toLocaleDateString('pt-BR')}`}
+                        </div>
+                        {nf.arquivo_url && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-blue-600"
+                            onClick={() => handleViewComprovante(nf.arquivo_url)}
+                          >
+                            <Paperclip className="w-3.5 h-3.5 mr-1" /> Ver NF
+                          </Button>
+                        )}
                       </div>
-                      {nf.arquivo_url && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs text-blue-600"
-                          onClick={() => handleViewComprovante(nf.arquivo_url)}
-                        >
-                          <Paperclip className="w-3.5 h-3.5 mr-1" /> Ver NF
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">Sem nota fiscal vinculada.</p>
-                )
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">Sem nota fiscal vinculada.</p>
+                  )}
+                  <InfoRow
+                    label="Projeto Comercial Vinculado"
+                    value={
+                      conta.projetoNome ||
+                      (conta.formulario_comercial_id
+                        ? `Projeto #${conta.formulario_comercial_id.substring(0, 8).toUpperCase()}`
+                        : 'Nenhum (Sem vínculo)')
+                    }
+                  />
+                  {conta.clienteNome && (
+                    <InfoRow label="Cliente do Projeto" value={conta.clienteNome} />
+                  )}
+                </>
               ) : (
                 <>
                   <InfoRow label="Cliente" value={clienteName || '-'} />
                   {conta.formulario_comercial_id && (
-                    <InfoRow label="Formulário Comercial" value={conta.formulario_comercial_id} />
+                    <InfoRow
+                      label="Formulário Comercial"
+                      value={conta.projetoNome || conta.formulario_comercial_id}
+                    />
                   )}
                 </>
               )}

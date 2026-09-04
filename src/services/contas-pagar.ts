@@ -8,6 +8,8 @@ export interface ContaPagar {
   categoria: string | null
   categoria_id?: string | null
   natureza?: string | null
+  cliente_id?: string | null
+  formulario_comercial_id?: string | null
   valor: number
   data_vencimento: string | null
   data_pagamento: string | null
@@ -32,6 +34,8 @@ export interface ContaPagarUpdate {
   categoria?: string | null
   categoria_id?: string | null
   natureza?: string | null
+  cliente_id?: string | null
+  formulario_comercial_id?: string | null
   status_pagamento?: string
   meio_pagamento?: string | null
   antecipado?: boolean | null

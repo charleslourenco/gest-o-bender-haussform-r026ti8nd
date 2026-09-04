@@ -71,6 +71,7 @@ export interface Transaction {
   antecipado?: boolean
   natureza?: string
   categoria_id?: string | null
+  cliente_id?: string | null
   formulario_comercial_id?: string | null
   projetoNome?: string | null
   clienteNome?: string | null

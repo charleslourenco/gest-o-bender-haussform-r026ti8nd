@@ -37,7 +37,9 @@ export default function Financeiro() {
           ),
         supabase
           .from('contas_pagar' as any)
-          .select('*')
+          .select(
+            '*, cliente:clientes(nome), formulario_comercial:formulario_comercial(id, nome_cliente, nome_fantasia)',
+          )
           .neq('status_pagamento', 'agrupado'),
         fetchContasBancarias().catch(() => [] as ContaBancaria[]),
       ])
@@ -92,28 +94,52 @@ export default function Financeiro() {
         }
       })
 
-      const pagamentos = (pagarRes.data || []).map((p: any) => ({
-        id: p.id,
-        type: 'despesa' as const,
-        description: p.descricao || 'Despesa',
-        category: p.categoria || 'Geral',
-        amount: Number(p.valor),
-        dueDate: p.data_vencimento,
-        paidDate: p.data_pagamento,
-        status: p.status_pagamento,
-        source: p,
-        createdAt: p.criado_em,
-        entityName: p.fornecedor || 'Fornecedor',
-        meioPagamento: p.meio_pagamento,
-        antecipado: p.antecipado,
-        comprovanteUrl: p.comprovante_url,
-        notaFiscalId: p.nota_fiscal_id,
-        grupoId: p.grupo_id,
-        observacoes: p.observacoes,
-        contaBancariaId: p.conta_bancaria_id,
-        natureza: p.natureza || null,
-        categoria_id: p.categoria_id || null,
-      }))
+      const pagamentos = (pagarRes.data || []).map((p: any) => {
+        const fc = Array.isArray(p.formulario_comercial)
+          ? p.formulario_comercial[0]
+          : p.formulario_comercial
+        const cliName = Array.isArray(p.cliente)
+          ? p.cliente[0]?.nome
+          : p.cliente?.nome || fc?.nome_cliente || null
+
+        let projNome: string | null = null
+        if (fc) {
+          if (fc.nome_fantasia) {
+            projNome = fc.nome_fantasia
+          } else if (fc.nome_cliente) {
+            projNome = `Projeto ${fc.nome_cliente}`
+          } else if (fc.id) {
+            projNome = `Projeto #${fc.id.substring(0, 8).toUpperCase()}`
+          }
+        }
+
+        return {
+          id: p.id,
+          type: 'despesa' as const,
+          description: p.descricao || 'Despesa',
+          category: p.categoria || 'Geral',
+          amount: Number(p.valor),
+          dueDate: p.data_vencimento,
+          paidDate: p.data_pagamento,
+          status: p.status_pagamento,
+          source: p,
+          createdAt: p.criado_em,
+          entityName: p.fornecedor || 'Fornecedor',
+          clienteNome: cliName,
+          projetoNome: projNome,
+          cliente_id: p.cliente_id || null,
+          formulario_comercial_id: p.formulario_comercial_id || null,
+          meioPagamento: p.meio_pagamento,
+          antecipado: p.antecipado,
+          comprovanteUrl: p.comprovante_url,
+          notaFiscalId: p.nota_fiscal_id,
+          grupoId: p.grupo_id,
+          observacoes: p.observacoes,
+          contaBancariaId: p.conta_bancaria_id,
+          natureza: p.natureza || null,
+          categoria_id: p.categoria_id || null,
+        }
+      })
 
       setTransactions(
         [...recebimentos, ...pagamentos].sort((a, b) => {

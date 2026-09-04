@@ -229,6 +229,7 @@ export interface ProjetoDRESummary {
   margemPercent: number
   temCusto: boolean
   parcelasCount: number
+  custosCount: number
 }
 
 export function FinanceiroDRE({ transactions }: { transactions: Transaction[] }) {
@@ -323,7 +324,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
     setExpandedMonths((prev) => ({ ...prev, [m]: !prev[m] }))
   }
 
-  // DRE por Projeto: agrupar receitas por projeto respeitando o regime e filtro de período já aplicado nas transações
+  // DRE por Projeto: agrupar receitas e custos por projeto respeitando o regime e filtro de período já aplicado nas transações
   const drePorProjeto = useMemo(() => {
     const map = new Map<
       string,
@@ -334,11 +335,15 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         receita: number
         cpv: number
         parcelasCount: number
+        custosCount: number
       }
     >()
 
     // Somar CPV total global no período para verificar se há custos
     let totalCpvPeriodo = 0
+    let totalCpvVinculado = 0
+    let totalCpvNaoVinculado = 0
+    let qtdCustosNaoVinculados = 0
 
     transactions.forEach((t) => {
       const statusLower = (t.status || '').toLowerCase()
@@ -360,8 +365,41 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         else nat = 'custo_direto'
       }
 
+      // Processar custos diretos (CPV)
       if (t.type === 'despesa' && nat === 'custo_direto') {
         totalCpvPeriodo += amount
+
+        if (t.formulario_comercial_id) {
+          totalCpvVinculado += amount
+          const projId = t.formulario_comercial_id
+          const cliNome = t.clienteNome || 'Cliente'
+          const projNome = t.projetoNome || `Projeto #${projId.substring(0, 8).toUpperCase()}`
+
+          const existing = map.get(projId)
+          if (existing) {
+            existing.cpv += amount
+            existing.custosCount += 1
+            if (
+              existing.clienteNome === 'Cliente não identificado' &&
+              cliNome !== 'Cliente não identificado'
+            ) {
+              existing.clienteNome = cliNome
+            }
+          } else {
+            map.set(projId, {
+              projetoId: projId,
+              clienteNome: cliNome,
+              projetoNome: projNome,
+              receita: 0,
+              cpv: amount,
+              parcelasCount: 0,
+              custosCount: 1,
+            })
+          }
+        } else {
+          totalCpvNaoVinculado += amount
+          qtdCustosNaoVinculados += 1
+        }
       }
 
       // Processar receitas
@@ -396,8 +434,9 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
             clienteNome: cliNome,
             projetoNome: projNome,
             receita: amount,
-            cpv: 0, // CPV por projeto se houver vínculo direto
+            cpv: 0,
             parcelasCount: 1,
+            custosCount: 0,
           })
         }
       }
@@ -405,7 +444,8 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
 
     const list: ProjetoDRESummary[] = Array.from(map.values()).map((item) => {
       const margemValor = item.receita - item.cpv
-      const margemPercent = item.receita > 0 ? (margemValor / item.receita) * 100 : 0
+      const margemPercent =
+        item.receita > 0 ? (margemValor / item.receita) * 100 : item.cpv > 0 ? -100 : 0
       const temCusto = item.cpv > 0
       return {
         ...item,
@@ -415,14 +455,18 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
       }
     })
 
-    // Ordenar decrescente por receita
-    list.sort((a, b) => b.receita - a.receita)
+    // Ordenar decrescente por receita, depois por cpv se receita for igual
+    list.sort((a, b) => {
+      if (b.receita !== a.receita) return b.receita - a.receita
+      return b.cpv - a.cpv
+    })
 
     const totalReceita = list.reduce((acc, curr) => acc + curr.receita, 0)
     const totalCpv = list.reduce((acc, curr) => acc + curr.cpv, 0)
     const totalMargemValor = totalReceita - totalCpv
     const totalMargemPercent = totalReceita > 0 ? (totalMargemValor / totalReceita) * 100 : 0
     const totalParcelas = list.reduce((acc, curr) => acc + curr.parcelasCount, 0)
+    const totalCustos = list.reduce((acc, curr) => acc + curr.custosCount, 0)
 
     return {
       itens: list,
@@ -431,7 +475,11 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
       totalMargemValor,
       totalMargemPercent,
       totalParcelas,
+      totalCustos,
       totalCpvPeriodo,
+      totalCpvVinculado,
+      totalCpvNaoVinculado,
+      qtdCustosNaoVinculados,
     }
   }, [transactions, regime])
 
@@ -1304,33 +1352,61 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         </CardContent>
       </Card>
 
-      {/* BLOCO 2.5: PARTE 2 — DRE por Projeto (visão de receita por projeto) */}
+      {/* BLOCO 2.5: PARTE 2 & 3 — DRE por Projeto (visão com CPV e Margem Reais por Projeto) */}
       <Card className="shadow-sm border-border/70">
         <CardHeader className="pb-3 border-b bg-muted/20">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-2">
               <FolderKanban className="w-5 h-5 text-primary" />
               <div>
-                <CardTitle className="text-base font-semibold">DRE por Projeto</CardTitle>
+                <CardTitle className="text-base font-semibold">
+                  DRE por Projeto (Modelo Híbrido)
+                </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Receita por projeto e cliente, custos vinculados e margem de contribuição (Regime:{' '}
-                  {regime === 'caixa' ? 'Caixa' : 'Competência'}).
+                  Receita por projeto e cliente, custos vinculados via estoque ou manual e margem de
+                  contribuição (Regime: {regime === 'caixa' ? 'Caixa' : 'Competência'}).
                 </CardDescription>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <Badge variant="outline" className="font-normal bg-background">
                 {drePorProjeto.itens.length}{' '}
                 {drePorProjeto.itens.length === 1 ? 'projeto encontrado' : 'projetos encontrados'}
-              </span>
+              </Badge>
+              {drePorProjeto.totalCpvVinculado > 0 && (
+                <Badge
+                  variant="outline"
+                  className="font-normal text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30"
+                >
+                  CPV Vinculado: {formatCurrency(drePorProjeto.totalCpvVinculado)}
+                </Badge>
+              )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          {/* Alerta informativo sobre custos pendentes de vínculo */}
+          {drePorProjeto.totalCpvNaoVinculado > 0 && (
+            <div className="p-3 bg-amber-500/10 border-b border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Atenção:</strong> Existem{' '}
+                  <strong>{formatCurrency(drePorProjeto.totalCpvNaoVinculado)}</strong> em custos
+                  diretos ({drePorProjeto.qtdCustosNaoVinculados} lançamentos no período){' '}
+                  <strong>não vinculados a projeto</strong>.
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                Você pode vincular manualmente editando o lançamento em contas a pagar.
+              </span>
+            </div>
+          )}
+
           {drePorProjeto.itens.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground text-sm">
               <FolderKanban className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
-              Nenhuma receita de projeto encontrada para o período e regime selecionados.
+              Nenhum projeto ou movimentação encontrada para o período e regime selecionados.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1363,7 +1439,21 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                               {p.projetoNome}
                             </span>
                             <span className="text-[11px] text-muted-foreground">
-                              {p.parcelasCount} {p.parcelasCount === 1 ? 'parcela' : 'parcelas'}
+                              {p.parcelasCount > 0 && (
+                                <span>
+                                  {p.parcelasCount} {p.parcelasCount === 1 ? 'receita' : 'receitas'}
+                                </span>
+                              )}
+                              {p.parcelasCount > 0 && p.custosCount > 0 && <span> • </span>}
+                              {p.custosCount > 0 && (
+                                <span className="text-amber-700 dark:text-amber-400 font-medium">
+                                  {p.custosCount}{' '}
+                                  {p.custosCount === 1 ? 'custo vinculado' : 'custos vinculados'}
+                                </span>
+                              )}
+                              {p.parcelasCount === 0 && p.custosCount === 0 && (
+                                <span>Sem movimentações</span>
+                              )}
                             </span>
                           </div>
                         </TableCell>
@@ -1380,7 +1470,15 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                           )}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-foreground">
-                          {formatCurrency(p.margemValor)}
+                          <span
+                            className={
+                              p.margemValor >= 0
+                                ? 'text-foreground'
+                                : 'text-rose-600 dark:text-rose-400'
+                            }
+                          >
+                            {formatCurrency(p.margemValor)}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -1410,16 +1508,16 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                 {/* Rodapé com Totalizador Geral */}
                 <tfoot>
                   <TableRow className="bg-muted/60 font-bold border-t-2 border-border text-foreground">
-                    <TableCell className="font-bold">Total Geral por Projetos</TableCell>
+                    <TableCell className="font-bold">Total Projetos com Vínculo</TableCell>
                     <TableCell className="text-xs text-muted-foreground font-medium">
                       {drePorProjeto.itens.length}{' '}
                       {drePorProjeto.itens.length === 1 ? 'projeto' : 'projetos'} (
-                      {drePorProjeto.totalParcelas} parcelas)
+                      {drePorProjeto.totalParcelas} receitas / {drePorProjeto.totalCustos} custos)
                     </TableCell>
                     <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(drePorProjeto.totalReceita)}
                     </TableCell>
-                    <TableCell className="text-right font-bold text-muted-foreground">
+                    <TableCell className="text-right font-bold text-amber-600 dark:text-amber-400">
                       {drePorProjeto.totalCpv > 0
                         ? `-${formatCurrency(drePorProjeto.totalCpv)}`
                         : '—'}

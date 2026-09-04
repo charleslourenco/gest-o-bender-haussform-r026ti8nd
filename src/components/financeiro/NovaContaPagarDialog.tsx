@@ -59,14 +59,40 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
   const [divisaoError, setDivisaoError] = useState<string | null>(null)
   const [observacoes, setObservacoes] = useState('')
 
+  // Projeto Comercial vinculado (Modelo Híbrido)
+  const [projetos, setProjetos] = useState<
+    Array<{ id: string; clienteId: string | null; label: string }>
+  >([])
+  const [selectedProjetoId, setSelectedProjetoId] = useState<string>('none')
+
   useEffect(() => {
-    if (!open) {
+    if (open) {
       supabase
         .from('contas_bancarias')
         .select('id, nome_exibicao, status')
         .order('nome_exibicao')
         .then(({ data }) => {
           if (data) setContas(data.filter((c: any) => c.status))
+        })
+
+      // Carregar projetos comerciais disponíveis
+      supabase
+        .from('formulario_comercial')
+        .select('id, cliente_id, nome_cliente, nome_fantasia')
+        .order('criado_em', { ascending: false })
+        .then(({ data }) => {
+          if (data) {
+            const list = data.map((item: any) => {
+              const cli = item.nome_cliente || item.nome_fantasia || 'Cliente'
+              const label = `${cli} (Projeto #${item.id.substring(0, 8).toUpperCase()})`
+              return {
+                id: item.id,
+                clienteId: item.cliente_id || null,
+                label,
+              }
+            })
+            setProjetos(list)
+          }
         })
     }
   }, [open])
@@ -125,6 +151,7 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
     setQtdMeses('2')
     setDivisoes([])
     setObservacoes('')
+    setSelectedProjetoId('none')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -135,6 +162,11 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
       const valorNum = Number(valor)
       const meses = recorrente ? Math.max(1, parseInt(qtdMeses, 10) || 1) : 1
       const grupoId = meses > 1 ? crypto.randomUUID() : null
+
+      // Resolver cliente_id e formulario_comercial_id
+      const projItem = projetos.find((p) => p.id === selectedProjetoId)
+      const vinculoProjetoId = selectedProjetoId !== 'none' ? selectedProjetoId : null
+      const vinculoClienteId = projItem?.clienteId || null
 
       const hasDivisoes = divisoes.length > 0
 
@@ -175,6 +207,10 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
             p_divisoes: divisoesPayload,
             p_grupo_id: grupoId,
             p_observacoes: observacoes || null,
+            p_categoria_id: categoriaId || null,
+            p_natureza: natureza || null,
+            p_cliente_id: vinculoClienteId,
+            p_formulario_comercial_id: vinculoProjetoId,
           },
         )
 
@@ -203,6 +239,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
             conta_bancaria_id: contaBancariaId === 'none' ? null : contaBancariaId,
             grupo_id: grupoId,
             observacoes: observacoes || null,
+            cliente_id: vinculoClienteId,
+            formulario_comercial_id: vinculoProjetoId,
           })
         }
 
@@ -325,6 +363,33 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Vínculo de Projeto Comercial (Modelo Híbrido - Manual) */}
+          <div className="space-y-2 bg-muted/20 p-3 rounded-md border">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="projeto-comercial-pagar" className="text-xs font-semibold">
+                Vincular a Projeto / Cliente (DRE por Projeto)
+              </Label>
+              <span className="text-[11px] text-muted-foreground">Opcional</span>
+            </div>
+            <Select value={selectedProjetoId} onValueChange={setSelectedProjetoId}>
+              <SelectTrigger id="projeto-comercial-pagar">
+                <SelectValue placeholder="Selecione o projeto comercial..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-56">
+                <SelectItem value="none">Nenhum projeto vinculado (Geral / Fábrica)</SelectItem>
+                {projetos.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Ao vincular a um projeto, este custo compõe diretamente o CPV e a margem do cliente na
+              visão DRE.
+            </p>
           </div>
 
           <div className="rounded-md border p-3 space-y-3">
