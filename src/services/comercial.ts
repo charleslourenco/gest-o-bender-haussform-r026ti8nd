@@ -197,12 +197,16 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
 
   // Passo 2: Se o cliente ainda não existir, criar um novo cliente
   if (!novo_cliente_id) {
+    const safeNome = (lead.nome ?? '').trim() || 'Cliente sem nome'
+    const safeEmail = (lead.email ?? '').trim()
+    const safeTelefone = (lead.telefone ?? '').trim()
+
     const { data: newClient, error: err1 } = await supabase
       .from('clientes')
       .insert({
-        nome: lead.nome,
-        email: lead.email,
-        telefone: lead.telefone,
+        nome: safeNome,
+        email: safeEmail,
+        telefone: safeTelefone,
         lead_id: lead.id,
         usuario_id: userId,
         status: 'Ativo',

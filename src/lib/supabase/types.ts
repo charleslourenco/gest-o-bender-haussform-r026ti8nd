@@ -3124,6 +3124,10 @@ export type Database = {
     }
     Functions: {
       gerar_codigo_acompanhamento: { Args: { p_nome: string }; Returns: string }
+      get_dashboard_metrics: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: Json
+      }
       get_edge_auth_headers: { Args: never; Returns: Json }
       get_timeline_eventos: {
         Args: {

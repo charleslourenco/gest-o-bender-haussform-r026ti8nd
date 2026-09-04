@@ -208,9 +208,9 @@ export async function createClientWithSale(params: {
     const { data: newClient, error } = await supabase
       .from('clientes')
       .insert({
-        nome: clientData.nome,
-        email: clientData.email || '',
-        telefone: clientData.telefone || '',
+        nome: (clientData.nome ?? '').trim() || 'Cliente sem nome',
+        email: (clientData.email ?? '').trim(),
+        telefone: (clientData.telefone ?? '').trim(),
         cpf: clientData.cpf || null,
         tipo_pessoa: clientData.tipo_pessoa || null,
         usuario_id: userId,
