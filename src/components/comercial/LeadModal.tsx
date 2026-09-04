@@ -4,7 +4,7 @@ import { fetchLeadMessages } from '@/services/comercial'
 import { findExistingClient } from '@/services/vendas'
 import { useDebounce } from '@/hooks/use-debounce'
 import { MessageSquare, AlertTriangle } from 'lucide-react'
-import { ORIGENS_LEAD, exigeNomePessoa } from './constants'
+import { ORIGENS_LEAD, exigeNomePessoa, getRotuloNomePessoa } from './constants'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -40,7 +40,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
   const [telefone, setTelefone] = useState(formatPhone(lead?.telefone || ''))
   const [nome, setNome] = useState(lead?.nome || '')
   const [email, setEmail] = useState(lead?.email || '')
-  const [origem, setOrigem] = useState(lead?.origem || 'WhatsApp')
+  const [origem, setOrigem] = useState(lead?.origem || 'A definir')
   const [origemPessoa, setOrigemPessoa] = useState(lead?.origem_pessoa || '')
 
   const debouncedEmail = useDebounce(email, 400)
@@ -50,7 +50,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
     setTelefone(formatPhone(lead?.telefone || ''))
     setNome(lead?.nome || '')
     setEmail(lead?.email || '')
-    setOrigem(lead?.origem || 'WhatsApp')
+    setOrigem(lead?.origem || 'A definir')
     setOrigemPessoa(lead?.origem_pessoa || '')
     setDuplicateWarning(null)
   }, [lead])
@@ -260,16 +260,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               {exigeNomePessoa(origem) && (
                 <div>
                   <label className="block text-foreground font-semibold text-[14px] mb-1.5">
-                    Nome da pessoa *
-                    <span className="text-muted-foreground font-normal text-xs ml-2">
-                      (
-                      {origem === 'Arquiteto'
-                        ? 'ex: Arq. Fulano'
-                        : origem === 'Corretor'
-                          ? 'nome do corretor'
-                          : 'quem indicou'}
-                      )
-                    </span>
+                    {getRotuloNomePessoa(origem)} *
                   </label>
                   <input
                     required
@@ -277,13 +268,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                     name="origem_pessoa"
                     value={origemPessoa}
                     onChange={(e) => setOrigemPessoa(e.target.value)}
-                    placeholder={
-                      origem === 'Arquiteto'
-                        ? 'ex: Arq. Fulano'
-                        : origem === 'Corretor'
-                          ? 'Nome do corretor'
-                          : 'Nome de quem indicou'
-                    }
+                    placeholder={getRotuloNomePessoa(origem)}
                     className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                   />
                 </div>

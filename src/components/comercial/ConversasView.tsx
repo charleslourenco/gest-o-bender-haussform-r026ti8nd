@@ -22,7 +22,13 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
-import { COLUMNS, isCategoriaComercial, ORIGENS_LEAD, exigeNomePessoa } from './constants'
+import {
+  COLUMNS,
+  isCategoriaComercial,
+  ORIGENS_LEAD,
+  exigeNomePessoa,
+  getRotuloNomePessoa,
+} from './constants'
 import {
   Loader2,
   Sparkles,
@@ -794,27 +800,12 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
               {exigeNomePessoa(selectedLead.origem) && (
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">
-                    Nome da pessoa *
-                    <span className="text-[10px] lowercase text-muted-foreground ml-1">
-                      (
-                      {selectedLead.origem === 'Arquiteto'
-                        ? 'arquiteto'
-                        : selectedLead.origem === 'Corretor'
-                          ? 'corretor'
-                          : 'quem indicou'}
-                      )
-                    </span>
+                    {getRotuloNomePessoa(selectedLead.origem)} *
                   </label>
                   <Input
                     disabled={updating}
                     value={selectedLead.origem_pessoa || ''}
-                    placeholder={
-                      selectedLead.origem === 'Arquiteto'
-                        ? 'ex: Arq. Fulano'
-                        : selectedLead.origem === 'Corretor'
-                          ? 'Nome do corretor'
-                          : 'Nome de quem indicou'
-                    }
+                    placeholder={getRotuloNomePessoa(selectedLead.origem)}
                     onChange={(e) =>
                       setSelectedLead((prev) =>
                         prev ? { ...prev, origem_pessoa: e.target.value } : null,

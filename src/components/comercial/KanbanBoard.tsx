@@ -269,9 +269,12 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         <option value="">Origem (Todas)</option>
         <option value="Instagram">Instagram</option>
         <option value="Google">Google</option>
-        <option value="WhatsApp">WhatsApp</option>
+        <option value="Recompra">Recompra</option>
+        <option value="Corretor">Corretor</option>
+        <option value="Arquiteto">Arquiteto</option>
         <option value="Indicação">Indicação</option>
-        <option value="Outro">Outro</option>
+        <option value="Porta">Porta</option>
+        <option value="A definir">A definir</option>
       </select>
       <select
         value={consultantFilter}

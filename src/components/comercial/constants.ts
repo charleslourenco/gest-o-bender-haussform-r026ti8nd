@@ -232,30 +232,33 @@ export interface AbaAcaoRegistro {
   data: string
 }
 
-// Lista padronizada de Origens dos Leads
+// Lista padronizada de Origens dos Leads (8 opções exatas)
 export const ORIGENS_LEAD = [
-  'WhatsApp',
   'Instagram',
   'Google',
-  'Indicação',
-  'Arquiteto',
-  'Corretor',
-  'Parceiros',
-  'Porta',
   'Recompra',
-  'Assistência Técnica',
-  'Outdoor',
-  'Outro',
+  'Corretor',
+  'Arquiteto',
+  'Indicação',
+  'Porta',
+  'A definir',
 ] as const
 
 export type OrigemLead = (typeof ORIGENS_LEAD)[number]
 
-// Origens que exigem o campo "Nome da pessoa" (Indicação, Arquiteto, Corretor)
-export const ORIGENS_COM_PESSOA = ['Indicação', 'Arquiteto', 'Corretor'] as const
+// Origens que exigem o campo "Nome da pessoa" (Corretor, Arquiteto, Indicação)
+export const ORIGENS_COM_PESSOA = ['Corretor', 'Arquiteto', 'Indicação'] as const
 
 export function exigeNomePessoa(origem?: string | null): boolean {
   if (!origem) return false
   return ORIGENS_COM_PESSOA.includes(origem as any)
+}
+
+export function getRotuloNomePessoa(origem?: string | null): string {
+  if (origem === 'Corretor') return 'Nome do corretor'
+  if (origem === 'Arquiteto') return 'Nome do arquiteto'
+  if (origem === 'Indicação') return 'Nome do indicador'
+  return 'Nome da pessoa'
 }
 
 export interface LeadMetadados {

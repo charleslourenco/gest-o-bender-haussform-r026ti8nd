@@ -14,6 +14,7 @@ import {
   LeadMetadados,
   ORIGENS_LEAD,
   exigeNomePessoa,
+  getRotuloNomePessoa,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
@@ -84,7 +85,7 @@ export function KanbanAtendimentos({
   const [isCreatingQuickLead, setIsCreatingQuickLead] = useState(false)
   const [quickNome, setQuickNome] = useState('')
   const [quickTelefone, setQuickTelefone] = useState('')
-  const [quickOrigem, setQuickOrigem] = useState<string>('WhatsApp')
+  const [quickOrigem, setQuickOrigem] = useState<string>('Instagram')
   const [quickOrigemPessoa, setQuickOrigemPessoa] = useState('')
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -534,7 +535,7 @@ export function KanbanAtendimentos({
       await createLead({
         nome: quickNome.trim(),
         telefone: phoneDigits,
-        origem: quickOrigem || 'WhatsApp',
+        origem: quickOrigem || 'A definir',
         origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() : null,
         status: initialStatus,
         categoria: initialCategoria,
@@ -544,7 +545,7 @@ export function KanbanAtendimentos({
 
       setQuickNome('')
       setQuickTelefone('')
-      setQuickOrigem('WhatsApp')
+      setQuickOrigem('Instagram')
       setQuickOrigemPessoa('')
       setIsCreatingQuickLead(false)
       toast.success('Lead adicionado com sucesso!')
@@ -841,13 +842,7 @@ export function KanbanAtendimentos({
             {exigeNomePessoa(quickOrigem) && (
               <Input
                 required
-                placeholder={
-                  quickOrigem === 'Arquiteto'
-                    ? 'Nome do arquiteto *'
-                    : quickOrigem === 'Corretor'
-                      ? 'Nome do corretor *'
-                      : 'Nome de quem indicou *'
-                }
+                placeholder={`${getRotuloNomePessoa(quickOrigem)} *`}
                 value={quickOrigemPessoa}
                 onChange={(e) => setQuickOrigemPessoa(e.target.value)}
                 className="h-8 text-xs w-48 border-amber-500/50 focus:border-amber-500"
@@ -863,7 +858,7 @@ export function KanbanAtendimentos({
                 size="sm"
                 onClick={() => {
                   setIsCreatingQuickLead(false)
-                  setQuickOrigem('WhatsApp')
+                  setQuickOrigem('Instagram')
                   setQuickOrigemPessoa('')
                 }}
                 className="h-8 text-xs"

@@ -4,6 +4,13 @@ import { supabase } from '@/lib/supabase/client'
 import { fetchLeadMessages, sendWhatsAppMessage } from '@/services/comercial'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +34,9 @@ import { ptBR } from 'date-fns/locale'
 import {
   ATENDIMENTO_ABAS,
   AtendimentoAbaConfig,
+  ORIGENS_LEAD,
+  exigeNomePessoa,
+  getRotuloNomePessoa,
   parseLeadMetadados,
   stringifyLeadMetadados,
 } from './constants'
@@ -69,6 +79,11 @@ export function ModalAtendimento({
   const [sendingMessage, setSendingMessage] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // Origem e Origem Pessoa
+  const [origemVal, setOrigemVal] = useState<string>(lead?.origem || 'A definir')
+  const [origemPessoaVal, setOrigemPessoaVal] = useState<string>(lead?.origem_pessoa || '')
+  const [updatingOrigem, setUpdatingOrigem] = useState(false)
+
   // Notas e Notas Pessoais
   const [notasIa, setNotasIa] = useState('')
   const [notasPessoaisClean, setNotasPessoaisClean] = useState('')
@@ -86,10 +101,19 @@ export function ModalAtendimento({
 
   useEffect(() => {
     if (lead) {
+      setOrigemVal(lead.origem || 'A definir')
+      setOrigemPessoaVal(lead.origem_pessoa || '')
       setNotasIa(lead.notas || '')
       setNotasPessoaisClean(rawNotasClean || '')
     }
-  }, [lead?.id, (lead as any)?.notas_pessoais, lead?.notas])
+  }, [
+    lead?.id,
+    lead?.origem,
+    lead?.origem_pessoa,
+    (lead as any)?.notas_pessoais,
+    lead?.notas,
+    rawNotasClean,
+  ])
 
   // Carregar mensagens do WhatsApp
   const loadMessages = useCallback(
@@ -301,6 +325,45 @@ export function ModalAtendimento({
     }
   }
 
+  const handleOrigemChange = async (newOrigem: string) => {
+    if (!lead || newOrigem === origemVal) return
+    setOrigemVal(newOrigem)
+    const requiresPessoa = exigeNomePessoa(newOrigem)
+    const newOrigemPessoa = requiresPessoa ? origemPessoaVal : null
+    if (!requiresPessoa) {
+      setOrigemPessoaVal('')
+    }
+    try {
+      setUpdatingOrigem(true)
+      await onUpdateLead(lead.id, {
+        origem: newOrigem,
+        origem_pessoa: newOrigemPessoa,
+      } as any)
+      toast.success('Origem atualizada!')
+    } catch (err: any) {
+      toast.error('Erro ao atualizar origem: ' + (err.message || 'Falha'))
+    } finally {
+      setUpdatingOrigem(false)
+    }
+  }
+
+  const handleOrigemPessoaBlur = async () => {
+    if (!lead) return
+    const trimmed = origemPessoaVal.trim() || null
+    if (trimmed === (lead.origem_pessoa || null)) return
+    try {
+      setUpdatingOrigem(true)
+      await onUpdateLead(lead.id, {
+        origem_pessoa: trimmed,
+      } as any)
+      toast.success('Origem atualizada!')
+    } catch (err: any) {
+      toast.error('Erro ao salvar nome da pessoa: ' + (err.message || 'Falha'))
+    } finally {
+      setUpdatingOrigem(false)
+    }
+  }
+
   const handleSaveNotas = async () => {
     if (!lead) return
     try {
@@ -357,13 +420,48 @@ export function ModalAtendimento({
                 <span>Responsável: </span>
                 <strong className="text-foreground">{consultorNome || 'Não atribuído'}</strong>
               </span>
-              <span className="flex items-center gap-1">
-                <span>Origem: </span>
-                <strong className="text-foreground">
-                  {lead.origem || 'Não definida'}
-                  {lead.origem_pessoa ? ` — ${lead.origem_pessoa}` : ''}
-                </strong>
-              </span>
+              <div className="flex items-center gap-1.5 py-0.5">
+                <span className="shrink-0 font-medium text-muted-foreground">Origem:</span>
+                <div className="w-36">
+                  <Select
+                    disabled={updatingOrigem}
+                    value={origemVal}
+                    onValueChange={handleOrigemChange}
+                  >
+                    <SelectTrigger className="h-7 text-xs bg-background/80 px-2 py-0">
+                      <SelectValue placeholder="Origem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ORIGENS_LEAD.map((orig) => (
+                        <SelectItem key={orig} value={orig} className="text-xs">
+                          {orig}
+                        </SelectItem>
+                      ))}
+                      {/* Caso o lead possua uma origem legada ainda não convertida, exibi-la para não quebrar a UI */}
+                      {origemVal && !(ORIGENS_LEAD as readonly string[]).includes(origemVal) && (
+                        <SelectItem value={origemVal} className="text-xs">
+                          {origemVal}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {exigeNomePessoa(origemVal) && (
+                  <Input
+                    disabled={updatingOrigem}
+                    placeholder={`${getRotuloNomePessoa(origemVal)}...`}
+                    value={origemPessoaVal}
+                    onChange={(e) => setOrigemPessoaVal(e.target.value)}
+                    onBlur={handleOrigemPessoaBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur()
+                      }
+                    }}
+                    className="h-7 text-xs w-44 bg-background/80 border-amber-500/50 focus:border-amber-500 px-2 py-0"
+                  />
+                )}
+              </div>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>Criado em: </span>
