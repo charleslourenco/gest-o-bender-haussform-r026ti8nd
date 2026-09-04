@@ -1,5 +1,158 @@
-export interface DashboardData {
-  leads: any[]
-  forms: any[]
-  projetos: any[]
+export interface StatusAtendimentoItem {
+  status: string
+  count: number
+}
+
+export interface OrigemItem {
+  origem: string
+  total: number
+  convertidos: number
+  taxa: number
+}
+
+export interface EvolucaoMensalItem {
+  mes_iso: string
+  mes: string
+  leads: number
+  vendidos: number
+}
+
+export interface DiaSemanaItem {
+  dow: number
+  dia: string
+  total: number
+}
+
+export interface AtendimentosMetrics {
+  total_leads: number
+  convertidos: number
+  taxa_conversao: number
+  media_dia: number
+  status_atendimento: StatusAtendimentoItem[]
+  origens: OrigemItem[]
+  evolucao_mensal: EvolucaoMensalItem[]
+  dias_semana: DiaSemanaItem[]
+}
+
+export interface RankingConsultorItem {
+  consultor: string
+  vendas: number
+  valor_total: number
+  ticket_medio: number
+  menor_ticket: number
+  maior_ticket: number
+}
+
+export interface ClientesMetrics {
+  novos_clientes: number
+  valor_vendido: number
+  ticket_medio: number
+  menor_ticket: number
+  maior_ticket: number
+  ranking_consultores: RankingConsultorItem[]
+}
+
+export interface FaseAmbienteItem {
+  fase: string
+  count: number
+}
+
+export interface TempoFaseItem {
+  fase: string
+  media_dias: number
+  transicoes_registradas: number
+  is_gargalo: boolean
+}
+
+export interface CargaAnalistaItem {
+  analista: string
+  ambientes: number
+  clientes: number
+}
+
+export interface CargaMontadorItem {
+  montador: string
+  telefone?: string
+  status?: string
+  ambientes_alocados: number
+}
+
+export interface PcpMetrics {
+  total_ambientes: number
+  total_clientes: number
+  ambientes_por_cliente: number
+  tempo_total_medio_dias: number
+  taxa_pendencias: number
+  fases_ambientes: FaseAmbienteItem[]
+  tempo_fases: TempoFaseItem[]
+  carga_analista: CargaAnalistaItem[]
+  carga_montagem: CargaMontadorItem[]
+}
+
+export interface ColaboradorCLTItem {
+  id: string
+  nome_completo: string
+  data_admissao?: string
+  data_nascimento?: string
+  telefone?: string
+  email?: string
+  municipio?: string
+  idade?: number
+  meses_empresa?: number
+}
+
+export interface ParceiroPJItem {
+  id: string
+  razao_social: string
+  cnpj?: string
+  socio_nome?: string
+  telefone?: string
+  email?: string
+  criado_em?: string
+  meses_parceria?: number
+}
+
+export interface FornecedorItem {
+  id: string
+  razao_social: string
+  nome_fantasia?: string
+  cnpj?: string
+  telefone?: string
+  email?: string
+  municipio?: string
+  criado_em?: string
+}
+
+export interface AniversarianteItem {
+  nome: string
+  tipo: string
+  data_nascimento?: string
+  dia_mes: string
+  dia: number
+}
+
+export interface DistribuicaoTempoItem {
+  faixa: string
+  total: number
+}
+
+export interface GestaoPessoasMetrics {
+  total_clt: number
+  total_pj: number
+  total_montadores: number
+  total_fornecedores: number
+  idade_media_clt: number
+  tempo_medio_meses_clt: number
+  lista_clt: ColaboradorCLTItem[]
+  lista_pj: ParceiroPJItem[]
+  lista_fornecedores: FornecedorItem[]
+  aniversariantes: AniversarianteItem[]
+  distribuicao_tempo_casa: DistribuicaoTempoItem[]
+}
+
+export interface FullDashboardMetrics {
+  atendimentos: AtendimentosMetrics
+  clientes: ClientesMetrics
+  pcp: PcpMetrics
+  gestao_pessoas: GestaoPessoasMetrics
 }

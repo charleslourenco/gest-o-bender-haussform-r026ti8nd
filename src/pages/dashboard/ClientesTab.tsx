@@ -1,0 +1,343 @@
+import { useState, useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Users,
+  DollarSign,
+  TrendingUp,
+  ArrowDownRight,
+  ArrowUpRight,
+  Award,
+  ShoppingBag,
+} from 'lucide-react'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import type { ClientesMetrics, RankingConsultorItem } from './types'
+
+type SortMode = 'valor' | 'ticket' | 'quantidade'
+
+export function ClientesTab({ data }: { data: ClientesMetrics }) {
+  const [sortMode, setSortMode] = useState<SortMode>('valor')
+
+  const {
+    novos_clientes,
+    valor_vendido,
+    ticket_medio,
+    menor_ticket,
+    maior_ticket,
+    ranking_consultores,
+  } = data
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0,
+    }).format(val || 0)
+
+  const formatCurrencyFull = (val: number) =>
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(val || 0)
+
+  // Consultores ordenados dinamicamente pelos 3 modos solicitados
+  const sortedConsultores = useMemo(() => {
+    const list = [...ranking_consultores]
+    if (sortMode === 'valor') {
+      return list.sort((a, b) => b.valor_total - a.valor_total)
+    }
+    if (sortMode === 'ticket') {
+      return list.sort((a, b) => b.ticket_medio - a.ticket_medio)
+    }
+    if (sortMode === 'quantidade') {
+      return list.sort((a, b) => b.vendas - a.vendas)
+    }
+    return list
+  }, [ranking_consultores, sortMode])
+
+  // Total de vendas fechadas somadas no ranking
+  const totalContratos = ranking_consultores.reduce((acc, cur) => acc + cur.vendas, 0)
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* 5 Cards de Métricas Principais: Clientes novos, Valor Vendido, Ticket Médio, Menor, Maior */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+              Clientes no Período
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Users className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-foreground">{novos_clientes}</div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Contratos: <strong className="text-foreground">{totalContratos}</strong> vendas
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+              Valor Total Vendido
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <DollarSign className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(valor_vendido)}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Receita comercial total</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+              Ticket Médio Geral
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-foreground">
+              {formatCurrency(ticket_medio)}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Média por venda fechada</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+              Menor Ticket
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <ArrowDownRight className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
+              {formatCurrency(menor_ticket)}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Menor projeto contratado</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+              Maior Ticket
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <ArrowUpRight className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-teal-600 dark:text-teal-400">
+              {formatCurrency(maior_ticket)}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">Maior projeto contratado</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Seção Principal: Ranking de Consultores com Três Ordenações Alternáveis */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Award className="h-5 w-5 text-amber-500" />
+              Ranking de Consultores e Desempenho Comercial
+            </CardTitle>
+            <CardDescription>
+              Volume de vendas, receita gerada, ticket médio e extremos por consultor
+            </CardDescription>
+          </div>
+
+          {/* Botões das 3 Ordenações Alternáveis */}
+          <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-lg border border-border">
+            <Button
+              size="sm"
+              variant={sortMode === 'valor' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium gap-1 px-3"
+              onClick={() => setSortMode('valor')}
+            >
+              <DollarSign className="h-3.5 w-3.5" />
+              Por Valor
+            </Button>
+            <Button
+              size="sm"
+              variant={sortMode === 'ticket' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium gap-1 px-3"
+              onClick={() => setSortMode('ticket')}
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              Por Ticket Médio
+            </Button>
+            <Button
+              size="sm"
+              variant={sortMode === 'quantidade' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium gap-1 px-3"
+              onClick={() => setSortMode('quantidade')}
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              Por Quantidade
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Gráfico Comparativo das 3 métricas */}
+          <div className="h-[260px] w-full pt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={sortedConsultores}
+                margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis
+                  dataKey="consultor"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  angle={-20}
+                  textAnchor="end"
+                  height={45}
+                  className="text-muted-foreground"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(val) => `R$ ${(val / 1000).toFixed(0)}k`}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground"
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const c = payload[0].payload as RankingConsultorItem
+                      return (
+                        <div className="bg-popover border border-border p-3 rounded-lg shadow-md text-xs space-y-1">
+                          <p className="font-bold text-foreground">{c.consultor}</p>
+                          <p className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                            Total Vendido: {formatCurrencyFull(c.valor_total)}
+                          </p>
+                          <p className="text-purple-600 dark:text-purple-400">
+                            Ticket Médio: {formatCurrencyFull(c.ticket_medio)}
+                          </p>
+                          <p className="text-blue-600 dark:text-blue-400">
+                            Vendas Concluídas: <strong>{c.vendas}</strong>
+                          </p>
+                          <div className="pt-1 border-t border-border flex justify-between gap-4 text-muted-foreground">
+                            <span>Menor: {formatCurrency(c.menor_ticket)}</span>
+                            <span>Maior: {formatCurrency(c.maior_ticket)}</span>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Bar
+                  dataKey={
+                    sortMode === 'valor'
+                      ? 'valor_total'
+                      : sortMode === 'ticket'
+                        ? 'ticket_medio'
+                        : 'valor_total'
+                  }
+                  name={sortMode === 'ticket' ? 'Ticket Médio (R$)' : 'Valor Vendido (R$)'}
+                  fill={sortMode === 'ticket' ? '#8b5cf6' : '#10b981'}
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Tabela Detalhada com Posição no Ranking */}
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-muted/60 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
+                <tr>
+                  <th className="py-2.5 px-3 text-center w-12">#</th>
+                  <th className="py-2.5 px-3">Consultor</th>
+                  <th className="py-2.5 px-3 text-right">Qtd Vendas</th>
+                  <th className="py-2.5 px-3 text-right">Total Vendido</th>
+                  <th className="py-2.5 px-3 text-right">Ticket Médio</th>
+                  <th className="py-2.5 px-3 text-right">Menor Ticket</th>
+                  <th className="py-2.5 px-3 text-right">Maior Ticket</th>
+                  <th className="py-2.5 px-3 text-center">Part. Receita</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-card">
+                {sortedConsultores.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                      Nenhuma venda registrada no período selecionado
+                    </td>
+                  </tr>
+                ) : (
+                  sortedConsultores.map((c, index) => {
+                    const share =
+                      valor_vendido > 0 ? ((c.valor_total / valor_vendido) * 100).toFixed(1) : '0.0'
+
+                    return (
+                      <tr key={c.consultor} className="hover:bg-muted/40 transition-colors">
+                        <td className="py-2.5 px-3 text-center">
+                          {index === 0 ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white font-bold text-[10px]">
+                              1
+                            </span>
+                          ) : index === 1 ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-400 text-white font-bold text-[10px]">
+                              2
+                            </span>
+                          ) : index === 2 ? (
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-700 text-white font-bold text-[10px]">
+                              3
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground font-medium">{index + 1}</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-foreground">{c.consultor}</td>
+                        <td className="py-2.5 px-3 text-right font-medium">
+                          <Badge variant="outline" className="font-semibold text-foreground">
+                            {c.vendas} {c.vendas === 1 ? 'venda' : 'vendas'}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrencyFull(c.valor_total)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-semibold text-purple-600 dark:text-purple-400">
+                          {formatCurrencyFull(c.ticket_medio)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-muted-foreground">
+                          {formatCurrency(c.menor_ticket)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {formatCurrency(c.maior_ticket)}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold text-foreground">
+                          {share}%
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

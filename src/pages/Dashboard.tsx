@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react'
-import { format, startOfMonth } from 'date-fns'
+import { useState, useEffect, useCallback } from 'react'
+import { format, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { CalendarIcon, Presentation } from 'lucide-react'
+import {
+  CalendarIcon,
+  Presentation,
+  Headphones,
+  Users,
+  Cpu,
+  UsersRound,
+  RotateCcw,
+} from 'lucide-react'
 import { DateRange } from 'react-day-picker'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -10,241 +18,174 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import type { DashboardData as BaseDashboardData } from './dashboard/types'
-import { CaptacaoTab } from './dashboard/CaptacaoTab'
+import type { FullDashboardMetrics } from './dashboard/types'
+import { AtendimentosTab } from './dashboard/AtendimentosTab'
+import { ClientesTab } from './dashboard/ClientesTab'
+import { PcpTab } from './dashboard/PcpTab'
+import { GestaoPessoasTab } from './dashboard/GestaoPessoasTab'
 
-interface DashboardData extends BaseDashboardData {
-  contasPagarCount?: number | null
-  solicitacoesCompraCount?: number | null
-}
-import { ComercialTab } from './dashboard/ComercialTab'
-import { AnaliseTab } from './dashboard/AnaliseTab'
-import { ProducaoTab } from './dashboard/ProducaoTab'
-import { MontagemTab } from './dashboard/MontagemTab'
+const PERIOD_PRESETS = [
+  { label: 'Últimos 30 dias', days: 30 },
+  { label: 'Últimos 90 dias', days: 90 },
+  { label: 'Últimos 6 meses', months: 6 },
+  { label: 'Todo o Histórico', all: true },
+]
 
 export default function Dashboard() {
+  // Padrão: Todo o histórico para visão completa da operação, ou ajustável pelo usuário
   const [date, setDate] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
+    from: subMonths(new Date(), 6),
     to: new Date(),
   })
-  const [data, setData] = useState<DashboardData>({
-    leads: [],
-    forms: [],
-    projetos: [],
-    contasPagarCount: null,
-    solicitacoesCompraCount: null,
-  })
+  const [metrics, setMetrics] = useState<FullDashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true)
-      try {
-        const from = date?.from ? date.from.toISOString() : undefined
-        const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : undefined
+  const fetchMetrics = useCallback(async () => {
+    setLoading(true)
+    try {
+      const from = date?.from ? date.from.toISOString() : null
+      const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : null
 
-        let queryLeads = supabase
-          .from('leads')
-          .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-        if (from) queryLeads = queryLeads.gte('criado_em', from)
-        if (to) queryLeads = queryLeads.lte('criado_em', to)
+      const { data, error } = await supabase.rpc('get_dashboard_metrics', {
+        p_start_date: from,
+        p_end_date: to,
+      })
 
-        let queryProj = supabase
-          .from('produtos_servicos_projeto')
-          .select(
-            '*, analista:users!produtos_servicos_projeto_analista_id_fkey(nome), cliente:clientes(nome)',
-          )
-        if (from) queryProj = queryProj.gte('atualizado_em', from)
-        if (to) queryProj = queryProj.lte('atualizado_em', to)
-
-        const queryForms = supabase.from('formulario_comercial').select('lead_id, valor_total')
-
-        const [resLeads, resProj, resForms] = await Promise.all([queryLeads, queryProj, queryForms])
-
-        // Robust data fetching for Solicitações de Compra Pendentes using HEAD request properly
-        let solicitacoesCompraCount: number | null = null
-        try {
-          const { count, error } = await supabase
-            .from('solicitacoes_compra')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'Pendente')
-
-          if (error) {
-            console.warn('[Dashboard] Supabase error fetching solicitacoes_compra:', error)
-            solicitacoesCompraCount = 0
-          } else {
-            solicitacoesCompraCount = count ?? 0
-          }
-        } catch (err) {
-          console.warn('[Dashboard] Exception fetching solicitacoes_compra:', err)
-          solicitacoesCompraCount = 0
-        }
-
-        // Robust data fetching for Accounts Payable (Contas a Pagar)
-        let contasPagarCount: number | null = null
-        try {
-          const targetDate = to || new Date().toISOString()
-
-          // Using a standard GET request with raw fetch to ensure we can validate
-          // the response before JSON.parse, preventing "Unexpected end of JSON input"
-          const { data: sessionData } = await supabase.auth.getSession()
-          const token = sessionData.session?.access_token || ''
-          const url = new URL(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/contas_pagar`)
-          url.searchParams.append('status_pagamento', 'eq.aguardando')
-          url.searchParams.append('data_vencimento', `lte.${targetDate}`)
-          url.searchParams.append('select', '*')
-          url.searchParams.append('limit', '1')
-
-          const response = await fetch(url.toString(), {
-            method: 'GET',
-            headers: {
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${token}`,
-              Prefer: 'count=exact',
-            },
-          })
-
-          const textBody = await response.text()
-
-          // Parsing Safety: Add validation to ensure that JSON.parse is only called if the response body is not empty
-          if (textBody && textBody.trim().length > 0) {
-            try {
-              const data = JSON.parse(textBody)
-              const contentRange = response.headers.get('content-range')
-              if (contentRange) {
-                contasPagarCount = parseInt(contentRange.split('/')[1], 10)
-              } else {
-                contasPagarCount = Array.isArray(data) ? data.length : 0
-              }
-            } catch (parseError) {
-              console.warn('[Dashboard] Invalid JSON response:', parseError)
-              contasPagarCount = 0
-            }
-          } else {
-            contasPagarCount = 0
-          }
-        } catch (fetchError) {
-          // Resilience: keep functional if connection is unstable
-          console.warn(
-            '[Dashboard] Network error fetching contas_pagar (Backend disconnected?):',
-            fetchError,
-          )
-        }
-
-        setData({
-          leads: resLeads.data || [],
-          projetos: resProj.data || [],
-          forms: resForms.data || [],
-          contasPagarCount,
-          solicitacoesCompraCount,
-        })
-      } catch (error) {
-        console.error('Erro ao carregar dados', error)
-      } finally {
-        setLoading(false)
+      if (error) {
+        console.error('[Dashboard] Erro ao carregar métricas via RPC:', error)
+      } else if (data) {
+        setMetrics(data as FullDashboardMetrics)
       }
+    } catch (err) {
+      console.error('[Dashboard] Exceção ao consultar get_dashboard_metrics:', err)
+    } finally {
+      setLoading(false)
     }
-    fetchData()
   }, [date])
+
+  useEffect(() => {
+    fetchMetrics()
+  }, [fetchMetrics])
+
+  const handleApplyPreset = (preset: (typeof PERIOD_PRESETS)[number]) => {
+    if (preset.all) {
+      setDate(undefined)
+    } else if (preset.days) {
+      const from = new Date()
+      from.setDate(from.getDate() - preset.days)
+      setDate({ from, to: new Date() })
+    } else if (preset.months) {
+      setDate({ from: subMonths(new Date(), preset.months), to: new Date() })
+    }
+  }
 
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
-      <Tabs defaultValue="captacao" className="w-full flex-1 flex flex-col min-h-0 mt-0">
-        <div className="flex flex-row items-center w-full bg-card text-card-foreground px-4 py-3 rounded-md mt-0 flex-nowrap overflow-x-auto overflow-y-hidden gap-4 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-          <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
-            <div className="flex items-center gap-2 mr-2">
-              <Presentation className="w-5 h-5 text-card-foreground" />
-              <h2 className="text-lg font-bold text-card-foreground">Dashboard Integrado</h2>
+      <Tabs defaultValue="atendimentos" className="w-full flex-1 flex flex-col min-h-0 mt-0">
+        {/* Barra Superior: Título dos Módulos + 4 Abas Exatas Solicitadas */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full bg-card text-card-foreground px-4 py-3 rounded-xl border border-border shadow-sm mb-4 gap-4">
+          <div className="flex flex-row items-center gap-2 overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex items-center gap-2 mr-3 shrink-0">
+              <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                <Presentation className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-base font-extrabold text-foreground tracking-tight">
+                  Painel de Gestão
+                </h1>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  Indicadores operacionais por módulo
+                </p>
+              </div>
             </div>
-            <TabsList className="bg-muted border-none h-9">
+
+            {/* As 4 abas por módulo: Atendimentos, Clientes, PCP, Gestão de Pessoas */}
+            <TabsList className="bg-muted p-1 rounded-lg border border-border h-10 shrink-0">
               <TabsTrigger
-                value="captacao"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
+                value="atendimentos"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
               >
-                Captação de Leads
+                <Headphones className="w-3.5 h-3.5" />
+                Atendimentos
               </TabsTrigger>
               <TabsTrigger
-                value="comercial"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
+                value="clientes"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
               >
-                Comercial
+                <Users className="w-3.5 h-3.5" />
+                Clientes & Vendas
               </TabsTrigger>
               <TabsTrigger
-                value="analise"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
+                value="pcp"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
               >
-                Análise Técnica
+                <Cpu className="w-3.5 h-3.5" />
+                PCP & Fábrica
               </TabsTrigger>
               <TabsTrigger
-                value="producao"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
+                value="gestao_pessoas"
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
               >
-                Produção
-              </TabsTrigger>
-              <TabsTrigger
-                value="montagem"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
-              >
-                Montagem
+                <UsersRound className="w-3.5 h-3.5" />
+                Gestão de Pessoas
               </TabsTrigger>
             </TabsList>
           </div>
-        </div>
 
-        <div className="flex flex-row items-center justify-end w-full px-1 py-3 mb-2 flex-wrap gap-4">
-          <div className="flex flex-row items-center gap-3 shrink-0 whitespace-nowrap">
-            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md h-9 border border-border">
-              <span className="text-muted-foreground text-sm font-medium">Contas a Pagar:</span>
-              {loading ? (
-                <Skeleton className="h-5 w-8" />
-              ) : data.contasPagarCount === null ? (
-                <span className="text-destructive text-sm font-medium">Erro</span>
-              ) : (
-                <span className="font-bold text-foreground">{data.contasPagarCount}</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md h-9 border border-border">
-              <span className="text-muted-foreground text-sm font-medium">
-                Solicitações Pendentes:
-              </span>
-              {loading ? (
-                <Skeleton className="h-5 w-8" />
-              ) : data.solicitacoesCompraCount === null ? (
-                <span className="text-destructive text-sm font-medium">Erro</span>
-              ) : (
-                <span className="font-bold text-foreground">{data.solicitacoesCompraCount}</span>
-              )}
+          {/* Filtro ÚNICO de Período unificado no topo para todas as abas */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <div className="hidden xl:flex items-center gap-1">
+              {PERIOD_PRESETS.map((p, idx) => (
+                <Button
+                  key={idx}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-[11px] px-2.5 font-medium border-border"
+                  onClick={() => handleApplyPreset(p)}
+                >
+                  {p.label}
+                </Button>
+              ))}
             </div>
 
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="h-9 px-3 border-border text-foreground hover:bg-muted"
+                  className="h-9 px-3 border-border text-foreground hover:bg-muted font-medium text-xs gap-2"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="h-4 w-4 text-primary" />
                   {date?.from ? (
                     date.to ? (
-                      <span className="text-sm font-normal">
+                      <span>
                         {format(date.from, 'dd/MM/yyyy', { locale: ptBR })} -{' '}
                         {format(date.to, 'dd/MM/yyyy', { locale: ptBR })}
                       </span>
                     ) : (
-                      <span className="text-sm font-normal">
-                        {format(date.from, 'dd/MM/yyyy', { locale: ptBR })}
-                      </span>
+                      <span>{format(date.from, 'dd/MM/yyyy', { locale: ptBR })}</span>
                     )
                   ) : (
-                    <span className="text-sm font-normal">Filtrar período</span>
+                    <span className="font-semibold text-primary">Histórico Completo</span>
                   )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 border-border" align="end">
+                <div className="p-2 border-b border-border flex justify-between items-center">
+                  <span className="text-xs font-semibold">Selecionar Período</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
+                    onClick={() => setDate(undefined)}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Limpar Filtro
+                  </Button>
+                </div>
                 <Calendar
                   initialFocus
                   mode="range"
-                  defaultMonth={date?.from}
+                  defaultMonth={date?.from || new Date()}
                   selected={date}
                   onSelect={setDate}
                   numberOfMonths={2}
@@ -255,33 +196,42 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 w-full">
-          {loading ? (
+        {/* Conteúdo das 4 Abas com Tratamento de Loading */}
+        <div className="flex-1 overflow-y-auto min-h-0 w-full pr-1">
+          {loading || !metrics ? (
             <div className="space-y-6">
-              <Skeleton className="h-12 w-full max-w-2xl rounded-lg bg-muted" />
-              <div className="grid gap-6 md:grid-cols-3">
-                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
-                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
-                <Skeleton className="h-32 w-full rounded-xl bg-muted" />
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Skeleton className="h-28 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-28 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-28 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-28 w-full rounded-xl bg-muted" />
               </div>
-              <Skeleton className="h-96 w-full rounded-xl bg-muted" />
+              <div className="grid gap-6 md:grid-cols-2">
+                <Skeleton className="h-80 w-full rounded-xl bg-muted" />
+                <Skeleton className="h-80 w-full rounded-xl bg-muted" />
+              </div>
+              <Skeleton className="h-72 w-full rounded-xl bg-muted" />
             </div>
           ) : (
             <>
-              <TabsContent value="captacao" className="mt-0">
-                <CaptacaoTab data={data} />
+              {/* Aba 1: Atendimentos (Leads) */}
+              <TabsContent value="atendimentos" className="mt-0 focus-visible:outline-none">
+                <AtendimentosTab data={metrics.atendimentos} />
               </TabsContent>
-              <TabsContent value="comercial" className="mt-0">
-                <ComercialTab data={data} />
+
+              {/* Aba 2: Clientes */}
+              <TabsContent value="clientes" className="mt-0 focus-visible:outline-none">
+                <ClientesTab data={metrics.clientes} />
               </TabsContent>
-              <TabsContent value="analise" className="mt-0">
-                <AnaliseTab data={data} />
+
+              {/* Aba 3: PCP */}
+              <TabsContent value="pcp" className="mt-0 focus-visible:outline-none">
+                <PcpTab data={metrics.pcp} />
               </TabsContent>
-              <TabsContent value="producao" className="mt-0">
-                <ProducaoTab data={data} />
-              </TabsContent>
-              <TabsContent value="montagem" className="mt-0">
-                <MontagemTab data={data} />
+
+              {/* Aba 4: Gestão de Pessoas */}
+              <TabsContent value="gestao_pessoas" className="mt-0 focus-visible:outline-none">
+                <GestaoPessoasTab data={metrics.gestao_pessoas} />
               </TabsContent>
             </>
           )}

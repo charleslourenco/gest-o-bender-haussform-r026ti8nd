@@ -563,6 +563,7 @@ export type Database = {
           atualizado_em: string
           categoria: string | null
           categoria_id: string | null
+          cliente_id: string | null
           codigo_barras: string | null
           comprovante_url: string | null
           conta_bancaria_id: string | null
@@ -570,6 +571,7 @@ export type Database = {
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string | null
+          formulario_comercial_id: string | null
           fornecedor: string
           grupo_id: string | null
           id: string
@@ -586,6 +588,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string | null
           categoria_id?: string | null
+          cliente_id?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -593,6 +596,7 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
+          formulario_comercial_id?: string | null
           fornecedor: string
           grupo_id?: string | null
           id?: string
@@ -609,6 +613,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string | null
           categoria_id?: string | null
+          cliente_id?: string | null
           codigo_barras?: string | null
           comprovante_url?: string | null
           conta_bancaria_id?: string | null
@@ -616,6 +621,7 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
+          formulario_comercial_id?: string | null
           fornecedor?: string
           grupo_id?: string | null
           id?: string
@@ -636,10 +642,24 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'contas_pagar_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'contas_pagar_conta_bancaria_id_fkey'
             columns: ['conta_bancaria_id']
             isOneToOne: false
             referencedRelation: 'contas_bancarias'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contas_pagar_formulario_comercial_id_fkey'
+            columns: ['formulario_comercial_id']
+            isOneToOne: false
+            referencedRelation: 'formulario_comercial'
             referencedColumns: ['id']
           },
           {
@@ -3141,10 +3161,12 @@ export type Database = {
         Args: {
           p_categoria: string
           p_categoria_id?: string
+          p_cliente_id?: string
           p_conta_bancaria_id: string
           p_data_vencimento: string
           p_descricao: string
           p_divisoes: Json
+          p_formulario_comercial_id?: string
           p_fornecedor: string
           p_grupo_id?: string
           p_meses: number
@@ -3173,6 +3195,13 @@ export type Database = {
           erro: string
           estado: string
           http_req_id: number
+        }[]
+      }
+      resolver_projeto_estoque_por_nota: {
+        Args: { p_nota_fiscal_id: string }
+        Returns: {
+          r_cliente_id: string
+          r_formulario_comercial_id: string
         }[]
       }
       try_finalize_signature: {
