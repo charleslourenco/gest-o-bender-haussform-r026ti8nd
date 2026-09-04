@@ -138,7 +138,7 @@ function calculateDRE(
     }
   })
 
-  // Camadas estruturadas
+  // Camadas estruturadas DRE
   result.receitaLiquida = result.receitaBruta - result.impostos
   result.lucroBruto = result.receitaLiquida - result.custosDiretos
   result.ebitda = result.lucroBruto - result.despesasOperacionais
