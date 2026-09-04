@@ -259,27 +259,31 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
                   key={sale.id}
                   onClick={() => navigate(`/clientes/${sale.id}`)}
                   className={cn(
-                    'shrink-0 flex flex-col gap-1 px-3 py-2 rounded-lg border text-left min-w-[180px] transition-all',
+                    'shrink-0 flex flex-col gap-1 px-3 py-2 rounded-lg border text-left min-w-[180px] cursor-pointer transition-all duration-200 ease-out relative group/sale',
                     isActive
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                      : 'bg-background border-border hover:border-primary/50 hover:bg-accent',
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md hover:-translate-y-[2px] hover:shadow-lg hover:shadow-primary/25'
+                      : 'bg-card/70 backdrop-blur-sm border-border/80 hover:border-primary/50 hover:bg-card/95 hover:backdrop-blur-md hover:-translate-y-[2px] hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)]',
                   )}
                 >
                   <span className="flex items-center gap-1.5 text-xs font-semibold">
                     <Calendar className="w-3 h-3" />
                     {dataVenda ? new Date(dataVenda).toLocaleDateString('pt-BR') : 'Sem data'}
                   </span>
-                  <span className="text-sm font-bold">
+                  <span className="text-sm font-bold group-hover/sale:text-primary transition-colors">
                     {saleValue > 0 ? formatCurrency(saleValue) : '—'}
                   </span>
                   <span
                     className={cn(
                       'text-[10px] uppercase tracking-wider font-medium flex items-center gap-1',
-                      isActive ? 'text-primary-foreground/80' : 'text-muted-foreground',
+                      isActive
+                        ? 'text-primary-foreground/80'
+                        : 'text-muted-foreground group-hover/sale:text-primary',
                     )}
                   >
                     {isActive ? 'Venda atual' : 'Abrir venda'}
-                    {!isActive && <ChevronRight className="w-3 h-3" />}
+                    {!isActive && (
+                      <ChevronRight className="w-3 h-3 group-hover/sale:translate-x-0.5 transition-transform duration-200" />
+                    )}
                   </span>
                 </button>
               )

@@ -371,10 +371,10 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           loading={summaryLoading}
         />
 
-        <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
+        <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm p-1">
           <Table>
-            <TableHeader className="bg-muted/50 sticky top-0 z-10 shadow-sm border-b border-border">
-              <TableRow>
+            <TableHeader className="bg-muted/70 sticky top-0 z-20 shadow-sm border-b border-border backdrop-blur-sm">
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Consultor</TableHead>
@@ -405,24 +405,29 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                   return (
                     <TableRow
                       key={cliente.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors group"
+                      className="cursor-pointer relative z-0 border-b border-border/60 hover:z-10 transition-all duration-200 ease-out hover:-translate-y-[2px] hover:bg-card/90 hover:backdrop-blur-md hover:border-primary/40 hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] group rounded-md"
                       onClick={() => onSelect(dossieId)}
                     >
-                      <TableCell className="font-medium group-hover:text-primary transition-colors">
-                        {cliente.nome || 'Sem nome'}
+                      <TableCell className="font-medium group-hover:text-primary transition-colors duration-200">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-transparent group-hover:bg-primary transition-all duration-200" />
+                          <span>{cliente.nome || 'Sem nome'}</span>
+                        </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="transition-colors duration-200">
                         <div className="flex flex-col">
-                          <span className="text-sm text-foreground">{cliente.email || '-'}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-sm text-foreground group-hover:text-foreground/90">
+                            {cliente.email || '-'}
+                          </span>
+                          <span className="text-xs text-muted-foreground group-hover:text-muted-foreground/80">
                             {cliente.telefone || '-'}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200">
                         {cliente.leads?.consultor?.nome || '-'}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200">
                         {cliente.leads?.formulario_comercial?.data_venda
                           ? format(
                               new Date(
@@ -433,7 +438,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                             )
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium group-hover:text-primary transition-colors duration-200">
                         {cliente.leads?.formulario_comercial?.valor_total != null
                           ? formatCurrency(cliente.leads.formulario_comercial.valor_total)
                           : '-'}
@@ -454,7 +459,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="group-hover:text-primary group-hover:bg-primary/10"
+                            className="group-hover:text-primary group-hover:bg-primary/10 group-hover:translate-x-0.5 transition-all duration-200"
                             onClick={(e) => {
                               e.stopPropagation()
                               onSelect(dossieId)
