@@ -21,6 +21,8 @@ import {
   ArrowDownRight,
   Minus,
   FileSpreadsheet,
+  FolderKanban,
+  AlertCircle,
 } from 'lucide-react'
 
 export type RegimeType = 'caixa' | 'competencia'
@@ -217,6 +219,18 @@ function calcVariation(
   return { value: diff, percent: pct }
 }
 
+export interface ProjetoDRESummary {
+  projetoId: string
+  clienteNome: string
+  projetoNome: string
+  receita: number
+  cpv: number
+  margemValor: number
+  margemPercent: number
+  temCusto: boolean
+  parcelasCount: number
+}
+
 export function FinanceiroDRE({ transactions }: { transactions: Transaction[] }) {
   const [regime, setRegime] = useState<RegimeType>('competencia')
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({})
@@ -308,6 +322,118 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
   const toggleMonthExpand = (m: string) => {
     setExpandedMonths((prev) => ({ ...prev, [m]: !prev[m] }))
   }
+
+  // DRE por Projeto: agrupar receitas por projeto respeitando o regime e filtro de período já aplicado nas transações
+  const drePorProjeto = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        projetoId: string
+        clienteNome: string
+        projetoNome: string
+        receita: number
+        cpv: number
+        parcelasCount: number
+      }
+    >()
+
+    // Somar CPV total global no período para verificar se há custos
+    let totalCpvPeriodo = 0
+
+    transactions.forEach((t) => {
+      const statusLower = (t.status || '').toLowerCase()
+      if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
+
+      let dateStr: string | null = null
+      if (regime === 'caixa') {
+        dateStr = t.paidDate || null
+      } else {
+        dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+      }
+      if (!dateStr) return
+
+      const amount = Math.abs(Number(t.amount) || 0)
+
+      let nat = (t.natureza || '').toLowerCase()
+      if (!nat) {
+        if (t.type === 'receita') nat = 'receita'
+        else nat = 'custo_direto'
+      }
+
+      if (t.type === 'despesa' && nat === 'custo_direto') {
+        totalCpvPeriodo += amount
+      }
+
+      // Processar receitas
+      if (nat === 'receita' || (t.type === 'receita' && nat !== 'financeiro')) {
+        const projId = t.formulario_comercial_id || 'sem_projeto'
+        const cliNome = t.clienteNome || t.entityName || 'Cliente não identificado'
+        const projNome =
+          t.projetoNome ||
+          (t.formulario_comercial_id
+            ? `Projeto #${t.formulario_comercial_id.substring(0, 8).toUpperCase()}`
+            : 'Receitas sem projeto vinculado')
+
+        const existing = map.get(projId)
+        if (existing) {
+          existing.receita += amount
+          existing.parcelasCount += 1
+          if (
+            existing.clienteNome === 'Cliente não identificado' &&
+            cliNome !== 'Cliente não identificado'
+          ) {
+            existing.clienteNome = cliNome
+          }
+          if (
+            existing.projetoNome === 'Projeto sem vínculo' &&
+            projNome !== 'Projeto sem vínculo'
+          ) {
+            existing.projetoNome = projNome
+          }
+        } else {
+          map.set(projId, {
+            projetoId: projId,
+            clienteNome: cliNome,
+            projetoNome: projNome,
+            receita: amount,
+            cpv: 0, // CPV por projeto se houver vínculo direto
+            parcelasCount: 1,
+          })
+        }
+      }
+    })
+
+    const list: ProjetoDRESummary[] = Array.from(map.values()).map((item) => {
+      const margemValor = item.receita - item.cpv
+      const margemPercent = item.receita > 0 ? (margemValor / item.receita) * 100 : 0
+      const temCusto = item.cpv > 0
+      return {
+        ...item,
+        margemValor,
+        margemPercent,
+        temCusto,
+      }
+    })
+
+    // Ordenar decrescente por receita
+    list.sort((a, b) => b.receita - a.receita)
+
+    const totalReceita = list.reduce((acc, curr) => acc + curr.receita, 0)
+    const totalCpv = list.reduce((acc, curr) => acc + curr.cpv, 0)
+    const totalMargemValor = totalReceita - totalCpv
+    const totalMargemPercent = totalReceita > 0 ? (totalMargemValor / totalReceita) * 100 : 0
+    const totalParcelas = list.reduce((acc, curr) => acc + curr.parcelasCount, 0)
+
+    return {
+      itens: list,
+      totalReceita,
+      totalCpv,
+      totalMargemValor,
+      totalMargemPercent,
+      totalParcelas,
+      totalCpvPeriodo,
+    }
+  }, [transactions, regime])
 
   function renderVariationBadge(
     v: { value: number; percent: number | null },
@@ -1173,6 +1299,140 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   </div>
                 )
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BLOCO 2.5: PARTE 2 — DRE por Projeto (visão de receita por projeto) */}
+      <Card className="shadow-sm border-border/70">
+        <CardHeader className="pb-3 border-b bg-muted/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="w-5 h-5 text-primary" />
+              <div>
+                <CardTitle className="text-base font-semibold">DRE por Projeto</CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  Receita por projeto e cliente, custos vinculados e margem de contribuição (Regime:{' '}
+                  {regime === 'caixa' ? 'Caixa' : 'Competência'}).
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>
+                {drePorProjeto.itens.length}{' '}
+                {drePorProjeto.itens.length === 1 ? 'projeto encontrado' : 'projetos encontrados'}
+              </span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {drePorProjeto.itens.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground text-sm">
+              <FolderKanban className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+              Nenhuma receita de projeto encontrada para o período e regime selecionados.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 text-xs">
+                    <TableHead className="font-bold min-w-[200px]">Cliente</TableHead>
+                    <TableHead className="font-bold min-w-[220px]">Projeto</TableHead>
+                    <TableHead className="text-right font-bold min-w-[130px]">Receita</TableHead>
+                    <TableHead className="text-right font-bold min-w-[130px]">CPV</TableHead>
+                    <TableHead className="text-right font-bold min-w-[140px]">
+                      Margem (R$)
+                    </TableHead>
+                    <TableHead className="text-right font-bold min-w-[100px]">Margem (%)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="text-sm">
+                  {drePorProjeto.itens.map((p) => {
+                    const isSemProjeto = p.projetoId === 'sem_projeto'
+                    return (
+                      <TableRow key={p.projetoId} className="hover:bg-muted/40 transition-colors">
+                        <TableCell className="font-medium text-foreground">
+                          {p.clienteNome}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span
+                              className={`font-semibold ${isSemProjeto ? 'text-muted-foreground italic' : 'text-foreground'}`}
+                            >
+                              {p.projetoNome}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {p.parcelasCount} {p.parcelasCount === 1 ? 'parcela' : 'parcelas'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(p.receita)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {p.cpv > 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">
+                              -{formatCurrency(p.cpv)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-foreground">
+                          {formatCurrency(p.margemValor)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <span
+                              className={`font-bold ${
+                                p.margemPercent >= 0
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}
+                            >
+                              {p.margemPercent.toFixed(1)}%
+                            </span>
+                            {!p.temCusto && (
+                              <span
+                                title="Sem CPV específico vinculado a este projeto no período"
+                                className="inline-flex cursor-help text-muted-foreground hover:text-foreground"
+                              >
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+                {/* Rodapé com Totalizador Geral */}
+                <tfoot>
+                  <TableRow className="bg-muted/60 font-bold border-t-2 border-border text-foreground">
+                    <TableCell className="font-bold">Total Geral por Projetos</TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-medium">
+                      {drePorProjeto.itens.length}{' '}
+                      {drePorProjeto.itens.length === 1 ? 'projeto' : 'projetos'} (
+                      {drePorProjeto.totalParcelas} parcelas)
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(drePorProjeto.totalReceita)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-muted-foreground">
+                      {drePorProjeto.totalCpv > 0
+                        ? `-${formatCurrency(drePorProjeto.totalCpv)}`
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-bold">
+                      {formatCurrency(drePorProjeto.totalMargemValor)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                      {drePorProjeto.totalMargemPercent.toFixed(1)}%
+                    </TableCell>
+                  </TableRow>
+                </tfoot>
+              </Table>
             </div>
           )}
         </CardContent>

@@ -30,7 +30,11 @@ export default function Financeiro() {
     try {
       setLoading(true)
       const [receberRes, pagarRes, contasData] = await Promise.all([
-        supabase.from('contas_receber').select('*, cliente:clientes(nome)'),
+        supabase
+          .from('contas_receber')
+          .select(
+            '*, cliente:clientes(nome), formulario_comercial:formulario_comercial(id, nome_cliente, nome_fantasia, produtos_servicos, ambientes)',
+          ),
         supabase
           .from('contas_pagar' as any)
           .select('*')
@@ -42,29 +46,51 @@ export default function Financeiro() {
       if (receberRes.error) throw receberRes.error
       if (pagarRes.error && pagarRes.error.code !== '42P01') throw pagarRes.error
 
-      const recebimentos = (receberRes.data || []).map((r: any) => ({
-        id: r.id,
-        type: 'receita' as const,
-        description: r.descricao || `Referente à parcela ${r.numero_parcela || ''}`,
-        category: r.categoria || 'Venda de Projetos',
-        amount: Number(r.valor),
-        dueDate: r.data_vencimento,
-        paidDate: r.data_pagamento,
-        status: r.status_pagamento,
-        source: r,
-        createdAt: r.criado_em,
-        entityName: Array.isArray(r.cliente)
+      const recebimentos = (receberRes.data || []).map((r: any) => {
+        const fc = Array.isArray(r.formulario_comercial)
+          ? r.formulario_comercial[0]
+          : r.formulario_comercial
+        const cliName = Array.isArray(r.cliente)
           ? r.cliente[0]?.nome
-          : r.cliente?.nome || 'Cliente não identificado',
-        meioPagamento: r.meio_pagamento,
-        antecipado: r.antecipado,
-        comprovanteUrl: r.comprovante_url,
-        grupoId: r.grupo_id,
-        observacoes: r.observacoes,
-        contaBancariaId: r.conta_bancaria_id,
-        natureza: r.natureza || 'receita',
-        categoria_id: r.categoria_id || null,
-      }))
+          : r.cliente?.nome || fc?.nome_cliente || 'Cliente não identificado'
+
+        // Extrair nome ou identificador do projeto do formulário comercial
+        let projNome = 'Projeto sem vínculo'
+        if (fc) {
+          if (fc.nome_fantasia) {
+            projNome = fc.nome_fantasia
+          } else if (fc.nome_cliente) {
+            projNome = `Projeto ${fc.nome_cliente}`
+          } else if (fc.id) {
+            projNome = `Projeto #${fc.id.substring(0, 8).toUpperCase()}`
+          }
+        }
+
+        return {
+          id: r.id,
+          type: 'receita' as const,
+          description: r.descricao || `Referente à parcela ${r.numero_parcela || ''}`,
+          category: r.categoria || 'Venda de Projetos',
+          amount: Number(r.valor),
+          dueDate: r.data_vencimento,
+          paidDate: r.data_pagamento,
+          status: r.status_pagamento,
+          source: r,
+          createdAt: r.criado_em,
+          entityName: cliName,
+          clienteNome: cliName,
+          projetoNome: projNome,
+          formulario_comercial_id: r.formulario_comercial_id || null,
+          meioPagamento: r.meio_pagamento,
+          antecipado: r.antecipado,
+          comprovanteUrl: r.comprovante_url,
+          grupoId: r.grupo_id,
+          observacoes: r.observacoes,
+          contaBancariaId: r.conta_bancaria_id,
+          natureza: r.natureza || 'receita',
+          categoria_id: r.categoria_id || null,
+        }
+      })
 
       const pagamentos = (pagarRes.data || []).map((p: any) => ({
         id: p.id,
