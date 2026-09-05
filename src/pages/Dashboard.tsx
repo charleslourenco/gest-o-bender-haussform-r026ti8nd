@@ -9,12 +9,20 @@ import {
   Cpu,
   UsersRound,
   RotateCcw,
+  ChevronDown,
+  Check,
 } from 'lucide-react'
 import { DateRange } from 'react-day-picker'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -37,6 +45,7 @@ export default function Dashboard() {
     from: subMonths(new Date(), 6),
     to: new Date(),
   })
+  const [activePreset, setActivePreset] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<FullDashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -68,6 +77,7 @@ export default function Dashboard() {
   }, [fetchMetrics])
 
   const handleApplyPreset = (preset: (typeof PERIOD_PRESETS)[number]) => {
+    setActivePreset(preset.label)
     if (preset.all) {
       setDate(undefined)
     } else if (preset.days) {
@@ -134,19 +144,32 @@ export default function Dashboard() {
 
           {/* Filtro ÚNICO de Período unificado no topo para todas as abas */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <div className="hidden xl:flex items-center gap-1">
-              {PERIOD_PRESETS.map((p, idx) => (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <Button
-                  key={idx}
-                  size="sm"
                   variant="outline"
-                  className="h-8 text-[11px] px-2.5 font-medium border-border"
-                  onClick={() => handleApplyPreset(p)}
+                  className="h-9 px-3 border-border text-foreground hover:bg-muted font-medium text-xs gap-1.5"
                 >
-                  {p.label}
+                  Período
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
-              ))}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {PERIOD_PRESETS.map((p, idx) => {
+                  const isSelected = activePreset === p.label || (!activePreset && !date && p.all)
+                  return (
+                    <DropdownMenuItem
+                      key={idx}
+                      onClick={() => handleApplyPreset(p)}
+                      className="flex items-center justify-between text-xs cursor-pointer"
+                    >
+                      <span>{p.label}</span>
+                      {isSelected && <Check className="h-3.5 w-3.5 text-primary ml-2" />}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Popover>
               <PopoverTrigger asChild>
@@ -176,7 +199,10 @@ export default function Dashboard() {
                     size="sm"
                     variant="ghost"
                     className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
-                    onClick={() => setDate(undefined)}
+                    onClick={() => {
+                      setDate(undefined)
+                      setActivePreset(null)
+                    }}
                   >
                     <RotateCcw className="h-3 w-3" />
                     Limpar Filtro
@@ -187,7 +213,10 @@ export default function Dashboard() {
                   mode="range"
                   defaultMonth={date?.from || new Date()}
                   selected={date}
-                  onSelect={setDate}
+                  onSelect={(val) => {
+                    setDate(val)
+                    setActivePreset(null)
+                  }}
                   numberOfMonths={2}
                   locale={ptBR}
                 />
