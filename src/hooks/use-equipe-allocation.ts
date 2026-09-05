@@ -9,6 +9,7 @@ export interface MembroEquipe {
   telefone?: string | null
   tipo: 'CLT' | 'PJ'
   areas_atuacao?: string[]
+  montador_id?: string | null
   alocacoes?: { card_id: string; produtos_servicos_projeto?: { cliente_id: string | null } }[]
 }
 
@@ -62,20 +63,8 @@ export function useEquipeAllocation(onUpdate: () => void) {
         return
       }
 
-      // Localiza montador correspondente se existir, para preencher montador_id se possível
-      let montadorId: string | null = null
-      try {
-        const { data: mont } = await supabase
-          .from('montadores')
-          .select('id')
-          .ilike('nome_completo', membro.nome.trim())
-          .limit(1)
-        if (mont && mont.length > 0) {
-          montadorId = mont[0].id
-        }
-      } catch {
-        // ignora
-      }
+      // Preencher montador_id se existir (vínculo por ID ou fallback)
+      const montadorId: string | null = membro.montador_id || null
 
       const { error } = await supabase.from('alocacao_montagem').insert({
         card_id: cardId,
@@ -116,19 +105,7 @@ export function useEquipeAllocation(onUpdate: () => void) {
             .in('card_id', pending.prevCards)
         }
 
-        let montadorId: string | null = null
-        try {
-          const { data: mont } = await supabase
-            .from('montadores')
-            .select('id')
-            .ilike('nome_completo', pending.membro.nome.trim())
-            .limit(1)
-          if (mont && mont.length > 0) {
-            montadorId = mont[0].id
-          }
-        } catch {
-          // ignora
-        }
+        const montadorId: string | null = pending.membro.montador_id || null
 
         const { error } = await supabase.from('alocacao_montagem').insert({
           card_id: cardId,

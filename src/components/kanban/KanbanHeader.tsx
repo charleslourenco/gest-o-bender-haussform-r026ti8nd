@@ -128,13 +128,7 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
                   value="relatorio"
                   className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
-                  Relatório de Alocação
-                </TabsTrigger>
-                <TabsTrigger
-                  value="indicadores"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Indicadores
+                  Relatórios
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -202,12 +196,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
                   className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
                 >
                   Lista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="indicadores"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
-                >
-                  Indicadores
                 </TabsTrigger>
               </TabsList>
             </Tabs>

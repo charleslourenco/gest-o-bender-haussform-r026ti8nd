@@ -5,6 +5,7 @@ export interface MembroEquipeFiltro {
   nome: string
   tipo: 'CLT' | 'PJ'
   areas_atuacao?: string[]
+  montador_id?: string | null
 }
 
 export interface AlocacaoPeriodoItem {
@@ -73,11 +74,11 @@ export async function fetchEquipeGestaoPessoas(
     const [cltRes, pjRes, montRes] = await Promise.all([
       supabase
         .from('equipe_clt')
-        .select('id, nome_completo, areas_atuacao')
+        .select('id, nome_completo, areas_atuacao, montador_id')
         .order('nome_completo', { ascending: true }),
       supabase
         .from('parceiros_pj')
-        .select('id, razao_social, socio_nome, areas_atuacao')
+        .select('id, razao_social, socio_nome, areas_atuacao, montador_id')
         .order('razao_social', { ascending: true }),
       supabase
         .from('montadores')
@@ -96,6 +97,7 @@ export async function fetchEquipeGestaoPessoas(
           nome: c.nome_completo,
           tipo: 'CLT',
           areas_atuacao: Array.isArray(c.areas_atuacao) ? c.areas_atuacao : [],
+          montador_id: (c as any).montador_id || null,
         }
         membros.push(item)
         nomesNormalizados.set(c.nome_completo.trim().toLowerCase(), item)
@@ -111,6 +113,7 @@ export async function fetchEquipeGestaoPessoas(
           nome,
           tipo: 'PJ',
           areas_atuacao: Array.isArray(p.areas_atuacao) ? p.areas_atuacao : [],
+          montador_id: (p as any).montador_id || null,
         }
         membros.push(item)
         nomesNormalizados.set(nome.trim().toLowerCase(), item)
@@ -128,6 +131,7 @@ export async function fetchEquipeGestaoPessoas(
             nome: m.nome_completo,
             tipo: 'PJ',
             areas_atuacao: ['montagem'],
+            montador_id: m.id,
           }
           membros.push(item)
           nomesNormalizados.set(norm, item)
@@ -167,7 +171,7 @@ export async function fetchRelatorioAlocacao(
     supabase.from('montadores').select('id, nome_completo'),
     supabase
       .from('alocacao_montagem')
-      .select('card_id, pessoa_id, montador_id, pessoa_nome, tipo_origem'),
+      .select('card_id, pessoa_id, montador_id, pessoa_nome, tipo_origem, criado_em'),
   ])
 
   // Mapas para resolução de pessoa
@@ -323,24 +327,37 @@ export async function fetchRelatorioAlocacao(
     let resolvedNome = item.pessoa_nome || ''
     let resolvedTipo: 'CLT' | 'PJ' = (item.tipo_origem as 'CLT' | 'PJ') || 'PJ'
 
-    if (item.montador_id && !resolvedNome) {
-      resolvedNome = montadoresMap.get(item.montador_id) || ''
-    }
+    // Casamento preferencial por montador_id ou pessoa_id fixo
+    const matchMembro = equipe.find((m) => {
+      if (item.montador_id && m.montador_id === item.montador_id) return true
+      if (item.pessoa_id && m.id === item.pessoa_id) return true
+      return false
+    })
 
-    if (resolvedNome) {
-      const match = equipe.find(
-        (e) => e.nome.trim().toLowerCase() === resolvedNome.trim().toLowerCase(),
-      )
-      if (match) {
-        resolvedId = match.id
-        resolvedNome = match.nome
-        resolvedTipo = match.tipo
+    if (matchMembro) {
+      resolvedId = matchMembro.id
+      resolvedNome = matchMembro.nome
+      resolvedTipo = matchMembro.tipo
+    } else {
+      if (item.montador_id && !resolvedNome) {
+        resolvedNome = montadoresMap.get(item.montador_id) || ''
       }
-    } else if (item.pessoa_id) {
-      const match = equipe.find((e) => e.id === item.pessoa_id)
-      if (match) {
-        resolvedNome = match.nome
-        resolvedTipo = match.tipo
+
+      if (resolvedNome) {
+        const match = equipe.find(
+          (e) => e.nome.trim().toLowerCase() === resolvedNome.trim().toLowerCase(),
+        )
+        if (match) {
+          resolvedId = match.id
+          resolvedNome = match.nome
+          resolvedTipo = match.tipo
+        }
+      } else if (item.pessoa_id) {
+        const match = equipe.find((e) => e.id === item.pessoa_id)
+        if (match) {
+          resolvedNome = match.nome
+          resolvedTipo = match.tipo
+        }
       }
     }
 
@@ -471,7 +488,7 @@ export async function fetchRelatorioAlocacao(
         pessoaId: p.id,
         pessoaNome: p.nome,
         tipoOrigem: p.tipo,
-        inicio: new Date().toISOString(),
+        inicio: (a as any).criado_em || new Date().toISOString(),
         fim: null,
       })
     }
@@ -492,19 +509,40 @@ export async function fetchRelatorioAlocacao(
     maxDateMs = new Date(`${filtros.dataAte}T23:59:59.999`).getTime()
   }
 
+  const producaoStatuses = new Set([
+    'aguardando_plano_corte',
+    'router',
+    'coladeira',
+    'bancada',
+    'embalagem',
+    'aguardando_agenda',
+  ])
+
+  const montagemStatuses = new Set([
+    'aguardando_agenda',
+    'montagem',
+    'item_terceirizado',
+    'pendencia',
+    'concluido',
+  ])
+
   for (const s of sessions) {
     const cardInfo = cardsMap.get(s.cardId)
-    // Se o card não existe mais ou foi excluído, podemos omitir ou exibir
-    const cardNome = cardInfo?.nome_produto || 'Card do Projeto'
-    const clienteNome = cardInfo?.cliente_nome || 'Cliente não informado'
+    if (!cardInfo) continue
 
     // Filtragem por módulo de kanban:
-    // Se o usuário está em /producao ou /montagem, o relatório herda o módulo
     if (modulo === 'producao') {
-      // Se estiver arquivado em producao podemos ainda exibir no histórico,
-      // mas se status_analise pertence aos kanbans de montagem exclusivamente podemos manter flexível
-      // O usuário solicitou: "nova aba 'Relatório de Alocação' no topo do kanban de /producao e do /montagem, mesmo componente nos dois, alimentado pelo histórico existente"
+      if (!producaoStatuses.has(cardInfo.status_analise) || cardInfo.arquivado_producao) {
+        continue
+      }
+    } else if (modulo === 'montagem') {
+      if (!montagemStatuses.has(cardInfo.status_analise) || cardInfo.arquivado_montagem) {
+        continue
+      }
     }
+
+    const cardNome = cardInfo.nome_produto || 'Card do Projeto'
+    const clienteNome = cardInfo.cliente_nome || 'Cliente não informado'
 
     // Filtragem por pessoa:
     if (selectedPessoaId) {

@@ -25,7 +25,7 @@ const COLUMNS = [
 const TABS: { id: ViewMode; label: string }[] = [
   { id: 'kanban', label: 'Kanban' },
   { id: 'lista', label: 'Lista' },
-  { id: 'relatorio', label: 'Relatório de Alocação' },
+  { id: 'relatorio', label: 'Relatórios' },
   { id: 'montadores', label: 'Gestão de Montadores' },
   { id: 'arquivados', label: 'Arquivados' },
   { id: 'historico', label: 'Histórico' },

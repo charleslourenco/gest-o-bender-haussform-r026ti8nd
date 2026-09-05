@@ -199,9 +199,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedAnalyst, setSelectedAnalyst] = useState('all')
   const [selectedConsultant, setSelectedConsultant] = useState('all')
-  const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'indicadores' | 'montadores'>(
-    'kanban',
-  )
+  const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'montadores'>('kanban')
 
   const [validatingCardId, setValidatingCardId] = useState<string | null>(null)
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
@@ -697,7 +695,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             {colItems.map((item) => {
               const isSubcard = !!item?.card_pai_id
               const parentCard = isSubcard
-                ? items.find((p) => p.id === item.card_pai_id) || item.card_pai
+                ? items.find((p) => p && p.id === item.card_pai_id) || item.card_pai
                 : null
 
               // Proteção Item 2: O card pai só deve desenhar a borda lateral colorida
@@ -1194,17 +1192,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               >
                 Lista
               </button>
-              <button
-                onClick={() => setActiveView('indicadores')}
-                className={cn(
-                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                  activeView === 'indicadores'
-                    ? 'bg-card text-foreground shadow'
-                    : 'text-muted-foreground hover:bg-muted',
-                )}
-              >
-                Indicadores
-              </button>
             </div>
           </div>
           <div className="flex flex-row flex-nowrap items-center gap-2 justify-end min-w-0">
@@ -1446,20 +1433,6 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 </Button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {activeView === 'indicadores' && !isMontagemRoute && (
-        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-background animate-in fade-in duration-300">
-          <div className="bg-card p-8 rounded-xl border border-border shadow-sm max-w-md text-center">
-            <h3 className="text-xl font-bold text-foreground mb-2">
-              Indicadores em desenvolvimento
-            </h3>
-            <p className="text-muted-foreground">
-              Acompanhe métricas, gargalos e a performance da equipe de análise técnica em tempo
-              real. Em breve.
-            </p>
           </div>
         </div>
       )}

@@ -199,10 +199,12 @@ export function useKanbanData(
         if (fetchMontadores && !isLoadMore) {
           const [montRes, cltRes, pjRes, alocRes] = await Promise.all([
             supabase.from('montadores').select('*, alocacao_montagem(card_id)'),
-            supabase.from('equipe_clt').select('id, nome_completo, telefone, areas_atuacao'),
+            supabase
+              .from('equipe_clt')
+              .select('id, nome_completo, telefone, areas_atuacao, montador_id'),
             supabase
               .from('parceiros_pj')
-              .select('id, razao_social, socio_nome, telefone, areas_atuacao'),
+              .select('id, razao_social, socio_nome, telefone, areas_atuacao, montador_id'),
             supabase
               .from('alocacao_montagem')
               .select(
@@ -241,6 +243,7 @@ export function useKanbanData(
                   telefone: c.telefone,
                   tipo: 'CLT',
                   areas_atuacao: Array.isArray(c.areas_atuacao) ? c.areas_atuacao : [],
+                  montador_id: (c as any).montador_id || null,
                   alocacoes: cAlocs,
                 })
               }
@@ -262,6 +265,7 @@ export function useKanbanData(
                   telefone: p.telefone,
                   tipo: 'PJ',
                   areas_atuacao: Array.isArray(p.areas_atuacao) ? p.areas_atuacao : [],
+                  montador_id: (p as any).montador_id || null,
                   alocacoes: pAlocs,
                 })
               }
@@ -284,6 +288,7 @@ export function useKanbanData(
                   telefone: m.telefone,
                   tipo: 'PJ',
                   areas_atuacao: ['montagem'],
+                  montador_id: m.id,
                   alocacoes: mAlocs,
                 })
               }

@@ -15,7 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { LayoutTemplate, ScissorsLineDashed, Disc, Ruler, Clock } from 'lucide-react'
+import { LayoutTemplate, Scissors, Disc, Ruler, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const COLUMNS = [
@@ -85,7 +85,7 @@ export default function Producao() {
           )}
         >
           <Clock className="w-3.5 h-3.5" />
-          Relatório de Alocação
+          Relatórios
         </Button>
         <Button
           variant={showArquivados ? 'default' : 'outline'}
@@ -130,7 +130,7 @@ export default function Producao() {
                 onClick={() => setIsTypeSelectionOpen(true)}
                 className="rounded-full shadow-lg h-14 px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                <ScissorsLineDashed className="w-5 h-5 mr-2" />
+                <Scissors className="w-5 h-5 mr-2" />
                 Registrar Sobra
               </Button>
             </div>
@@ -155,7 +155,7 @@ export default function Producao() {
                 setIsRetalhoModalOpen(true)
               }}
             >
-              <ScissorsLineDashed className="w-8 h-8" />
+              <Scissors className="w-8 h-8" />
               <div className="text-center font-semibold">Retalho MDF</div>
             </Button>
             <Button

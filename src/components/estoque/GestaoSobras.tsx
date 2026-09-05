@@ -10,7 +10,6 @@ import {
   Printer,
   Edit,
   LayoutTemplate,
-  ScissorsLineDashed,
   Disc,
   Ruler,
 } from 'lucide-react'
@@ -619,7 +618,7 @@ export function GestaoSobras() {
                 setIsRetalhoModalOpen(true)
               }}
             >
-              <ScissorsLineDashed className="w-8 h-8" />
+              <Scissors className="w-8 h-8" />
               <div className="text-center font-semibold">Retalho MDF</div>
             </Button>
             <Button
