@@ -267,7 +267,7 @@ export function ClientesList({ onSelect }: ClientesListProps) {
           return true
         })
 
-        // Sem filtro de período: tabela mostra todos os clientes (comportamento atual).
+        // Sem filtro de período: tabela mostra todos os clientes (comportamento padrão).
         // Com filtro de período: tabela mostra apenas clientes com vendas no período.
         setClientesData(hasPeriodFilter ? formInPeriod : normalized)
 
