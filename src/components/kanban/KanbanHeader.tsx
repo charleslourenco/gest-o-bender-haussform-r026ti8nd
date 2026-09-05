@@ -1,11 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Search, FileSearch, Filter, Hammer, Scissors, AlertTriangle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { supabase } from '@/lib/supabase/client'
-import { useEffect } from 'react'
 
 export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
   const [activeTab, setActiveTab] = useState('kanban')

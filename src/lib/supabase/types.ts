@@ -2645,8 +2645,10 @@ export type Database = {
           arquivado_montagem: boolean
           arquivado_producao: boolean
           atualizado_em: string
+          card_pai_id: string | null
           cliente_id: string | null
           codigo_rastreio: string | null
+          cor_vinculo: string | null
           criado_em: string
           data_manual: string | null
           descricao: string | null
@@ -2671,8 +2673,10 @@ export type Database = {
           arquivado_montagem?: boolean
           arquivado_producao?: boolean
           atualizado_em?: string
+          card_pai_id?: string | null
           cliente_id?: string | null
           codigo_rastreio?: string | null
+          cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
           descricao?: string | null
@@ -2697,8 +2701,10 @@ export type Database = {
           arquivado_montagem?: boolean
           arquivado_producao?: boolean
           atualizado_em?: string
+          card_pai_id?: string | null
           cliente_id?: string | null
           codigo_rastreio?: string | null
+          cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
           descricao?: string | null
@@ -2723,6 +2729,13 @@ export type Database = {
             columns: ['analista_id']
             isOneToOne: false
             referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'produtos_servicos_projeto_card_pai_id_fkey'
+            columns: ['card_pai_id']
+            isOneToOne: false
+            referencedRelation: 'produtos_servicos_projeto'
             referencedColumns: ['id']
           },
           {
