@@ -5,11 +5,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ArrowLeft, Save, Briefcase, FileText, CheckSquare } from 'lucide-react'
+import { ArrowLeft, Save, Briefcase, FileText, CheckSquare, UserX, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentosAba } from './DocumentosAba'
 import { Textarea } from '@/components/ui/textarea'
+import { PessoaDeleteDialog } from './PessoaDeleteDialog'
+import { inativarPessoa } from '@/services/pessoa-actions'
 
 const AREAS_DISPONIVEIS = [
   { id: 'producao', label: 'Produção' },
@@ -21,6 +23,7 @@ export function PastaPJ({ id }: { id: string | null }) {
   const [f, setF] = useState<any>({
     areas_atuacao: ['producao', 'montagem', 'analise_tecnica'],
   })
+  const [inativando, setInativando] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -91,6 +94,29 @@ export function PastaPJ({ id }: { id: string | null }) {
     toast({ title: 'Parceiro salvo com sucesso!' })
   }
 
+  const handleInativar = async () => {
+    if (!id) return
+    setInativando(true)
+    const res = await inativarPessoa('pj', id)
+    setInativando(false)
+
+    if (!res.success) {
+      toast({
+        title: 'Erro ao inativar parceiro PJ',
+        description: res.error || 'Não foi possível atualizar o parceiro.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setF((prev: any) => ({ ...prev, areas_atuacao: [] }))
+    toast({
+      title: 'Parceiro PJ inativado com sucesso!',
+      description:
+        'Todas as áreas de atuação foram desmarcadas. Ele não aparecerá mais nos selects dos kanbans, mas o cadastro foi preservado.',
+    })
+  }
+
   return (
     <div className="flex flex-col h-full bg-off-white min-h-screen">
       <div className="bg-midnight-navy px-6 py-8 text-white flex flex-col gap-4 shadow-md">
@@ -112,9 +138,36 @@ export function PastaPJ({ id }: { id: string | null }) {
                 : 'Preencha os dados iniciais do parceiro'}
             </p>
           </div>
-          <Button onClick={handleSave} className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            <Save className="w-4 h-4 mr-2" /> Salvar Alterações
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {id && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleInativar}
+                  disabled={inativando}
+                  className="bg-white/10 hover:bg-white/20 text-white border-white/20 gap-2"
+                  title="Desmarca todas as áreas de atuação para que a pessoa suma dos selects mantendo o histórico"
+                >
+                  {inativando ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserX className="w-4 h-4" />
+                  )}
+                  Inativar
+                </Button>
+                <PessoaDeleteDialog
+                  tipo="pj"
+                  id={id}
+                  nome={f.razao_social || f.socio_nome || 'Parceiro PJ'}
+                  onDeleted={() => navigate('/gestao-pessoas', { replace: true })}
+                />
+              </>
+            )}
+            <Button onClick={handleSave} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+              <Save className="w-4 h-4 mr-2" /> Salvar Alterações
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -225,13 +278,45 @@ export function PastaPJ({ id }: { id: string | null }) {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-primary" />
-                Áreas de Atuação *
-              </h3>
+              <div className="border-b pb-2 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Áreas de Atuação</h3>
+                  {Array.isArray(f.areas_atuacao) && f.areas_atuacao.length === 0 && (
+                    <span className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium">
+                      Inativo nos kanbans
+                    </span>
+                  )}
+                </div>
+                {id && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleInativar}
+                      disabled={inativando}
+                      className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                      {inativando ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <UserX className="w-3.5 h-3.5 text-amber-600" />
+                      )}
+                      Inativar (desmarcar todas)
+                    </Button>
+                    <PessoaDeleteDialog
+                      tipo="pj"
+                      id={id}
+                      nome={f.razao_social || f.socio_nome || 'Parceiro PJ'}
+                      onDeleted={() => navigate('/gestao-pessoas', { replace: true })}
+                    />
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mb-4">
-                Marque onde este parceiro PJ pode ser alocado nos fluxos de trabalho (mínimo 1
-                área).
+                Marque onde este parceiro PJ pode ser alocado nos fluxos de trabalho (mínimo 1 área
+                para salvar como ativo). Ao inativar, todas as opções são desmarcadas.
               </p>
               <div className="flex flex-wrap items-center gap-6 p-4 rounded-lg bg-muted/40 border border-border">
                 {AREAS_DISPONIVEIS.map((area) => {
