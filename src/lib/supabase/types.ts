@@ -144,19 +144,28 @@ export type Database = {
           card_id: string
           criado_em: string
           id: string
-          montador_id: string
+          montador_id: string | null
+          pessoa_id: string | null
+          pessoa_nome: string | null
+          tipo_origem: string | null
         }
         Insert: {
           card_id: string
           criado_em?: string
           id?: string
-          montador_id: string
+          montador_id?: string | null
+          pessoa_id?: string | null
+          pessoa_nome?: string | null
+          tipo_origem?: string | null
         }
         Update: {
           card_id?: string
           criado_em?: string
           id?: string
-          montador_id?: string
+          montador_id?: string | null
+          pessoa_id?: string | null
+          pessoa_nome?: string | null
+          tipo_origem?: string | null
         }
         Relationships: [
           {
@@ -1873,21 +1882,30 @@ export type Database = {
           card_id: string
           criado_em: string
           id: string
-          montador_id: string
+          montador_id: string | null
+          pessoa_id: string | null
+          pessoa_nome: string | null
+          tipo_origem: string | null
         }
         Insert: {
           acao: string
           card_id: string
           criado_em?: string
           id?: string
-          montador_id: string
+          montador_id?: string | null
+          pessoa_id?: string | null
+          pessoa_nome?: string | null
+          tipo_origem?: string | null
         }
         Update: {
           acao?: string
           card_id?: string
           criado_em?: string
           id?: string
-          montador_id?: string
+          montador_id?: string | null
+          pessoa_id?: string | null
+          pessoa_nome?: string | null
+          tipo_origem?: string | null
         }
         Relationships: [
           {

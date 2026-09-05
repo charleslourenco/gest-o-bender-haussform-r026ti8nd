@@ -20,6 +20,8 @@ export function CreateCardDialog({
   onCreated,
   initialIsOutsourced = false,
   parentCardId = null,
+  initialCorVinculo = null,
+  initialClienteNome = null,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -41,9 +43,13 @@ export function CreateCardDialog({
 
   useEffect(() => {
     if (open) {
-      if (parentCardId) setSelectedParentId(parentCardId)
-      if (initialCorVinculo) setCorVinculoInput(initialCorVinculo)
-      if (initialClienteNome) setClienteNome(initialClienteNome)
+      setSelectedParentId(parentCardId || '')
+      setCorVinculoInput(initialCorVinculo || '')
+      setClienteNome(initialClienteNome || '')
+      setProdutoNome('')
+      setQtd(1)
+      setDescricao('')
+
       supabase
         .from('produtos_servicos_projeto')
         .select('id, nome_produto, status_analise, cor_vinculo, cliente_id, clientes(nome)')
@@ -56,15 +62,18 @@ export function CreateCardDialog({
             if (parentCardId) {
               const matched = data.find((p) => p.id === parentCardId)
               if (matched) {
-                if (matched.clientes?.nome) setClienteNome(matched.clientes.nome)
-                if (matched.cor_vinculo && !initialCorVinculo)
+                if (matched.clientes?.nome && !initialClienteNome) {
+                  setClienteNome(matched.clientes.nome)
+                }
+                if (matched.cor_vinculo && !initialCorVinculo) {
                   setCorVinculoInput(matched.cor_vinculo)
+                }
               }
             }
           }
         })
     }
-  }, [open, parentCardId])
+  }, [open, parentCardId, initialCorVinculo, initialClienteNome])
   const getInitials = (name: string) => {
     if (!name) return 'CLI'
     const skip = ['de', 'da', 'do', 'das', 'dos']
