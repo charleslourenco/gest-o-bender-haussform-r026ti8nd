@@ -160,18 +160,41 @@ export function CreateCardDialog({
       if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
       else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
 
-      const chosenParent = parentCards.find((p) => p.id === selectedParentId)
+      // Se parentCardId veio por prop ou o usuário selecionou no dropdown
+      const effectiveParentId = (selectedParentId || parentCardId || '').trim() || null
+      let chosenParent = effectiveParentId
+        ? parentCards.find((p) => p.id === effectiveParentId)
+        : null
+
+      // Se não encontrou no estado de parentCards (ex: paginado/não listado), busca diretamente no Supabase
+      if (effectiveParentId && !chosenParent) {
+        const { data: directParent } = await supabase
+          .from('produtos_servicos_projeto')
+          .select('id, nome_produto, status_analise, cor_vinculo, cliente_id, clientes(nome)')
+          .eq('id', effectiveParentId)
+          .maybeSingle()
+        if (directParent) {
+          chosenParent = directParent
+        }
+      }
+
       let corVinculo: string | null = null
 
-      if (chosenParent || selectedParentId) {
+      if (effectiveParentId) {
         corVinculo = corVinculoInput || chosenParent?.cor_vinculo || '#3b82f6'
 
-        const parentIdToUpdate = chosenParent?.id || selectedParentId
         if (chosenParent && !chosenParent.cor_vinculo) {
           await supabase
             .from('produtos_servicos_projeto')
             .update({ cor_vinculo: corVinculo })
-            .eq('id', parentIdToUpdate)
+            .eq('id', effectiveParentId)
+        } else if (!chosenParent) {
+          // Atualiza diretamente no banco se o pai ainda não tem cor
+          await supabase
+            .from('produtos_servicos_projeto')
+            .update({ cor_vinculo: corVinculo })
+            .eq('id', effectiveParentId)
+            .is('cor_vinculo', null)
         }
       }
 
@@ -186,7 +209,7 @@ export function CreateCardDialog({
         valor_total: 0,
         status_analise: defaultStatus,
         codigo_rastreio: codigoRastreio,
-        card_pai_id: chosenParent ? chosenParent.id : null,
+        card_pai_id: effectiveParentId,
         cor_vinculo: corVinculo,
         // @ts-expect-error
         is_outsourced: initialIsOutsourced,

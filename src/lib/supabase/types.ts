@@ -1163,6 +1163,7 @@ export type Database = {
       }
       equipe_clt: {
         Row: {
+          areas_atuacao: string[] | null
           atualizado_em: string | null
           bairro: string | null
           cep: string | null
@@ -1189,6 +1190,7 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
+          areas_atuacao?: string[] | null
           atualizado_em?: string | null
           bairro?: string | null
           cep?: string | null
@@ -1215,6 +1217,7 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
+          areas_atuacao?: string[] | null
           atualizado_em?: string | null
           bairro?: string | null
           cep?: string | null
@@ -2331,6 +2334,7 @@ export type Database = {
       parceiros_pj: {
         Row: {
           ajuda_custo: number | null
+          areas_atuacao: string[] | null
           atualizado_em: string | null
           bairro: string | null
           cep: string | null
@@ -2354,6 +2358,7 @@ export type Database = {
         }
         Insert: {
           ajuda_custo?: number | null
+          areas_atuacao?: string[] | null
           atualizado_em?: string | null
           bairro?: string | null
           cep?: string | null
@@ -2377,6 +2382,7 @@ export type Database = {
         }
         Update: {
           ajuda_custo?: number | null
+          areas_atuacao?: string[] | null
           atualizado_em?: string | null
           bairro?: string | null
           cep?: string | null
