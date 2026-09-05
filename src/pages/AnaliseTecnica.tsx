@@ -15,10 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { Search, ClipboardList, Filter } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const PROJECT_COLUMNS = [
   { id: 'iniciar', title: 'INICIAR' },
@@ -101,28 +100,41 @@ export default function AnaliseTecnica() {
               <h1 className="text-xl font-semibold text-foreground">Análise Técnica</h1>
             </div>
 
-            <Tabs value={view} onValueChange={setView} className="hidden sm:block">
-              <TabsList className="bg-muted border border-border">
-                <TabsTrigger
-                  value="kanban"
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Kanban
-                </TabsTrigger>
-                <TabsTrigger
-                  value="list"
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="arquivados"
-                  className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Arquivados
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={view === 'kanban' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setView('kanban')}
+                className={cn(
+                  'h-8 text-xs font-medium',
+                  view === 'kanban' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+                )}
+              >
+                Kanban
+              </Button>
+              <Button
+                variant={view === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setView('list')}
+                className={cn(
+                  'h-8 text-xs font-medium',
+                  view === 'list' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+                )}
+              >
+                Lista
+              </Button>
+              <Button
+                variant={view === 'arquivados' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setView('arquivados')}
+                className={cn(
+                  'h-8 text-xs font-medium',
+                  view === 'arquivados' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+                )}
+              >
+                Arquivados
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 w-full lg:w-auto">

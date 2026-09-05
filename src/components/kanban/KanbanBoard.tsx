@@ -228,11 +228,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   })
 
   useEffect(() => {
-    if (isMontagemRoute) return
+    // Para rotas que gerenciam sua própria navegação superior (Produção, Montagem, Análise Técnica),
+    // o KanbanBoard permanece sempre no modo kanban e não escuta eventos concorrentes de alternância de aba.
+    if (isMontagemRoute || isProducao || isAnaliseTecnica) {
+      setActiveView('kanban')
+      return
+    }
     const handleTabChange = (e: any) => setActiveView(e.detail)
     window.addEventListener('kanban_tab_change', handleTabChange)
     return () => window.removeEventListener('kanban_tab_change', handleTabChange)
-  }, [isMontagemRoute])
+  }, [isMontagemRoute, isProducao, isAnaliseTecnica])
 
   const handleOpenValidation = (id: string) => {
     setValidatingCardId(id)
@@ -602,10 +607,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     )
   }
 
-  // Mapa de contadores de subcards por pai e mapa de nome do pai
+  // Mapa de contadores de subcards por pai e mapa de nome do pai (com proteção defensiva)
   const subcardsByParent = new Map<string, KanbanItem[]>()
-  items.forEach((it) => {
-    if (it?.card_pai_id) {
+  ;(items || []).forEach((it) => {
+    if (it && it.id && it.card_pai_id) {
       const list = subcardsByParent.get(it.card_pai_id) || []
       list.push(it)
       subcardsByParent.set(it.card_pai_id, list)
@@ -614,23 +619,28 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
   // Helper para formatar o resumo dos subcards no pai:
   // "↳ 3 subcards · 1 em produção · 2 em aguardando agenda"
-  const getSubcardsSummary = (parentId: string) => {
+  const getSubcardsSummary = (parentId: string | null | undefined) => {
+    if (!parentId) return null
     const subs = subcardsByParent.get(parentId)
-    if (!subs || subs.length === 0) return null
+    if (!subs || !Array.isArray(subs) || subs.length === 0) return null
 
-    const total = subs.length
+    const validSubs = subs.filter((s) => s && typeof s === 'object')
+    const total = validSubs.length
+    if (total === 0) return null
+
     // Agrupar por título da coluna / status
     const statusCountMap: Record<string, number> = {}
-    subs.forEach((s) => {
-      const colDef = columns.find((c) => c.id === s.status_analise)
-      const label = colDef?.title || s.status_analise || 'Sem status'
+    validSubs.forEach((s) => {
+      const statusKey = s.status_analise || 'sem_status'
+      const colDef = Array.isArray(columns) ? columns.find((c) => c && c.id === statusKey) : null
+      const label = colDef?.title || statusKey || 'Sem status'
       statusCountMap[label] = (statusCountMap[label] || 0) + 1
     })
 
     const parts = Object.entries(statusCountMap).map(
       ([st, count]) => `${count} em ${st.toLowerCase()}`,
     )
-    return `↳ ${total} subcard${total > 1 ? 's' : ''} · ${parts.join(' · ')}`
+    return `↳ ${total} subcard${total > 1 ? 's' : ''}${parts.length > 0 ? ` · ${parts.join(' · ')}` : ''}`
   }
 
   const renderColumns = () =>
@@ -693,9 +703,10 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
             )}
           >
             {colItems.map((item) => {
-              const isSubcard = !!item?.card_pai_id
+              if (!item || !item.id) return null
+              const isSubcard = Boolean(item.card_pai_id)
               const parentCard = isSubcard
-                ? items.find((p) => p && p.id === item.card_pai_id) || item.card_pai
+                ? (items || []).find((p) => p && p.id === item.card_pai_id) || item.card_pai || null
                 : null
 
               // Proteção Item 2: O card pai só deve desenhar a borda lateral colorida
@@ -715,7 +726,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               // Hover mútuo: se o mouse estiver no pai, realça todos os subcards. Se estiver no subcard, realça o pai e irmãos da mesma família
               const itemFamilyId = isSubcard ? item.card_pai_id : item.id
               const isFamilyHighlighted =
-                hoveredFamilyCardId !== null && hoveredFamilyCardId === itemFamilyId
+                Boolean(itemFamilyId) &&
+                hoveredFamilyCardId !== null &&
+                hoveredFamilyCardId === itemFamilyId
 
               const subcardsSummary = !isSubcard ? getSubcardsSummary(item.id) : null
 
@@ -724,7 +737,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   key={item.id}
                   draggable
                   onDragStart={(e) => {
-                    if (item) handleDragStart(e, item)
+                    handleDragStart(e, item)
                   }}
                   onDragEnd={handleDragEnd}
                   onMouseEnter={() => {

@@ -3,11 +3,9 @@ import { Plus, Search, FileSearch, Filter, Hammer, Scissors, AlertTriangle } fro
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { supabase } from '@/lib/supabase/client'
 
 export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
-  const [activeTab, setActiveTab] = useState('kanban')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number | null>(null)
 
@@ -51,11 +49,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
       supabase.removeChannel(channel)
     }
   }, [title])
-
-  const handleTabChange = (val: string) => {
-    setActiveTab(val)
-    window.dispatchEvent(new CustomEvent('kanban_tab_change', { detail: val }))
-  }
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
@@ -109,29 +102,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <Hammer className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-bold text-foreground">Produção</h2>
             </div>
-
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-              <TabsList className="bg-muted border-none h-9">
-                <TabsTrigger
-                  value="kanban"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Kanban
-                </TabsTrigger>
-                <TabsTrigger
-                  value="lista"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Lista
-                </TabsTrigger>
-                <TabsTrigger
-                  value="relatorio"
-                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
-                >
-                  Relatórios
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
 
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap">
@@ -182,23 +152,6 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
               <FileSearch className="w-5 h-5 text-foreground" />
               <h2 className="text-lg font-bold text-foreground">Análise Técnica</h2>
             </div>
-
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-              <TabsList className="bg-muted border-none h-9">
-                <TabsTrigger
-                  value="kanban"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
-                >
-                  Kanban
-                </TabsTrigger>
-                <TabsTrigger
-                  value="lista"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground"
-                >
-                  Lista
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </div>
 
           <div className="flex flex-row items-center gap-4">

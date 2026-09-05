@@ -28,10 +28,8 @@ const COLUMNS = [
 ]
 
 export default function Producao() {
-  const [activeTab, setActiveTab] = useState('kanban')
+  const [view, setView] = useState<'kanban' | 'lista' | 'relatorio' | 'arquivados'>('kanban')
   const [search, setSearch] = useState('')
-  const [showArquivados, setShowArquivados] = useState(false)
-  const [showRelatorio, setShowRelatorio] = useState(false)
   const [isTypeSelectionOpen, setIsTypeSelectionOpen] = useState(false)
   const [isRetalhoModalOpen, setIsRetalhoModalOpen] = useState(false)
   const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
@@ -39,16 +37,13 @@ export default function Producao() {
   const [isFitaPedacoModalOpen, setIsFitaPedacoModalOpen] = useState(false)
 
   useEffect(() => {
-    const handleTab = (e: any) => setActiveTab(e?.detail || 'kanban')
     const handleSearch = (e: any) => setSearch(e?.detail || '')
     const handleOpen = () => setIsTypeSelectionOpen(true)
 
-    window.addEventListener('kanban_tab_change', handleTab)
     window.addEventListener('kanban_search_change', handleSearch)
     window.addEventListener('open_registrar_sobra', handleOpen)
 
     return () => {
-      window.removeEventListener('kanban_tab_change', handleTab)
       window.removeEventListener('kanban_search_change', handleSearch)
       window.removeEventListener('open_registrar_sobra', handleOpen)
     }
@@ -58,29 +53,31 @@ export default function Producao() {
     <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
       <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30">
         <Button
-          variant={!showArquivados && !showRelatorio ? 'default' : 'outline'}
+          variant={view === 'kanban' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => {
-            setShowArquivados(false)
-            setShowRelatorio(false)
-          }}
+          onClick={() => setView('kanban')}
           className={cn(
-            !showArquivados &&
-              !showRelatorio &&
-              'bg-primary hover:bg-primary/90 text-primary-foreground',
+            view === 'kanban' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
           )}
         >
           Kanban
         </Button>
         <Button
-          variant={showRelatorio ? 'default' : 'outline'}
+          variant={view === 'lista' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => {
-            setShowRelatorio(true)
-            setShowArquivados(false)
-          }}
+          onClick={() => setView('lista')}
           className={cn(
-            showRelatorio && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+            view === 'lista' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+          )}
+        >
+          Lista
+        </Button>
+        <Button
+          variant={view === 'relatorio' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setView('relatorio')}
+          className={cn(
+            view === 'relatorio' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
             'flex items-center gap-1.5',
           )}
         >
@@ -88,54 +85,43 @@ export default function Producao() {
           Relatórios
         </Button>
         <Button
-          variant={showArquivados ? 'default' : 'outline'}
+          variant={view === 'arquivados' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => {
-            setShowArquivados(true)
-            setShowRelatorio(false)
-          }}
-          className={cn(showArquivados && 'bg-primary hover:bg-primary/90 text-primary-foreground')}
+          onClick={() => setView('arquivados')}
+          className={cn(
+            view === 'arquivados' && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+          )}
         >
           Arquivados
         </Button>
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
-        {showRelatorio ? (
+        {view === 'relatorio' ? (
           <RelatorioAlocacao modulo="producao" />
-        ) : showArquivados ? (
+        ) : view === 'arquivados' ? (
           <KanbanArquivados archiveFlag="arquivado_producao" />
+        ) : view === 'lista' ? (
+          <div className="flex-1 overflow-auto bg-background animate-in fade-in duration-200">
+            <KanbanListView
+              searchQuery={search}
+              columns={COLUMNS}
+              archiveFlag="arquivado_producao"
+            />
+          </div>
         ) : (
-          <>
-            <KanbanBoard title="Produção" columns={COLUMNS} />
-
-            {activeTab === 'lista' && (
-              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200">
-                <KanbanListView
-                  searchQuery={search}
-                  columns={COLUMNS}
-                  archiveFlag="arquivado_producao"
-                />
-              </div>
-            )}
-
-            {activeTab === 'relatorio' && (
-              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200 flex flex-col">
-                <RelatorioAlocacao modulo="producao" />
-              </div>
-            )}
-
-            <div className="absolute bottom-6 right-6 z-20">
-              <Button
-                onClick={() => setIsTypeSelectionOpen(true)}
-                className="rounded-full shadow-lg h-14 px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Scissors className="w-5 h-5 mr-2" />
-                Registrar Sobra
-              </Button>
-            </div>
-          </>
+          <KanbanBoard title="Produção" columns={COLUMNS} />
         )}
+
+        <div className="absolute bottom-6 right-6 z-20">
+          <Button
+            onClick={() => setIsTypeSelectionOpen(true)}
+            className="rounded-full shadow-lg h-14 px-6 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Scissors className="w-5 h-5 mr-2" />
+            Registrar Sobra
+          </Button>
+        </div>
       </div>
 
       <Dialog open={isTypeSelectionOpen} onOpenChange={setIsTypeSelectionOpen}>

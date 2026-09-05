@@ -1179,6 +1179,7 @@ export type Database = {
           estado: string | null
           ferias_adiantadas_dias: number | null
           id: string
+          montador_id: string | null
           municipio: string | null
           nome_completo: string
           numero: string | null
@@ -1206,6 +1207,7 @@ export type Database = {
           estado?: string | null
           ferias_adiantadas_dias?: number | null
           id?: string
+          montador_id?: string | null
           municipio?: string | null
           nome_completo: string
           numero?: string | null
@@ -1233,6 +1235,7 @@ export type Database = {
           estado?: string | null
           ferias_adiantadas_dias?: number | null
           id?: string
+          montador_id?: string | null
           municipio?: string | null
           nome_completo?: string
           numero?: string | null
@@ -1243,7 +1246,15 @@ export type Database = {
           salario_base?: number | null
           telefone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'equipe_clt_montador_id_fkey'
+            columns: ['montador_id']
+            isOneToOne: false
+            referencedRelation: 'montadores'
+            referencedColumns: ['id']
+          },
+        ]
       }
       estoque_alocacoes: {
         Row: {
@@ -2345,6 +2356,7 @@ export type Database = {
           email: string | null
           estado: string | null
           id: string
+          montador_id: string | null
           municipio: string | null
           numero: string | null
           observacoes: string | null
@@ -2369,6 +2381,7 @@ export type Database = {
           email?: string | null
           estado?: string | null
           id?: string
+          montador_id?: string | null
           municipio?: string | null
           numero?: string | null
           observacoes?: string | null
@@ -2393,6 +2406,7 @@ export type Database = {
           email?: string | null
           estado?: string | null
           id?: string
+          montador_id?: string | null
           municipio?: string | null
           numero?: string | null
           observacoes?: string | null
@@ -2404,7 +2418,15 @@ export type Database = {
           socio_rg?: string | null
           telefone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'parceiros_pj_montador_id_fkey'
+            columns: ['montador_id']
+            isOneToOne: false
+            referencedRelation: 'montadores'
+            referencedColumns: ['id']
+          },
+        ]
       }
       parcelas: {
         Row: {
