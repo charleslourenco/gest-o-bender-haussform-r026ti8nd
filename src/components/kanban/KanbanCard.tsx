@@ -63,11 +63,14 @@ export function KanbanCard({
       let isMounted = true
       supabase
         .from('alocacao_montagem')
-        .select('montadores(nome_completo)')
+        .select('pessoa_nome, montadores(nome_completo)')
         .eq('card_id', card.id)
         .then(({ data }) => {
           if (!isMounted || !data) return
-          setMontadores(data.map((d: any) => d?.montadores?.nome_completo).filter(Boolean))
+          const nomes = data
+            .map((d: any) => d?.pessoa_nome || d?.montadores?.nome_completo)
+            .filter(Boolean)
+          setMontadores(nomes)
         })
         .catch(() => {
           if (isMounted) setMontadores([])
@@ -128,10 +131,10 @@ export function KanbanCard({
           {montadores.length > 0 && (
             <div
               className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
-              title={`Montadores: ${montadores.join(', ')}`}
+              title={`Equipe alocada: ${montadores.join(', ')}`}
             >
               <Wrench className="w-2.5 h-2.5" />
-              <span className="truncate max-w-[80px]">{montadores.length} Alocado(s)</span>
+              <span className="truncate max-w-[80px]">{montadores.length} alocado(s)</span>
             </div>
           )}
         </div>

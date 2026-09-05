@@ -26,19 +26,24 @@ export function CreateCardDialog({
   onCreated?: () => void
   initialIsOutsourced?: boolean
   parentCardId?: string | null
+  initialCorVinculo?: string | null
+  initialClienteNome?: string | null
 }) {
   const location = useLocation()
   const [loading, setLoading] = useState(false)
-  const [clienteNome, setClienteNome] = useState('')
+  const [clienteNome, setClienteNome] = useState(initialClienteNome || '')
   const [produtoNome, setProdutoNome] = useState('')
   const [qtd, setQtd] = useState(1)
   const [descricao, setDescricao] = useState('')
   const [selectedParentId, setSelectedParentId] = useState(parentCardId || '')
+  const [corVinculoInput, setCorVinculoInput] = useState(initialCorVinculo || '')
   const [parentCards, setParentCards] = useState<any[]>([])
 
   useEffect(() => {
     if (open) {
       if (parentCardId) setSelectedParentId(parentCardId)
+      if (initialCorVinculo) setCorVinculoInput(initialCorVinculo)
+      if (initialClienteNome) setClienteNome(initialClienteNome)
       supabase
         .from('produtos_servicos_projeto')
         .select('id, nome_produto, status_analise, cor_vinculo, cliente_id, clientes(nome)')
@@ -46,7 +51,17 @@ export function CreateCardDialog({
         .order('criado_em', { ascending: false })
         .limit(100)
         .then(({ data }) => {
-          if (data) setParentCards(data)
+          if (data) {
+            setParentCards(data)
+            if (parentCardId) {
+              const matched = data.find((p) => p.id === parentCardId)
+              if (matched) {
+                if (matched.clientes?.nome) setClienteNome(matched.clientes.nome)
+                if (matched.cor_vinculo && !initialCorVinculo)
+                  setCorVinculoInput(matched.cor_vinculo)
+              }
+            }
+          }
         })
     }
   }, [open, parentCardId])
@@ -139,13 +154,15 @@ export function CreateCardDialog({
       const chosenParent = parentCards.find((p) => p.id === selectedParentId)
       let corVinculo: string | null = null
 
-      if (chosenParent) {
-        corVinculo = chosenParent.cor_vinculo || '#3b82f6'
-        if (!chosenParent.cor_vinculo) {
+      if (chosenParent || selectedParentId) {
+        corVinculo = corVinculoInput || chosenParent?.cor_vinculo || '#3b82f6'
+
+        const parentIdToUpdate = chosenParent?.id || selectedParentId
+        if (chosenParent && !chosenParent.cor_vinculo) {
           await supabase
             .from('produtos_servicos_projeto')
             .update({ cor_vinculo: corVinculo })
-            .eq('id', chosenParent.id)
+            .eq('id', parentIdToUpdate)
         }
       }
 

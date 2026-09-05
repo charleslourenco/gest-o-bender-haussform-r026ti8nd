@@ -402,6 +402,7 @@ export function KanbanListView({
                         {card?.alocacao_montagem && card.alocacao_montagem.length > 0
                           ? card.alocacao_montagem
                               .map((am: any) => {
+                                if (am?.pessoa_nome) return am.pessoa_nome
                                 const m = montadores.find((m) => m.id === am?.montador_id)
                                 return m?.nome_completo
                               })
@@ -433,6 +434,7 @@ export function KanbanListView({
                           {card?.alocacao_montagem && card.alocacao_montagem.length > 0
                             ? card.alocacao_montagem
                                 .map((am: any) => {
+                                  if (am?.pessoa_nome) return am.pessoa_nome
                                   const m = montadores.find((m) => m.id === am?.montador_id)
                                   return m?.nome_completo
                                 })

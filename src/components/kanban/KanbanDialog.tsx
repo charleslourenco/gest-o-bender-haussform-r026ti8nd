@@ -79,7 +79,9 @@ export function KanbanDialog({
 
     const { data: histData } = await (supabase as any)
       .from('historico_alocacao_montagem')
-      .select('id, acao, criado_em, montador_id, montador:montadores(nome_completo)')
+      .select(
+        'id, acao, criado_em, montador_id, pessoa_id, pessoa_nome, tipo_origem, montador:montadores(nome_completo)',
+      )
       .eq('card_id', selectedCard.id)
       .order('criado_em', { ascending: false })
     setHistorico(Array.isArray(histData) ? histData : [])
@@ -299,9 +301,12 @@ export function KanbanDialog({
                 ) : (
                   <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
                     {filteredHistorico.map((h: any) => {
-                      const montadorNome = Array.isArray(h?.montador)
-                        ? h.montador[0]?.nome_completo
-                        : h?.montador?.nome_completo
+                      const montadorNome =
+                        h?.pessoa_nome ||
+                        (Array.isArray(h?.montador)
+                          ? h.montador[0]?.nome_completo
+                          : h?.montador?.nome_completo) ||
+                        'Membro da equipe'
                       const isAlocado = h.acao === 'alocado'
                       return (
                         <div key={h.id} className="flex items-center gap-2 text-sm">

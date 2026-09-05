@@ -16,7 +16,13 @@ export interface KanbanItem {
     nome_cliente: string | null
     cliente: { nome: string } | null
   } | null
-  alocacao_montagem?: { montador_id: string }[]
+  alocacao_montagem?: {
+    montador_id?: string | null
+    pessoa_id?: string | null
+    pessoa_nome?: string | null
+    tipo_origem?: 'CLT' | 'PJ' | null
+    montadores?: { nome_completo: string } | null
+  }[]
   terceirizado_validado?: boolean
   outsourced_checked?: boolean
   is_outsourced?: boolean
@@ -44,7 +50,7 @@ const ITEM_SELECT = `
   card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, status_analise, cor_vinculo),
   cliente:clientes(nome),
   formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
-  alocacao_montagem(montador_id)
+  alocacao_montagem(montador_id, pessoa_id, pessoa_nome, tipo_origem, montadores(nome_completo))
 `
 
 export function getClienteNome(item: any): string | null {
@@ -141,6 +147,7 @@ export function useKanbanData(
   const [usersMap, setUsersMap] = useState<Record<string, any>>({})
   const [allUsers, setAllUsers] = useState<any[]>([])
   const [allMontadores, setAllMontadores] = useState<any[]>([])
+  const [allEquipe, setAllEquipe] = useState<any[]>([])
   const pageRef = useRef(0)
 
   useEffect(() => {
@@ -190,12 +197,22 @@ export function useKanbanData(
         }
 
         if (fetchMontadores && !isLoadMore) {
-          const { data: montData } = await supabase
-            .from('montadores')
-            .select('*, alocacao_montagem(card_id)')
-          if (Array.isArray(montData)) {
+          const [montRes, cltRes, pjRes, alocRes] = await Promise.all([
+            supabase.from('montadores').select('*, alocacao_montagem(card_id)'),
+            supabase.from('equipe_clt').select('id, nome_completo, telefone'),
+            supabase.from('parceiros_pj').select('id, razao_social, socio_nome, telefone'),
+            supabase
+              .from('alocacao_montagem')
+              .select(
+                'card_id, montador_id, pessoa_id, tipo_origem, produtos_servicos_projeto(cliente_id)',
+              ),
+          ])
+
+          const alocacoesList = Array.isArray(alocRes.data) ? alocRes.data : []
+
+          if (Array.isArray(montRes.data)) {
             setAllMontadores(
-              montData
+              montRes.data
                 .filter((m: any) => m && m.id)
                 .map((m: any) => ({
                   ...m,
@@ -203,6 +220,73 @@ export function useKanbanData(
                 })),
             )
           }
+
+          // Monta lista unificada de membros CLT + PJ
+          const membros: any[] = []
+          const vistos = new Set<string>()
+
+          if (Array.isArray(cltRes.data)) {
+            cltRes.data.forEach((c) => {
+              if (c?.id && c.nome_completo) {
+                const key = `CLT-${c.id}`
+                vistos.add(key)
+                const cAlocs = alocacoesList.filter(
+                  (a) => a.pessoa_id === c.id || a.montador_id === c.id,
+                )
+                membros.push({
+                  id: c.id,
+                  nome: c.nome_completo,
+                  telefone: c.telefone,
+                  tipo: 'CLT',
+                  alocacoes: cAlocs,
+                })
+              }
+            })
+          }
+
+          if (Array.isArray(pjRes.data)) {
+            pjRes.data.forEach((p) => {
+              const nome = p.socio_nome || p.razao_social
+              if (p?.id && nome) {
+                const key = `PJ-${p.id}`
+                vistos.add(key)
+                const pAlocs = alocacoesList.filter(
+                  (a) => a.pessoa_id === p.id || a.montador_id === p.id,
+                )
+                membros.push({
+                  id: p.id,
+                  nome,
+                  telefone: p.telefone,
+                  tipo: 'PJ',
+                  alocacoes: pAlocs,
+                })
+              }
+            })
+          }
+
+          // Preserva montadores legados que possam não ter registro correspondente ainda
+          if (Array.isArray(montRes.data)) {
+            montRes.data.forEach((m) => {
+              const jaExiste = membros.some(
+                (mb) => mb.nome.trim().toLowerCase() === m.nome_completo.trim().toLowerCase(),
+              )
+              if (!jaExiste && m?.id && m.nome_completo) {
+                const mAlocs = alocacoesList.filter(
+                  (a) => a.montador_id === m.id || a.pessoa_id === m.id,
+                )
+                membros.push({
+                  id: m.id,
+                  nome: m.nome_completo,
+                  telefone: m.telefone,
+                  tipo: 'PJ',
+                  alocacoes: mAlocs,
+                })
+              }
+            })
+          }
+
+          membros.sort((a, b) => a.nome.localeCompare(b.nome))
+          setAllEquipe(membros)
         }
 
         let query = supabase
@@ -294,6 +378,12 @@ export function useKanbanData(
       .on('postgres_changes', { event: '*', schema: 'public', table: 'montadores' }, () => {
         refreshItems().catch((e) => console.error('Realtime refresh error (montadores):', e))
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'equipe_clt' }, () => {
+        refreshItems().catch((e) => console.error('Realtime refresh error (equipe_clt):', e))
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parceiros_pj' }, () => {
+        refreshItems().catch((e) => console.error('Realtime refresh error (parceiros_pj):', e))
+      })
       .subscribe()
     const handleUpdate = () => refreshItems()
     window.addEventListener('kanban_updated', handleUpdate)
@@ -333,6 +423,8 @@ export function useKanbanData(
     usersMap,
     allUsers,
     allMontadores,
+    allEquipe,
+    setAllEquipe,
     fetchItems,
     refreshItems,
   }

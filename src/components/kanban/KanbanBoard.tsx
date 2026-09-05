@@ -28,7 +28,9 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { KanbanHeader } from './KanbanHeader'
+import { AlocacaoEquipeSelect } from './AlocacaoEquipeSelect'
 import { MontadorSelect } from './MontadorSelect'
+import { getCorVinculoForCard } from '@/lib/subcards-utils'
 import { CreateCardDialog } from './CreateCardDialog'
 import { MontadoresTab } from '@/pages/MontadoresTab'
 import { arquivarProducao, arquivarMontagem, arquivarAnalise } from '@/services/arquivamento'
@@ -182,6 +184,8 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     usersMap = {},
     allUsers = [],
     allMontadores = [],
+    allEquipe = [],
+    setAllEquipe,
     fetchItems,
     refreshItems,
   } = useKanbanData(columns, {
@@ -209,6 +213,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     activeSubcards: KanbanItem[]
     targetStatus?: string
   } | null>(null)
+
+  const [createSubcardState, setCreateSubcardState] = useState<{
+    open: boolean
+    parentCardId: string | null
+    parentCardNome: string | null
+    corVinculo: string | null
+    clienteNome: string | null
+  }>({
+    open: false,
+    parentCardId: null,
+    parentCardNome: null,
+    corVinculo: null,
+    clienteNome: null,
+  })
 
   useEffect(() => {
     if (isMontagemRoute) return
@@ -885,6 +903,31 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                             {subcardsSummary}
                           </div>
                         )}
+
+                        {/* Botão + Subcard nos cards pais em Produção e Montagem */}
+                        {!isSubcard && (isProducao || isMontagemRoute) && (
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const autoCor = item.cor_vinculo || getCorVinculoForCard(item.id)
+                                setCreateSubcardState({
+                                  open: true,
+                                  parentCardId: item.id,
+                                  parentCardNome: item.nome_produto,
+                                  corVinculo: autoCor,
+                                  clienteNome: getClienteNome(item) || '',
+                                })
+                              }}
+                              className="w-full flex items-center justify-center gap-1 text-[10px] font-medium py-0.5 px-1.5 rounded border border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-colors"
+                              title="Adicionar subcard a este card"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Subcard</span>
+                            </button>
+                          </div>
+                        )}
                       </>
                     ) : isAnaliseTecnica ? (
                       <div className="flex flex-col gap-1 mt-0.5">
@@ -992,9 +1035,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         {(isMontagemRoute || isProducao) &&
                           Array.isArray(item?.alocacao_montagem) &&
                           item.alocacao_montagem.length > 0 && (
-                            <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                              <Wrench className="w-2.5 h-2.5" />
-                              <span>{item.alocacao_montagem.length} Alocado(s)</span>
+                            <div
+                              className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
+                              title={`${item.alocacao_montagem.length} alocado(s)`}
+                            >
+                              {isMontagemRoute ? (
+                                <Wrench className="w-2.5 h-2.5" />
+                              ) : (
+                                <Users className="w-2.5 h-2.5" />
+                              )}
+                              <span>{item.alocacao_montagem.length} alocado(s)</span>
                             </div>
                           )}
                       </div>
@@ -1068,10 +1118,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
                     {(isMontagemRoute || isProducao) && item?.id && (
                       <ErrorBoundary fallback={null}>
-                        <MontadorSelect
+                        <AlocacaoEquipeSelect
                           item={item}
-                          montadores={allMontadores || []}
+                          modulo={isMontagemRoute ? 'montagem' : 'producao'}
+                          equipe={allEquipe || []}
                           onUpdate={fetchItems}
+                          onMembroCadastrado={(novo) => {
+                            setAllEquipe((prev) => [...prev, novo])
+                          }}
                         />
                       </ErrorBoundary>
                     )}
@@ -1433,6 +1487,18 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         onOpenChange={setShowCreateAvulsoForValidation}
         onCreated={handleValidationCardCreated}
         initialIsOutsourced={true}
+      />
+
+      {/* Dialog para criação rápida de Subcard com pai e cor pré-preenchidos */}
+      <CreateCardDialog
+        open={createSubcardState.open}
+        onOpenChange={(open) => setCreateSubcardState((prev) => ({ ...prev, open }))}
+        parentCardId={createSubcardState.parentCardId}
+        initialCorVinculo={createSubcardState.corVinculo}
+        initialClienteNome={createSubcardState.clienteNome}
+        onCreated={() => {
+          fetchItems()
+        }}
       />
 
       {/* Diálogo de proteção ao concluir/arquivar pai com subcards ativos */}
