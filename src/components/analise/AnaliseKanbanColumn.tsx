@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 export function AnaliseKanbanColumn({
   column,
   cards = [],
+  subcardsByParentId = {},
   onDragOver,
   onDragLeave,
   onDrop,
@@ -13,6 +14,8 @@ export function AnaliseKanbanColumn({
   draggingId,
   onCheckOutsourced,
   onDelete,
+  onAddSubcard,
+  onStatusChange,
 }: any) {
   return (
     <div
@@ -44,11 +47,14 @@ export function AnaliseKanbanColumn({
                 <AnaliseKanbanCard
                   key={card.id}
                   card={card}
+                  subcards={subcardsByParentId[card.id] || []}
                   isDragging={draggingId === card.id}
                   onDragStart={(e: any) => onDragStart(e, card.id)}
                   onDragEnd={onDragEnd}
                   onCheckOutsourced={() => onCheckOutsourced?.(card)}
                   onDelete={onDelete}
+                  onAddSubcard={onAddSubcard}
+                  onStatusChange={onStatusChange}
                 />
               ),
           )

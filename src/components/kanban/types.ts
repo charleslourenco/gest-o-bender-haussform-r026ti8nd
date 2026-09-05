@@ -27,4 +27,7 @@ export interface CardData {
   terceirizado_validado?: boolean
   outsourced_checked?: boolean
   is_outsourced?: boolean
+  card_pai_id?: string | null
+  cor_vinculo?: string | null
+  card_pai?: { id: string; nome_produto: string } | null
 }

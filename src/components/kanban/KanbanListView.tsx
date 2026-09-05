@@ -53,6 +53,7 @@ export function KanbanListView({
 }) {
   const location = useLocation()
   const isMontagem = location.pathname.includes('/montagem')
+  const isProducao = location.pathname.includes('/producao')
   const isAnaliseTecnica = location.pathname.includes('/analise-tecnica')
 
   const [cards, setCards] = useState<any[]>([])
@@ -83,6 +84,7 @@ export function KanbanListView({
       let query = supabase.from('produtos_servicos_projeto').select(
         `
         *,
+        card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto),
         clientes(nome),
         formulario_comercial(nome_cliente, clientes(nome)),
         alocacao_montagem(montador_id, card_id)
@@ -138,6 +140,7 @@ export function KanbanListView({
     const limit = (pageRef.current + 1) * PAGE_SIZE
     let query = supabase.from('produtos_servicos_projeto').select(`
         *,
+        card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto),
         clientes(nome),
         formulario_comercial(nome_cliente, clientes(nome)),
         alocacao_montagem(montador_id, card_id)
@@ -184,15 +187,19 @@ export function KanbanListView({
   useEffect(() => {
     fetchCards()
     fetchUsers()
-    fetchMontadores()
+    if (isMontagem || isProducao) {
+      fetchMontadores()
+    }
 
     const handleUpdate = () => {
       refreshCards()
-      fetchMontadores()
+      if (isMontagem || isProducao) {
+        fetchMontadores()
+      }
     }
     window.addEventListener('kanban_updated', handleUpdate)
     return () => window.removeEventListener('kanban_updated', handleUpdate)
-  }, [fetchCards, refreshCards, fetchUsers, fetchMontadores])
+  }, [fetchCards, refreshCards, fetchUsers, fetchMontadores, isMontagem, isProducao])
 
   const updateStatus = async (id: string, status: string) => {
     const { error } = await supabase
@@ -298,6 +305,13 @@ export function KanbanListView({
               <TableHead className="text-white font-semibold w-[180px]">Status</TableHead>
               {isMontagem ? (
                 <TableHead className="text-white font-semibold w-[200px]">equipe alocada</TableHead>
+              ) : isProducao ? (
+                <>
+                  <TableHead className="text-white font-semibold w-[180px]">responsável</TableHead>
+                  <TableHead className="text-white font-semibold w-[180px]">
+                    equipe alocada
+                  </TableHead>
+                </>
               ) : (
                 <TableHead className="text-white font-semibold w-[180px]">responsável</TableHead>
               )}
@@ -310,7 +324,7 @@ export function KanbanListView({
             {filtered.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={isAnaliseTecnica ? 5 : 7}
+                  colSpan={isAnaliseTecnica ? 5 : isProducao ? 8 : 7}
                   className="text-center py-8 text-muted-foreground"
                 >
                   {' '}
@@ -320,6 +334,8 @@ export function KanbanListView({
             ) : (
               filtered.map((card) => {
                 const clienteNome = getClienteNome(card)
+                const isSubcard = !!card?.card_pai_id
+                const parentName = card?.card_pai?.nome_produto
                 return (
                   <TableRow
                     key={card.id}
@@ -349,7 +365,16 @@ export function KanbanListView({
                         <TableCell className="font-medium text-card-foreground">
                           {clienteNome || 'Avulso'}
                         </TableCell>
-                        <TableCell>{card?.nome_produto ?? 'Sem nome'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{card?.nome_produto ?? 'Sem nome'}</span>
+                            {isSubcard && (
+                              <span className="text-[10px] text-primary">
+                                ↳ {parentName || 'Card pai'}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                       </>
                     )}
                     <TableCell className="whitespace-nowrap">
@@ -384,6 +409,38 @@ export function KanbanListView({
                               .join(', ')
                           : 'Não alocada'}
                       </TableCell>
+                    ) : isProducao ? (
+                      <>
+                        <TableCell>
+                          <Select
+                            value={card?.analista_id || 'unassigned'}
+                            onValueChange={(val) => card?.id && updateAnalista(card.id, val)}
+                          >
+                            <SelectTrigger className="w-full h-8 bg-background text-foreground border-input focus:ring-ring">
+                              <SelectValue placeholder="Não atribuído" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Não atribuído</SelectItem>
+                              {users.map((u) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          {card?.alocacao_montagem && card.alocacao_montagem.length > 0
+                            ? card.alocacao_montagem
+                                .map((am: any) => {
+                                  const m = montadores.find((m) => m.id === am?.montador_id)
+                                  return m?.nome_completo
+                                })
+                                .filter(Boolean)
+                                .join(', ')
+                            : 'Não alocada'}
+                        </TableCell>
+                      </>
                     ) : (
                       <TableCell>
                         <Select

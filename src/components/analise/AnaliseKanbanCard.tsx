@@ -9,7 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserCircle2, Trash2, Archive } from 'lucide-react'
+import { UserCircle2, Trash2, Archive, Plus, Layers } from 'lucide-react'
+import { getCorVinculoForCard } from '@/lib/subcards-utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,11 +26,14 @@ import { useToast } from '@/hooks/use-toast'
 
 export function AnaliseKanbanCard({
   card,
+  subcards = [],
   isDragging,
   onDragStart,
   onDragEnd,
   onCheckOutsourced,
   onDelete,
+  onAddSubcard,
+  onStatusChange,
 }: any) {
   const navigate = useNavigate()
 
@@ -154,6 +158,9 @@ export function AnaliseKanbanCard({
     card.status_analise === 'aguardando_consultor' ||
     card.status_analise === 'item_terceirizado'
 
+  const cardCorVinculo =
+    card?.cor_vinculo || (subcards.length > 0 ? getCorVinculoForCard(card.id) : null)
+
   return (
     <div
       draggable
@@ -161,8 +168,14 @@ export function AnaliseKanbanCard({
       onDragEnd={onDragEnd}
       className={`flex flex-col gap-1.5 p-3 w-full h-fit rounded-lg shadow-sm cursor-grab hover:shadow-md transition-all border-2
         ${isAlert ? 'bg-orange-50 text-orange-950 border-orange-200 hover:border-orange-300 dark:bg-orange-950/20 dark:text-orange-300 dark:border-orange-500/50 dark:shadow-[0_0_15px_rgba(249,115,22,0.3)] dark:hover:border-orange-400' : 'bg-card text-card-foreground border-border hover:border-slate-300 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.3)] dark:hover:border-cyan-400'} 
+        ${cardCorVinculo ? 'border-l-4' : ''}
         ${card.has_outsourced_dependency ? 'border-l-4 border-l-orange-500 dark:border-l-orange-500' : ''}
         ${isDragging ? 'opacity-50 ring-2 ring-primary' : ''}`}
+      style={
+        cardCorVinculo && !card.has_outsourced_dependency
+          ? { borderLeftColor: cardCorVinculo }
+          : undefined
+      }
     >
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card?.codigo_rastreio ? (
@@ -273,6 +286,102 @@ export function AnaliseKanbanCard({
           </div>
         )}
       </div>
+
+      {/* Subcards list (mini-cards para cada subcard do ambiente) */}
+      {!card.is_parent_card && !card.card_pai_id && (
+        <div
+          className="mt-1 pt-1.5 border-t border-border/60 flex flex-col gap-1.5"
+          onMouseDown={stopPropagation}
+          onTouchStart={stopPropagation}
+          onClick={stopPropagation}
+        >
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1 font-semibold">
+              <Layers className="w-3 h-3 text-primary" />
+              Subcards ({subcards.length})
+            </span>
+            {onAddSubcard && (
+              <button
+                type="button"
+                onClick={() => onAddSubcard(card)}
+                className="text-[10px] text-primary hover:underline flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors font-medium"
+                title="Adicionar subcard a este ambiente"
+              >
+                <Plus className="w-3 h-3" />
+                Adicionar
+              </button>
+            )}
+          </div>
+
+          {subcards.length > 0 && (
+            <div className="flex flex-col gap-1">
+              {subcards.map((sub: any) => {
+                const subColor = sub.cor_vinculo || cardCorVinculo || getCorVinculoForCard(card.id)
+                return (
+                  <div
+                    key={sub.id}
+                    className="p-1.5 rounded bg-muted/40 border border-border flex flex-col gap-1 text-[11px] border-l-4"
+                    style={{ borderLeftColor: subColor }}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span
+                        className="font-semibold text-foreground truncate"
+                        title={sub.nome_produto}
+                      >
+                        {sub.nome_produto}
+                      </span>
+                      <span
+                        className="text-[9px] px-1.5 py-0.5 rounded font-medium shrink-0 bg-primary/10 text-primary"
+                        title={`↳ ${card.nome_produto}`}
+                      >
+                        ↳ {card.nome_produto}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-1 pt-0.5">
+                      <span className="text-[10px] text-muted-foreground">Qtd: {sub.qtd || 1}</span>
+                      <Select
+                        value={sub.status_analise || 'iniciar'}
+                        onValueChange={(val) => onStatusChange?.(sub.id, val)}
+                      >
+                        <SelectTrigger className="h-5 text-[10px] px-1.5 w-[110px] bg-background border-input">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="iniciar" className="text-[10px]">
+                            Iniciar
+                          </SelectItem>
+                          <SelectItem value="aguardando_liberacao" className="text-[10px]">
+                            Aguardando liberação
+                          </SelectItem>
+                          <SelectItem value="medida_fina" className="text-[10px]">
+                            Medida fina
+                          </SelectItem>
+                          <SelectItem value="reuniao_analise" className="text-[10px]">
+                            Reunião de análise
+                          </SelectItem>
+                          <SelectItem value="caderno_tecnico" className="text-[10px]">
+                            Caderno técnico
+                          </SelectItem>
+                          <SelectItem value="alteracao_projeto" className="text-[10px]">
+                            Alteração de projeto
+                          </SelectItem>
+                          <SelectItem value="lista_materiais" className="text-[10px]">
+                            Lista de materiais
+                          </SelectItem>
+                          <SelectItem value="aguardando_plano_corte" className="text-[10px]">
+                            Concluído
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div
         className="mt-2 flex items-center gap-1 border-t border-border/50 pt-2"

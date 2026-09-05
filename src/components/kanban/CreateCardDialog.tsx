@@ -19,11 +19,13 @@ export function CreateCardDialog({
   onOpenChange,
   onCreated,
   initialIsOutsourced = false,
+  parentCardId = null,
 }: {
   open: boolean
-  onOpenChange: (o: boolean) => void
+  onOpenChange: (open: boolean) => void
   onCreated?: () => void
   initialIsOutsourced?: boolean
+  parentCardId?: string | null
 }) {
   const location = useLocation()
   const [loading, setLoading] = useState(false)
@@ -31,7 +33,23 @@ export function CreateCardDialog({
   const [produtoNome, setProdutoNome] = useState('')
   const [qtd, setQtd] = useState(1)
   const [descricao, setDescricao] = useState('')
+  const [selectedParentId, setSelectedParentId] = useState(parentCardId || '')
+  const [parentCards, setParentCards] = useState<any[]>([])
 
+  useEffect(() => {
+    if (open) {
+      if (parentCardId) setSelectedParentId(parentCardId)
+      supabase
+        .from('produtos_servicos_projeto')
+        .select('id, nome_produto, status_analise, cor_vinculo, cliente_id, clientes(nome)')
+        .is('card_pai_id', null)
+        .order('criado_em', { ascending: false })
+        .limit(100)
+        .then(({ data }) => {
+          if (data) setParentCards(data)
+        })
+    }
+  }, [open, parentCardId])
   const getInitials = (name: string) => {
     if (!name) return 'CLI'
     const skip = ['de', 'da', 'do', 'das', 'dos']
@@ -118,8 +136,23 @@ export function CreateCardDialog({
       if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
       else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
 
+      const chosenParent = parentCards.find((p) => p.id === selectedParentId)
+      let corVinculo: string | null = null
+
+      if (chosenParent) {
+        corVinculo = chosenParent.cor_vinculo || '#3b82f6'
+        if (!chosenParent.cor_vinculo) {
+          await supabase
+            .from('produtos_servicos_projeto')
+            .update({ cor_vinculo: corVinculo })
+            .eq('id', chosenParent.id)
+        }
+      }
+
+      const effectiveClienteId = chosenParent?.cliente_id || clienteId
+
       const { error } = await supabase.from('produtos_servicos_projeto').insert({
-        cliente_id: clienteId,
+        cliente_id: effectiveClienteId,
         nome_produto: produtoNome.trim(),
         qtd,
         descricao,
@@ -127,6 +160,8 @@ export function CreateCardDialog({
         valor_total: 0,
         status_analise: defaultStatus,
         codigo_rastreio: codigoRastreio,
+        card_pai_id: chosenParent ? chosenParent.id : null,
+        cor_vinculo: corVinculo,
         // @ts-expect-error
         is_outsourced: initialIsOutsourced,
       })
@@ -159,6 +194,32 @@ export function CreateCardDialog({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
+              <Label htmlFor="parentCard">Card Pai / Ambiente (Opcional - Subcard)</Label>
+              <select
+                id="parentCard"
+                value={selectedParentId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setSelectedParentId(val)
+                  const found = parentCards.find((p) => p.id === val)
+                  if (found?.clientes?.nome) {
+                    setClienteNome(found.clientes.nome)
+                  }
+                }}
+                disabled={loading}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Nenhum (Card Independente)</option>
+                {parentCards.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.clientes?.nome ? `${p.clientes.nome} - ` : ''}
+                    {p.nome_produto}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
               <Label htmlFor="cliente">Nome Completo do Cliente *</Label>
               <Input
                 id="cliente"
@@ -166,6 +227,7 @@ export function CreateCardDialog({
                 onChange={(e) => setClienteNome(e.target.value)}
                 placeholder="Ex: João da Silva"
                 required
+                disabled={loading || !!selectedParentId}
               />
             </div>
             <div className="grid gap-2">

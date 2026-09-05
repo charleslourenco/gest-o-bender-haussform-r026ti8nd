@@ -59,7 +59,7 @@ export function KanbanCard({
   }, [card?.id, card?.status_analise, card?.criado_em, isProducao])
 
   useEffect(() => {
-    if (isMontagem && card?.id) {
+    if ((isMontagem || isProducao) && card?.id) {
       let isMounted = true
       supabase
         .from('alocacao_montagem')
@@ -78,7 +78,7 @@ export function KanbanCard({
     } else {
       setMontadores([])
     }
-  }, [card?.id, isMontagem])
+  }, [card?.id, isMontagem, isProducao])
 
   if (!card) return null
 
@@ -91,11 +91,14 @@ export function KanbanCard({
     ? `#${card.codigo_rastreio}`
     : `#${card?.formulario_comercial_id?.split('-')[0]?.toUpperCase() || 'N/A'}`
 
+  const corVinculo = card?.cor_vinculo || (card?.card_pai_id ? '#3b82f6' : null)
+
   return (
     <div
       draggable
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
+      style={corVinculo ? { borderLeftWidth: '4px', borderLeftColor: corVinculo } : undefined}
       className={cn(
         'cursor-pointer hover:shadow-md transition-all duration-200 flex flex-col border-2 p-1.5 rounded-md gap-1 bg-card text-card-foreground shadow-sm border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
         card.is_outsourced ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]' : '',
@@ -112,6 +115,12 @@ export function KanbanCard({
       <div className="font-semibold text-card-foreground leading-tight text-xs truncate">
         {card.nome_produto || 'Sem nome'}
       </div>
+
+      {card.card_pai_id && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded font-medium bg-primary/10 text-primary w-fit truncate">
+          ↳ {card.card_pai?.nome_produto || 'Card pai'}
+        </span>
+      )}
 
       <div className="flex justify-between items-center w-full mt-0.5">
         <div className="truncate text-[10px] text-muted-foreground">Qtd: {card.qtd || 0}</div>

@@ -185,7 +185,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     fetchItems,
     refreshItems,
   } = useKanbanData(columns, {
-    fetchMontadores: isMontagemRoute,
+    fetchMontadores: isMontagemRoute || isProducao,
     archiveFlag,
     excluidoFlag,
     priorityColumnId,
@@ -202,6 +202,13 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
   const [showCreateAvulsoForValidation, setShowCreateAvulsoForValidation] = useState(false)
   const [dragOverColId, setDragOverColId] = useState<string | null>(null)
+  const [hoveredFamilyCardId, setHoveredFamilyCardId] = useState<string | null>(null)
+  const [pendingParentAction, setPendingParentAction] = useState<{
+    type: 'concluir' | 'arquivar'
+    card: KanbanItem
+    activeSubcards: KanbanItem[]
+    targetStatus?: string
+  } | null>(null)
 
   useEffect(() => {
     if (isMontagemRoute) return
@@ -259,14 +266,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     }
   }
 
-  const handleStatusChange = async (itemId: string, newStatusId: string) => {
-    const item = items.find((i) => i?.id === itemId)
-    if (!item || item.status_analise === newStatusId) return
+  // Helpers para subcards
+  const isCardConcluido = (status: string) => {
+    // Em Produção a última coluna é aguardando_agenda (Concluído/Pronto p/ Montagem)
+    // Em Montagem a última coluna é concluido
+    return status === 'concluido' || (isProducao && status === 'aguardando_agenda')
+  }
 
-    if (isAnaliseTecnica && !item.is_outsourced && !item.outsourced_checked) {
-      toast.error('Verifique os itens terceirizados primeiro.')
-      return
-    }
+  const getActiveSubcardsOfParent = (parentId: string) => {
+    return items.filter((it) => it?.card_pai_id === parentId && !isCardConcluido(it.status_analise))
+  }
+
+  const executeStatusChange = async (itemId: string, newStatusId: string) => {
+    const item = items.find((i) => i?.id === itemId)
+    if (!item) return
 
     let finalStatus = newStatusId
     let isAutoTransition = false
@@ -300,6 +313,32 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       toast.error('Erro ao atualizar status: ' + err.message)
       refreshItems()
     }
+  }
+
+  const handleStatusChange = async (itemId: string, newStatusId: string) => {
+    const item = items.find((i) => i?.id === itemId)
+    if (!item || item.status_analise === newStatusId) return
+
+    if (isAnaliseTecnica && !item.is_outsourced && !item.outsourced_checked) {
+      toast.error('Verifique os itens terceirizados primeiro.')
+      return
+    }
+
+    // Proteção: ao concluir o pai que ainda tem subcards ativos
+    if (!item.card_pai_id && isCardConcluido(newStatusId)) {
+      const activeSubs = getActiveSubcardsOfParent(item.id)
+      if (activeSubs.length > 0) {
+        setPendingParentAction({
+          type: 'concluir',
+          card: item,
+          activeSubcards: activeSubs,
+          targetStatus: newStatusId,
+        })
+        return
+      }
+    }
+
+    await executeStatusChange(itemId, newStatusId)
   }
 
   const uniqueAnalysts = Array.from(
@@ -458,7 +497,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
       toast.error('Erro ao excluir card: ' + err.message)
     }
   }
-  const handleArchiveCard = async (id: string) => {
+  const executeArchiveCard = async (id: string) => {
     try {
       if (isProducao) {
         await arquivarProducao(id)
@@ -472,6 +511,22 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     } catch (err: any) {
       toast.error('Erro ao arquivar: ' + err.message)
     }
+  }
+
+  const handleArchiveCard = async (id: string) => {
+    const item = items.find((i) => i?.id === id)
+    if (item && !item.card_pai_id) {
+      const activeSubs = getActiveSubcardsOfParent(item.id)
+      if (activeSubs.length > 0) {
+        setPendingParentAction({
+          type: 'arquivar',
+          card: item,
+          activeSubcards: activeSubs,
+        })
+        return
+      }
+    }
+    await executeArchiveCard(id)
   }
 
   const handleAssignAnalyst = async (id: string, analystId: string | null) => {
@@ -493,38 +548,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const item = items.find((i) => i?.id === itemId)
     if (!item || item.status_analise === columnId) return
 
-    let finalStatus = columnId
-    let isAutoTransition = false
-
-    if (columnId === 'lista_materiais') {
-      finalStatus = 'aguardando_plano_corte'
-      isAutoTransition = true
-    }
-
-    setItems((prev) =>
-      prev.map((i) => (i?.id === itemId ? { ...i, status_analise: finalStatus } : i)),
-    )
-
-    try {
-      if (isAutoTransition) {
-        await supabase
-          .from('produtos_servicos_projeto')
-          .update({ status_analise: columnId, atualizado_em: new Date().toISOString() })
-          .eq('id', itemId)
-        await updateCardStatus(itemId, finalStatus)
-        toast.success('Card transferido automaticamente para Produção (Aguardando Plano de Corte).')
-      } else {
-        await updateCardStatus(itemId, columnId, { isMontagem: isMontagemRoute })
-        if (isMontagemRoute && columnId === 'concluido') {
-          toast.success('Card concluído! Montadores liberados automaticamente.')
-        } else {
-          toast.success('Card movido com sucesso!')
-        }
+    if (!item.card_pai_id && isCardConcluido(columnId)) {
+      const activeSubs = getActiveSubcardsOfParent(item.id)
+      if (activeSubs.length > 0) {
+        setPendingParentAction({
+          type: 'concluir',
+          card: item,
+          activeSubcards: activeSubs,
+          targetStatus: columnId,
+        })
+        return
       }
-    } catch (err: any) {
-      toast.error('Erro ao mover o card: ' + err.message)
-      refreshItems()
     }
+
+    await executeStatusChange(itemId, columnId)
   }
 
   if (loading && items.length === 0) {
@@ -546,6 +583,37 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         <p className="text-sm text-muted-foreground max-w-md">{error}</p>
       </div>
     )
+  }
+
+  // Mapa de contadores de subcards por pai e mapa de nome do pai
+  const subcardsByParent = new Map<string, KanbanItem[]>()
+  items.forEach((it) => {
+    if (it?.card_pai_id) {
+      const list = subcardsByParent.get(it.card_pai_id) || []
+      list.push(it)
+      subcardsByParent.set(it.card_pai_id, list)
+    }
+  })
+
+  // Helper para formatar o resumo dos subcards no pai:
+  // "↳ 3 subcards · 1 em produção · 2 em aguardando agenda"
+  const getSubcardsSummary = (parentId: string) => {
+    const subs = subcardsByParent.get(parentId)
+    if (!subs || subs.length === 0) return null
+
+    const total = subs.length
+    // Agrupar por título da coluna / status
+    const statusCountMap: Record<string, number> = {}
+    subs.forEach((s) => {
+      const colDef = columns.find((c) => c.id === s.status_analise)
+      const label = colDef?.title || s.status_analise || 'Sem status'
+      statusCountMap[label] = (statusCountMap[label] || 0) + 1
+    })
+
+    const parts = Object.entries(statusCountMap).map(
+      ([st, count]) => `${count} em ${st.toLowerCase()}`,
+    )
+    return `↳ ${total} subcard${total > 1 ? 's' : ''} · ${parts.join(' · ')}`
   }
 
   const renderColumns = () =>
@@ -607,348 +675,410 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               isAnaliseTecnica ? 'p-1.5 min-h-[200px]' : 'p-2 min-h-[150px]',
             )}
           >
-            {colItems.map((item) => (
-              <div
-                key={item.id}
-                draggable
-                onDragStart={(e) => {
-                  if (item) handleDragStart(e, item)
-                }}
-                onDragEnd={handleDragEnd}
-                className={cn(
-                  'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
-                  isProducao || isMontagemRoute
-                    ? cn(
-                        'bg-card text-card-foreground p-1.5 rounded-md shadow-sm hover:shadow-md transition-all duration-200 w-full flex flex-col gap-1.5 border-2',
-                        item?.is_outsourced
-                          ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] hover:border-orange-400 dark:hover:border-orange-400'
-                          : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
-                      )
-                    : cn(
-                        'rounded-lg shadow-sm hover:shadow-md flex flex-col border-2',
-                        isAnaliseTecnica
-                          ? cn(
-                              'bg-card text-card-foreground p-1.5 gap-1',
-                              item?.is_outsourced
-                                ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                                : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
-                            )
-                          : cn(
-                              'bg-card border-border hover:border-primary/50 p-3 gap-2 text-card-foreground',
-                              item?.is_outsourced
-                                ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                                : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
-                            ),
-                      ),
-                )}
-              >
-                <div
-                  className={cn(
-                    'absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
-                    isAnaliseTecnica || isProducao || isMontagemRoute
-                      ? 'top-1 text-muted-foreground/50 bg-card rounded'
-                      : 'top-2 text-muted-foreground/50 bg-card rounded',
-                  )}
-                >
-                  {(isMontagemRoute || isProducao || isAnaliseTecnica) && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={(e) => e.stopPropagation()}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          className="p-1 rounded transition-colors text-muted-foreground/50 hover:text-primary hover:bg-primary/10"
-                          title="Mover para"
-                        >
-                          <MoveRight className="h-3.5 w-3.5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="min-w-[160px]"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <DropdownMenuLabel className="text-xs font-semibold">
-                          Mover para
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {columns.map((c) => (
-                          <DropdownMenuItem
-                            key={c.id}
-                            className={cn(
-                              'text-xs',
-                              c.id === item?.status_analise && 'opacity-50 pointer-events-none',
-                            )}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (item?.id && c.id !== item?.status_analise)
-                                handleStatusChange(item.id, c.id)
-                            }}
-                          >
-                            {c.title}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                  {columns.length > 0 &&
-                    col.id === columns[columns.length - 1].id &&
-                    (isProducao || isMontagemRoute || isAnaliseTecnica) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleArchiveCard(item.id)
-                        }}
-                        className={cn(
-                          'p-1 rounded transition-colors',
-                          isAnaliseTecnica || isProducao || isMontagemRoute
-                            ? 'hover:text-amber-600 hover:bg-amber-600/10'
-                            : 'hover:text-amber-600 hover:bg-amber-600/10',
-                        )}
-                        title="Arquivar"
-                      >
-                        <Archive className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteCard(item.id)
-                      }}
-                      className={cn(
-                        'p-1 rounded transition-colors',
-                        isAnaliseTecnica || isProducao || isMontagemRoute
-                          ? 'hover:text-destructive hover:bg-destructive/10'
-                          : 'hover:text-destructive hover:bg-destructive/10',
-                      )}
-                      title="Excluir card"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <div className="p-1 cursor-grab active:cursor-grabbing">
-                    <GripVertical className="h-3.5 w-3.5" />
-                  </div>
-                </div>
+            {colItems.map((item) => {
+              const isSubcard = !!item?.card_pai_id
+              const parentCard = isSubcard
+                ? items.find((p) => p.id === item.card_pai_id) || item.card_pai
+                : null
+              const corVinculo =
+                item.cor_vinculo ||
+                (isSubcard && parentCard?.cor_vinculo) ||
+                (isSubcard && item.card_pai_id ? '#3b82f6' : null)
 
+              // Hover mútuo: se o mouse estiver no pai, realça todos os subcards. Se estiver no subcard, realça o pai e irmãos da mesma família
+              const itemFamilyId = isSubcard ? item.card_pai_id : item.id
+              const isFamilyHighlighted =
+                hoveredFamilyCardId !== null && hoveredFamilyCardId === itemFamilyId
+
+              const subcardsSummary = !isSubcard ? getSubcardsSummary(item.id) : null
+
+              return (
                 <div
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => {
+                    if (item) handleDragStart(e, item)
+                  }}
+                  onDragEnd={handleDragEnd}
+                  onMouseEnter={() => {
+                    if (itemFamilyId && (isSubcard || subcardsByParent.has(item.id))) {
+                      setHoveredFamilyCardId(itemFamilyId)
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredFamilyCardId(null)}
+                  style={
+                    (isProducao || isMontagemRoute) && corVinculo
+                      ? { borderLeftWidth: '4px', borderLeftColor: corVinculo }
+                      : undefined
+                  }
                   className={cn(
-                    'pr-12',
-                    isAnaliseTecnica ? 'mb-0.5' : isProducao || isMontagemRoute ? 'mb-0' : 'mb-1',
+                    'group relative cursor-grab active:cursor-grabbing transition-all duration-200',
+                    isProducao || isMontagemRoute
+                      ? cn(
+                          'bg-card text-card-foreground p-1.5 rounded-md shadow-sm hover:shadow-md transition-all duration-200 w-full flex flex-col gap-1.5 border-2',
+                          isFamilyHighlighted &&
+                            'ring-2 ring-primary shadow-md scale-[1.01] border-primary',
+                          item?.is_outsourced
+                            ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)] hover:border-orange-400 dark:hover:border-orange-400'
+                            : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)] dark:hover:border-cyan-400',
+                        )
+                      : cn(
+                          'rounded-lg shadow-sm hover:shadow-md flex flex-col border-2',
+                          isAnaliseTecnica
+                            ? cn(
+                                'bg-card text-card-foreground p-1.5 gap-1',
+                                item?.is_outsourced
+                                  ? 'border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                  : 'border-border hover:border-primary/50 dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                              )
+                            : cn(
+                                'bg-card border-border hover:border-primary/50 p-3 gap-2 text-card-foreground',
+                                item?.is_outsourced
+                                  ? 'dark:border-orange-500 dark:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                  : 'dark:border-cyan-500/50 dark:shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+                              ),
+                        ),
                   )}
                 >
-                  {isProducao || isMontagemRoute ? (
-                    <>
-                      {item?.codigo_rastreio && (
-                        <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none w-fit">
-                          {item.codigo_rastreio}
-                        </span>
-                      )}
-                      <span
-                        className="text-xs truncate text-foreground"
-                        title={getClienteNome(item) || 'Avulso'}
-                      >
-                        {getClienteNome(item) || 'Avulso'}
-                      </span>
-                      <h4
-                        className="font-semibold leading-tight text-card-foreground text-xs truncate"
-                        title={item?.nome_produto ?? 'Sem nome'}
-                      >
-                        {item?.nome_produto ?? 'Sem nome'}
-                      </h4>
-                    </>
-                  ) : isAnaliseTecnica ? (
-                    <div className="flex flex-col gap-1 mt-0.5">
-                      <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
-                        {item?.codigo_rastreio && (
-                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none">
-                            {item.codigo_rastreio}
-                          </span>
-                        )}
-                        <span className="text-xs truncate" title={getClienteNome(item) || 'Avulso'}>
-                          {getClienteNome(item) || 'Avulso'}
-                        </span>
-                      </div>
-                      <h4
-                        className="font-semibold leading-tight text-card-foreground text-xs truncate"
-                        title={item?.nome_produto ?? 'Sem nome'}
-                      >
-                        {item?.nome_produto ?? 'Sem nome'}
-                      </h4>
-                      {!item?.is_outsourced && !item?.outsourced_checked && (
+                  <div
+                    className={cn(
+                      'absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 z-10',
+                      isAnaliseTecnica || isProducao || isMontagemRoute
+                        ? 'top-1 text-muted-foreground/50 bg-card rounded'
+                        : 'top-2 text-muted-foreground/50 bg-card rounded',
+                    )}
+                  >
+                    {(isMontagemRoute || isProducao || isAnaliseTecnica) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="p-1 rounded transition-colors text-muted-foreground/50 hover:text-primary hover:bg-primary/10"
+                            title="Mover para"
+                          >
+                            <MoveRight className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="min-w-[160px]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <DropdownMenuLabel className="text-xs font-semibold">
+                            Mover para
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          {columns.map((c) => (
+                            <DropdownMenuItem
+                              key={c.id}
+                              className={cn(
+                                'text-xs',
+                                c.id === item?.status_analise && 'opacity-50 pointer-events-none',
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (item?.id && c.id !== item?.status_analise)
+                                  handleStatusChange(item.id, c.id)
+                              }}
+                            >
+                              {c.title}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {columns.length > 0 &&
+                      col.id === columns[columns.length - 1].id &&
+                      (isProducao || isMontagemRoute || isAnaliseTecnica) && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            if (item?.id) handleOpenValidation(item.id)
+                            handleArchiveCard(item.id)
                           }}
-                          title="Terceirizado Pendente"
-                          className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors"
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            isAnaliseTecnica || isProducao || isMontagemRoute
+                              ? 'hover:text-amber-600 hover:bg-amber-600/10'
+                              : 'hover:text-amber-600 hover:bg-amber-600/10',
+                          )}
+                          title="Arquivar"
                         >
-                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <Archive className="h-3.5 w-3.5" />
                         </button>
                       )}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteCard(item.id)
+                        }}
+                        className={cn(
+                          'p-1 rounded transition-colors',
+                          isAnaliseTecnica || isProducao || isMontagemRoute
+                            ? 'hover:text-destructive hover:bg-destructive/10'
+                            : 'hover:text-destructive hover:bg-destructive/10',
+                        )}
+                        title="Excluir card"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <div className="p-1 cursor-grab active:cursor-grabbing">
+                      <GripVertical className="h-3.5 w-3.5" />
                     </div>
-                  ) : (
-                    <>
-                      <h4 className="font-semibold leading-tight text-foreground text-sm">
-                        {item?.nome_produto ?? 'Sem nome'}
-                      </h4>
-                      {item?.codigo_rastreio && (
-                        <div className="mt-1">
-                          <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-primary bg-muted/50 border-border leading-none">
-                            {item.codigo_rastreio}
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                  </div>
 
-                {!(isProducao || isMontagemRoute) && (
                   <div
                     className={cn(
-                      'flex flex-col font-medium border-t',
-                      isAnaliseTecnica
-                        ? 'border-border text-muted-foreground pt-1 gap-0.5 text-[10px]'
-                        : 'border-border text-muted-foreground pt-2 gap-1 text-xs',
+                      'pr-12',
+                      isAnaliseTecnica ? 'mb-0.5' : isProducao || isMontagemRoute ? 'mb-0' : 'mb-1',
                     )}
                   >
-                    {!isAnaliseTecnica && getClienteNome(item) && (
-                      <div className="flex items-center gap-1 truncate text-foreground">
-                        <User className="h-3 w-3 shrink-0 text-primary" />
-                        <span className="truncate">{getClienteNome(item)}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <Package
-                          className={cn(
-                            'h-3 w-3 shrink-0',
-                            isAnaliseTecnica ? 'text-muted-foreground' : 'text-primary',
-                          )}
-                        />
-                        <span>Qtd: {item?.qtd ?? 0}</span>
-                      </div>
-                      <div
-                        className={cn(
-                          'flex items-center gap-1',
-                          isAnaliseTecnica ? 'text-muted-foreground' : 'text-muted-foreground',
+                    {isProducao || isMontagemRoute ? (
+                      <>
+                        {item?.codigo_rastreio && (
+                          <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none w-fit">
+                            {item.codigo_rastreio}
+                          </span>
                         )}
-                      >
-                        <CalendarClock className="h-3 w-3 shrink-0" />
-                        <span>
-                          {item?.criado_em
-                            ? new Date(item.criado_em).toLocaleDateString('pt-BR')
-                            : '-'}
+                        <span
+                          className="text-xs truncate text-foreground"
+                          title={getClienteNome(item) || 'Avulso'}
+                        >
+                          {getClienteNome(item) || 'Avulso'}
                         </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                        <h4
+                          className="font-semibold leading-tight text-card-foreground text-xs truncate"
+                          title={item?.nome_produto ?? 'Sem nome'}
+                        >
+                          {item?.nome_produto ?? 'Sem nome'}
+                        </h4>
 
-                {(isProducao || isMontagemRoute) && (
-                  <div className="flex items-center justify-between mt-auto pt-0.5">
-                    <div className="flex items-center gap-2">
-                      {item?.id && item?.status_analise && item?.criado_em && (
-                        <TimeInColumn
-                          cardId={item.id}
-                          status={item.status_analise}
-                          criado_em={item.criado_em}
-                        />
-                      )}
-                      {isMontagemRoute &&
-                        Array.isArray(item?.alocacao_montagem) &&
-                        item.alocacao_montagem.length > 0 && (
-                          <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                            <Wrench className="w-2.5 h-2.5" />
-                            <span>{item.alocacao_montagem.length} Alocado(s)</span>
+                        {/* Badge ↳ nome do ambiente/pai para subcards */}
+                        {isSubcard && (
+                          <div className="mt-0.5">
+                            <span
+                              className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded border border-border bg-primary/10 text-primary max-w-full truncate"
+                              title={`↳ ${parentCard?.nome_produto || 'Card pai'}`}
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                style={{ backgroundColor: corVinculo || '#3b82f6' }}
+                              />
+                              <span className="truncate">
+                                ↳ {parentCard?.nome_produto || 'Card pai'}
+                              </span>
+                            </span>
                           </div>
                         )}
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px]">
-                      <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      <span className="text-muted-foreground">Qtd: {item?.qtd ?? 0}</span>
-                    </div>
-                  </div>
-                )}
 
-                <div
-                  className={cn(
-                    'border-t flex flex-col',
-                    isProducao || isMontagemRoute
-                      ? 'border-border pt-1.5 gap-1'
-                      : isAnaliseTecnica
-                        ? 'border-border pt-1.5 gap-1'
-                        : 'border-border pt-2 gap-1.5',
-                  )}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {(isAnaliseTecnica || isMontagemRoute) && (
-                    <Select
-                      value={item?.status_analise ?? ''}
-                      onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
+                        {/* Contador de subcards por status no CARD PAI (Produção e Montagem) */}
+                        {!isSubcard && subcardsSummary && (
+                          <div
+                            className="mt-1 text-[10px] text-muted-foreground font-medium bg-muted/40 px-1.5 py-0.5 rounded border border-border/60 truncate"
+                            title={subcardsSummary}
+                          >
+                            {subcardsSummary}
+                          </div>
+                        )}
+                      </>
+                    ) : isAnaliseTecnica ? (
+                      <div className="flex flex-col gap-1 mt-0.5">
+                        <div className="flex flex-row items-baseline gap-1.5 w-full truncate">
+                          {item?.codigo_rastreio && (
+                            <span className="inline-block text-[9px] font-mono font-bold px-1 py-0.5 rounded border border-border text-primary bg-muted/50 shrink-0 leading-none">
+                              {item.codigo_rastreio}
+                            </span>
+                          )}
+                          <span
+                            className="text-xs truncate"
+                            title={getClienteNome(item) || 'Avulso'}
+                          >
+                            {getClienteNome(item) || 'Avulso'}
+                          </span>
+                        </div>
+                        <h4
+                          className="font-semibold leading-tight text-card-foreground text-xs truncate"
+                          title={item?.nome_produto ?? 'Sem nome'}
+                        >
+                          {item?.nome_produto ?? 'Sem nome'}
+                        </h4>
+                        {!item?.is_outsourced && !item?.outsourced_checked && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (item?.id) handleOpenValidation(item.id)
+                            }}
+                            title="Terceirizado Pendente"
+                            className="bg-amber-500 text-white p-0.5 rounded w-fit mt-0.5 flex items-center justify-center hover:bg-amber-600 transition-colors"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <h4 className="font-semibold leading-tight text-foreground text-sm">
+                          {item?.nome_produto ?? 'Sem nome'}
+                        </h4>
+                        {item?.codigo_rastreio && (
+                          <div className="mt-1">
+                            <span className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border text-primary bg-muted/50 border-border leading-none">
+                              {item.codigo_rastreio}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {!(isProducao || isMontagemRoute) && (
+                    <div
+                      className={cn(
+                        'flex flex-col font-medium border-t',
+                        isAnaliseTecnica
+                          ? 'border-border text-muted-foreground pt-1 gap-0.5 text-[10px]'
+                          : 'border-border text-muted-foreground pt-2 gap-1 text-xs',
+                      )}
                     >
-                      <SelectTrigger className="h-6 text-[10px] w-full bg-muted/30 border-input text-foreground focus:ring-1 focus:ring-ring px-2">
-                        <SelectValue placeholder="Status" />
+                      {!isAnaliseTecnica && getClienteNome(item) && (
+                        <div className="flex items-center gap-1 truncate text-foreground">
+                          <User className="h-3 w-3 shrink-0 text-primary" />
+                          <span className="truncate">{getClienteNome(item)}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Package
+                            className={cn(
+                              'h-3 w-3 shrink-0',
+                              isAnaliseTecnica ? 'text-muted-foreground' : 'text-primary',
+                            )}
+                          />
+                          <span>Qtd: {item?.qtd ?? 0}</span>
+                        </div>
+                        <div
+                          className={cn(
+                            'flex items-center gap-1',
+                            isAnaliseTecnica ? 'text-muted-foreground' : 'text-muted-foreground',
+                          )}
+                        >
+                          <CalendarClock className="h-3 w-3 shrink-0" />
+                          <span>
+                            {item?.criado_em
+                              ? new Date(item.criado_em).toLocaleDateString('pt-BR')
+                              : '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(isProducao || isMontagemRoute) && (
+                    <div className="flex items-center justify-between mt-auto pt-0.5">
+                      <div className="flex items-center gap-2">
+                        {item?.id && item?.status_analise && item?.criado_em && (
+                          <TimeInColumn
+                            cardId={item.id}
+                            status={item.status_analise}
+                            criado_em={item.criado_em}
+                          />
+                        )}
+                        {(isMontagemRoute || isProducao) &&
+                          Array.isArray(item?.alocacao_montagem) &&
+                          item.alocacao_montagem.length > 0 && (
+                            <div className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              <Wrench className="w-2.5 h-2.5" />
+                              <span>{item.alocacao_montagem.length} Alocado(s)</span>
+                            </div>
+                          )}
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px]">
+                        <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="text-muted-foreground">Qtd: {item?.qtd ?? 0}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    className={cn(
+                      'border-t flex flex-col',
+                      isProducao || isMontagemRoute
+                        ? 'border-border pt-1.5 gap-1'
+                        : isAnaliseTecnica
+                          ? 'border-border pt-1.5 gap-1'
+                          : 'border-border pt-2 gap-1.5',
+                    )}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {(isAnaliseTecnica || isMontagemRoute) && (
+                      <Select
+                        value={item?.status_analise ?? ''}
+                        onValueChange={(val) => item?.id && handleStatusChange(item.id, val)}
+                      >
+                        <SelectTrigger className="h-6 text-[10px] w-full bg-muted/30 border-input text-foreground focus:ring-1 focus:ring-ring px-2">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {columns.map((c) => (
+                            <SelectItem key={c.id} value={c.id} className="text-[10px] py-1">
+                              {c.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    <Select
+                      value={item?.analista_id || 'unassigned'}
+                      onValueChange={(val) =>
+                        item?.id && handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
+                      }
+                    >
+                      <SelectTrigger
+                        className={cn(
+                          'h-6 text-[10px] px-2 w-full focus:ring-1 focus:ring-ring',
+                          isAnaliseTecnica || isProducao || isMontagemRoute
+                            ? 'bg-muted/30 border-input text-foreground'
+                            : 'border-input bg-muted/30 text-foreground',
+                        )}
+                      >
+                        <SelectValue placeholder="Atribuir responsável..." />
                       </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {columns.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="text-[10px] py-1">
-                            {c.title}
+                      <SelectContent>
+                        <SelectItem
+                          value="unassigned"
+                          className="text-[10px] py-1 text-muted-foreground"
+                        >
+                          Não atribuído
+                        </SelectItem>
+                        {allUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id} className="text-[10px] py-1">
+                            {u.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  )}
 
-                  <Select
-                    value={item?.analista_id || 'unassigned'}
-                    onValueChange={(val) =>
-                      item?.id && handleAssignAnalyst(item.id, val === 'unassigned' ? null : val)
-                    }
-                  >
-                    <SelectTrigger
-                      className={cn(
-                        'h-6 text-[10px] px-2 w-full focus:ring-1 focus:ring-ring',
-                        isAnaliseTecnica || isProducao || isMontagemRoute
-                          ? 'bg-muted/30 border-input text-foreground'
-                          : 'border-input bg-muted/30 text-foreground',
-                      )}
-                    >
-                      <SelectValue placeholder="Atribuir responsável..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        value="unassigned"
-                        className="text-[10px] py-1 text-muted-foreground"
-                      >
-                        Não atribuído
-                      </SelectItem>
-                      {allUsers.map((u) => (
-                        <SelectItem key={u.id} value={u.id} className="text-[10px] py-1">
-                          {u.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {isMontagemRoute && item?.id && (
-                    <ErrorBoundary fallback={null}>
-                      <MontadorSelect
-                        item={item}
-                        montadores={allMontadores || []}
-                        onUpdate={fetchItems}
-                      />
-                    </ErrorBoundary>
-                  )}
+                    {(isMontagemRoute || isProducao) && item?.id && (
+                      <ErrorBoundary fallback={null}>
+                        <MontadorSelect
+                          item={item}
+                          montadores={allMontadores || []}
+                          onUpdate={fetchItems}
+                        />
+                      </ErrorBoundary>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {colItems.length === 0 && (
               <div className="flex-1 min-h-[120px] h-full flex items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/20 pointer-events-none">
@@ -1304,6 +1434,71 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
         onCreated={handleValidationCardCreated}
         initialIsOutsourced={true}
       />
+
+      {/* Diálogo de proteção ao concluir/arquivar pai com subcards ativos */}
+      <Dialog
+        open={!!pendingParentAction}
+        onOpenChange={(open) => !open && setPendingParentAction(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              Aviso: Subcards Ativos Pendentes
+            </DialogTitle>
+            <DialogDescription className="text-sm text-foreground pt-2">
+              O card pai <strong>"{pendingParentAction?.card?.nome_produto}"</strong> ainda possui{' '}
+              <strong>{pendingParentAction?.activeSubcards.length} subcard(s)</strong> ativos:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="max-h-48 overflow-y-auto space-y-1.5 py-2 border rounded-md p-2 bg-muted/30">
+            {pendingParentAction?.activeSubcards.map((sub) => {
+              const colDef = columns.find((c) => c.id === sub.status_analise)
+              return (
+                <div
+                  key={sub.id}
+                  className="flex items-center justify-between text-xs p-1.5 rounded bg-card border border-border"
+                >
+                  <span className="font-medium text-foreground truncate mr-2">
+                    • {sub.nome_produto}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {colDef?.title || sub.status_analise}
+                  </Badge>
+                </div>
+              )
+            })}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Deseja {pendingParentAction?.type === 'arquivar' ? 'arquivar' : 'concluir'} este card
+            pai mesmo com subcards pendentes?
+          </p>
+
+          <DialogFooter className="flex gap-2 sm:justify-end pt-2">
+            <Button variant="outline" onClick={() => setPendingParentAction(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={async () => {
+                if (!pendingParentAction) return
+                const { type, card, targetStatus } = pendingParentAction
+                setPendingParentAction(null)
+                if (type === 'arquivar') {
+                  await executeArchiveCard(card.id)
+                } else if (type === 'concluir' && targetStatus) {
+                  await executeStatusChange(card.id, targetStatus)
+                }
+              }}
+            >
+              Confirmar mesmo assim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

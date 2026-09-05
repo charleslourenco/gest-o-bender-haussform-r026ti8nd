@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/use-toast'
 import { AnaliseKanbanColumn } from './AnaliseKanbanColumn'
 import { useRef } from 'react'
 import { CriarCardAvulsoModal } from './CriarCardAvulsoModal'
+import { CriarSubcardModal } from './CriarSubcardModal'
 import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -41,6 +42,7 @@ export function AnaliseKanbanBoard({
   const [checkModalCard, setCheckModalCard] = useState<any | null>(null)
   const [avulsoModalOpen, setAvulsoModalOpen] = useState(false)
   const [avulsoCardToUpdate, setAvulsoCardToUpdate] = useState<any | null>(null)
+  const [subcardModalParent, setSubcardModalParent] = useState<any | null>(null)
   const [listaMateriaisAlert, setListaMateriaisAlert] = useState<any | null>(null)
   const navigate = useNavigate()
 
@@ -220,12 +222,8 @@ export function AnaliseKanbanBoard({
     }
   }
 
-  const handleDrop = async (e: React.DragEvent, status: string) => {
-    e.preventDefault()
-    setDragOverCol(null)
-    if (!draggingId) return
-
-    const card = cards.find((c) => c?.id === draggingId)
+  const handleUpdateCardStatus = async (cardId: string, status: string) => {
+    const card = cards.find((c) => c?.id === cardId)
     if (!card || card.status_analise === status) return
 
     let finalStatus = status
@@ -237,7 +235,7 @@ export function AnaliseKanbanBoard({
     }
 
     setCards((prev) =>
-      prev.map((c) => (c?.id === draggingId ? { ...c, status_analise: finalStatus } : c)),
+      prev.map((c) => (c?.id === cardId ? { ...c, status_analise: finalStatus } : c)),
     )
 
     try {
@@ -245,14 +243,14 @@ export function AnaliseKanbanBoard({
         const { error: err1 } = await supabase
           .from('produtos_servicos_projeto')
           .update({ status_analise: status })
-          .eq('id', draggingId)
+          .eq('id', cardId)
 
         if (err1) throw err1
 
         const { error: err2 } = await supabase
           .from('produtos_servicos_projeto')
           .update({ status_analise: finalStatus })
-          .eq('id', draggingId)
+          .eq('id', cardId)
 
         if (err2) throw err2
 
@@ -264,7 +262,7 @@ export function AnaliseKanbanBoard({
         const { error } = await supabase
           .from('produtos_servicos_projeto')
           .update({ status_analise: status })
-          .eq('id', draggingId)
+          .eq('id', cardId)
 
         if (error) throw error
       }
@@ -275,11 +273,18 @@ export function AnaliseKanbanBoard({
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao mover card',
+        title: 'Erro ao alterar status',
         description: error.message || 'Sem permissão ou erro interno.',
       })
-      loadCards() // revert optimistic update
+      loadCards()
     }
+  }
+
+  const handleDrop = async (e: React.DragEvent, status: string) => {
+    e.preventDefault()
+    setDragOverCol(null)
+    if (!draggingId) return
+    await handleUpdateCardStatus(draggingId, status)
   }
 
   const handleCheckOutsourced = async (hasOutsourced: boolean) => {
@@ -370,7 +375,23 @@ export function AnaliseKanbanBoard({
     }
   })
 
-  const cardsWithDeps = cards.map((c) => {
+  // Agrupar subcards por card_pai_id para Análise Técnica
+  const subcardsByParentId: Record<string, any[]> = {}
+  cards.forEach((c) => {
+    if (c?.card_pai_id) {
+      if (!subcardsByParentId[c.card_pai_id]) {
+        subcardsByParentId[c.card_pai_id] = []
+      }
+      subcardsByParentId[c.card_pai_id].push(c)
+    }
+  })
+
+  // Na Análise Técnica, no board de ambientes (detalhe do projeto),
+  // mostramos os ambientes (cards sem card_pai_id) nas colunas do kanban,
+  // e cada ambiente exibe seus subcards como mini-cards dentro dele.
+  const parentCardsOnly = cards.filter((c) => !c?.card_pai_id)
+
+  const cardsWithDeps = parentCardsOnly.map((c) => {
     const leadsData = c?.formulario_comercial?.leads
     const kanbanAtivo = Array.isArray(leadsData)
       ? leadsData[0]?.kanban_ativo
@@ -458,6 +479,7 @@ export function AnaliseKanbanBoard({
                 key={col.id}
                 column={col}
                 cards={colCards}
+                subcardsByParentId={subcardsByParentId}
                 onDragOver={(e: any) => {
                   e.preventDefault()
                   setDragOverCol(col.id)
@@ -485,6 +507,8 @@ export function AnaliseKanbanBoard({
                   setCheckModalCard(card)
                 }}
                 onDelete={(id: string) => setCards((prev) => prev.filter((c) => c?.id !== id))}
+                onAddSubcard={(parent: any) => setSubcardModalParent(parent)}
+                onStatusChange={handleUpdateCardStatus}
               />
             )
           })}
@@ -502,6 +526,17 @@ export function AnaliseKanbanBoard({
           onClose={() => setAvulsoModalOpen(false)}
           onSuccess={handleAvulsoCreated}
           baseCard={avulsoCardToUpdate}
+        />
+      )}
+
+      {subcardModalParent && (
+        <CriarSubcardModal
+          parentCard={subcardModalParent}
+          onClose={() => setSubcardModalParent(null)}
+          onSuccess={() => {
+            setSubcardModalParent(null)
+            loadCards()
+          }}
         />
       )}
 

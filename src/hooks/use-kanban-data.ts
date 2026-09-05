@@ -20,6 +20,14 @@ export interface KanbanItem {
   terceirizado_validado?: boolean
   outsourced_checked?: boolean
   is_outsourced?: boolean
+  card_pai_id?: string | null
+  cor_vinculo?: string | null
+  card_pai?: {
+    id: string
+    nome_produto: string
+    status_analise: string
+    cor_vinculo: string | null
+  } | null
 }
 
 export interface KanbanColumnDef {
@@ -32,6 +40,8 @@ const PAGE_SIZE = 30
 const ITEM_SELECT = `
   id, nome_produto, codigo_rastreio, qtd, status_analise, criado_em,
   analista_id, cliente_id, terceirizado_validado, outsourced_checked, is_outsourced,
+  card_pai_id, cor_vinculo,
+  card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, status_analise, cor_vinculo),
   cliente:clientes(nome),
   formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
   alocacao_montagem(montador_id)
@@ -67,6 +77,9 @@ const normalizeItem = (item: any): KanbanItem => {
       terceirizado_validado: false,
       outsourced_checked: false,
       is_outsourced: false,
+      card_pai_id: null,
+      cor_vinculo: null,
+      card_pai: null,
     }
   }
   const clienteRaw = Array.isArray(item?.cliente)
@@ -100,6 +113,9 @@ const normalizeItem = (item: any): KanbanItem => {
     terceirizado_validado: item?.terceirizado_validado ?? false,
     outsourced_checked: item?.outsourced_checked ?? false,
     is_outsourced: item?.is_outsourced ?? false,
+    card_pai_id: item?.card_pai_id ?? null,
+    cor_vinculo: item?.cor_vinculo ?? null,
+    card_pai: Array.isArray(item?.card_pai) ? (item.card_pai[0] ?? null) : (item?.card_pai ?? null),
   }
 }
 
