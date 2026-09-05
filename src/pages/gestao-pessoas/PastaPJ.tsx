@@ -4,14 +4,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Save, Briefcase, FileText } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ArrowLeft, Save, Briefcase, FileText, CheckSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentosAba } from './DocumentosAba'
 import { Textarea } from '@/components/ui/textarea'
 
+const AREAS_DISPONIVEIS = [
+  { id: 'producao', label: 'Produção' },
+  { id: 'montagem', label: 'Montagem' },
+  { id: 'analise_tecnica', label: 'Análise Técnica' },
+] as const
+
 export function PastaPJ({ id }: { id: string | null }) {
-  const [f, setF] = useState<any>({})
+  const [f, setF] = useState<any>({
+    areas_atuacao: ['producao', 'montagem', 'analise_tecnica'],
+  })
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -23,7 +32,15 @@ export function PastaPJ({ id }: { id: string | null }) {
         .eq('id', id)
         .single()
         .then(({ data }) => {
-          if (data) setF(data)
+          if (data) {
+            setF({
+              ...data,
+              areas_atuacao:
+                Array.isArray(data.areas_atuacao) && data.areas_atuacao.length > 0
+                  ? data.areas_atuacao
+                  : ['producao', 'montagem', 'analise_tecnica'],
+            })
+          }
         })
     }
   }, [id])
@@ -34,7 +51,18 @@ export function PastaPJ({ id }: { id: string | null }) {
       return
     }
 
-    const data = { ...f }
+    const areas = Array.isArray(f.areas_atuacao) ? f.areas_atuacao : []
+    if (areas.length === 0) {
+      toast({
+        title: 'Áreas de atuação obrigatórias',
+        description:
+          'Selecione pelo menos 1 área de atuação (Produção, Montagem ou Análise Técnica).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const data = { ...f, areas_atuacao: areas }
     if (!data.socio_data_nascimento) data.socio_data_nascimento = null
     if (!data.ajuda_custo) data.ajuda_custo = null
     if (!data.comissoes) data.comissoes = null
@@ -193,6 +221,46 @@ export function PastaPJ({ id }: { id: string | null }) {
                     maxLength={2}
                   />
                 </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-primary" />
+                Áreas de Atuação *
+              </h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Marque onde este parceiro PJ pode ser alocado nos fluxos de trabalho (mínimo 1
+                área).
+              </p>
+              <div className="flex flex-wrap items-center gap-6 p-4 rounded-lg bg-muted/40 border border-border">
+                {AREAS_DISPONIVEIS.map((area) => {
+                  const currentAreas: string[] = Array.isArray(f.areas_atuacao)
+                    ? f.areas_atuacao
+                    : []
+                  const isChecked = currentAreas.includes(area.id)
+                  return (
+                    <label
+                      key={area.id}
+                      className="flex items-center space-x-2.5 cursor-pointer text-sm font-medium select-none"
+                    >
+                      <Checkbox
+                        id={`area-pj-${area.id}`}
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          let next: string[]
+                          if (checked) {
+                            next = Array.from(new Set([...currentAreas, area.id]))
+                          } else {
+                            next = currentAreas.filter((a) => a !== area.id)
+                          }
+                          setF({ ...f, areas_atuacao: next })
+                        }}
+                      />
+                      <span className="text-foreground">{area.label}</span>
+                    </label>
+                  )
+                })}
               </div>
             </div>
 

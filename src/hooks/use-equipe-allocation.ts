@@ -8,6 +8,7 @@ export interface MembroEquipe {
   nome: string
   telefone?: string | null
   tipo: 'CLT' | 'PJ'
+  areas_atuacao?: string[]
   alocacoes?: { card_id: string; produtos_servicos_projeto?: { cliente_id: string | null } }[]
 }
 

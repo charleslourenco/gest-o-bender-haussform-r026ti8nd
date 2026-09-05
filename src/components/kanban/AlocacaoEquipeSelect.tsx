@@ -21,12 +21,19 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Check, ChevronsUpDown, Plus, UserPlus, Users, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useEquipeAllocation, MembroEquipe } from '@/hooks/use-equipe-allocation'
 import { AllocationConfirmDialog } from './AllocationConfirmDialog'
+
+const AREAS_CADASTRO = [
+  { id: 'producao', label: 'Produção' },
+  { id: 'montagem', label: 'Montagem' },
+  { id: 'analise_tecnica', label: 'Análise Técnica' },
+] as const
 
 interface AlocacaoEquipeSelectProps {
   item: any
@@ -49,6 +56,7 @@ export function AlocacaoEquipeSelect({
   const [novoNome, setNovoNome] = useState('')
   const [novoTelefone, setNovoTelefone] = useState('')
   const [novoTipo, setNovoTipo] = useState<'CLT' | 'PJ'>('CLT')
+  const [novasAreas, setNovasAreas] = useState<string[]>([modulo])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const isMontagem = modulo === 'montagem'
@@ -80,11 +88,23 @@ export function AlocacaoEquipeSelect({
     toggleMembro(membro, item.id, item?.cliente_id ?? null, isChecked)
   }
 
+  const handleOpenQuickCreate = () => {
+    // Pré-marca a área do módulo atual (produção ou montagem)
+    setNovasAreas(modulo ? [modulo] : ['producao'])
+    setOpenPopover(false)
+    setOpenQuickCreate(true)
+  }
+
   const handleQuickCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const nomeLimpo = novoNome.trim()
     if (!nomeLimpo) {
       toast.error('Informe o nome da pessoa.')
+      return
+    }
+
+    if (novasAreas.length === 0) {
+      toast.error('Selecione pelo menos uma área de atuação.')
       return
     }
 
@@ -97,6 +117,7 @@ export function AlocacaoEquipeSelect({
           .insert({
             nome_completo: nomeLimpo,
             telefone: novoTelefone.trim() || null,
+            areas_atuacao: novasAreas,
           })
           .select('id')
           .single()
@@ -111,6 +132,7 @@ export function AlocacaoEquipeSelect({
             razao_social: nomeLimpo,
             socio_nome: nomeLimpo,
             telefone: novoTelefone.trim() || null,
+            areas_atuacao: novasAreas,
           })
           .select('id')
           .single()
@@ -126,6 +148,7 @@ export function AlocacaoEquipeSelect({
         nome: nomeLimpo,
         telefone: novoTelefone.trim() || null,
         tipo: novoTipo,
+        areas_atuacao: novasAreas,
         alocacoes: [],
       }
 
@@ -138,6 +161,7 @@ export function AlocacaoEquipeSelect({
       setNovoNome('')
       setNovoTelefone('')
       setNovoTipo('CLT')
+      setNovasAreas([modulo])
       setOpenQuickCreate(false)
       setOpenPopover(false)
     } catch (err: any) {
@@ -147,10 +171,18 @@ export function AlocacaoEquipeSelect({
     }
   }
 
-  // Filtragem da lista
-  const filteredEquipe = (equipe || []).filter((m) =>
-    (m?.nome || '').toLowerCase().includes(search.toLowerCase()),
-  )
+  // Filtragem da lista pelo módulo e busca por texto
+  // Registros sem array preenchido (ou indefinido) aparecem em todas as áreas por compatibilidade
+  const filteredEquipe = (equipe || [])
+    .filter((m) => {
+      if (!modulo) return true
+      const areas = m.areas_atuacao
+      if (!Array.isArray(areas) || areas.length === 0) {
+        return true
+      }
+      return areas.includes(modulo)
+    })
+    .filter((m) => (m?.nome || '').toLowerCase().includes(search.toLowerCase()))
 
   return (
     <>
@@ -190,10 +222,7 @@ export function AlocacaoEquipeSelect({
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={() => {
-                  setOpenPopover(false)
-                  setOpenQuickCreate(true)
-                }}
+                onClick={handleOpenQuickCreate}
                 className="h-7 px-2 text-[11px] text-primary hover:text-primary hover:bg-primary/10 flex items-center gap-1 shrink-0 font-semibold"
                 title="Cadastrar nova pessoa na Gestão de Pessoas"
               >
@@ -204,15 +233,15 @@ export function AlocacaoEquipeSelect({
             <CommandList className="max-h-[260px] overflow-y-auto">
               {filteredEquipe.length === 0 ? (
                 <div className="p-4 text-center text-xs text-muted-foreground flex flex-col items-center gap-2">
-                  <span>Nenhuma pessoa encontrada.</span>
+                  <span>
+                    Nenhuma pessoa encontrada para {modulo === 'montagem' ? 'Montagem' : 'Produção'}
+                    .
+                  </span>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => {
-                      setOpenPopover(false)
-                      setOpenQuickCreate(true)
-                    }}
+                    onClick={handleOpenQuickCreate}
                     className="text-xs h-7 gap-1"
                   >
                     <UserPlus className="w-3.5 h-3.5" />+ Cadastrar agora
@@ -370,6 +399,35 @@ export function AlocacaoEquipeSelect({
                     </Label>
                   </div>
                 </RadioGroup>
+              </div>
+
+              <div className="grid gap-1.5 pt-1">
+                <Label className="text-xs font-semibold">Áreas de Atuação *</Label>
+                <div className="grid grid-cols-1 gap-2 p-2 rounded-md border border-border bg-muted/30">
+                  {AREAS_CADASTRO.map((area) => {
+                    const isChecked = novasAreas.includes(area.id)
+                    return (
+                      <label
+                        key={area.id}
+                        className="flex items-center space-x-2 cursor-pointer text-xs font-medium select-none"
+                      >
+                        <Checkbox
+                          id={`quick-area-${area.id}`}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setNovasAreas((prev) => Array.from(new Set([...prev, area.id])))
+                            } else {
+                              setNovasAreas((prev) => prev.filter((a) => a !== area.id))
+                            }
+                          }}
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-foreground">{area.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

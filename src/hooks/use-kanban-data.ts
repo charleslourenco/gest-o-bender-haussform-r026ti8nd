@@ -199,8 +199,10 @@ export function useKanbanData(
         if (fetchMontadores && !isLoadMore) {
           const [montRes, cltRes, pjRes, alocRes] = await Promise.all([
             supabase.from('montadores').select('*, alocacao_montagem(card_id)'),
-            supabase.from('equipe_clt').select('id, nome_completo, telefone'),
-            supabase.from('parceiros_pj').select('id, razao_social, socio_nome, telefone'),
+            supabase.from('equipe_clt').select('id, nome_completo, telefone, areas_atuacao'),
+            supabase
+              .from('parceiros_pj')
+              .select('id, razao_social, socio_nome, telefone, areas_atuacao'),
             supabase
               .from('alocacao_montagem')
               .select(
@@ -238,6 +240,7 @@ export function useKanbanData(
                   nome: c.nome_completo,
                   telefone: c.telefone,
                   tipo: 'CLT',
+                  areas_atuacao: Array.isArray(c.areas_atuacao) ? c.areas_atuacao : [],
                   alocacoes: cAlocs,
                 })
               }
@@ -258,6 +261,7 @@ export function useKanbanData(
                   nome,
                   telefone: p.telefone,
                   tipo: 'PJ',
+                  areas_atuacao: Array.isArray(p.areas_atuacao) ? p.areas_atuacao : [],
                   alocacoes: pAlocs,
                 })
               }
@@ -279,6 +283,7 @@ export function useKanbanData(
                   nome: m.nome_completo,
                   telefone: m.telefone,
                   tipo: 'PJ',
+                  areas_atuacao: ['montagem'],
                   alocacoes: mAlocs,
                 })
               }
