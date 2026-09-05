@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { KanbanHeader } from './KanbanHeader'
 import { AlocacaoEquipeSelect } from './AlocacaoEquipeSelect'
 import { MontadorSelect } from './MontadorSelect'
@@ -67,7 +68,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 type Item = KanbanItem
 
