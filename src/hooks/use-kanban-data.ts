@@ -54,14 +54,22 @@ const ITEM_SELECT = `
 `
 
 export function getClienteNome(item: any): string | null {
-  if (!item) return null
-  const nome = Array.isArray(item?.cliente) ? item.cliente[0]?.nome : item?.cliente?.nome
-  if (nome) return nome
-  if (item?.formulario) {
-    const form = Array.isArray(item.formulario) ? item.formulario[0] : item.formulario
-    const formCli = Array.isArray(form?.cliente) ? form.cliente[0]?.nome : form?.cliente?.nome
-    if (formCli) return formCli
-    if (form?.nome_cliente) return form.nome_cliente
+  if (!item || typeof item !== 'object') return null
+  const clienteRaw = item?.cliente ?? item?.clientes
+  const nome = Array.isArray(clienteRaw) ? clienteRaw[0]?.nome : clienteRaw?.nome
+  if (typeof nome === 'string' && nome.trim().length > 0) return nome.trim()
+
+  const formRaw = item?.formulario ?? item?.formulario_comercial
+  if (formRaw) {
+    const form = Array.isArray(formRaw) ? formRaw[0] : formRaw
+    if (form && typeof form === 'object') {
+      const formCliRaw = form?.cliente ?? form?.clientes
+      const formCli = Array.isArray(formCliRaw) ? formCliRaw[0]?.nome : formCliRaw?.nome
+      if (typeof formCli === 'string' && formCli.trim().length > 0) return formCli.trim()
+      if (typeof form?.nome_cliente === 'string' && form.nome_cliente.trim().length > 0) {
+        return form.nome_cliente.trim()
+      }
+    }
   }
   return null
 }
@@ -88,37 +96,58 @@ const normalizeItem = (item: any): KanbanItem => {
       card_pai: null,
     }
   }
-  const clienteRaw = Array.isArray(item?.cliente)
-    ? (item.cliente[0] ?? null)
-    : (item?.cliente ?? null)
-  const cliente = clienteRaw ?? { nome: '' }
-  const formularioRaw = Array.isArray(item?.formulario)
-    ? (item.formulario[0] ?? null)
-    : (item?.formulario ?? null)
-  const formulario = formularioRaw
-    ? {
-        user_id: formularioRaw.user_id ?? '',
-        nome_cliente: formularioRaw.nome_cliente ?? null,
-        cliente: Array.isArray(formularioRaw.cliente)
-          ? (formularioRaw.cliente[0] ?? null)
-          : (formularioRaw.cliente ?? null),
-      }
-    : null
+  const clienteSource = item?.cliente ?? item?.clientes
+  const clienteRaw = Array.isArray(clienteSource)
+    ? (clienteSource[0] ?? null)
+    : (clienteSource ?? null)
+  const cliente =
+    clienteRaw && typeof clienteRaw === 'object'
+      ? { nome: typeof clienteRaw.nome === 'string' ? clienteRaw.nome : '' }
+      : { nome: '' }
+
+  const formSource = item?.formulario ?? item?.formulario_comercial
+  const formularioRaw = Array.isArray(formSource) ? (formSource[0] ?? null) : (formSource ?? null)
+
+  let formulario: KanbanItem['formulario'] = null
+  if (formularioRaw && typeof formularioRaw === 'object') {
+    const formCliSource = formularioRaw.cliente ?? formularioRaw.clientes
+    const formCliRaw = Array.isArray(formCliSource)
+      ? (formCliSource[0] ?? null)
+      : (formCliSource ?? null)
+
+    formulario = {
+      user_id:
+        typeof formularioRaw.user_id === 'string'
+          ? formularioRaw.user_id
+          : (formularioRaw.usuario_id ?? ''),
+      nome_cliente:
+        typeof formularioRaw.nome_cliente === 'string' ? formularioRaw.nome_cliente : null,
+      cliente:
+        formCliRaw && typeof formCliRaw === 'object'
+          ? { nome: typeof formCliRaw.nome === 'string' ? formCliRaw.nome : '' }
+          : null,
+    }
+  }
+
+  const alocacaoRaw = Array.isArray(item?.alocacao_montagem)
+    ? item.alocacao_montagem.filter(Boolean)
+    : []
+
   return {
     ...item,
-    alocacao_montagem: Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : [],
+    alocacao_montagem: alocacaoRaw,
     cliente,
     formulario,
     status_analise: item?.status_analise ?? null,
-    nome_produto: item?.nome_produto ?? '',
-    qtd: item?.qtd ?? 0,
+    nome_produto: typeof item?.nome_produto === 'string' ? item.nome_produto : '',
+    qtd: typeof item?.qtd === 'number' ? item.qtd : Number(item?.qtd) || 0,
     codigo_rastreio: item?.codigo_rastreio ?? null,
     analista_id: item?.analista_id ?? null,
     criado_em: item?.criado_em ?? '',
     cliente_id: item?.cliente_id ?? null,
-    terceirizado_validado: item?.terceirizado_validado ?? false,
-    outsourced_checked: item?.outsourced_checked ?? false,
-    is_outsourced: item?.is_outsourced ?? false,
+    terceirizado_validado: Boolean(item?.terceirizado_validado),
+    outsourced_checked: Boolean(item?.outsourced_checked),
+    is_outsourced: Boolean(item?.is_outsourced),
     card_pai_id: item?.card_pai_id ?? null,
     cor_vinculo: item?.cor_vinculo ?? null,
     card_pai: Array.isArray(item?.card_pai) ? (item.card_pai[0] ?? null) : (item?.card_pai ?? null),

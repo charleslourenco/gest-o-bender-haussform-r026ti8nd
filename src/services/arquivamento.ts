@@ -46,7 +46,9 @@ export async function desarquivarProducao(id: string): Promise<void> {
 export async function fetchProducaoArquivados() {
   const { data, error } = await supabase
     .from('produtos_servicos_projeto')
-    .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
+    .select(
+      '*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome)), alocacao_montagem(id, pessoa_id, pessoa_nome, montadores(nome_completo))',
+    )
     .eq('arquivado_producao' as any, true)
     .eq('excluido_producao' as any, false)
     .order('atualizado_em', { ascending: false })
@@ -73,7 +75,9 @@ export async function desarquivarMontagem(id: string): Promise<void> {
 export async function fetchMontagemArquivados() {
   const { data, error } = await supabase
     .from('produtos_servicos_projeto')
-    .select('*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome))')
+    .select(
+      '*, clientes(nome), formulario_comercial(nome_cliente, clientes(nome)), alocacao_montagem(id, pessoa_id, pessoa_nome, montadores(nome_completo))',
+    )
     .eq('arquivado_montagem' as any, true)
     .eq('excluido_montagem' as any, false)
     .order('atualizado_em', { ascending: false })

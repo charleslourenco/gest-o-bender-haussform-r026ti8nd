@@ -1,10 +1,10 @@
-import { Badge } from '@/components/ui/badge'
 import { CardData } from './types'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
-import { Wrench, Clock, AlertTriangle } from 'lucide-react'
+import { Clock, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AlocadosBadge } from './alocados-helper'
 
 export function KanbanCard({
   card,
@@ -129,13 +129,7 @@ export function KanbanCard({
         <div className="truncate text-[10px] text-muted-foreground">Qtd: {card.qtd || 0}</div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           {montadores.length > 0 && (
-            <div
-              className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
-              title={`Equipe alocada: ${montadores.join(', ')}`}
-            >
-              <Wrench className="w-2.5 h-2.5" />
-              <span className="truncate max-w-[80px]">{montadores.length} alocado(s)</span>
-            </div>
+            <AlocadosBadge alocados={montadores} icon={isMontagem ? 'wrench' : 'users'} />
           )}
         </div>
       </div>

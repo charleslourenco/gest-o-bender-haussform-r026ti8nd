@@ -53,7 +53,14 @@ export async function deleteCard(id: string, module: KanbanModule): Promise<void
     throw new Error('Sem permissão para excluir este card ou card não encontrado.')
   }
 
-  // 3. Se for um subcard (card_pai_id preenchido), verifica se o card pai ainda possui
+  // 3. Libera alocações da equipe associadas a este card excluído (auditoria automática pelo trigger)
+  try {
+    await supabase.from('alocacao_montagem').delete().eq('card_id', id)
+  } catch (alocErr) {
+    console.error('Erro ao desalocar equipe do card excluído:', alocErr)
+  }
+
+  // 4. Se for um subcard (card_pai_id preenchido), verifica se o card pai ainda possui
   // algum subcard ativo (excluido_producao = false). Se não restar nenhum ativo,
   // limpa a coluna cor_vinculo do pai (SET cor_vinculo = NULL).
   if (cardToDel.card_pai_id) {

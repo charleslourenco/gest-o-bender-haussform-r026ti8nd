@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useKanbanData, getClienteNome, type KanbanItem } from '@/hooks/use-kanban-data'
+import { AlocadosBadge } from './alocados-helper'
 import {
   updateCardStatus,
   deleteCard as deleteCardAction,
@@ -86,13 +87,18 @@ function TimeInColumn({
   status,
   criado_em,
 }: {
-  cardId: string
-  status: string
-  criado_em: string
+  cardId?: string | null
+  status?: string | null
+  criado_em?: string | null
 }) {
   const [timeStr, setTimeStr] = useState<string>('')
 
   useEffect(() => {
+    if (!cardId || !status) {
+      setTimeStr('')
+      return
+    }
+
     let isMounted = true
     const fetchTime = async () => {
       try {
@@ -106,11 +112,11 @@ function TimeInColumn({
 
         if (!isMounted) return
 
-        const rawStart = data && data.length > 0 ? data[0].criado_em : criado_em
-        if (!rawStart) return
+        const rawStart = data && data.length > 0 ? data[0]?.criado_em : criado_em
+        if (!rawStart || typeof rawStart !== 'string') return
 
         const startMs = new Date(rawStart).getTime()
-        if (isNaN(startMs)) return
+        if (isNaN(startMs) || startMs <= 0) return
 
         const diffInMs = new Date().getTime() - startMs
         if (diffInMs < 0) return
@@ -1046,7 +1052,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
                   {(isProducao || isMontagemRoute) && (
                     <div className="flex items-center justify-between mt-auto pt-0.5">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         {item?.id && item?.status_analise && item?.criado_em && (
                           <TimeInColumn
                             cardId={item.id}
@@ -1056,21 +1062,14 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         )}
                         {(isMontagemRoute || isProducao) &&
                           Array.isArray(item?.alocacao_montagem) &&
-                          item.alocacao_montagem.length > 0 && (
-                            <div
-                              className="flex items-center gap-0.5 text-[9px] leading-none text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
-                              title={`${item.alocacao_montagem.length} alocado(s)`}
-                            >
-                              {isMontagemRoute ? (
-                                <Wrench className="w-2.5 h-2.5" />
-                              ) : (
-                                <Users className="w-2.5 h-2.5" />
-                              )}
-                              <span>{item.alocacao_montagem.length} alocado(s)</span>
-                            </div>
+                          (item?.alocacao_montagem?.length ?? 0) > 0 && (
+                            <AlocadosBadge
+                              alocados={item.alocacao_montagem}
+                              icon={isMontagemRoute ? 'wrench' : 'users'}
+                            />
                           )}
                       </div>
-                      <div className="flex items-center gap-1 text-[10px]">
+                      <div className="flex items-center gap-1 text-[10px] shrink-0">
                         <Package className="h-3 w-3 shrink-0 text-muted-foreground" />
                         <span className="text-muted-foreground">Qtd: {item?.qtd ?? 0}</span>
                       </div>
