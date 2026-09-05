@@ -4,6 +4,7 @@ import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
 import { HistoricoMontagem } from '@/components/montagem/HistoricoMontagem'
 import { KanbanAssistencia } from '@/components/montagem/KanbanAssistencia'
+import { RelatorioAlocacao } from '@/components/kanban/RelatorioAlocacao'
 import { MontadoresTab } from '@/pages/MontadoresTab'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -11,7 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Hammer, Wrench } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type ViewMode = 'kanban' | 'lista' | 'montadores' | 'arquivados' | 'historico'
+type ViewMode = 'kanban' | 'lista' | 'relatorio' | 'montadores' | 'arquivados' | 'historico'
 
 const COLUMNS = [
   { id: 'aguardando_agenda', title: 'Aguardando Agenda' },
@@ -24,6 +25,7 @@ const COLUMNS = [
 const TABS: { id: ViewMode; label: string }[] = [
   { id: 'kanban', label: 'Kanban' },
   { id: 'lista', label: 'Lista' },
+  { id: 'relatorio', label: 'Relatório de Alocação' },
   { id: 'montadores', label: 'Gestão de Montadores' },
   { id: 'arquivados', label: 'Arquivados' },
   { id: 'historico', label: 'Histórico' },
@@ -94,6 +96,7 @@ export default function Montagem() {
                   {view === 'lista' && (
                     <KanbanListView columns={COLUMNS} archiveFlag="arquivado_montagem" />
                   )}
+                  {view === 'relatorio' && <RelatorioAlocacao modulo="montagem" />}
                   {view === 'montadores' && (
                     <div className="h-full overflow-auto p-4">
                       <MontadoresTab />

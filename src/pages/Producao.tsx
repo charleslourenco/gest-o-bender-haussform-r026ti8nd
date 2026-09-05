@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { KanbanListView } from '@/components/kanban/KanbanListView'
 import { KanbanArquivados } from '@/components/kanban/KanbanArquivados'
+import { RelatorioAlocacao } from '@/components/kanban/RelatorioAlocacao'
 import { RegistrarRetalhoModal } from '@/components/estoque/RegistrarRetalhoModal'
 import { RegistrarChapaModal } from '@/components/estoque/RegistrarChapaModal'
 import { RegistrarFitaRoloModal } from '@/components/estoque/RegistrarFitaRoloModal'
@@ -14,7 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { LayoutTemplate, ScissorsLineDashed, Disc, Ruler } from 'lucide-react'
+import { LayoutTemplate, ScissorsLineDashed, Disc, Ruler, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const COLUMNS = [
@@ -30,6 +31,7 @@ export default function Producao() {
   const [activeTab, setActiveTab] = useState('kanban')
   const [search, setSearch] = useState('')
   const [showArquivados, setShowArquivados] = useState(false)
+  const [showRelatorio, setShowRelatorio] = useState(false)
   const [isTypeSelectionOpen, setIsTypeSelectionOpen] = useState(false)
   const [isRetalhoModalOpen, setIsRetalhoModalOpen] = useState(false)
   const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
@@ -56,19 +58,42 @@ export default function Producao() {
     <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 mt-0 pt-0 overflow-hidden relative">
       <div className="flex items-center gap-2 px-4 py-2 bg-card border-b border-border shrink-0 z-30">
         <Button
-          variant={showArquivados ? 'outline' : 'default'}
+          variant={!showArquivados && !showRelatorio ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setShowArquivados(false)}
+          onClick={() => {
+            setShowArquivados(false)
+            setShowRelatorio(false)
+          }}
           className={cn(
-            !showArquivados && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+            !showArquivados &&
+              !showRelatorio &&
+              'bg-primary hover:bg-primary/90 text-primary-foreground',
           )}
         >
           Kanban
         </Button>
         <Button
+          variant={showRelatorio ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            setShowRelatorio(true)
+            setShowArquivados(false)
+          }}
+          className={cn(
+            showRelatorio && 'bg-primary hover:bg-primary/90 text-primary-foreground',
+            'flex items-center gap-1.5',
+          )}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          Relatório de Alocação
+        </Button>
+        <Button
           variant={showArquivados ? 'default' : 'outline'}
           size="sm"
-          onClick={() => setShowArquivados(true)}
+          onClick={() => {
+            setShowArquivados(true)
+            setShowRelatorio(false)
+          }}
           className={cn(showArquivados && 'bg-primary hover:bg-primary/90 text-primary-foreground')}
         >
           Arquivados
@@ -76,7 +101,9 @@ export default function Producao() {
       </div>
 
       <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
-        {showArquivados ? (
+        {showRelatorio ? (
+          <RelatorioAlocacao modulo="producao" />
+        ) : showArquivados ? (
           <KanbanArquivados archiveFlag="arquivado_producao" />
         ) : (
           <>
@@ -89,6 +116,12 @@ export default function Producao() {
                   columns={COLUMNS}
                   archiveFlag="arquivado_producao"
                 />
+              </div>
+            )}
+
+            {activeTab === 'relatorio' && (
+              <div className="absolute inset-x-0 bottom-0 top-[76px] bg-background z-10 overflow-auto animate-in fade-in duration-200 flex flex-col">
+                <RelatorioAlocacao modulo="producao" />
               </div>
             )}
 

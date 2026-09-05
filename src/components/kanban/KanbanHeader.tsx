@@ -125,6 +125,12 @@ export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
                   Lista
                 </TabsTrigger>
                 <TabsTrigger
+                  value="relatorio"
+                  className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
+                >
+                  Relatório de Alocação
+                </TabsTrigger>
+                <TabsTrigger
                   value="indicadores"
                   className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground"
                 >
