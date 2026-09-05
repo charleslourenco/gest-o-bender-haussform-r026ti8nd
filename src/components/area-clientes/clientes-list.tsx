@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Users, ChevronRight, X, FolderSearch, HelpCircle } from 'lucide-react'
+import {
+  Users,
+  ChevronRight,
+  X,
+  FolderSearch,
+  HelpCircle,
+  ChevronDown,
+  Check,
+  Calendar as CalendarIcon,
+  RotateCcw,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -30,7 +40,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { format } from 'date-fns'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { ClienteDeleteDialog } from './cliente-delete-dialog'
 import { VendasSummaryCard } from './vendas-summary-card'
@@ -64,6 +75,75 @@ interface ClienteRow {
 interface ClientesListProps {
   onSelect: (dossieId: string) => void
 }
+
+interface PeriodPreset {
+  id: string
+  label: string
+  getRange: () => { de: string; ate: string }
+}
+
+const PERIOD_PRESETS: PeriodPreset[] = [
+  {
+    id: 'hoje',
+    label: 'Hoje',
+    getRange: () => {
+      const today = format(new Date(), 'yyyy-MM-dd')
+      return { de: today, ate: today }
+    },
+  },
+  {
+    id: 'ontem',
+    label: 'Ontem',
+    getRange: () => {
+      const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
+      return { de: yesterday, ate: yesterday }
+    },
+  },
+  {
+    id: '7dias',
+    label: 'Últimos 7 dias',
+    getRange: () => {
+      const now = new Date()
+      return {
+        de: format(subDays(now, 6), 'yyyy-MM-dd'),
+        ate: format(now, 'yyyy-MM-dd'),
+      }
+    },
+  },
+  {
+    id: '30dias',
+    label: 'Últimos 30 dias',
+    getRange: () => {
+      const now = new Date()
+      return {
+        de: format(subDays(now, 29), 'yyyy-MM-dd'),
+        ate: format(now, 'yyyy-MM-dd'),
+      }
+    },
+  },
+  {
+    id: 'este_mes',
+    label: 'Este mês',
+    getRange: () => {
+      const now = new Date()
+      return {
+        de: format(startOfMonth(now), 'yyyy-MM-dd'),
+        ate: format(endOfMonth(now), 'yyyy-MM-dd'),
+      }
+    },
+  },
+  {
+    id: 'mes_passado',
+    label: 'Mês passado',
+    getRange: () => {
+      const lastMonth = subMonths(new Date(), 1)
+      return {
+        de: format(startOfMonth(lastMonth), 'yyyy-MM-dd'),
+        ate: format(endOfMonth(lastMonth), 'yyyy-MM-dd'),
+      }
+    },
+  },
+]
 
 function normalizeLead(raw: any): LeadRelation | null {
   if (!raw) return null
@@ -109,6 +189,9 @@ export function ClientesList({ onSelect }: ClientesListProps) {
   const [consultorFilter, setConsultorFilter] = useState('all')
   const [dataVendaDe, setDataVendaDe] = useState('')
   const [dataVendaAte, setDataVendaAte] = useState('')
+  const [activePreset, setActivePreset] = useState<string | null>(null)
+  const [isCustomOpen, setIsCustomOpen] = useState(false)
+  const [periodDropdownOpen, setPeriodDropdownOpen] = useState(false)
 
   useEffect(() => {
     const fetchFilterOptions = async () => {
@@ -212,11 +295,27 @@ export function ClientesList({ onSelect }: ClientesListProps) {
     fetchFilteredData()
   }, [clienteFilter, consultorFilter, dataVendaDe, dataVendaAte, refreshTrigger])
 
+  const handleApplyPreset = (preset: PeriodPreset) => {
+    const range = preset.getRange()
+    setDataVendaDe(range.de)
+    setDataVendaAte(range.ate)
+    setActivePreset(preset.id)
+    setPeriodDropdownOpen(false)
+  }
+
+  const handleClearPeriod = () => {
+    setDataVendaDe('')
+    setDataVendaAte('')
+    setActivePreset(null)
+    setPeriodDropdownOpen(false)
+  }
+
   const handleClearFilters = () => {
     setClienteFilter('all')
     setConsultorFilter('all')
     setDataVendaDe('')
     setDataVendaAte('')
+    setActivePreset(null)
   }
 
   const hasActiveFilters =
@@ -334,23 +433,135 @@ export function ClientesList({ onSelect }: ClientesListProps) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Data Venda De</Label>
-              <Input
-                type="date"
-                value={dataVendaDe}
-                onChange={(e) => setDataVendaDe(e.target.value)}
-                className="bg-background w-[150px]"
-              />
-            </div>
+              <Label className="text-xs font-medium text-muted-foreground">Período de Venda</Label>
+              <Popover open={periodDropdownOpen} onOpenChange={setPeriodDropdownOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="h-9 px-3 border-border text-foreground hover:bg-muted font-medium text-xs gap-1.5 bg-background justify-between min-w-[170px]"
+                  >
+                    <span className="flex items-center gap-1.5 truncate">
+                      <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {(() => {
+                        if (activePreset) {
+                          const p = PERIOD_PRESETS.find((x) => x.id === activePreset)
+                          if (p) return p.label
+                        }
+                        if (dataVendaDe || dataVendaAte) {
+                          if (dataVendaDe && dataVendaAte) {
+                            try {
+                              const deFormatted = format(
+                                new Date(dataVendaDe + 'T12:00:00'),
+                                'dd/MM/yyyy',
+                                { locale: ptBR },
+                              )
+                              const ateFormatted = format(
+                                new Date(dataVendaAte + 'T12:00:00'),
+                                'dd/MM/yyyy',
+                                { locale: ptBR },
+                              )
+                              return `${deFormatted} - ${ateFormatted}`
+                            } catch {
+                              return `${dataVendaDe} a ${dataVendaAte}`
+                            }
+                          }
+                          return dataVendaDe ? `A partir de ${dataVendaDe}` : `Até ${dataVendaAte}`
+                        }
+                        return 'Período'
+                      })()}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  className="w-56 p-1 bg-popover border-border shadow-md"
+                >
+                  <div className="flex flex-col space-y-0.5">
+                    {PERIOD_PRESETS.map((preset) => {
+                      const isSelected = activePreset === preset.id
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleApplyPreset(preset)}
+                          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-muted rounded-sm transition-colors text-left"
+                        >
+                          <span>{preset.label}</span>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        </button>
+                      )
+                    })}
 
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Data Venda Até</Label>
-              <Input
-                type="date"
-                value={dataVendaAte}
-                onChange={(e) => setDataVendaAte(e.target.value)}
-                className="bg-background w-[150px]"
-              />
+                    <div className="border-t border-border my-1" />
+
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomOpen((prev) => !prev)}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-foreground hover:bg-muted rounded-sm transition-colors text-left font-medium"
+                    >
+                      <span>Personalizado</span>
+                      <div className="flex items-center gap-1">
+                        {activePreset === 'custom' && (
+                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                        )}
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                            isCustomOpen ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {isCustomOpen && (
+                      <div className="p-2 space-y-2 bg-muted/40 rounded-md border border-border/60 mt-1">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-medium text-muted-foreground">
+                            De
+                          </Label>
+                          <Input
+                            type="date"
+                            value={dataVendaDe}
+                            onChange={(e) => {
+                              setDataVendaDe(e.target.value)
+                              setActivePreset('custom')
+                            }}
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[11px] font-medium text-muted-foreground">
+                            Até
+                          </Label>
+                          <Input
+                            type="date"
+                            value={dataVendaAte}
+                            onChange={(e) => {
+                              setDataVendaAte(e.target.value)
+                              setActivePreset('custom')
+                            }}
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {(dataVendaDe || dataVendaAte || activePreset) && (
+                      <>
+                        <div className="border-t border-border my-1" />
+                        <button
+                          type="button"
+                          onClick={handleClearPeriod}
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-sm transition-colors text-left"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Limpar período
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <Button
