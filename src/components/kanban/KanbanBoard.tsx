@@ -699,10 +699,20 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
               const parentCard = isSubcard
                 ? items.find((p) => p.id === item.card_pai_id) || item.card_pai
                 : null
-              const corVinculo =
-                item.cor_vinculo ||
-                (isSubcard && parentCard?.cor_vinculo) ||
-                (isSubcard && item.card_pai_id ? '#3b82f6' : null)
+
+              // Proteção Item 2: O card pai só deve desenhar a borda lateral colorida
+              // se tiver pelo menos um subcard ATIVO carregado. Se for subcard, herda a cor normalmente.
+              const activeSubcardsCount = !isSubcard
+                ? (subcardsByParent.get(item.id)?.length ?? 0)
+                : 0
+
+              const corVinculo = isSubcard
+                ? item.cor_vinculo ||
+                  parentCard?.cor_vinculo ||
+                  (item.card_pai_id ? '#3b82f6' : null)
+                : activeSubcardsCount > 0
+                  ? item.cor_vinculo
+                  : null
 
               // Hover mútuo: se o mouse estiver no pai, realça todos os subcards. Se estiver no subcard, realça o pai e irmãos da mesma família
               const itemFamilyId = isSubcard ? item.card_pai_id : item.id
