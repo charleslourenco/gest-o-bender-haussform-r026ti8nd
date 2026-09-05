@@ -21,7 +21,7 @@ const AREAS_DISPONIVEIS = [
 
 export function PastaPJ({ id }: { id: string | null }) {
   const [f, setF] = useState<any>({
-    areas_atuacao: ['producao', 'montagem', 'analise_tecnica'],
+    areas_atuacao: [],
   })
   const [inativando, setInativando] = useState(false)
   const navigate = useNavigate()
@@ -38,10 +38,7 @@ export function PastaPJ({ id }: { id: string | null }) {
           if (data) {
             setF({
               ...data,
-              areas_atuacao:
-                Array.isArray(data.areas_atuacao) && data.areas_atuacao.length > 0
-                  ? data.areas_atuacao
-                  : ['producao', 'montagem', 'analise_tecnica'],
+              areas_atuacao: Array.isArray(data.areas_atuacao) ? data.areas_atuacao : [],
             })
           }
         })
@@ -55,16 +52,6 @@ export function PastaPJ({ id }: { id: string | null }) {
     }
 
     const areas = Array.isArray(f.areas_atuacao) ? f.areas_atuacao : []
-    if (areas.length === 0) {
-      toast({
-        title: 'Áreas de atuação obrigatórias',
-        description:
-          'Selecione pelo menos 1 área de atuação (Produção, Montagem ou Análise Técnica).',
-        variant: 'destructive',
-      })
-      return
-    }
-
     const data = { ...f, areas_atuacao: areas }
     if (!data.socio_data_nascimento) data.socio_data_nascimento = null
     if (!data.ajuda_custo) data.ajuda_custo = null
@@ -315,8 +302,9 @@ export function PastaPJ({ id }: { id: string | null }) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mb-4">
-                Marque onde este parceiro PJ pode ser alocado nos fluxos de trabalho (mínimo 1 área
-                para salvar como ativo). Ao inativar, todas as opções são desmarcadas.
+                Opcional. Marque os fluxos em que o parceiro PJ pode ser alocado. Cadastros sem
+                nenhuma área marcada não aparecem nos selects dos kanbans (ideal para setores como
+                financeiro, almoxarifado etc.).
               </p>
               <div className="flex flex-wrap items-center gap-6 p-4 rounded-lg bg-muted/40 border border-border">
                 {AREAS_DISPONIVEIS.map((area) => {

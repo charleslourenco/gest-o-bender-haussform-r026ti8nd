@@ -103,11 +103,6 @@ export function AlocacaoEquipeSelect({
       return
     }
 
-    if (novasAreas.length === 0) {
-      toast.error('Selecione pelo menos uma área de atuação.')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       let createdId = ''
@@ -172,13 +167,13 @@ export function AlocacaoEquipeSelect({
   }
 
   // Filtragem da lista pelo módulo e busca por texto
-  // Registros sem array preenchido (ou indefinido) aparecem em todas as áreas por compatibilidade
+  // Pessoas sem áreas definidas (ou array vazio) não aparecem na alocação dos kanbans
   const filteredEquipe = (equipe || [])
     .filter((m) => {
       if (!modulo) return true
       const areas = m.areas_atuacao
       if (!Array.isArray(areas) || areas.length === 0) {
-        return true
+        return false
       }
       return areas.includes(modulo)
     })
@@ -402,7 +397,7 @@ export function AlocacaoEquipeSelect({
               </div>
 
               <div className="grid gap-1.5 pt-1">
-                <Label className="text-xs font-semibold">Áreas de Atuação *</Label>
+                <Label className="text-xs font-semibold">Áreas de Atuação (opcional)</Label>
                 <div className="grid grid-cols-1 gap-2 p-2 rounded-md border border-border bg-muted/30">
                   {AREAS_CADASTRO.map((area) => {
                     const isChecked = novasAreas.includes(area.id)
