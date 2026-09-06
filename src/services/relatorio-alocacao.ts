@@ -530,13 +530,13 @@ export async function fetchRelatorioAlocacao(
     const cardInfo = cardsMap.get(s.cardId)
     if (!cardInfo) continue
 
-    // Filtragem por módulo de kanban:
+    // Filtragem por módulo de kanban (relatório histórico inclui ativos, concluídos e arquivados):
     if (modulo === 'producao') {
-      if (!producaoStatuses.has(cardInfo.status_analise) || cardInfo.arquivado_producao) {
+      if (!producaoStatuses.has(cardInfo.status_analise)) {
         continue
       }
     } else if (modulo === 'montagem') {
-      if (!montagemStatuses.has(cardInfo.status_analise) || cardInfo.arquivado_montagem) {
+      if (!montagemStatuses.has(cardInfo.status_analise)) {
         continue
       }
     }

@@ -313,8 +313,10 @@ export function KanbanAssistencia() {
   }
 
   const handleToggleMontadorInLead = async (lead: Lead, membroId: string) => {
-    if (!membroId) return
-    const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+    if (!membroId || !lead) return
+    const parsed = parseLeadMetadados((lead as any)?.notas_pessoais)
+    const notas = parsed?.notas ?? ''
+    const meta = parsed?.meta && typeof parsed.meta === 'object' ? parsed.meta : {}
     const currentMontadores: string[] = Array.isArray(meta?.montador_ids)
       ? meta.montador_ids.filter(Boolean)
       : []
@@ -324,7 +326,7 @@ export function KanbanAssistencia() {
       : [...currentMontadores, membroId]
 
     const newMeta = {
-      ...(meta || {}),
+      ...meta,
       montador_ids: updatedMontadores,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
@@ -661,18 +663,26 @@ export function KanbanAssistencia() {
                       users.find((u) => u.id === lead.consultor_id)?.nome ||
                       ''
                     const currentLeadColId = getColumnIdForStatus(lead.status)
-                    const { meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+                    const parsed = parseLeadMetadados((lead as any)?.notas_pessoais) || {
+                      meta: {},
+                      notas: '',
+                    }
+                    const meta = parsed.meta && typeof parsed.meta === 'object' ? parsed.meta : {}
                     const leadMontadorIds: string[] = Array.isArray(meta?.montador_ids)
                       ? meta.montador_ids.filter(Boolean)
                       : []
 
+                    const rawAlocacoes = Array.isArray((lead as any)?.alocacao_montagem)
+                      ? (lead as any).alocacao_montagem.filter(Boolean)
+                      : leadMontadorIds.map((id) => ({
+                          montador_id: id,
+                          pessoa_id: id,
+                        }))
+
                     const leadCardItemAdapter = {
                       id: lead.id,
                       cliente_id: null,
-                      alocacao_montagem: leadMontadorIds.map((id) => ({
-                        montador_id: id,
-                        pessoa_id: id,
-                      })),
+                      alocacao_montagem: rawAlocacoes,
                       onToggleMontador: (montadorId: string) =>
                         handleToggleMontadorInLead(lead, montadorId),
                     }
@@ -941,18 +951,24 @@ export function KanbanAssistencia() {
                   item={{
                     id: 'temp_new_assistencia',
                     cliente_id: null,
-                    alocacao_montagem: novoMontadoresIds.map((id) => ({
-                      montador_id: id,
-                      pessoa_id: id,
-                    })),
+                    alocacao_montagem: Array.isArray(novoMontadoresIds)
+                      ? novoMontadoresIds.filter(Boolean).map((id) => ({
+                          montador_id: id,
+                          pessoa_id: id,
+                        }))
+                      : [],
                     onToggleMontador: (mId: string) => {
                       setNovoMontadoresIds((prev) =>
-                        prev.includes(mId) ? prev.filter((id) => id !== mId) : [...prev, mId],
+                        Array.isArray(prev)
+                          ? prev.includes(mId)
+                            ? prev.filter((id) => id !== mId)
+                            : [...prev, mId]
+                          : [mId],
                       )
                     },
                   }}
                   modulo="montagem"
-                  equipe={allEquipe || []}
+                  equipe={Array.isArray(allEquipe) ? allEquipe : []}
                   onUpdate={() => {}}
                 />
               </ErrorBoundary>

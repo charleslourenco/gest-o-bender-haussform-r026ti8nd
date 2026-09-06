@@ -5,7 +5,31 @@ import { Button } from '@/components/ui/button'
 import { CreateCardDialog } from './CreateCardDialog'
 import { supabase } from '@/lib/supabase/client'
 
-export function KanbanHeader({ title, searchQuery, setSearchQuery }: any) {
+export interface KanbanHeaderProps {
+  title: string
+  searchQuery: string
+  setSearchQuery: (query: string) => void
+  selectedAnalyst?: string
+  setSelectedAnalyst?: (analyst: string) => void
+  selectedConsultant?: string
+  setSelectedConsultant?: (consultant: string) => void
+  uniqueAnalysts?: string[]
+  uniqueConsultants?: string[]
+  usersMap?: Record<string, { nome: string; foto_perfil: string | null }>
+}
+
+export function KanbanHeader({
+  title,
+  searchQuery,
+  setSearchQuery,
+  selectedAnalyst,
+  setSelectedAnalyst,
+  selectedConsultant,
+  setSelectedConsultant,
+  uniqueAnalysts = [],
+  uniqueConsultants = [],
+  usersMap = {},
+}: KanbanHeaderProps) {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number | null>(null)
 
