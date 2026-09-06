@@ -55,10 +55,14 @@ interface DRELayerBreakdown {
   }
 }
 
+interface DateFilterPredicate {
+  (dateStr: string): boolean
+}
+
 function calculateDRE(
   transactions: Transaction[],
   regime: RegimeType,
-  targetMonth?: string,
+  dateFilter?: string | DateFilterPredicate,
 ): DRELayerBreakdown {
   const result: DRELayerBreakdown = {
     receitaBruta: 0,
@@ -82,26 +86,33 @@ function calculateDRE(
     },
   }
 
-  transactions.forEach((t) => {
+  const safeList = Array.isArray(transactions) ? transactions : []
+
+  safeList.forEach((t) => {
+    if (!t) return
     const statusLower = (t.status || '').toLowerCase()
     if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
     // Regime filter:
-    // Caixa = se a transação está marcada como paga (status = pago), usa data_pagamento (ou fallback vencimento/criação).
-    // Se não estiver paga, ignora para o regime de caixa.
-    // Competência = data_vencimento (dueDate) ou data de competência contábil (createdAt como fallback).
     let dateStr: string | null = null
     if (regime === 'caixa') {
       if (statusLower !== 'pago') return
-      dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+      dateStr =
+        t.paidDate ||
+        t.dueDate ||
+        (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
     } else {
-      dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+      dateStr = t.dueDate || (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
     }
 
-    if (!dateStr) return
+    if (!dateStr || typeof dateStr !== 'string' || dateStr.length < 7) return
 
-    const month = dateStr.substring(0, 7)
-    if (targetMonth && month !== targetMonth) return
+    // Filtro de data: se for string, compara prefixo (ex: "2026-08" para mês ou "2026" para ano). Se for função, invoca.
+    if (typeof dateFilter === 'function') {
+      if (!dateFilter(dateStr)) return
+    } else if (typeof dateFilter === 'string' && dateFilter) {
+      if (!dateStr.startsWith(dateFilter)) return
+    }
 
     const amount = Math.abs(Number(t.amount) || 0)
     const categoryName = t.category || (t.type === 'receita' ? 'Vendas Gerais' : 'Despesas Gerais')
@@ -161,21 +172,32 @@ function calculateDRE(
 }
 
 function formatCurrency(val: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  const num = Number(val) || 0
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
 }
 
 function formatPercent(val: number): string {
-  return `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`
+  const num = Number(val) || 0
+  return `${num >= 0 ? '+' : ''}${num.toFixed(1)}%`
 }
 
 function formatPercentBase(val: number, base: number): string {
-  if (!base || base === 0) return '-'
-  const pct = (val / base) * 100
+  const b = Number(base) || 0
+  const v = Number(val) || 0
+  if (!b || b === 0) return '-'
+  const pct = (v / b) * 100
+  if (!isFinite(pct) || isNaN(pct)) return '-'
   return `${pct.toFixed(1)}%`
 }
 
+function safeToFixed(val: number, decimals = 1): string {
+  const num = Number(val)
+  if (isNaN(num) || !isFinite(num)) return '0.0'
+  return num.toFixed(decimals)
+}
+
 function getMonthName(monthStr: string): string {
-  if (!monthStr || !monthStr.includes('-')) return monthStr
+  if (!monthStr || typeof monthStr !== 'string' || !monthStr.includes('-')) return monthStr || '—'
   const [year, month] = monthStr.split('-')
   const months = [
     'Janeiro',
@@ -192,14 +214,16 @@ function getMonthName(monthStr: string): string {
     'Dezembro',
   ]
   const idx = parseInt(month, 10) - 1
+  if (isNaN(idx) || idx < 0 || idx > 11) return monthStr
   return `${months[idx] || month}/${year}`
 }
 
 function getPreviousMonth(monthStr: string): string {
-  if (!monthStr || !monthStr.includes('-')) return ''
+  if (!monthStr || typeof monthStr !== 'string' || !monthStr.includes('-')) return ''
   const [yearStr, mStr] = monthStr.split('-')
   let y = parseInt(yearStr, 10)
   let m = parseInt(mStr, 10) - 1
+  if (isNaN(y) || isNaN(m)) return ''
   if (m < 1) {
     m = 12
     y -= 1
@@ -208,9 +232,10 @@ function getPreviousMonth(monthStr: string): string {
 }
 
 function getSameMonthLastYear(monthStr: string): string {
-  if (!monthStr || !monthStr.includes('-')) return ''
+  if (!monthStr || typeof monthStr !== 'string' || !monthStr.includes('-')) return ''
   const [yearStr, mStr] = monthStr.split('-')
   const y = parseInt(yearStr, 10) - 1
+  if (isNaN(y)) return ''
   return `${y}-${mStr}`
 }
 
@@ -218,11 +243,16 @@ function calcVariation(
   current: number,
   previous: number,
 ): { value: number; percent: number | null } {
-  const diff = current - previous
-  if (previous === 0) {
-    return { value: diff, percent: current === 0 ? 0 : null }
+  const c = Number(current) || 0
+  const p = Number(previous) || 0
+  const diff = c - p
+  if (p === 0) {
+    return { value: diff, percent: c === 0 ? 0 : null }
   }
-  const pct = (diff / Math.abs(previous)) * 100
+  const pct = (diff / Math.abs(p)) * 100
+  if (!isFinite(pct) || isNaN(pct)) {
+    return { value: diff, percent: null }
+  }
   return { value: diff, percent: pct }
 }
 
@@ -239,94 +269,305 @@ export interface ProjetoDRESummary {
   custosCount: number
 }
 
+export type VisionMode = 'mes' | 'trimestre' | 'ano' | 'ytd' | 'personalizado'
+
+const MONTH_SHORT_LABELS = [
+  'Jan',
+  'Fev',
+  'Mar',
+  'Abr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Ago',
+  'Set',
+  'Out',
+  'Nov',
+  'Dez',
+]
+
+const MONTH_FULL_LABELS = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+]
+
 export function FinanceiroDRE({ transactions }: { transactions: Transaction[] }) {
+  const safeTransactions = Array.isArray(transactions) ? transactions : []
+
   const [regime, setRegime] = useState<RegimeType>('competencia')
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({})
+
+  // Novos controles de período
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    const currentY = new Date().getFullYear()
+    return [2024, 2025, 2026].includes(currentY) ? currentY : 2026
+  })
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(() => {
+    return new Date().getMonth() + 1 // 1-12
+  })
+  const [visionMode, setVisionMode] = useState<VisionMode>('mes')
+  const [customDe, setCustomDe] = useState<string>('')
+  const [customAte, setCustomAte] = useState<string>('')
 
   // Extrair todos os meses disponíveis de acordo com o regime escolhido
   const availableMonths = useMemo(() => {
     const monthSet = new Set<string>()
-    transactions.forEach((t) => {
+    safeTransactions.forEach((t) => {
+      if (!t) return
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
       let dateStr: string | null = null
       if (regime === 'caixa') {
         if (statusLower !== 'pago') return
-        dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+        dateStr =
+          t.paidDate ||
+          t.dueDate ||
+          (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
       } else {
-        dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+        dateStr =
+          t.dueDate || (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
       }
 
-      if (dateStr && dateStr.length >= 7) {
-        monthSet.add(dateStr.substring(0, 7))
+      if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
+        const ym = dateStr.substring(0, 7)
+        if (/^\d{4}-\d{2}$/.test(ym)) {
+          monthSet.add(ym)
+        }
       }
     })
 
     return Array.from(monthSet).sort((a, b) => b.localeCompare(a))
-  }, [transactions, regime])
+  }, [safeTransactions, regime])
 
-  // Mês selecionado para o comparativo detalhado (default: mês mais recente disponível ou mês atual)
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  // Meses que têm lançamentos no ano selecionado
+  const activeMonthsInSelectedYear = useMemo(() => {
+    const prefix = `${selectedYear}-`
+    const set = new Set<number>()
+    availableMonths.forEach((m) => {
+      if (m.startsWith(prefix)) {
+        const num = parseInt(m.substring(5, 7), 10)
+        if (!isNaN(num)) set.add(num)
+      }
+    })
+    return set
+  }, [availableMonths, selectedYear])
 
-  // Sincronizar selectedMonth quando a lista de meses mudar
-  const currentSelectedMonth = useMemo(() => {
-    if (selectedMonth && availableMonths.includes(selectedMonth)) {
-      return selectedMonth
+  // Trimestre atual correspondente ao mês selecionado
+  const selectedQuarter = Math.ceil(selectedMonthIndex / 3) // 1, 2, 3 ou 4
+
+  // Mês selecionado no formato YYYY-MM
+  const currentMonthKey = `${selectedYear}-${String(selectedMonthIndex).padStart(2, '0')}`
+
+  // Título e escopo do período selecionado
+  const periodInfo = useMemo(() => {
+    const monthName = MONTH_FULL_LABELS[selectedMonthIndex - 1] || `Mês ${selectedMonthIndex}`
+
+    if (visionMode === 'mes') {
+      return {
+        title: `Análise Comparativa — ${monthName} ${selectedYear}`,
+        filterCurrent: (d: string) => d.startsWith(currentMonthKey),
+        filterPrevious1: (d: string) => d.startsWith(getPreviousMonth(currentMonthKey)),
+        filterPrevious2: (d: string) => d.startsWith(getSameMonthLastYear(currentMonthKey)),
+        labelCol1: `${monthName}/${selectedYear} (Atual)`,
+        labelCol2: `${getMonthName(getPreviousMonth(currentMonthKey))} (Mês Ant.)`,
+        labelCol3: `${getMonthName(getSameMonthLastYear(currentMonthKey))} (Ano Ant.)`,
+        headerVarCol2: 'Var. Mês Ant.',
+        headerVarCol3: 'Var. Ano Ant.',
+        subtext: `Comparação direta com ${getMonthName(getPreviousMonth(currentMonthKey))} e ${getMonthName(getSameMonthLastYear(currentMonthKey))}`,
+      }
     }
-    const todayMonth = new Date().toISOString().substring(0, 7)
-    if (availableMonths.includes(todayMonth)) {
-      return todayMonth
-    }
-    return availableMonths[0] || todayMonth
-  }, [selectedMonth, availableMonths])
 
-  // Cálculo do DRE total acumulado
+    if (visionMode === 'trimestre') {
+      const q = selectedQuarter
+      const startM = (q - 1) * 3 + 1
+      const endM = q * 3
+      const qMonthsCurrent = [
+        `${selectedYear}-${String(startM).padStart(2, '0')}`,
+        `${selectedYear}-${String(startM + 1).padStart(2, '0')}`,
+        `${selectedYear}-${String(endM).padStart(2, '0')}`,
+      ]
+
+      // Trimestre anterior
+      let prevQYear = selectedYear
+      let prevQ = q - 1
+      if (prevQ < 1) {
+        prevQ = 4
+        prevQYear -= 1
+      }
+      const prevStartM = (prevQ - 1) * 3 + 1
+      const prevEndM = prevQ * 3
+      const qMonthsPrev = [
+        `${prevQYear}-${String(prevStartM).padStart(2, '0')}`,
+        `${prevQYear}-${String(prevStartM + 1).padStart(2, '0')}`,
+        `${prevQYear}-${String(prevEndM).padStart(2, '0')}`,
+      ]
+
+      // Mesmo trimestre do ano anterior
+      const lastYear = selectedYear - 1
+      const qMonthsLastYear = [
+        `${lastYear}-${String(startM).padStart(2, '0')}`,
+        `${lastYear}-${String(startM + 1).padStart(2, '0')}`,
+        `${lastYear}-${String(endM).padStart(2, '0')}`,
+      ]
+
+      return {
+        title: `Análise Comparativa — ${q}º Trimestre ${selectedYear} (T${q})`,
+        filterCurrent: (d: string) => qMonthsCurrent.some((m) => d.startsWith(m)),
+        filterPrevious1: (d: string) => qMonthsPrev.some((m) => d.startsWith(m)),
+        filterPrevious2: (d: string) => qMonthsLastYear.some((m) => d.startsWith(m)),
+        labelCol1: `T${q}/${selectedYear} (Atual)`,
+        labelCol2: `T${prevQ}/${prevQYear} (Trim. Ant.)`,
+        labelCol3: `T${q}/${lastYear} (Ano Ant.)`,
+        headerVarCol2: 'Var. Trim. Ant.',
+        headerVarCol3: 'Var. Ano Ant.',
+        subtext: `Comparação de T${q}/${selectedYear} vs Trimestre Anterior (T${prevQ}/${prevQYear}) vs Mesmo Trimestre do Ano Anterior (T${q}/${lastYear})`,
+      }
+    }
+
+    if (visionMode === 'ano') {
+      const currY = String(selectedYear)
+      const prevY = String(selectedYear - 1)
+
+      return {
+        title: `Análise Comparativa — Ano Completo ${selectedYear}`,
+        filterCurrent: (d: string) => d.startsWith(currY),
+        filterPrevious1: (d: string) => d.startsWith(prevY),
+        filterPrevious2: null,
+        labelCol1: `Ano ${currY} (Atual)`,
+        labelCol2: `Ano ${prevY} (Ano Anterior)`,
+        labelCol3: null,
+        headerVarCol2: 'Var. Ano Ant.',
+        headerVarCol3: null,
+        subtext: `Comparação anual completa: Ano ${currY} vs Ano ${prevY}`,
+      }
+    }
+
+    if (visionMode === 'ytd') {
+      const currY = String(selectedYear)
+      const prevY = String(selectedYear - 1)
+      const maxMonth = String(selectedMonthIndex).padStart(2, '0')
+
+      return {
+        title: `Análise Comparativa — Acumulado YTD ${selectedYear} (até ${monthName})`,
+        filterCurrent: (d: string) => {
+          if (!d.startsWith(currY)) return false
+          const m = d.substring(5, 7)
+          return m <= maxMonth
+        },
+        filterPrevious1: (d: string) => {
+          if (!d.startsWith(prevY)) return false
+          const m = d.substring(5, 7)
+          return m <= maxMonth
+        },
+        filterPrevious2: null,
+        labelCol1: `YTD ${currY} (Jan–${MONTH_SHORT_LABELS[selectedMonthIndex - 1]})`,
+        labelCol2: `YTD ${prevY} (Jan–${MONTH_SHORT_LABELS[selectedMonthIndex - 1]})`,
+        labelCol3: null,
+        headerVarCol2: 'Var. YTD Ano Ant.',
+        headerVarCol3: null,
+        subtext: `Comparativo de Janeiro até ${monthName} de ${currY} vs mesmo período em ${prevY}`,
+      }
+    }
+
+    // Personalizado
+    const deLabel = customDe || 'Início'
+    const ateLabel = customAte || 'Fim'
+    return {
+      title: `Análise Comparativa — Período Personalizado (${deLabel} a ${ateLabel})`,
+      filterCurrent: (d: string) => {
+        const day = d.substring(0, 10)
+        if (customDe && day < customDe) return false
+        if (customAte && day > customAte) return false
+        return true
+      },
+      filterPrevious1: null,
+      filterPrevious2: null,
+      labelCol1: `Período (${deLabel} a ${ateLabel})`,
+      labelCol2: null,
+      labelCol3: null,
+      headerVarCol2: null,
+      headerVarCol3: null,
+      subtext: `Lançamentos filtrados entre ${deLabel} e ${ateLabel}`,
+    }
+  }, [
+    visionMode,
+    selectedYear,
+    selectedMonthIndex,
+    selectedQuarter,
+    currentMonthKey,
+    customDe,
+    customAte,
+  ])
+
+  // Cálculo do DRE do período selecionado
+  const periodDRE = useMemo(() => {
+    return calculateDRE(safeTransactions, regime, periodInfo.filterCurrent)
+  }, [safeTransactions, regime, periodInfo])
+
+  // Cálculo do DRE total geral acumulado de toda a base
   const totalDRE = useMemo(() => {
-    return calculateDRE(transactions, regime)
-  }, [transactions, regime])
+    return calculateDRE(safeTransactions, regime)
+  }, [safeTransactions, regime])
 
-  // DRE por mês
+  // DRE por mês (lista de meses disponíveis com dados)
   const monthlyDREs = useMemo(() => {
     return availableMonths.map((m) => ({
       month: m,
-      dre: calculateDRE(transactions, regime, m),
+      dre: calculateDRE(safeTransactions, regime, m),
     }))
-  }, [availableMonths, transactions, regime])
+  }, [availableMonths, safeTransactions, regime])
 
-  // Comparativo de período para o mês selecionado
+  // Comparativo de período calculado dinamicamente conforme o modo de visão
   const comparativeData = useMemo(() => {
-    const mAtual = currentSelectedMonth
-    const mAnterior = getPreviousMonth(mAtual)
-    const mAnoAnterior = getSameMonthLastYear(mAtual)
-
-    const dreAtual = calculateDRE(transactions, regime, mAtual)
-    const dreAnterior = calculateDRE(transactions, regime, mAnterior)
-    const dreAnoAnterior = calculateDRE(transactions, regime, mAnoAnterior)
+    const dreAtual = periodDRE
+    const dreAnterior = periodInfo.filterPrevious1
+      ? calculateDRE(safeTransactions, regime, periodInfo.filterPrevious1)
+      : null
+    const dreAnoAnterior = periodInfo.filterPrevious2
+      ? calculateDRE(safeTransactions, regime, periodInfo.filterPrevious2)
+      : null
 
     return {
-      mesAtual: mAtual,
-      mesAnterior: mAnterior,
-      mesAnoAnterior: mAnoAnterior,
       dreAtual,
       dreAnterior,
       dreAnoAnterior,
-      varMesAnterior: {
-        receitaBruta: calcVariation(dreAtual.receitaBruta, dreAnterior.receitaBruta),
-        receitaLiquida: calcVariation(dreAtual.receitaLiquida, dreAnterior.receitaLiquida),
-        lucroBruto: calcVariation(dreAtual.lucroBruto, dreAnterior.lucroBruto),
-        ebitda: calcVariation(dreAtual.ebitda, dreAnterior.ebitda),
-        resultadoLiquido: calcVariation(dreAtual.resultadoLiquido, dreAnterior.resultadoLiquido),
-      },
-      varAnoAnterior: {
-        receitaBruta: calcVariation(dreAtual.receitaBruta, dreAnoAnterior.receitaBruta),
-        receitaLiquida: calcVariation(dreAtual.receitaLiquida, dreAnoAnterior.receitaLiquida),
-        lucroBruto: calcVariation(dreAtual.lucroBruto, dreAnoAnterior.lucroBruto),
-        ebitda: calcVariation(dreAtual.ebitda, dreAnoAnterior.ebitda),
-        resultadoLiquido: calcVariation(dreAtual.resultadoLiquido, dreAnoAnterior.resultadoLiquido),
-      },
+      varMesAnterior: dreAnterior
+        ? {
+            receitaBruta: calcVariation(dreAtual.receitaBruta, dreAnterior.receitaBruta),
+            receitaLiquida: calcVariation(dreAtual.receitaLiquida, dreAnterior.receitaLiquida),
+            lucroBruto: calcVariation(dreAtual.lucroBruto, dreAnterior.lucroBruto),
+            ebitda: calcVariation(dreAtual.ebitda, dreAnterior.ebitda),
+            resultadoLiquido: calcVariation(
+              dreAtual.resultadoLiquido,
+              dreAnterior.resultadoLiquido,
+            ),
+          }
+        : null,
+      varAnoAnterior: dreAnoAnterior
+        ? {
+            receitaBruta: calcVariation(dreAtual.receitaBruta, dreAnoAnterior.receitaBruta),
+            receitaLiquida: calcVariation(dreAtual.receitaLiquida, dreAnoAnterior.receitaLiquida),
+            lucroBruto: calcVariation(dreAtual.lucroBruto, dreAnoAnterior.lucroBruto),
+            ebitda: calcVariation(dreAtual.ebitda, dreAnoAnterior.ebitda),
+            resultadoLiquido: calcVariation(
+              dreAtual.resultadoLiquido,
+              dreAnoAnterior.resultadoLiquido,
+            ),
+          }
+        : null,
     }
-  }, [currentSelectedMonth, transactions, regime])
+  }, [periodDRE, safeTransactions, regime, periodInfo])
 
   const toggleMonthExpand = (m: string) => {
     setExpandedMonths((prev) => ({ ...prev, [m]: !prev[m] }))
@@ -353,18 +594,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
     let totalCpvNaoVinculado = 0
     let qtdCustosNaoVinculados = 0
 
-    transactions.forEach((t) => {
+    safeTransactions.forEach((t) => {
+      if (!t) return
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
       let dateStr: string | null = null
       if (regime === 'caixa') {
         if (statusLower !== 'pago') return
-        dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+        dateStr =
+          t.paidDate ||
+          t.dueDate ||
+          (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
       } else {
-        dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
+        dateStr =
+          t.dueDate || (typeof t.createdAt === 'string' ? t.createdAt.substring(0, 10) : null)
       }
-      if (!dateStr) return
+      if (!dateStr || typeof dateStr !== 'string' || dateStr.length < 7) return
+
+      // Filtra de acordo com o período selecionado
+      if (periodInfo.filterCurrent && !periodInfo.filterCurrent(dateStr)) return
 
       const amount = Math.abs(Number(t.amount) || 0)
 
@@ -490,7 +739,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
       totalCpvNaoVinculado,
       qtdCustosNaoVinculados,
     }
-  }, [transactions, regime])
+  }, [safeTransactions, regime, periodInfo])
 
   function renderVariationBadge(
     v: { value: number; percent: number | null },
@@ -559,7 +808,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
               </CardDescription>
             </div>
 
-            {/* Controles: Regime & Mês Comparativo */}
+            {/* Controles: Regime & Popover Explicativo */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Controle de Regime reformulado e proeminente */}
               <div className="flex items-center bg-muted/80 p-1 rounded-lg border border-border shadow-xs">
@@ -651,26 +900,172 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   </PopoverContent>
                 </Popover>
               </div>
-
-              {availableMonths.length > 0 && (
-                <div className="flex items-center gap-1.5 bg-muted/40 p-1 px-2 rounded-lg border border-border">
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Mês Comparativo:
-                  </span>
-                  <select
-                    className="h-7 px-2.5 text-xs bg-background border rounded-md font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    value={currentSelectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                  >
-                    {availableMonths.map((m) => (
-                      <option key={m} value={m}>
-                        {getMonthName(m)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
+          </div>
+
+          {/* PRIORIDADE 2: Novo Seletor Completo de Período (Ano, 12 Meses, Modo de Visão) */}
+          <div className="mt-4 p-3.5 rounded-lg border border-border bg-card/60 space-y-3">
+            {/* Linha superior: Modo de Visão + Seletor de Ano */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Modo de Visão:
+                </span>
+                <Tabs
+                  value={visionMode}
+                  onValueChange={(v) => setVisionMode(v as VisionMode)}
+                  className="w-auto"
+                >
+                  <TabsList className="h-8 bg-muted/80 p-0.5">
+                    <TabsTrigger value="mes" className="text-xs px-2.5 h-7">
+                      Mês
+                    </TabsTrigger>
+                    <TabsTrigger value="trimestre" className="text-xs px-2.5 h-7">
+                      Trimestre
+                    </TabsTrigger>
+                    <TabsTrigger value="ano" className="text-xs px-2.5 h-7">
+                      Ano Completo
+                    </TabsTrigger>
+                    <TabsTrigger value="ytd" className="text-xs px-2.5 h-7">
+                      Acumulado YTD
+                    </TabsTrigger>
+                    <TabsTrigger value="personalizado" className="text-xs px-2.5 h-7">
+                      Personalizado
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              {/* Seletor de Ano (2024 / 2025 / 2026) */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs font-semibold text-muted-foreground">Ano Base:</span>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="h-8 px-3 text-xs font-bold bg-background border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                >
+                  <option value={2026}>2026</option>
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Linha intermediária: Grade de 12 chips Jan–Dez (visível para Mês, Trimestre, Acumulado YTD) */}
+            {visionMode !== 'personalizado' && (
+              <div className="pt-2 border-t border-border/60">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    {visionMode === 'mes' && 'Selecione o mês de referência:'}
+                    {visionMode === 'trimestre' &&
+                      `Trimestre ativo: T${selectedQuarter} (${MONTH_SHORT_LABELS[(selectedQuarter - 1) * 3]} a ${MONTH_SHORT_LABELS[selectedQuarter * 3 - 1]})`}
+                    {visionMode === 'ano' && `Visualizando todos os 12 meses de ${selectedYear}`}
+                    {visionMode === 'ytd' &&
+                      `Acumulado até ${MONTH_SHORT_LABELS[selectedMonthIndex - 1]}/${selectedYear}`}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground/75 hidden md:inline">
+                    Meses esmaecidos não possuem lançamentos no regime atual
+                  </span>
+                </div>
+                <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                  {MONTH_SHORT_LABELS.map((label, idx) => {
+                    const mNumber = idx + 1
+                    const hasData = activeMonthsInSelectedYear.has(mNumber)
+                    const isSelectedMonth = selectedMonthIndex === mNumber
+                    const isInQuarter =
+                      visionMode === 'trimestre' &&
+                      mNumber >= (selectedQuarter - 1) * 3 + 1 &&
+                      mNumber <= selectedQuarter * 3
+                    const isInYtd = visionMode === 'ytd' && mNumber <= selectedMonthIndex
+                    const isInYear = visionMode === 'ano'
+
+                    let highlightStyle = ''
+                    if (visionMode === 'mes') {
+                      highlightStyle = isSelectedMonth
+                        ? 'bg-primary text-primary-foreground font-bold shadow-xs border-primary'
+                        : ''
+                    } else if (visionMode === 'trimestre') {
+                      highlightStyle = isInQuarter
+                        ? 'bg-primary/20 text-primary font-bold border-primary/50'
+                        : ''
+                    } else if (visionMode === 'ytd') {
+                      highlightStyle = isInYtd
+                        ? isSelectedMonth
+                          ? 'bg-primary text-primary-foreground font-bold shadow-xs border-primary'
+                          : 'bg-primary/15 text-primary font-medium border-primary/40'
+                        : ''
+                    } else if (isInYear) {
+                      highlightStyle = 'bg-muted/60 text-foreground font-medium'
+                    }
+
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setSelectedMonthIndex(mNumber)}
+                        className={`px-2 py-1.5 text-xs rounded-md border text-center transition-all flex flex-col items-center justify-center relative ${
+                          highlightStyle ||
+                          (hasData
+                            ? 'bg-background hover:bg-muted text-foreground border-border'
+                            : 'bg-muted/20 text-muted-foreground/45 border-dashed border-border/50 hover:bg-muted/30')
+                        }`}
+                        title={`${MONTH_FULL_LABELS[idx]} ${selectedYear}${hasData ? ' (com lançamentos)' : ' (sem lançamentos)'}`}
+                      >
+                        <span className="font-semibold">{label}</span>
+                        {hasData && (
+                          <span
+                            className={`w-1 h-1 rounded-full mt-0.5 ${
+                              isSelectedMonth && visionMode === 'mes'
+                                ? 'bg-primary-foreground'
+                                : 'bg-emerald-500'
+                            }`}
+                          />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Linha para modo Personalizado (campos De / Até) */}
+            {visionMode === 'personalizado' && (
+              <div className="pt-2 border-t border-border/60 flex flex-wrap items-center gap-3 text-xs">
+                <span className="font-semibold text-muted-foreground">Intervalo de datas:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">De:</span>
+                  <input
+                    type="date"
+                    value={customDe}
+                    onChange={(e) => setCustomDe(e.target.value)}
+                    className="h-8 px-2.5 bg-background border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Até:</span>
+                  <input
+                    type="date"
+                    value={customAte}
+                    onChange={(e) => setCustomAte(e.target.value)}
+                    className="h-8 px-2.5 bg-background border rounded-md text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                  />
+                </div>
+                {(customDe || customAte) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground"
+                    onClick={() => {
+                      setCustomDe('')
+                      setCustomAte('')
+                    }}
+                  >
+                    Limpar filtro
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Banner de Identificação Clara do Regime Ativo */}
@@ -761,7 +1156,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   variant="outline"
                   className="text-[10px] font-semibold text-blue-600 dark:text-blue-400"
                 >
-                  Margem {totalDRE.margemBruta.toFixed(1)}%
+                  Margem {safeToFixed(totalDRE.margemBruta, 1)}%
                 </Badge>
               </div>
             </div>
@@ -790,7 +1185,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   variant="outline"
                   className="text-[10px] font-semibold text-purple-600 dark:text-purple-400"
                 >
-                  Margem {totalDRE.margemEbitda.toFixed(1)}%
+                  Margem {safeToFixed(totalDRE.margemEbitda, 1)}%
                 </Badge>
               </div>
             </div>
@@ -827,7 +1222,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                       : 'text-rose-600 dark:text-rose-400'
                   }`}
                 >
-                  Margem {totalDRE.margemLiquida.toFixed(1)}%
+                  Margem {safeToFixed(totalDRE.margemLiquida, 1)}%
                 </Badge>
               </div>
             </div>
@@ -845,39 +1240,36 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         </Card>
       </div>
 
-      {/* BLOCO 1: Comparativo de Período (Mês Atual vs Anterior vs Ano Anterior) */}
+      {/* BLOCO 1: Comparativo de Período Adaptativo (Mês / Trimestre / Ano / YTD / Personalizado) */}
       <Card className="shadow-sm">
         <CardHeader className="pb-3 border-b bg-muted/20">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" />
-              <CardTitle className="text-base font-semibold">
-                Análise Comparativa — {getMonthName(comparativeData.mesAtual)}
-              </CardTitle>
+              <CardTitle className="text-base font-semibold">{periodInfo.title}</CardTitle>
             </div>
-            <span className="text-xs text-muted-foreground">
-              Comparação direta com {getMonthName(comparativeData.mesAnterior)} e{' '}
-              {getMonthName(comparativeData.mesAnoAnterior)}
-            </span>
+            <span className="text-xs text-muted-foreground">{periodInfo.subtext}</span>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/40">
+                <TableRow className="bg-muted/40 text-xs">
                   <TableHead className="min-w-[220px] font-bold">Camada DRE</TableHead>
-                  <TableHead className="text-right font-bold">
-                    {getMonthName(comparativeData.mesAtual)} (Atual)
-                  </TableHead>
-                  <TableHead className="text-right">
-                    {getMonthName(comparativeData.mesAnterior)} (Mês Ant.)
-                  </TableHead>
-                  <TableHead className="text-center">Var. Mês Ant.</TableHead>
-                  <TableHead className="text-right">
-                    {getMonthName(comparativeData.mesAnoAnterior)} (Ano Ant.)
-                  </TableHead>
-                  <TableHead className="text-center">Var. Ano Ant.</TableHead>
+                  <TableHead className="text-right font-bold">{periodInfo.labelCol1}</TableHead>
+                  {periodInfo.labelCol2 && (
+                    <TableHead className="text-right">{periodInfo.labelCol2}</TableHead>
+                  )}
+                  {periodInfo.headerVarCol2 && comparativeData.varMesAnterior && (
+                    <TableHead className="text-center">{periodInfo.headerVarCol2}</TableHead>
+                  )}
+                  {periodInfo.labelCol3 && (
+                    <TableHead className="text-right">{periodInfo.labelCol3}</TableHead>
+                  )}
+                  {periodInfo.headerVarCol3 && comparativeData.varAnoAnterior && (
+                    <TableHead className="text-center">{periodInfo.headerVarCol3}</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -889,18 +1281,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   <TableCell className="text-right font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(comparativeData.dreAtual.receitaBruta)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnterior.receitaBruta)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varMesAnterior.receitaBruta, true)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnoAnterior.receitaBruta)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varAnoAnterior.receitaBruta, true)}
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnterior.receitaBruta)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varMesAnterior.receitaBruta, true)}
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnoAnterior.receitaBruta)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varAnoAnterior.receitaBruta, true)}
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* 2. (-) Impostos sobre Vendas */}
@@ -913,22 +1313,30 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                       ? `-${formatCurrency(comparativeData.dreAtual.impostos)}`
                       : formatCurrency(0)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnterior.impostos > 0
-                      ? `-${formatCurrency(comparativeData.dreAnterior.impostos)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnoAnterior.impostos > 0
-                      ? `-${formatCurrency(comparativeData.dreAnoAnterior.impostos)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnterior.impostos > 0
+                        ? `-${formatCurrency(comparativeData.dreAnterior.impostos)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnoAnterior.impostos > 0
+                        ? `-${formatCurrency(comparativeData.dreAnoAnterior.impostos)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Subtotal: Receita Líquida */}
@@ -939,18 +1347,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   <TableCell className="text-right font-semibold text-foreground">
                     {formatCurrency(comparativeData.dreAtual.receitaLiquida)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnterior.receitaLiquida)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varMesAnterior.receitaLiquida, true)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnoAnterior.receitaLiquida)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varAnoAnterior.receitaLiquida, true)}
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnterior.receitaLiquida)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varMesAnterior.receitaLiquida, true)}
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnoAnterior.receitaLiquida)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varAnoAnterior.receitaLiquida, true)}
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* 3. (-) CPV / Custos Diretos */}
@@ -963,22 +1379,30 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                       ? `-${formatCurrency(comparativeData.dreAtual.custosDiretos)}`
                       : formatCurrency(0)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnterior.custosDiretos > 0
-                      ? `-${formatCurrency(comparativeData.dreAnterior.custosDiretos)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnoAnterior.custosDiretos > 0
-                      ? `-${formatCurrency(comparativeData.dreAnoAnterior.custosDiretos)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnterior.custosDiretos > 0
+                        ? `-${formatCurrency(comparativeData.dreAnterior.custosDiretos)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnoAnterior.custosDiretos > 0
+                        ? `-${formatCurrency(comparativeData.dreAnoAnterior.custosDiretos)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Subtotal: Lucro Bruto */}
@@ -987,18 +1411,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   <TableCell className="text-right text-blue-600 dark:text-blue-400 font-bold">
                     {formatCurrency(comparativeData.dreAtual.lucroBruto)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnterior.lucroBruto)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varMesAnterior.lucroBruto, true)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnoAnterior.lucroBruto)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varAnoAnterior.lucroBruto, true)}
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnterior.lucroBruto)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varMesAnterior.lucroBruto, true)}
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnoAnterior.lucroBruto)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varAnoAnterior.lucroBruto, true)}
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* 4. (-) Despesas Operacionais */}
@@ -1011,22 +1443,30 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                       ? `-${formatCurrency(comparativeData.dreAtual.despesasOperacionais)}`
                       : formatCurrency(0)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnterior.despesasOperacionais > 0
-                      ? `-${formatCurrency(comparativeData.dreAnterior.despesasOperacionais)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnoAnterior.despesasOperacionais > 0
-                      ? `-${formatCurrency(comparativeData.dreAnoAnterior.despesasOperacionais)}`
-                      : formatCurrency(0)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnterior.despesasOperacionais > 0
+                        ? `-${formatCurrency(comparativeData.dreAnterior.despesasOperacionais)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right">
+                      {comparativeData.dreAnoAnterior.despesasOperacionais > 0
+                        ? `-${formatCurrency(comparativeData.dreAnoAnterior.despesasOperacionais)}`
+                        : formatCurrency(0)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Subtotal: EBITDA */}
@@ -1037,18 +1477,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   <TableCell className="text-right text-purple-700 dark:text-purple-400 font-bold">
                     {formatCurrency(comparativeData.dreAtual.ebitda)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnterior.ebitda)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varMesAnterior.ebitda, true)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
-                    {formatCurrency(comparativeData.dreAnoAnterior.ebitda)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varAnoAnterior.ebitda, true)}
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnterior.ebitda)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varMesAnterior.ebitda, true)}
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(comparativeData.dreAnoAnterior.ebitda)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varAnoAnterior.ebitda, true)}
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* 5. (+/-) Resultado Financeiro */}
@@ -1065,18 +1513,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   >
                     {formatCurrency(comparativeData.dreAtual.resultadoFinanceiro)}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(comparativeData.dreAnterior.resultadoFinanceiro)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(comparativeData.dreAnoAnterior.resultadoFinanceiro)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <span className="text-xs text-muted-foreground">-</span>
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right">
+                      {formatCurrency(comparativeData.dreAnterior.resultadoFinanceiro)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right">
+                      {formatCurrency(comparativeData.dreAnoAnterior.resultadoFinanceiro)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Final: Resultado Líquido */}
@@ -1093,18 +1549,26 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                   >
                     {formatCurrency(comparativeData.dreAtual.resultadoLiquido)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground font-semibold">
-                    {formatCurrency(comparativeData.dreAnterior.resultadoLiquido)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varMesAnterior.resultadoLiquido, true)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground font-semibold">
-                    {formatCurrency(comparativeData.dreAnoAnterior.resultadoLiquido)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {renderVariationBadge(comparativeData.varAnoAnterior.resultadoLiquido, true)}
-                  </TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right text-muted-foreground font-semibold">
+                      {formatCurrency(comparativeData.dreAnterior.resultadoLiquido)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varMesAnterior.resultadoLiquido, true)}
+                    </TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right text-muted-foreground font-semibold">
+                      {formatCurrency(comparativeData.dreAnoAnterior.resultadoLiquido)}
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">
+                      {renderVariationBadge(comparativeData.varAnoAnterior.resultadoLiquido, true)}
+                    </TableCell>
+                  )}
                 </TableRow>
 
                 {/* Margem Líquida */}
@@ -1113,16 +1577,24 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                     Margem Líquida (% sobre Receita Bruta)
                   </TableCell>
                   <TableCell className="text-right font-bold text-foreground">
-                    {comparativeData.dreAtual.margemLiquida.toFixed(1)}%
+                    {safeToFixed(comparativeData.dreAtual.margemLiquida, 1)}%
                   </TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnterior.margemLiquida.toFixed(1)}%
-                  </TableCell>
-                  <TableCell className="text-center">-</TableCell>
-                  <TableCell className="text-right">
-                    {comparativeData.dreAnoAnterior.margemLiquida.toFixed(1)}%
-                  </TableCell>
-                  <TableCell className="text-center">-</TableCell>
+                  {comparativeData.dreAnterior && (
+                    <TableCell className="text-right">
+                      {safeToFixed(comparativeData.dreAnterior.margemLiquida, 1)}%
+                    </TableCell>
+                  )}
+                  {comparativeData.varMesAnterior && (
+                    <TableCell className="text-center">-</TableCell>
+                  )}
+                  {comparativeData.dreAnoAnterior && (
+                    <TableCell className="text-right">
+                      {safeToFixed(comparativeData.dreAnoAnterior.margemLiquida, 1)}%
+                    </TableCell>
+                  )}
+                  {comparativeData.varAnoAnterior && (
+                    <TableCell className="text-center">-</TableCell>
+                  )}
                 </TableRow>
               </TableBody>
             </Table>
@@ -1218,7 +1690,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                             {formatCurrency(dre.lucroBruto)}
                           </span>
                           <span className="text-muted-foreground ml-1">
-                            ({dre.margemBruta.toFixed(1)}%)
+                            ({safeToFixed(dre.margemBruta, 1)}%)
                           </span>
                         </div>
                         <div className="hidden sm:block text-muted-foreground/40">•</div>
@@ -1228,7 +1700,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                             {formatCurrency(dre.ebitda)}
                           </span>
                           <span className="text-muted-foreground ml-1">
-                            ({dre.margemEbitda.toFixed(1)}%)
+                            ({safeToFixed(dre.margemEbitda, 1)}%)
                           </span>
                         </div>
                         <div className="hidden sm:block text-muted-foreground/40">•</div>
@@ -1244,7 +1716,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                             {formatCurrency(dre.resultadoLiquido)}
                           </span>
                           <span className="text-muted-foreground ml-1">
-                            ({dre.margemLiquida.toFixed(1)}%)
+                            ({safeToFixed(dre.margemLiquida, 1)}%)
                           </span>
                         </div>
                       </div>
@@ -1398,7 +1870,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                                   {formatPercentBase(dre.lucroBruto, dre.receitaBruta)}
                                 </TableCell>
                                 <TableCell className="text-right font-bold text-blue-700 dark:text-blue-400">
-                                  {dre.margemBruta.toFixed(1)}%
+                                  {safeToFixed(dre.margemBruta, 1)}%
                                 </TableCell>
                               </TableRow>
 
@@ -1452,7 +1924,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                                   {formatPercentBase(dre.ebitda, dre.receitaBruta)}
                                 </TableCell>
                                 <TableCell className="text-right font-bold text-purple-700 dark:text-purple-400">
-                                  {dre.margemEbitda.toFixed(1)}%
+                                  {safeToFixed(dre.margemEbitda, 1)}%
                                 </TableCell>
                               </TableRow>
 
@@ -1506,7 +1978,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                                       : 'text-rose-600 dark:text-rose-400'
                                   }`}
                                 >
-                                  {dre.margemLiquida.toFixed(1)}%
+                                  {safeToFixed(dre.margemLiquida, 1)}%
                                 </TableCell>
                               </TableRow>
                             </TableBody>

@@ -58,7 +58,7 @@ function FinanceiroDashboardContent({
   contasBancarias: initialContas,
 }: FinanceiroDashboardProps) {
   const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -97,10 +97,11 @@ function FinanceiroDashboardContent({
     let rH = 0,
       dH = 0
     safeTransactions.forEach((t) => {
+      if (!t) return
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
-      const amount = Number(t.amount) || 0
+      const amount = Math.abs(Number(t.amount) || 0)
       if (t.dueDate === today && statusLower !== 'pago') {
         if (t.type === 'receita') rH += amount
         else dH += amount
@@ -112,14 +113,19 @@ function FinanceiroDashboardContent({
   const chartData = useMemo(() => {
     const groups: Record<string, { receitas: number; despesas: number }> = {}
     safeTransactions.forEach((t) => {
+      if (!t) return
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
-      const rawDate = t.paidDate || t.dueDate || t.createdAt
+      const rawDate =
+        t.paidDate || t.dueDate || (typeof t.createdAt === 'string' ? t.createdAt : null)
       if (!rawDate || typeof rawDate !== 'string' || rawDate.length < 7) return
       const month = rawDate.substring(0, 7)
+      // Valida padrão de mês YYYY-MM
+      if (!/^\d{4}-\d{2}$/.test(month)) return
+
       if (!groups[month]) groups[month] = { receitas: 0, despesas: 0 }
-      const amount = Number(t.amount) || 0
+      const amount = Math.abs(Number(t.amount) || 0)
       if (t.type === 'receita') groups[month].receitas += amount
       else groups[month].despesas += amount
     })
