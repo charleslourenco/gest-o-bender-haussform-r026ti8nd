@@ -3,7 +3,8 @@ import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { fetchLeads, fetchUsers, updateLead, createLead } from '@/services/comercial'
 import { parseLeadMetadados, stringifyLeadMetadados } from '@/components/comercial/constants'
-import { MontadorSelect } from '@/components/kanban/MontadorSelect'
+import { AlocacaoEquipeSelect } from '@/components/kanban/AlocacaoEquipeSelect'
+import { useKanbanData } from '@/hooks/use-kanban-data'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import {
   Select,
@@ -152,9 +153,12 @@ function TimeInColumn({ dateStr }: { dateStr?: string | null }) {
 export function KanbanAssistencia() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
-  const [montadores, setMontadores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const { allEquipe, fetchItems: refreshKanbanData } = useKanbanData([], {
+    fetchMontadores: true,
+  })
 
   // Filtros
   const [searchQuery, setSearchQuery] = useState('')
@@ -201,15 +205,10 @@ export function KanbanAssistencia() {
     try {
       if (!silent) setLoading(true)
       setError(null)
-      const [allLeadsData, usersData, montadoresRes] = await Promise.all([
-        fetchLeads(),
-        fetchUsers(),
-        supabase.from('montadores').select('id, nome_completo, status').order('nome_completo'),
-      ])
+      const [allLeadsData, usersData] = await Promise.all([fetchLeads(), fetchUsers()])
 
       const safeLeads = Array.isArray(allLeadsData) ? allLeadsData : []
       const safeUsers = Array.isArray(usersData) ? usersData : []
-      const safeMontadores = Array.isArray(montadoresRes.data) ? montadoresRes.data : []
 
       // Filtrar para categoria Assistência, arquivado_comercial is not true, excluido is not true
       const filtered = safeLeads.filter((l: any) => {
@@ -221,7 +220,6 @@ export function KanbanAssistencia() {
 
       setLeads(filtered)
       setUsers(safeUsers)
-      setMontadores(safeMontadores)
     } catch (err: any) {
       console.error('Erro ao carregar kanban de assistência:', err)
       setError(err?.message || 'Erro ao carregar dados')
@@ -238,9 +236,6 @@ export function KanbanAssistencia() {
     const channel = supabase
       .channel('kanban_assistencia_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
-        if (isMounted) loadData(true)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'montadores' }, () => {
         if (isMounted) loadData(true)
       })
       .subscribe()
@@ -317,16 +312,19 @@ export function KanbanAssistencia() {
     }
   }
 
-  const handleToggleMontadorInLead = async (lead: Lead, montadorId: string) => {
+  const handleToggleMontadorInLead = async (lead: Lead, membroId: string) => {
+    if (!membroId) return
     const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
-    const currentMontadores = Array.isArray(meta?.montador_ids) ? meta.montador_ids : []
-    const isChecked = currentMontadores.includes(montadorId)
+    const currentMontadores: string[] = Array.isArray(meta?.montador_ids)
+      ? meta.montador_ids.filter(Boolean)
+      : []
+    const isChecked = currentMontadores.includes(membroId)
     const updatedMontadores = isChecked
-      ? currentMontadores.filter((id) => id !== montadorId)
-      : [...currentMontadores, montadorId]
+      ? currentMontadores.filter((id) => id !== membroId)
+      : [...currentMontadores, membroId]
 
     const newMeta = {
-      ...meta,
+      ...(meta || {}),
       montador_ids: updatedMontadores,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
@@ -334,7 +332,7 @@ export function KanbanAssistencia() {
     // Otimista
     setLeads((prev) =>
       prev.map((l) =>
-        l.id === lead.id
+        l && l.id === lead.id
           ? ({
               ...l,
               notas_pessoais: newNotasPessoais,
@@ -350,11 +348,13 @@ export function KanbanAssistencia() {
         atualizado_em: new Date().toISOString(),
       } as any)
       toast.success(
-        isChecked ? 'Montador removido da assistência' : 'Montador atribuído à assistência',
+        isChecked
+          ? 'Profissional desvinculado da assistência'
+          : 'Profissional atribuído à assistência',
       )
     } catch (err: any) {
       console.error('Erro ao atualizar montadores da assistência:', err)
-      toast.error('Erro ao atualizar montadores: ' + err.message)
+      toast.error('Erro ao atualizar alocação: ' + err.message)
       loadData(true)
     }
   }
@@ -513,6 +513,7 @@ export function KanbanAssistencia() {
 
   // Filtragem
   const filteredLeads = leads.filter((lead) => {
+    if (!lead) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matchName = (lead.nome || '').toLowerCase().includes(q)
@@ -530,7 +531,7 @@ export function KanbanAssistencia() {
   })
 
   const uniqueConsultantIds = Array.from(
-    new Set(leads.map((l) => l.consultor_id).filter(Boolean)),
+    new Set(leads.map((l) => l?.consultor_id).filter(Boolean)),
   ) as string[]
 
   if (loading && leads.length === 0) {
@@ -654,12 +655,13 @@ export function KanbanAssistencia() {
                 {/* Lista de Cards da Coluna */}
                 <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar flex flex-col min-h-[150px]">
                   {colLeads.map((lead) => {
+                    if (!lead || !lead.id) return null
                     const consultorNome =
                       lead.consultor?.nome ||
                       users.find((u) => u.id === lead.consultor_id)?.nome ||
                       ''
                     const currentLeadColId = getColumnIdForStatus(lead.status)
-                    const { meta, notas } = parseLeadMetadados((lead as any)?.notas_pessoais)
+                    const { meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
                     const leadMontadorIds: string[] = Array.isArray(meta?.montador_ids)
                       ? meta.montador_ids.filter(Boolean)
                       : []
@@ -667,7 +669,10 @@ export function KanbanAssistencia() {
                     const leadCardItemAdapter = {
                       id: lead.id,
                       cliente_id: null,
-                      montador_ids: leadMontadorIds,
+                      alocacao_montagem: leadMontadorIds.map((id) => ({
+                        montador_id: id,
+                        pessoa_id: id,
+                      })),
                       onToggleMontador: (montadorId: string) =>
                         handleToggleMontadorInLead(lead, montadorId),
                     }
@@ -825,12 +830,16 @@ export function KanbanAssistencia() {
                             </SelectContent>
                           </Select>
 
-                          {/* Seleção de Montadores usando MontadorSelect */}
+                          {/* Seleção de Montadores usando AlocacaoEquipeSelect */}
                           <ErrorBoundary fallback={null}>
-                            <MontadorSelect
+                            <AlocacaoEquipeSelect
                               item={leadCardItemAdapter}
-                              montadores={montadores}
-                              onUpdate={() => loadData(true)}
+                              modulo="montagem"
+                              equipe={allEquipe || []}
+                              onUpdate={() => {
+                                loadData(true)
+                                refreshKanbanData()
+                              }}
                             />
                           </ErrorBoundary>
                         </div>
@@ -926,19 +935,24 @@ export function KanbanAssistencia() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground">Montadores</Label>
+              <Label className="text-xs font-semibold text-foreground">Montadores / Equipe</Label>
               <ErrorBoundary fallback={null}>
-                <MontadorSelect
+                <AlocacaoEquipeSelect
                   item={{
                     id: 'temp_new_assistencia',
-                    montador_ids: novoMontadoresIds,
+                    cliente_id: null,
+                    alocacao_montagem: novoMontadoresIds.map((id) => ({
+                      montador_id: id,
+                      pessoa_id: id,
+                    })),
                     onToggleMontador: (mId: string) => {
                       setNovoMontadoresIds((prev) =>
                         prev.includes(mId) ? prev.filter((id) => id !== mId) : [...prev, mId],
                       )
                     },
                   }}
-                  montadores={montadores}
+                  modulo="montagem"
+                  equipe={allEquipe || []}
                   onUpdate={() => {}}
                 />
               </ErrorBoundary>

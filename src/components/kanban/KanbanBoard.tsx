@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { KanbanHeader } from './KanbanHeader'
 import { AlocacaoEquipeSelect } from './AlocacaoEquipeSelect'
-import { MontadorSelect } from './MontadorSelect'
+
 import { getCorVinculoForCard } from '@/lib/subcards-utils'
 import { CreateCardDialog } from './CreateCardDialog'
 import { MontadoresTab } from '@/pages/MontadoresTab'
