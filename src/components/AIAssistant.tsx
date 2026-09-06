@@ -255,7 +255,17 @@ export function AIAssistant() {
           body: {
             character: CHARACTERS[character!].name,
             moduleName: CHARACTERS[character!].role,
-            contextData: { path: location.pathname },
+            contextData: {
+              path: location.pathname,
+              dreContext: {
+                regimeCompetencia:
+                  'Receitas e despesas contadas no mês a que pertencem pela data de vencimento ou realização do serviço.',
+                regimeCaixa:
+                  'Conta pelo que efetivamente entrou ou saiu da conta bancária (data de quitação/pagamento).',
+                calculoDRE:
+                  'Calculado por natureza contábil (receita, imposto, custo direto/CPV, despesa operacional, resultado financeiro), rateio por projeto e plano de contas.',
+              },
+            },
             userMessage: userMsg,
             chatHistory: history,
           },

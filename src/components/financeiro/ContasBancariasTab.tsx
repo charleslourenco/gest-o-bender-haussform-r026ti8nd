@@ -17,6 +17,15 @@ import { TransferenciaDialog } from '@/components/financeiro/TransferenciaDialog
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0)
 
+function formatSafeDate(d: string | null | undefined): string {
+  if (!d) return '—'
+  try {
+    return format(parseISO(d), 'dd/MM/yyyy')
+  } catch {
+    return String(d).substring(0, 10)
+  }
+}
+
 export function ContasBancariasTab() {
   const [contas, setContas] = useState<ContaBancaria[]>([])
   const [transferencias, setTransferencias] = useState<TransferenciaBancaria[]>([])
@@ -162,7 +171,7 @@ export function ContasBancariasTab() {
                 <div className="text-right">
                   <div className="font-bold text-blue-600">{formatCurrency(Number(t.valor))}</div>
                   <div className="text-xs text-gray-500">
-                    {format(parseISO(t.data_transferencia), 'dd/MM/yyyy')}
+                    {formatSafeDate(t.data_transferencia)}
                   </div>
                 </div>
               </div>

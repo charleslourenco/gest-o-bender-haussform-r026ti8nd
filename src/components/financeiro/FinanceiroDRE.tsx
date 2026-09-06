@@ -23,7 +23,12 @@ import {
   FileSpreadsheet,
   FolderKanban,
   AlertCircle,
+  HelpCircle,
+  CheckCircle2,
+  BookOpen,
+  Info,
 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 export type RegimeType = 'caixa' | 'competencia'
 
@@ -82,11 +87,13 @@ function calculateDRE(
     if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
     // Regime filter:
-    // Caixa = data_pagamento (paidDate). Se não tiver pago, ignora para regime de caixa estrito.
-    // Competência = data_vencimento (dueDate). Se não tiver vencimento, fallback para data de criação ou ignora.
+    // Caixa = se a transação está marcada como paga (status = pago), usa data_pagamento (ou fallback vencimento/criação).
+    // Se não estiver paga, ignora para o regime de caixa.
+    // Competência = data_vencimento (dueDate) ou data de competência contábil (createdAt como fallback).
     let dateStr: string | null = null
     if (regime === 'caixa') {
-      dateStr = t.paidDate || null
+      if (statusLower !== 'pago') return
+      dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
     } else {
       dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
     }
@@ -245,7 +252,8 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
 
       let dateStr: string | null = null
       if (regime === 'caixa') {
-        dateStr = t.paidDate || null
+        if (statusLower !== 'pago') return
+        dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
       } else {
         dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
       }
@@ -351,7 +359,8 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
 
       let dateStr: string | null = null
       if (regime === 'caixa') {
-        dateStr = t.paidDate || null
+        if (statusLower !== 'pago') return
+        dateStr = t.paidDate || t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
       } else {
         dateStr = t.dueDate || (t.createdAt ? t.createdAt.substring(0, 10) : null)
       }
@@ -552,27 +561,104 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
 
             {/* Controles: Regime & Mês Comparativo */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center bg-muted/60 p-1 rounded-lg border">
-                <span className="text-xs font-medium text-muted-foreground px-2">Regime:</span>
+              {/* Controle de Regime reformulado e proeminente */}
+              <div className="flex items-center bg-muted/80 p-1 rounded-lg border border-border shadow-xs">
+                <span className="text-xs font-semibold text-muted-foreground px-2">Regime:</span>
                 <Tabs value={regime} onValueChange={(v) => setRegime(v as RegimeType)}>
-                  <TabsList className="h-7 bg-background">
-                    <TabsTrigger value="competencia" className="text-xs px-2.5 h-6">
+                  <TabsList className="h-8 bg-background/90 p-0.5">
+                    <TabsTrigger
+                      value="competencia"
+                      className="text-xs font-semibold px-3 h-7 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground shadow-xs transition-all"
+                    >
                       Competência
                     </TabsTrigger>
-                    <TabsTrigger value="caixa" className="text-xs px-2.5 h-6">
+                    <TabsTrigger
+                      value="caixa"
+                      className="text-xs font-semibold px-3 h-7 data-[state=active]:bg-emerald-600 data-[state=active]:text-white shadow-xs transition-all"
+                    >
                       Caixa
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
+
+                {/* Botão de Ajuda '?' com Popover Explicativo */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Explicar Regime de Caixa e Competência"
+                      className="ml-1.5 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                      title="Entenda a diferença entre Competência e Caixa no DRE"
+                    >
+                      <HelpCircle className="w-4 h-4 text-primary" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="end"
+                    className="w-96 max-w-[92vw] p-4 text-xs space-y-3.5 shadow-xl border-border"
+                  >
+                    <div className="flex items-center gap-2 border-b pb-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      <h4 className="font-bold text-sm text-foreground">
+                        Entenda os Regimes Contábeis
+                      </h4>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center gap-1.5 font-semibold text-blue-700 dark:text-blue-400 mb-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Regime de Competência (Oficial)
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">
+                          A receita ou despesa é contabilizada no{' '}
+                          <strong>mês a que pertence</strong> (pela data de vencimento ou realização
+                          do serviço). Exemplo: se um projeto foi entregue em setembro, ele entra no
+                          resultado de setembro, mesmo que o cliente parcele e pague somente em
+                          outubro.
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                        <div className="flex items-center gap-1.5 font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Regime de Caixa (Fluxo Financeiro)
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Contabiliza pelo que{' '}
+                          <strong>efetivamente entrou ou saiu da conta bancária</strong> no mês
+                          (data de liquidação/pagamento). Mostra o fluxo real de dinheiro em caixa
+                          no período.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t space-y-1.5 text-muted-foreground">
+                      <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                        <Info className="w-3.5 h-3.5 text-primary" />
+                        Como o DRE calcula hoje:
+                      </div>
+                      <p className="leading-relaxed">
+                        O sistema categoriza cada lançamento pela sua{' '}
+                        <strong>natureza contábil</strong> (Receita, Imposto, Custo Direto/CPV,
+                        Despesa Fixa ou Financeiro), pelo{' '}
+                        <strong>vínculo direto com projetos comerciais</strong> (DRE por Projeto e
+                        margem por contrato) e pelo <strong>plano de contas estruturado</strong> da
+                        Bender Haussform.
+                      </p>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {availableMonths.length > 0 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 bg-muted/40 p-1 px-2 rounded-lg border border-border">
                   <span className="text-xs text-muted-foreground font-medium">
                     Mês Comparativo:
                   </span>
                   <select
-                    className="h-8 px-2.5 text-xs bg-background border rounded-md font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="h-7 px-2.5 text-xs bg-background border rounded-md font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     value={currentSelectedMonth}
                     onChange={(e) => setSelectedMonth(e.target.value)}
                   >
@@ -586,56 +672,129 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
               )}
             </div>
           </div>
+
+          {/* Banner de Identificação Clara do Regime Ativo */}
+          <div
+            className={`mt-4 px-3.5 py-2.5 rounded-lg border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 transition-colors ${
+              regime === 'competencia'
+                ? 'bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200'
+                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    regime === 'competencia' ? 'bg-blue-400' : 'bg-emerald-400'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                    regime === 'competencia' ? 'bg-blue-600' : 'bg-emerald-600'
+                  }`}
+                />
+              </span>
+              <span className="text-xs font-semibold">
+                Visualizando DRE em{' '}
+                <strong className="underline underline-offset-2">
+                  Regime de {regime === 'competencia' ? 'Competência' : 'Caixa'}
+                </strong>
+                :
+              </span>
+              <span className="text-xs opacity-90 hidden sm:inline">
+                {regime === 'competencia'
+                  ? 'receitas e despesas apuradas pelo vencimento/mês de competência contábil.'
+                  : 'receitas e despesas apuradas pela data de efetiva liquidação/pagamento.'}
+              </span>
+            </div>
+            <Badge
+              className={`text-xs px-2.5 py-0.5 font-bold uppercase tracking-wider self-start sm:self-auto ${
+                regime === 'competencia'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              Regime de {regime === 'competencia' ? 'Competência' : 'Caixa'}
+            </Badge>
+          </div>
         </CardHeader>
       </Card>
 
       {/* Cards de Destaque da Estrutura Geral (Total Selecionado / Acumulado) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-emerald-500 shadow-sm">
+        <Card className="border-l-4 border-l-emerald-500 shadow-sm relative overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Receita Bruta Total</span>
-              <Badge variant="outline" className="text-[10px] uppercase font-semibold">
-                {regime}
+            <div className="flex items-center justify-between text-xs text-muted-foreground gap-1">
+              <span className="font-medium">Receita Bruta Total</span>
+              <Badge
+                className={`text-[11px] px-2 py-0.5 font-bold uppercase tracking-wide border shadow-2xs ${
+                  regime === 'competencia'
+                    ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                    : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                }`}
+              >
+                Regime de {regime === 'competencia' ? 'Competência' : 'Caixa'}
               </Badge>
             </div>
-            <p className="text-2xl font-bold text-foreground mt-1.5">
+            <p className="text-2xl font-bold text-foreground mt-2">
               {formatCurrency(totalDRE.receitaBruta)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">100% da base faturada</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500 shadow-sm">
+        <Card className="border-l-4 border-l-blue-500 shadow-sm relative overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Lucro Bruto</span>
-              <Badge
-                variant="outline"
-                className="text-[10px] font-semibold text-blue-600 dark:text-blue-400"
-              >
-                Margem {totalDRE.margemBruta.toFixed(1)}%
-              </Badge>
+            <div className="flex items-center justify-between text-xs text-muted-foreground gap-1">
+              <span className="font-medium">Lucro Bruto</span>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  className={`text-[10px] px-1.5 py-0.5 font-semibold uppercase tracking-wide border shadow-2xs ${
+                    regime === 'competencia'
+                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
+                  {regime === 'competencia' ? 'Competência' : 'Caixa'}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-semibold text-blue-600 dark:text-blue-400"
+                >
+                  Margem {totalDRE.margemBruta.toFixed(1)}%
+                </Badge>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-foreground mt-1.5">
+            <p className="text-2xl font-bold text-foreground mt-2">
               {formatCurrency(totalDRE.lucroBruto)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Após deduzir impostos e CPV</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500 shadow-sm">
+        <Card className="border-l-4 border-l-purple-500 shadow-sm relative overflow-hidden">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>EBITDA / LAJIDA</span>
-              <Badge
-                variant="outline"
-                className="text-[10px] font-semibold text-purple-600 dark:text-purple-400"
-              >
-                Margem {totalDRE.margemEbitda.toFixed(1)}%
-              </Badge>
+            <div className="flex items-center justify-between text-xs text-muted-foreground gap-1">
+              <span className="font-medium">EBITDA / LAJIDA</span>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  className={`text-[10px] px-1.5 py-0.5 font-semibold uppercase tracking-wide border shadow-2xs ${
+                    regime === 'competencia'
+                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
+                  {regime === 'competencia' ? 'Competência' : 'Caixa'}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] font-semibold text-purple-600 dark:text-purple-400"
+                >
+                  Margem {totalDRE.margemEbitda.toFixed(1)}%
+                </Badge>
+              </div>
             </div>
-            <p className="text-2xl font-bold text-foreground mt-1.5">
+            <p className="text-2xl font-bold text-foreground mt-2">
               {formatCurrency(totalDRE.ebitda)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Antes de resultado financeiro</p>
@@ -643,26 +802,37 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         </Card>
 
         <Card
-          className={`border-l-4 shadow-sm ${
+          className={`border-l-4 shadow-sm relative overflow-hidden ${
             totalDRE.resultadoLiquido >= 0 ? 'border-l-emerald-600' : 'border-l-rose-600'
           }`}
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Resultado Líquido</span>
-              <Badge
-                variant="outline"
-                className={`text-[10px] font-semibold ${
-                  totalDRE.resultadoLiquido >= 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-rose-600 dark:text-rose-400'
-                }`}
-              >
-                Margem {totalDRE.margemLiquida.toFixed(1)}%
-              </Badge>
+            <div className="flex items-center justify-between text-xs text-muted-foreground gap-1">
+              <span className="font-medium">Resultado Líquido</span>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  className={`text-[10px] px-1.5 py-0.5 font-semibold uppercase tracking-wide border shadow-2xs ${
+                    regime === 'competencia'
+                      ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                      : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  }`}
+                >
+                  {regime === 'competencia' ? 'Competência' : 'Caixa'}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] font-semibold ${
+                    totalDRE.resultadoLiquido >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}
+                >
+                  Margem {totalDRE.margemLiquida.toFixed(1)}%
+                </Badge>
+              </div>
             </div>
             <p
-              className={`text-2xl font-bold mt-1.5 ${
+              className={`text-2xl font-bold mt-2 ${
                 totalDRE.resultadoLiquido >= 0
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-rose-600 dark:text-rose-400'

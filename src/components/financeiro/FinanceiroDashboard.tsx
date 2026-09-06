@@ -18,7 +18,7 @@ function CustomChartTooltip({ active, payload, label }: CustomTooltipProps) {
   }
 
   const formatCurrency = (val: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0)
 
   return (
     <div className="bg-white dark:bg-zinc-900 shadow-lg rounded-lg border border-border p-2.5 text-xs">
@@ -115,9 +115,9 @@ function FinanceiroDashboardContent({
       const statusLower = (t.status || '').toLowerCase()
       if (statusLower === 'a_classificar' || statusLower === 'agrupado') return
 
-      const date = t.paidDate || t.dueDate
-      if (!date || typeof date !== 'string') return
-      const month = date.substring(0, 7)
+      const rawDate = t.paidDate || t.dueDate || t.createdAt
+      if (!rawDate || typeof rawDate !== 'string' || rawDate.length < 7) return
+      const month = rawDate.substring(0, 7)
       if (!groups[month]) groups[month] = { receitas: 0, despesas: 0 }
       const amount = Number(t.amount) || 0
       if (t.type === 'receita') groups[month].receitas += amount

@@ -80,8 +80,14 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="secondary">{status || '-'}</Badge>
 }
 
-function fmtDate(d: string | null) {
-  return d ? new Date(d).toLocaleDateString('pt-BR') : '-'
+function fmtDate(d: string | null | undefined) {
+  if (!d) return '-'
+  try {
+    const parsed = new Date(d)
+    return isNaN(parsed.getTime()) ? String(d).substring(0, 10) : parsed.toLocaleDateString('pt-BR')
+  } catch {
+    return String(d).substring(0, 10)
+  }
 }
 
 interface Props {

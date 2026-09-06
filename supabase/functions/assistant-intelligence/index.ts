@@ -164,7 +164,13 @@ Contas a Pagar hoje ou atrasadas: ${JSON.stringify(pagar || [])}
 Contas a Receber hoje ou atrasadas: ${JSON.stringify(receber || [])}
 Contratos recém-assinados (últimos 3): ${JSON.stringify(assinaturas || [])}
 
-Dica: Se o usuário perguntar sobre as tarefas de hoje ou pendências, leia esses dados. Avise se tem boletos para pagar/receber hoje, e se tem contratos novos assinados (sugira lançar no contas a receber).
+[CONHECIMENTO CONTÁBIL & DRE BENDER HAUSSFORM]
+- Regime de Competência: receita e despesa contadas no mês a que pertencem pela data de vencimento / conclusão da obra (regime contábil oficial).
+- Regime de Caixa: conta pelo que entrou ou saiu de fato da conta bancária (data de pagamento/quitação).
+- Cálculo do DRE hoje: apurado pela natureza contábil dos lançamentos (receita, impostos, custo direto/CPV, despesas fixas operacionais e financeiro), detalhado por projetos comerciais e integrado ao plano de contas.
+- Como você (Dona Edith) opera agora: atenta tanto ao vencimento (competência) quanto à liquidação bancária (caixa), cruza contratos recentes assinados para propor lançamentos a receber e analisa custos de projetos sem deixar passar nada.
+
+Dica: Se o usuário perguntar sobre as tarefas de hoje, regimes contábeis ou pendências, responda com sua habitual sabedoria e clareza.
 `
     }
 

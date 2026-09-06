@@ -3,6 +3,7 @@ import { Wallet, Search } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { supabase } from '@/lib/supabase/client'
 import { Transaction } from '@/types'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { FinanceiroDashboard } from '@/components/financeiro/FinanceiroDashboard'
 import {
   FinanceiroMovimentacoes,
@@ -291,22 +292,32 @@ export default function Financeiro() {
 
         <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
           <TabsContent value="dashboard" className="m-0 border-none outline-none">
-            <FinanceiroDashboard
-              transactions={filteredTransactions as Transaction[]}
-              contasBancarias={contasBancarias}
-            />
+            <ErrorBoundary>
+              <FinanceiroDashboard
+                transactions={filteredTransactions as Transaction[]}
+                contasBancarias={contasBancarias}
+              />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="movimentacoes" className="m-0 border-none outline-none">
-            <FinanceiroMovimentacoes transactions={filteredTransactions} onRefresh={fetchData} />
+            <ErrorBoundary>
+              <FinanceiroMovimentacoes transactions={filteredTransactions} onRefresh={fetchData} />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="a_classificar" className="m-0 border-none outline-none">
-            <NotasAClassificarTab transactions={filteredTransactions} onRefresh={fetchData} />
+            <ErrorBoundary>
+              <NotasAClassificarTab transactions={filteredTransactions} onRefresh={fetchData} />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="dre" className="m-0 border-none outline-none">
-            <FinanceiroDRE transactions={filteredTransactions as Transaction[]} />
+            <ErrorBoundary>
+              <FinanceiroDRE transactions={filteredTransactions as Transaction[]} />
+            </ErrorBoundary>
           </TabsContent>
           <TabsContent value="contas" className="m-0 border-none outline-none">
-            <ContasBancariasTab />
+            <ErrorBoundary>
+              <ContasBancariasTab />
+            </ErrorBoundary>
           </TabsContent>
         </div>
       </Tabs>
