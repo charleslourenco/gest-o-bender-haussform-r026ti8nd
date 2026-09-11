@@ -24,12 +24,55 @@ Deno.serve(async (req) => {
       }
     }
 
-    const messageText = payload.text?.message || payload.message || payload.body || ''
-    const senderName = payload.senderName || payload.contactName || 'Cliente'
-    const msgExternalId =
+    const rawContent =
+      payload.text?.message ||
+      payload.message ||
+      payload.body ||
+      (typeof payload.text === 'string' ? payload.text : '') ||
+      payload.caption ||
+      payload.image?.caption ||
+      payload.video?.caption ||
+      payload.document?.caption ||
+      ''
+    const messageText =
+      typeof rawContent === 'string' ? rawContent.trim() : String(rawContent || '').trim()
+
+    // Helper: extrair e validar nome de perfil real do WhatsApp
+    const cleanDigits = (str: string) => str.replace(/\D/g, '')
+    const phoneDigits = cleanDigits(phone)
+
+    const isValidRealName = (name: any): boolean => {
+      if (!name || typeof name !== 'string') return false
+      const trimmed = name.trim()
+      if (!trimmed) return false
+      // Se for apenas dígitos/pontuação de telefone
+      const onlyDigits = cleanDigits(trimmed)
+      if (onlyDigits.length > 0 && /^[0-9+ \-()]+$/.test(trimmed)) {
+        return false
+      }
+      // Se for estritamente igual ao número de telefone ou contiver apenas o telefone
+      if (
+        phoneDigits &&
+        (onlyDigits === phoneDigits || trimmed === phone || trimmed === rawPhone)
+      ) {
+        return false
+      }
+      return true
+    }
+
+    const candidateSenderName =
+      payload.senderName || payload.contactName || payload.chatName || payload.pushName || ''
+    const senderName = isValidRealName(candidateSenderName) ? candidateSenderName.trim() : 'Cliente'
+
+    // Captura e deduplicação de external_id Z-API / PlugZapi
+    const rawExternalId =
       payload.messageId ||
+      payload.zaapId ||
       payload.id ||
-      `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      payload.external_id ||
+      payload.wamid ||
+      null
+    const msgExternalId = rawExternalId ? String(rawExternalId).trim() : null
 
     let extractedTimestamp = new Date().toISOString()
     if (payload.timestamp) {
@@ -54,15 +97,17 @@ Deno.serve(async (req) => {
     }
 
     // Deduplicate webhooks
-    const { data: existingMsg, error: existingMsgErr } = await supabase
-      .from('whatsapp_messages')
-      .select('id')
-      .eq('external_id', msgExternalId)
-      .maybeSingle()
+    if (msgExternalId) {
+      const { data: existingMsg, error: existingMsgErr } = await supabase
+        .from('whatsapp_messages')
+        .select('id')
+        .eq('external_id', msgExternalId)
+        .maybeSingle()
 
-    if (existingMsgErr) console.error('Erro ao verificar mensagem duplicada:', existingMsgErr)
-    if (existingMsg) {
-      return new Response('Duplicate message ignored', { status: 200 })
+      if (existingMsgErr) console.error('Erro ao verificar mensagem duplicada:', existingMsgErr)
+      if (existingMsg) {
+        return new Response('Duplicate message ignored', { status: 200 })
+      }
     }
 
     // Lead Lookup / Creation
@@ -79,11 +124,15 @@ Deno.serve(async (req) => {
     const isNewContact = !lead
     const nowStr = new Date().toISOString()
 
+    // Para novos leads, se o nome não for real/válido, salvar como 'Cliente' (e nunca telefone ou número)
+    const initialLeadName =
+      isValidRealName(senderName) && senderName !== 'Cliente' ? senderName : 'Cliente'
+
     if (isNewContact) {
       const { data: newLead, error } = await supabase
         .from('leads')
         .insert({
-          nome: senderName,
+          nome: initialLeadName,
           telefone: phone,
           email: `${phone}@whatsapp.com`,
           origem: 'WhatsApp',
@@ -167,18 +216,36 @@ Deno.serve(async (req) => {
         if (sessionUpdateErr) console.error('Erro ao atualizar sessão (fromMe):', sessionUpdateErr)
       }
 
+      // Melhoria 5: Blindar contra mensagens fromMe sem texto (figurinha, áudio, imagem sem legenda)
+      if (!messageText) {
+        return new Response('Empty fromMe message ignored', { status: 200 })
+      }
+
+      // Melhoria 4: Operador real nas mensagens fromMe
+      const candidateOperatorName =
+        payload.userName ||
+        payload.operatorName ||
+        payload.agentName ||
+        payload.senderName ||
+        payload.authorName ||
+        payload.sender?.name ||
+        ''
+      const fromMeSenderName = isValidRealName(candidateOperatorName)
+        ? candidateOperatorName.trim()
+        : 'Equipe'
+
       const { error: insertAnaErr } = await supabase.from('whatsapp_messages').insert({
         lead_id: lead?.id || null,
         phone,
         sender_type: 'ana',
-        sender_name: 'Ana',
+        sender_name: fromMeSenderName,
         content: messageText,
         external_id: msgExternalId,
         direction: 'outbound',
         created_at: extractedTimestamp,
       })
 
-      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana:', insertAnaErr)
+      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana/Equipe:', insertAnaErr)
 
       return new Response('Outbound logged (manual mode)', { status: 200 })
     }
@@ -213,6 +280,38 @@ Deno.serve(async (req) => {
       const updatePayload: any = {
         atualizado_em: nowStr,
         status_atendimento: 'aguardando_resposta',
+      }
+
+      // Melhoria 3: Auto-atualização do nome do lead
+      // Quando a mensagem trouxer um nome de perfil real e o lead estiver com nome genérico ("Cliente")
+      // ou com o telefone como nome, atualizar automaticamente.
+      const isLeadNameGenericOrPhone = (nomeAtual: string | null | undefined): boolean => {
+        if (!nomeAtual || !nomeAtual.trim()) return true
+        const trimmed = nomeAtual.trim()
+        const lower = trimmed.toLowerCase()
+        if (lower === 'cliente' || lower === 'novo cliente' || lower === 'sem nome') {
+          return true
+        }
+        // Se for puramente numérico ou formado por dígitos e símbolos de telefone
+        const onlyDigits = cleanDigits(trimmed)
+        if (onlyDigits.length > 0 && /^[0-9+ \-()]+$/.test(trimmed)) {
+          return true
+        }
+        if (
+          phoneDigits &&
+          (onlyDigits === phoneDigits || trimmed === phone || trimmed === rawPhone)
+        ) {
+          return true
+        }
+        return false
+      }
+
+      if (
+        isValidRealName(senderName) &&
+        senderName !== 'Cliente' &&
+        isLeadNameGenericOrPhone(lead.nome)
+      ) {
+        updatePayload.nome = senderName
       }
 
       const { error: leadUpdateErr } = await supabase

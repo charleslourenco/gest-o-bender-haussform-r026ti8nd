@@ -536,21 +536,28 @@ export function ModalAtendimento({
                   </div>
                 ) : messages.length > 0 ? (
                   messages.map((msg, i) => {
-                    const isClient =
-                      msg.sender_type === 'lead' ||
-                      msg.sender_type === 'cliente' ||
-                      (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                    const isTeam =
+                      msg.sender_type === 'user' ||
+                      msg.sender_type === 'ana' ||
+                      msg.direction === 'outbound'
                     const isSystem = msg.sender_type === 'system'
                     const isAssistant =
                       msg.sender_type === 'catarina' || msg.sender_type === 'assistant'
                     const isAna = msg.sender_type === 'ana'
+                    const isClient =
+                      !isTeam &&
+                      !isSystem &&
+                      !isAssistant &&
+                      (msg.sender_type === 'lead' ||
+                        msg.sender_type === 'cliente' ||
+                        msg.direction === 'inbound')
 
                     const senderLabel =
                       msg.sender_name ||
                       (isAssistant
                         ? 'Catarina (IA)'
                         : isAna
-                          ? 'Ana'
+                          ? 'Equipe'
                           : isClient
                             ? lead.nome || 'Cliente'
                             : 'Equipe')

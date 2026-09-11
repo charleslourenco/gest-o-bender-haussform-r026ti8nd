@@ -565,25 +565,32 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                 ) : messages.length > 0 ? (
                   (() => {
                     const rendered = messages.map((msg) => {
-                      const isClient =
-                        msg.sender_type === 'lead' ||
-                        msg.sender_type === 'cliente' ||
-                        (msg.direction === 'inbound' && msg.sender_type !== 'system')
+                      const isTeam =
+                        msg.sender_type === 'user' ||
+                        msg.sender_type === 'ana' ||
+                        msg.direction === 'outbound'
                       const isSystem = msg.sender_type === 'system'
                       const isAssistant =
                         msg.sender_type === 'catarina' || msg.sender_type === 'assistant'
                       const isAna = msg.sender_type === 'ana'
+                      const isClient =
+                        !isTeam &&
+                        !isSystem &&
+                        !isAssistant &&
+                        (msg.sender_type === 'lead' ||
+                          msg.sender_type === 'cliente' ||
+                          msg.direction === 'inbound')
 
                       const parsedMsg = {
                         id: msg.id,
                         sender:
                           msg.sender_name ||
                           (isAssistant
-                            ? 'Catarina'
+                            ? 'Catarina (IA)'
                             : isAna
-                              ? 'Ana'
+                              ? 'Equipe'
                               : isClient
-                                ? 'Cliente'
+                                ? selectedLead?.nome || 'Cliente'
                                 : 'Equipe'),
                         content: msg.content || msg.text || msg.body || '',
                         timestamp: msg.created_at,

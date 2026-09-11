@@ -337,21 +337,33 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                 </div>
               ) : messages.length > 0 ? (
                 messages.map((msg, i) => {
-                  const isClient =
-                    msg.sender_type === 'cliente' ||
-                    msg.sender_type === 'lead' ||
-                    msg.direction === 'inbound'
+                  const isTeam =
+                    msg.sender_type === 'user' ||
+                    msg.sender_type === 'ana' ||
+                    msg.direction === 'outbound'
                   const isSystem = msg.sender_type === 'system'
-                  const isAna = msg.sender_type === 'ana'
                   const isAssistant =
                     msg.sender_type === 'catarina' || msg.sender_type === 'assistant'
-                  const senderName = isClient
-                    ? 'Cliente'
-                    : isAna
-                      ? 'Ana'
-                      : isAssistant
-                        ? 'Catarina'
-                        : 'Sistema'
+                  const isAna = msg.sender_type === 'ana'
+                  const isClient =
+                    !isTeam &&
+                    !isSystem &&
+                    !isAssistant &&
+                    (msg.sender_type === 'cliente' ||
+                      msg.sender_type === 'lead' ||
+                      msg.direction === 'inbound')
+
+                  const senderName =
+                    msg.sender_name ||
+                    (isAssistant
+                      ? 'Catarina (IA)'
+                      : isTeam
+                        ? isAna
+                          ? 'Equipe'
+                          : 'Equipe'
+                        : isClient
+                          ? lead?.nome || 'Cliente'
+                          : 'Sistema')
 
                   return (
                     <div
@@ -362,7 +374,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                           ? 'bg-secondary text-secondary-foreground border border-border self-start rounded-r-xl rounded-bl-sm rounded-tl-xl'
                           : isSystem
                             ? 'bg-muted text-muted-foreground border border-border text-[11px] self-center w-full text-center rounded-lg shadow-none'
-                            : isAna
+                            : isTeam
                               ? 'bg-primary text-primary-foreground self-end rounded-l-xl rounded-br-sm rounded-tr-xl'
                               : isAssistant
                                 ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 border border-purple-200 dark:border-purple-800 self-end rounded-l-xl rounded-br-sm rounded-tr-xl'
@@ -374,7 +386,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                           'text-[10px] font-bold block mb-1 uppercase tracking-wider',
                           isSystem && 'hidden',
                           isClient && 'text-secondary-foreground/70',
-                          isAna && 'text-primary-foreground/70',
+                          isTeam && 'text-primary-foreground/70',
                           isAssistant && 'opacity-70',
                         )}
                       >
