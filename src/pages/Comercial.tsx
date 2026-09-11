@@ -68,6 +68,17 @@ export default function Comercial() {
     }
   }, [searchParams])
 
+  const handleUpdateGlobalLead = async (leadId: string, updates: any) => {
+    try {
+      await supabase.from('leads').update(updates).eq('id', leadId)
+      setLeadForGlobalModal((prev: any) =>
+        prev && prev.id === leadId ? { ...prev, ...updates } : prev,
+      )
+    } catch (err) {
+      console.warn('Erro ao atualizar lead do modal global:', err)
+    }
+  }
+
   const globalModalAba = useMemo(() => {
     try {
       if (leadForGlobalModal && typeof leadForGlobalModal === 'object' && leadForGlobalModal.id) {
@@ -156,7 +167,7 @@ export default function Comercial() {
             users={Array.isArray(users) ? users : []}
             open={Boolean(leadForGlobalModal)}
             onClose={() => setLeadForGlobalModal(null)}
-            onUpdateLead={() => {}}
+            onUpdateLead={handleUpdateGlobalLead}
             key={`global-modal-${leadForGlobalModal.id}`}
           />
         </ErrorBoundary>

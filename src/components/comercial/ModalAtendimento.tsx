@@ -115,6 +115,26 @@ export function ModalAtendimento({
     rawNotasClean,
   ])
 
+  // Limpar status_atendimento pendente no banco ao abrir a conversa do lead
+  useEffect(() => {
+    if (!open || !lead?.id) return
+
+    // Se o lead estiver aguardando resposta no banco, atualizar para 'em_atendimento'
+    if (lead.status_atendimento === 'aguardando_resposta') {
+      const clearPendency = async () => {
+        try {
+          await onUpdateLead(lead.id, {
+            status_atendimento: 'em_atendimento',
+            atualizado_em: new Date().toISOString(),
+          } as any)
+        } catch (err) {
+          console.warn('Erro ao limpar pendência ao abrir modal do lead:', err)
+        }
+      }
+      clearPendency()
+    }
+  }, [open, lead?.id, lead?.status_atendimento, onUpdateLead])
+
   // Carregar mensagens do WhatsApp
   const loadMessages = useCallback(
     async (silent = false) => {

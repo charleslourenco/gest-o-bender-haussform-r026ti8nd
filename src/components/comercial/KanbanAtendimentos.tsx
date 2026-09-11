@@ -20,6 +20,7 @@ import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
+import { PendenciasAtendimento, type PendingConversationItem } from './PendenciasAtendimento'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -67,6 +68,10 @@ export function KanbanAtendimentos({
 
   // Unread badge counts per lead
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  // Last preview message per lead
+  const [lastMessages, setLastMessages] = useState<
+    Record<string, { content: string; created_at: string }>
+  >({})
 
   // Filtros
   const [search, setSearch] = useState('')
@@ -94,8 +99,8 @@ export function KanbanAtendimentos({
   const usersRef = useRef<Array<{ id: string; nome: string }>>([])
   usersRef.current = users
 
-  // Limpar contagem de não lidas quando abrir o modal de conversa
-  const handleOpenLeadModal = (lead: Lead) => {
+  // Limpar contagem de não lidas e pendência quando abrir o modal de conversa
+  const handleOpenLeadModal = async (lead: Lead) => {
     if (!lead || !lead.id) return
     setUnreadCounts((prev) => {
       if (!prev[lead.id]) return prev
@@ -103,6 +108,13 @@ export function KanbanAtendimentos({
       delete copy[lead.id]
       return copy
     })
+    // Se lead estiver com status_atendimento = 'aguardando_resposta', limpar imediatamente no banco e no estado
+    if (lead.status_atendimento === 'aguardando_resposta') {
+      handleUpdateLead(lead.id, {
+        status_atendimento: 'em_atendimento',
+        atualizado_em: new Date().toISOString(),
+      } as any)
+    }
     setSelectedLeadForModal(lead)
   }
 
@@ -146,6 +158,41 @@ export function KanbanAtendimentos({
       const safeUsers = Array.isArray(usersData) ? usersData : []
       setLeads(safeLeads)
       setUsers(safeUsers)
+
+      // Carregar prévias da última mensagem das conversas pendentes
+      const pendingLeads = safeLeads.filter(
+        (l: any) =>
+          l &&
+          l.status_atendimento === 'aguardando_resposta' &&
+          !l.excluido &&
+          !l.arquivado_comercial,
+      )
+
+      if (pendingLeads.length > 0) {
+        try {
+          const pendingIds = pendingLeads.map((l: any) => l.id).filter(Boolean)
+          const { data: recentMsgs } = await supabase
+            .from('whatsapp_messages' as any)
+            .select('lead_id, content, created_at')
+            .in('lead_id', pendingIds)
+            .order('created_at', { ascending: false })
+
+          if (Array.isArray(recentMsgs)) {
+            const map: Record<string, { content: string; created_at: string }> = {}
+            for (const m of recentMsgs) {
+              if (m.lead_id && !map[m.lead_id]) {
+                map[m.lead_id] = {
+                  content: m.content || '',
+                  created_at: m.created_at || '',
+                }
+              }
+            }
+            setLastMessages((prev) => ({ ...prev, ...map }))
+          }
+        } catch (msgErr) {
+          console.warn('Erro ao carregar prévias de mensagens pendentes:', msgErr)
+        }
+      }
 
       // Atualizar lead selecionado no modal se estiver aberto
       setSelectedLeadForModal((curr) => {
@@ -292,6 +339,30 @@ export function KanbanAtendimentos({
               ...prev,
               [matchedLead!.id]: (prev[matchedLead!.id] || 0) + 1,
             }))
+
+            // Atualizar prévia da última mensagem no estado
+            if (newMsg.content) {
+              setLastMessages((prev) => ({
+                ...prev,
+                [matchedLead!.id]: {
+                  content: newMsg.content,
+                  created_at: newMsg.created_at || new Date().toISOString(),
+                },
+              }))
+            }
+
+            // Atualizar status_atendimento localmente para 'aguardando_resposta' para refletir imediatamente na pill
+            setLeads((prev) =>
+              prev.map((l) =>
+                l.id === matchedLead!.id
+                  ? {
+                      ...l,
+                      status_atendimento: 'aguardando_resposta',
+                      atualizado_em: newMsg.created_at || new Date().toISOString(),
+                    }
+                  : l,
+              ),
+            )
 
             // Determinar a aba a que o lead pertence
             const targetAba = getLeadAba(matchedLead)
@@ -696,6 +767,44 @@ export function KanbanAtendimentos({
     })
   }, [leads, safeAba.id, safeAba.categoriaPadrao, search, responsavelFilter])
 
+  // Lista de conversas com pendência persistentes (status_atendimento = 'aguardando_resposta' no banco)
+  const pendingConversations = useMemo((): PendingConversationItem[] => {
+    if (!Array.isArray(leads)) return []
+
+    return leads
+      .filter((l) => {
+        if (!l || !l.id) return false
+        if (l.excluido || l.arquivado_comercial) return false
+        return l.status_atendimento === 'aguardando_resposta'
+      })
+      .map((lead) => {
+        const lastMsg = lastMessages[lead.id]
+        const fallbackText = lead.status
+          ? `Aguardando resposta em ${lead.status}`
+          : 'Nova mensagem do WhatsApp'
+        const previewMessage = lastMsg?.content || fallbackText
+        const timestamp =
+          lastMsg?.created_at || lead.atualizado_em || lead.criado_em || new Date().toISOString()
+        const targetAba = getLeadAba(lead)
+
+        return {
+          leadId: lead.id,
+          leadName: lead.nome || 'Lead sem nome',
+          previewMessage,
+          timestamp,
+          unreadCount: unreadCounts[lead.id] || 1,
+          abaTitle: targetAba?.titulo || undefined,
+          telefone: lead.telefone || undefined,
+          lead,
+        }
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime() || 0
+        const timeB = new Date(b.timestamp).getTime() || 0
+        return timeB - timeA // mais recentes primeiro
+      })
+  }, [leads, lastMessages, unreadCounts])
+
   // Agrupamento memoizado dos leads por coluna para evitar .filter() a cada render/coluna
   const leadsByColumn = useMemo(() => {
     const map = new Map<string, Lead[]>()
@@ -799,6 +908,20 @@ export function KanbanAtendimentos({
   return (
     <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
       {toolbarPortal instanceof Element && isActive && createPortal(controls, toolbarPortal)}
+
+      {/* Caixa/Pill persistente de conversas com pendência */}
+      <div className="px-4 pt-2 shrink-0">
+        <PendenciasAtendimento
+          items={pendingConversations}
+          onOpenLead={(lead) => {
+            if (onOpenLeadGlobal) {
+              onOpenLeadGlobal(lead)
+            } else {
+              handleOpenLeadModal(lead)
+            }
+          }}
+        />
+      </div>
 
       {/* Modal / Popover de Criação Rápida */}
       {isCreatingQuickLead && (
@@ -931,7 +1054,10 @@ export function KanbanAtendimentos({
                             currentAba={safeAba}
                             users={users}
                             isDragging={draggingId === lead.id}
-                            unreadCount={unreadCounts[lead.id] || 0}
+                            unreadCount={
+                              unreadCounts[lead.id] ||
+                              (lead.status_atendimento === 'aguardando_resposta' ? 1 : 0)
+                            }
                             onDragStart={(e) => handleDragStart(e, lead.id)}
                             onDragEnd={handleDragEnd}
                             onClick={() => handleOpenLeadModal(lead)}

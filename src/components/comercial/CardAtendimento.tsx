@@ -387,12 +387,16 @@ function CardAtendimentoComponent({
               {unreadCount > 0 && (
                 <span
                   className={cn(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 animate-pulse',
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 animate-pulse cursor-pointer shadow-xs',
                     isNovoContato
                       ? 'bg-white text-[#F97316]'
                       : 'bg-[#3B82F6] dark:bg-[#58A6FF] text-white',
                   )}
-                  title={`${unreadCount} nova(s) mensagem(ns)`}
+                  title={
+                    unreadCount === 1
+                      ? '1 mensagem pendente / não lida (clique para abrir)'
+                      : `${unreadCount} mensagens pendentes / não lidas (clique para abrir)`
+                  }
                   onClick={(e) => {
                     e.stopPropagation()
                     onClick?.()
