@@ -282,6 +282,66 @@ Deno.serve(async (req) => {
         status_atendimento: 'aguardando_resposta',
       }
 
+      // Reativação automática se o lead estava excluído
+      if (lead.excluido === true) {
+        updatePayload.excluido = false
+
+        // Formatar data em português BR (DD/MM/AAAA às HH:mm)
+        const dateObj = new Date(extractedTimestamp || nowStr)
+        const dateStr = dateObj.toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          timeZone: 'America/Sao_Paulo',
+        })
+        const timeStr = dateObj.toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Sao_Paulo',
+        })
+        const reactivateNote = `Reativado automaticamente: cliente entrou em contato via WhatsApp em ${dateStr} às ${timeStr}`
+
+        // Registrar nota no lead respeitando o padrão existente de notas_pessoais (com prefixo de metadados se houver)
+        const rawNotasPessoais = lead.notas_pessoais || ''
+        const META_PREFIX = '___META_JSON___:'
+        const metaIdx = rawNotasPessoais.indexOf(META_PREFIX)
+
+        let cleanText = ''
+        let metaObj: any = {}
+
+        if (metaIdx === -1) {
+          cleanText = rawNotasPessoais.trim()
+        } else {
+          cleanText = rawNotasPessoais.slice(0, metaIdx).trim()
+          try {
+            const parsed = JSON.parse(rawNotasPessoais.slice(metaIdx + META_PREFIX.length).trim())
+            metaObj = parsed && typeof parsed === 'object' ? parsed : {}
+          } catch {
+            metaObj = {}
+          }
+        }
+
+        // Limpar eventuais exclusões prévias das abas registradas no meta para que o lead reapareça normalmente
+        if (Array.isArray(metaObj.exclusoes)) {
+          delete metaObj.exclusoes
+        }
+
+        const updatedCleanText = cleanText
+          ? `${cleanText}\n[${dateStr} ${timeStr}] ${reactivateNote}`
+          : `[${dateStr} ${timeStr}] ${reactivateNote}`
+
+        const hasMeta = Object.keys(metaObj).length > 0
+        updatePayload.notas_pessoais = hasMeta
+          ? `${updatedCleanText}\n\n${META_PREFIX}${JSON.stringify(metaObj)}`
+          : updatedCleanText
+
+        // Também registrar no campo notas se estiver vazio ou anexar para redundância visual
+        const existingNotas = lead.notas ? lead.notas.trim() : ''
+        updatePayload.notas = existingNotas
+          ? `${existingNotas}\n[${dateStr} ${timeStr}] ${reactivateNote}`
+          : `[${dateStr} ${timeStr}] ${reactivateNote}`
+      }
+
       // Melhoria 3: Auto-atualização do nome do lead
       // Quando a mensagem trouxer um nome de perfil real e o lead estiver com nome genérico ("Cliente")
       // ou com o telefone como nome, atualizar automaticamente.
