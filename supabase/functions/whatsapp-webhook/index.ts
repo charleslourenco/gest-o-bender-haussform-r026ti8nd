@@ -9,20 +9,113 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json()
 
-    const rawPhone = payload.phone || payload.from || payload.sender || ''
-    if (!rawPhone) return new Response('No phone', { status: 200 })
+    // Helper: extrair apenas dígitos
+    const cleanDigits = (str: string) => (str || '').replace(/\D/g, '')
 
-    let phone = rawPhone.split('@')[0].replace(/\D/g, '')
+    // Helper: normalizar número brasileiro para o formato 55 + DDD (2) + 9 dígitos = 13 dígitos
+    const normalizePhoneNumber = (raw: string): string => {
+      if (!raw) return ''
+      let p = cleanDigits(raw.split('@')[0])
+      if (!p) return ''
 
-    if (phone.startsWith('55') && phone.length === 12) {
-      phone = phone.substring(0, 4) + '9' + phone.substring(4)
-    } else if (!phone.startsWith('55')) {
-      if (phone.length === 10) {
-        phone = '55' + phone.substring(0, 2) + '9' + phone.substring(2)
-      } else if (phone.length === 11) {
-        phone = '55' + phone
+      // Se for um LID do WhatsApp (ex: 13 a 15 dígitos sem código de país coerente ou sufixo @lid)
+      // Um número válido de telefone brasileiro tem 10 ou 11 dígitos sem DDI, ou 12/13 com DDI 55.
+      // Se o número começa com 55 e tem 12 dígitos, acrescenta 9 no nono dígito:
+      if (p.startsWith('55')) {
+        if (p.length === 12) {
+          p = p.substring(0, 4) + '9' + p.substring(4)
+        }
+      } else {
+        if (p.length === 10) {
+          p = '55' + p.substring(0, 2) + '9' + p.substring(2)
+        } else if (p.length === 11) {
+          p = '55' + p
+        }
+      }
+      return p
+    }
+
+    // Identificar se uma string é claramente um LID do WhatsApp
+    const isLidIdentifier = (val: string): boolean => {
+      if (!val) return false
+      const str = String(val).trim()
+      if (str.includes('@lid')) return true
+      const digits = cleanDigits(str)
+      // LIDs são sequências numéricas de 13 a 16 dígitos que NÃO começam com prefixos telefônicos válidos esperados (ex: não é 55...)
+      // Ou se começa com 55 mas tem 14+ dígitos
+      if (digits.length >= 13 && !digits.startsWith('55')) return true
+      if (digits.length > 13) return true
+      return false
+    }
+
+    // Verificar se um número é um telefone plausível (E.164 brasileiro tem 12 ou 13 dígitos começando com 55, ou internacional com 10-13)
+    const isValidPhone = (p: string): boolean => {
+      const digits = cleanDigits(p)
+      if (!digits) return false
+      if (isLidIdentifier(p)) return false
+      // No Brasil: 55 + DDD (2 dígitos) + 8 ou 9 dígitos = 12 ou 13 dígitos
+      if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+        return true
+      }
+      // Outros países: 10 a 13 dígitos sem ser LID
+      if (digits.length >= 10 && digits.length <= 13) {
+        return true
+      }
+      return false
+    }
+
+    // Tentativa de resolver número real a partir de múltiplos campos possíveis do payload
+    const candidatePhoneFields = [
+      payload.phone,
+      payload.from,
+      payload.sender,
+      payload.chatId,
+      payload.remoteJid,
+      payload.wa_chatId,
+      payload.participantJid,
+      payload.participant,
+      payload.author,
+      payload.user,
+      payload.to,
+      payload.recipient,
+      payload.chat?.id,
+      payload.chat?.phone,
+      payload.contact?.phone,
+      payload.contact?.id,
+    ]
+
+    let resolvedPhone = ''
+    let isLidEncountered = false
+
+    for (const cand of candidatePhoneFields) {
+      if (!cand) continue
+      const strCand = String(cand).trim()
+      if (isLidIdentifier(strCand)) {
+        isLidEncountered = true
+        continue
+      }
+      const normalized = normalizePhoneNumber(strCand)
+      if (isValidPhone(normalized)) {
+        resolvedPhone = normalized
+        break
       }
     }
+
+    // Se nenhum campo forneceu telefone válido mas havia campos informados
+    let phone = resolvedPhone
+    const rawPrimaryPhone = payload.phone || payload.from || payload.sender || ''
+    if (!phone) {
+      // Se não encontrou telefone válido e foi um LID não resolvível
+      const rawNormalized = normalizePhoneNumber(rawPrimaryPhone)
+      if (isValidPhone(rawNormalized)) {
+        phone = rawNormalized
+      } else {
+        // Telefone não resolvível (ex: LID puro)
+        phone = rawNormalized // manter para rastreio em logs ou busca
+      }
+    }
+
+    const isPhoneValid = isValidPhone(phone)
 
     const rawContent =
       payload.text?.message ||
@@ -33,27 +126,74 @@ Deno.serve(async (req) => {
       payload.image?.caption ||
       payload.video?.caption ||
       payload.document?.caption ||
+      payload.document?.fileName ||
+      payload.fileName ||
       ''
-    const messageText =
+    let messageText =
       typeof rawContent === 'string' ? rawContent.trim() : String(rawContent || '').trim()
 
+    // Blindar inbound/mensagens sem texto (áudio, figurinha, imagem sem legenda, anexo sem nome)
+    if (!messageText) {
+      if (payload.sticker || payload.isSticker) {
+        messageText = '[figurinha]'
+      } else if (payload.audio || payload.voice || payload.isAudio) {
+        messageText = '[áudio]'
+      } else if (payload.image || payload.photo) {
+        messageText = '[imagem]'
+      } else if (payload.video) {
+        messageText = '[vídeo]'
+      } else if (payload.document) {
+        messageText = '[documento]'
+      } else if (payload.location) {
+        messageText = '[localização]'
+      } else if (payload.vcard || payload.contact) {
+        messageText = '[contato]'
+      } else if (!payload.fromMe) {
+        // Para inbound de cliente sem nenhum dos tipos acima identificados
+        messageText = '[mídia]'
+      }
+    }
+
     // Helper: extrair e validar nome de perfil real do WhatsApp
-    const cleanDigits = (str: string) => str.replace(/\D/g, '')
     const phoneDigits = cleanDigits(phone)
+
+    // Lista de nomes de empresas ou genéricos que JAMAIS podem virar nome de lead novo
+    const BLOCKED_LEAD_NAMES = [
+      'bender haussform',
+      'bender hausform',
+      'bender',
+      'haussform',
+      'hausform',
+      'gestao bender',
+      'gestão bender',
+      'cliente',
+      'novo cliente',
+      'sem nome',
+      'null',
+      'undefined',
+    ]
 
     const isValidRealName = (name: any): boolean => {
       if (!name || typeof name !== 'string') return false
       const trimmed = name.trim()
       if (!trimmed) return false
+
+      const lower = trimmed.toLowerCase()
+      if (BLOCKED_LEAD_NAMES.includes(lower)) {
+        return false
+      }
+
       // Se for apenas dígitos/pontuação de telefone
       const onlyDigits = cleanDigits(trimmed)
       if (onlyDigits.length > 0 && /^[0-9+ \-()]+$/.test(trimmed)) {
         return false
       }
-      // Se for estritamente igual ao número de telefone ou contiver apenas o telefone
+      // Se for estritamente igual ao número de telefone ou contiver apenas o telefone ou LID
       if (
-        phoneDigits &&
-        (onlyDigits === phoneDigits || trimmed === phone || trimmed === rawPhone)
+        (phoneDigits && onlyDigits === phoneDigits) ||
+        trimmed === phone ||
+        trimmed === rawPrimaryPhone ||
+        isLidIdentifier(trimmed)
       ) {
         return false
       }
@@ -71,6 +211,7 @@ Deno.serve(async (req) => {
       payload.id ||
       payload.external_id ||
       payload.wamid ||
+      (payload.key && (payload.key.id || payload.key.messageId)) ||
       null
     const msgExternalId = rawExternalId ? String(rawExternalId).trim() : null
 
@@ -96,7 +237,7 @@ Deno.serve(async (req) => {
       return new Response('Ignored', { status: 200 })
     }
 
-    // Deduplicate webhooks
+    // Deduplicate webhooks (verificação prévia)
     if (msgExternalId) {
       const { data: existingMsg, error: existingMsgErr } = await supabase
         .from('whatsapp_messages')
@@ -110,25 +251,112 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Lead Lookup / Creation
-    let { data: leads, error: leadsError } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('telefone', phone)
-      .order('criado_em', { ascending: false })
-      .limit(1)
+    // Lead Lookup por telefone (apenas se tivermos um telefone ou identificador válido)
+    let lead: any = null
+    if (phone) {
+      const { data: leads, error: leadsError } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('telefone', phone)
+        .order('criado_em', { ascending: false })
+        .limit(1)
 
-    if (leadsError) console.error('Erro ao buscar leads:', leadsError)
+      if (leadsError) console.error('Erro ao buscar leads por telefone:', leadsError)
+      if (leads && leads.length > 0) {
+        lead = leads[0]
+      }
+    }
 
-    let lead = leads && leads.length > 0 ? leads[0] : null
-    const isNewContact = !lead
     const nowStr = new Date().toISOString()
 
-    // Para novos leads, se o nome não for real/válido, salvar como 'Cliente' (e nunca telefone ou número)
-    const initialLeadName =
-      isValidRealName(senderName) && senderName !== 'Cliente' ? senderName : 'Cliente'
+    // Regra 1: fromMe NUNCA cria lead!
+    // Se a mensagem for outbound (fromMe) e o lead não existir, gravamos como órfão (lead_id: null)
+    if (payload.fromMe) {
+      // Blindar contra mensagens fromMe sem texto (figurinha, áudio, imagem sem legenda)
+      if (!messageText) {
+        return new Response('Empty fromMe message ignored', { status: 200 })
+      }
 
-    if (isNewContact) {
+      if (lead) {
+        const { error: leadUpdateErr } = await supabase
+          .from('leads')
+          .update({
+            status_atendimento: 'em_atendimento',
+            atualizado_em: nowStr,
+          })
+          .eq('id', lead.id)
+
+        if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)
+      }
+
+      // Sessão de WhatsApp (apenas se houver telefone válido)
+      if (isPhoneValid && phone) {
+        let { data: session } = await supabase
+          .from('whatsapp_sessions')
+          .select('id, step')
+          .eq('phone', phone)
+          .maybeSingle()
+
+        if (!session) {
+          await supabase.from('whatsapp_sessions').insert({
+            phone,
+            lead_id: lead?.id || null,
+            step: 99,
+            last_human_interaction_at: nowStr,
+            updated_at: nowStr,
+          })
+        } else {
+          await supabase
+            .from('whatsapp_sessions')
+            .update({
+              step: 99,
+              last_human_interaction_at: nowStr,
+              updated_at: nowStr,
+              ...(lead?.id ? { lead_id: lead.id } : {}),
+            })
+            .eq('id', session.id)
+        }
+      }
+
+      // Operador real nas mensagens fromMe (nunca Bender Haussform)
+      const candidateOperatorName =
+        payload.userName ||
+        payload.operatorName ||
+        payload.agentName ||
+        payload.authorName ||
+        payload.sender?.name ||
+        ''
+      const fromMeSenderName = isValidRealName(candidateOperatorName)
+        ? candidateOperatorName.trim()
+        : 'Equipe'
+
+      // Inserção atômica com on_conflict (ignora se external_id já existir)
+      const { error: insertAnaErr } = await supabase.from('whatsapp_messages').upsert(
+        {
+          lead_id: lead?.id || null,
+          phone: phone || 'unknown',
+          sender_type: 'ana',
+          sender_name: fromMeSenderName,
+          content: messageText,
+          external_id: msgExternalId,
+          direction: 'outbound',
+          created_at: extractedTimestamp,
+        },
+        msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
+      )
+
+      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana/Equipe:', insertAnaErr)
+
+      return new Response('Outbound logged (manual mode)', { status: 200 })
+    }
+
+    // Inbound (mensagens vindas do cliente):
+    // Se o lead não existir, mas o telefone for válido e NÃO for LID, criar lead novo
+    if (!lead && isPhoneValid && phone) {
+      // Regra 3: Nunca usar nome da empresa ("Bender Haussform") ou nomes inválidos
+      const initialLeadName =
+        isValidRealName(senderName) && senderName !== 'Cliente' ? senderName : 'Cliente'
+
       const { data: newLead, error } = await supabase
         .from('leads')
         .insert({
@@ -151,116 +379,59 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Ensure a session exists and is flagged as human-managed (step 99)
-    // so manual operators always have full context.
-    let { data: session, error: sessionErr } = await supabase
-      .from('whatsapp_sessions')
-      .select('*')
-      .eq('phone', phone)
-      .maybeSingle()
-
-    if (sessionErr) console.error('Erro ao buscar sessão:', sessionErr)
-
-    if (!session) {
-      const { data: newSession, error: newSessErr } = await supabase
+    // Sessão do WhatsApp para inbound (apenas se telefone for válido)
+    let session: any = null
+    if (isPhoneValid && phone) {
+      const { data: existingSession } = await supabase
         .from('whatsapp_sessions')
-        .insert({
-          phone,
-          lead_id: lead?.id || null,
-          step: 99,
-        })
         .select('*')
-        .single()
+        .eq('phone', phone)
+        .maybeSingle()
 
-      if (newSessErr) {
-        console.error('Erro ao criar sessão:', newSessErr)
-      } else {
-        session = newSession
-      }
-    } else if (session.step !== 99) {
-      // Normalize existing sessions to human-managed (manual mode).
-      const { error: normErr } = await supabase
-        .from('whatsapp_sessions')
-        .update({ step: 99, updated_at: nowStr })
-        .eq('id', session.id)
+      session = existingSession
 
-      if (normErr) console.error('Erro ao normalizar sessão para modo manual:', normErr)
-      session = { ...session, step: 99, updated_at: nowStr }
-    }
-
-    // Outbound message sent from the connected WhatsApp (fromMe).
-    // Logged for history/context. No automated follow-up is performed.
-    if (payload.fromMe) {
-      if (lead) {
-        const { error: leadUpdateErr } = await supabase
-          .from('leads')
-          .update({
-            status_atendimento: 'em_atendimento',
-            atualizado_em: nowStr,
-          })
-          .eq('id', lead.id)
-
-        if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)
-      }
-
-      if (session) {
-        const { error: sessionUpdateErr } = await supabase
+      if (!session) {
+        const { data: newSession, error: newSessErr } = await supabase
           .from('whatsapp_sessions')
-          .update({
+          .insert({
+            phone,
+            lead_id: lead?.id || null,
             step: 99,
-            last_human_interaction_at: nowStr,
-            updated_at: nowStr,
           })
+          .select('*')
+          .single()
+
+        if (newSessErr) {
+          console.error('Erro ao criar sessão:', newSessErr)
+        } else {
+          session = newSession
+        }
+      } else if (session.step !== 99) {
+        const { error: normErr } = await supabase
+          .from('whatsapp_sessions')
+          .update({ step: 99, updated_at: nowStr, ...(lead?.id ? { lead_id: lead.id } : {}) })
           .eq('id', session.id)
 
-        if (sessionUpdateErr) console.error('Erro ao atualizar sessão (fromMe):', sessionUpdateErr)
+        if (normErr) console.error('Erro ao normalizar sessão para modo manual:', normErr)
+        session = { ...session, step: 99, updated_at: nowStr }
       }
-
-      // Melhoria 5: Blindar contra mensagens fromMe sem texto (figurinha, áudio, imagem sem legenda)
-      if (!messageText) {
-        return new Response('Empty fromMe message ignored', { status: 200 })
-      }
-
-      // Melhoria 4: Operador real nas mensagens fromMe
-      const candidateOperatorName =
-        payload.userName ||
-        payload.operatorName ||
-        payload.agentName ||
-        payload.senderName ||
-        payload.authorName ||
-        payload.sender?.name ||
-        ''
-      const fromMeSenderName = isValidRealName(candidateOperatorName)
-        ? candidateOperatorName.trim()
-        : 'Equipe'
-
-      const { error: insertAnaErr } = await supabase.from('whatsapp_messages').insert({
-        lead_id: lead?.id || null,
-        phone,
-        sender_type: 'ana',
-        sender_name: fromMeSenderName,
-        content: messageText,
-        external_id: msgExternalId,
-        direction: 'outbound',
-        created_at: extractedTimestamp,
-      })
-
-      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana/Equipe:', insertAnaErr)
-
-      return new Response('Outbound logged (manual mode)', { status: 200 })
     }
 
-    // Inbound customer message — always record it for manual follow-up.
-    const { error: insertClientErr } = await supabase.from('whatsapp_messages').insert({
-      lead_id: lead?.id || null,
-      phone,
-      sender_type: 'cliente',
-      sender_name: senderName,
-      content: messageText,
-      external_id: msgExternalId,
-      direction: 'inbound',
-      created_at: extractedTimestamp,
-    })
+    // Inbound customer message — gravação atômica com onConflict em external_id
+    const safeContent = messageText || '[mídia]'
+    const { error: insertClientErr } = await supabase.from('whatsapp_messages').upsert(
+      {
+        lead_id: lead?.id || null,
+        phone: phone || 'unknown',
+        sender_type: 'cliente',
+        sender_name: senderName,
+        content: safeContent,
+        external_id: msgExternalId,
+        direction: 'inbound',
+        created_at: extractedTimestamp,
+      },
+      msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
+    )
 
     if (insertClientErr) console.error('Erro ao inserir mensagem do Cliente:', insertClientErr)
 
@@ -358,8 +529,10 @@ Deno.serve(async (req) => {
           return true
         }
         if (
-          phoneDigits &&
-          (onlyDigits === phoneDigits || trimmed === phone || trimmed === rawPhone)
+          (phoneDigits && onlyDigits === phoneDigits) ||
+          trimmed === phone ||
+          trimmed === rawPrimaryPhone ||
+          isLidIdentifier(trimmed)
         ) {
           return true
         }
