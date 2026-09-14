@@ -17,6 +17,7 @@ export interface PendingConversationItem {
   abaTitle?: string
   telefone?: string
   lead: Lead
+  hasClientMessage?: boolean
 }
 
 export interface PendenciasAtendimentoProps {

@@ -9,6 +9,30 @@ Deno.serve(async (req) => {
   try {
     const payload = await req.json()
 
+    // Log temporário detalhado do payload real do Z-API para diagnóstico e depuração
+    try {
+      console.log(
+        '[Z-API WEBHOOK RAW PAYLOAD]:',
+        JSON.stringify({
+          phone: payload.phone,
+          from: payload.from,
+          to: payload.to,
+          chatId: payload.chatId,
+          remoteJid: payload.remoteJid,
+          wa_chatId: payload.wa_chatId,
+          sender: payload.sender,
+          senderName: payload.senderName,
+          fromMe: payload.fromMe,
+          isGroup: payload.isGroup,
+          id: payload.id || payload.messageId || payload.zaapId,
+          connectedPhone: payload.connectedPhone,
+          fullPayload: payload,
+        }),
+      )
+    } catch (logErr) {
+      console.warn('[Z-API WEBHOOK] Falha ao logar payload:', logErr)
+    }
+
     // Helper: extrair apenas dígitos
     const cleanDigits = (str: string) => (str || '').replace(/\D/g, '')
 
@@ -215,6 +239,16 @@ Deno.serve(async (req) => {
       null
     const msgExternalId = rawExternalId ? String(rawExternalId).trim() : null
 
+    // Preservar payload bruto para auditoria e resolução futura em metadata
+    const messageMetadata: Record<string, any> = {
+      ...(typeof payload.metadata === 'object' && payload.metadata !== null
+        ? payload.metadata
+        : {}),
+      raw_chat_id: payload.chatId || payload.remoteJid || payload.wa_chatId || null,
+      raw_phone: payload.phone || payload.from || payload.sender || null,
+      is_lid: isLidIdentifier(phone) || isLidIdentifier(rawPrimaryPhone),
+    }
+
     let extractedTimestamp = new Date().toISOString()
     if (payload.timestamp) {
       const ts =
@@ -253,7 +287,7 @@ Deno.serve(async (req) => {
 
     // Lead Lookup por telefone (apenas se tivermos um telefone ou identificador válido)
     let lead: any = null
-    if (phone) {
+    if (phone && isPhoneValid) {
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
         .select('*')
@@ -268,6 +302,116 @@ Deno.serve(async (req) => {
     }
 
     const nowStr = new Date().toISOString()
+
+    // Resolução avançada para outbound (fromMe) com identificador LID ou sem lead encontrado:
+    // Se for fromMe e não achamos lead por telefone (ex: phone é LID do WhatsApp, 13-16 dígitos não-55 ou não-E164):
+    // 1) Checar se esse LID já foi associado a algum lead em mensagens anteriores
+    // 2) Tentar casamento temporal inteligente por horário + contexto: resposta da equipe logo após
+    //    mensagem de cliente aguardando resposta (últimas horas)
+    if (payload.fromMe && !lead) {
+      // 1. Tentar mapear por histórico prévio de mensagens com este mesmo LID associadas a um lead
+      if (phone) {
+        const { data: prevMatch } = await supabase
+          .from('whatsapp_messages')
+          .select('lead_id')
+          .eq('phone', phone)
+          .not('lead_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (prevMatch?.lead_id) {
+          const { data: matchedLead } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('id', prevMatch.lead_id)
+            .maybeSingle()
+
+          if (matchedLead) {
+            lead = matchedLead
+            console.log(
+              `[LID RESOLVER] Lead ${lead.id} (${lead.nome}) recuperado via histórico para LID ${phone}`,
+            )
+          }
+        }
+      }
+
+      // 2. Casamento por horário + contexto se ainda não resolveu
+      // Procurar clientes com status_atendimento = 'aguardando_resposta' ou que enviaram mensagem recente
+      if (!lead) {
+        const msgTime = new Date(extractedTimestamp || nowStr).getTime()
+        const windowStart = new Date(msgTime - 4 * 60 * 60 * 1000).toISOString() // 4 horas antes
+        const windowEnd = new Date(msgTime + 5 * 60 * 1000).toISOString() // até 5 min depois
+
+        // Buscar última mensagem de cliente recebida antes deste outbound
+        const { data: candidateMsgs } = await supabase
+          .from('whatsapp_messages')
+          .select('lead_id, created_at, content')
+          .eq('direction', 'inbound')
+          .eq('sender_type', 'cliente')
+          .not('lead_id', 'is', null)
+          .gte('created_at', windowStart)
+          .lte('created_at', windowEnd)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (Array.isArray(candidateMsgs) && candidateMsgs.length > 0) {
+          // Prioridade 1: candidato cujo lead ainda está 'aguardando_resposta'
+          const candidateLeadIds = Array.from(
+            new Set(candidateMsgs.map((m) => m.lead_id).filter(Boolean)),
+          )
+          const { data: pendingLeads } = await supabase
+            .from('leads')
+            .select('*')
+            .in('id', candidateLeadIds)
+            .eq('status_atendimento', 'aguardando_resposta')
+            .order('atualizado_em', { ascending: false })
+
+          if (Array.isArray(pendingLeads) && pendingLeads.length > 0) {
+            // Se houver lead com primeiro nome mencionado no texto da equipe (ex: "Bom dia Bruno!", "Pablo,...")
+            const textLower = messageText.toLowerCase()
+            const nameMatch = pendingLeads.find((l) => {
+              if (!l.nome) return false
+              const firstName = l.nome.trim().split(/\s+/)[0]?.toLowerCase()
+              return firstName && firstName.length >= 3 && textLower.includes(firstName)
+            })
+
+            if (nameMatch) {
+              lead = nameMatch
+              console.log(
+                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por contexto de nome e pendência`,
+              )
+            } else if (pendingLeads.length === 1) {
+              // Se há apenas um lead com pendência recente na janela de 4h
+              lead = pendingLeads[0]
+              console.log(
+                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por pendência única recente`,
+              )
+            } else {
+              // Se há múltiplos pendentes, casar com o que recebeu mensagem inbound mais próxima no tempo
+              lead = pendingLeads[0]
+              console.log(
+                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado com o pendente mais recente`,
+              )
+            }
+          } else if (candidateLeadIds.length === 1) {
+            // Não há com 'aguardando_resposta', mas há exatamente 1 lead interagindo nas últimas horas
+            const { data: onlyLead } = await supabase
+              .from('leads')
+              .select('*')
+              .eq('id', candidateLeadIds[0])
+              .maybeSingle()
+
+            if (onlyLead) {
+              lead = onlyLead
+              console.log(
+                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por interação única recente`,
+              )
+            }
+          }
+        }
+      }
+    }
 
     // Regra 1: fromMe NUNCA cria lead!
     // Se a mensagem for outbound (fromMe) e o lead não existir, gravamos como órfão (lead_id: null)
@@ -334,12 +478,13 @@ Deno.serve(async (req) => {
       const { error: insertAnaErr } = await supabase.from('whatsapp_messages').upsert(
         {
           lead_id: lead?.id || null,
-          phone: phone || 'unknown',
+          phone: lead?.telefone || phone || 'unknown',
           sender_type: 'ana',
           sender_name: fromMeSenderName,
           content: messageText,
           external_id: msgExternalId,
           direction: 'outbound',
+          metadata: messageMetadata,
           created_at: extractedTimestamp,
         },
         msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
@@ -422,12 +567,13 @@ Deno.serve(async (req) => {
     const { error: insertClientErr } = await supabase.from('whatsapp_messages').upsert(
       {
         lead_id: lead?.id || null,
-        phone: phone || 'unknown',
+        phone: lead?.telefone || phone || 'unknown',
         sender_type: 'cliente',
         sender_name: senderName,
         content: safeContent,
         external_id: msgExternalId,
         direction: 'inbound',
+        metadata: messageMetadata,
         created_at: extractedTimestamp,
       },
       msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,

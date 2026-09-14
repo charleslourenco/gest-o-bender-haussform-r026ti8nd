@@ -70,7 +70,7 @@ export function KanbanAtendimentos({
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   // Last preview message per lead
   const [lastMessages, setLastMessages] = useState<
-    Record<string, { content: string; created_at: string }>
+    Record<string, { content: string; created_at: string; sender_type?: string }>
   >({})
 
   // Filtros
@@ -173,17 +173,21 @@ export function KanbanAtendimentos({
           const pendingIds = pendingLeads.map((l: any) => l.id).filter(Boolean)
           const { data: recentMsgs } = await supabase
             .from('whatsapp_messages' as any)
-            .select('lead_id, content, created_at')
+            .select('lead_id, content, created_at, sender_type')
             .in('lead_id', pendingIds)
             .order('created_at', { ascending: false })
 
           if (Array.isArray(recentMsgs)) {
-            const map: Record<string, { content: string; created_at: string }> = {}
+            const map: Record<
+              string,
+              { content: string; created_at: string; sender_type?: string }
+            > = {}
             for (const m of recentMsgs) {
               if (m.lead_id && !map[m.lead_id]) {
                 map[m.lead_id] = {
                   content: m.content || '',
                   created_at: m.created_at || '',
+                  sender_type: m.sender_type || '',
                 }
               }
             }
@@ -347,6 +351,7 @@ export function KanbanAtendimentos({
                 [matchedLead!.id]: {
                   content: newMsg.content,
                   created_at: newMsg.created_at || new Date().toISOString(),
+                  sender_type: newMsg.sender_type || 'cliente',
                 },
               }))
             }
@@ -768,6 +773,7 @@ export function KanbanAtendimentos({
   }, [leads, safeAba.id, safeAba.categoriaPadrao, search, responsavelFilter])
 
   // Lista de conversas com pendência persistentes (status_atendimento = 'aguardando_resposta' no banco)
+  // Apenas considera leads que possuem mensagem real de cliente (evita falsos positivos de leads novos sem interação)
   const pendingConversations = useMemo((): PendingConversationItem[] => {
     if (!Array.isArray(leads)) return []
 
@@ -775,14 +781,19 @@ export function KanbanAtendimentos({
       .filter((l) => {
         if (!l || !l.id) return false
         if (l.excluido || l.arquivado_comercial) return false
-        return l.status_atendimento === 'aguardando_resposta'
+        if (l.status_atendimento !== 'aguardando_resposta') return false
+
+        // Blindagem: se temos informações das mensagens em cache, conferir se há mensagem real de cliente
+        const lastMsg = lastMessages[l.id]
+        if (lastMsg && lastMsg.sender_type && lastMsg.sender_type !== 'cliente') {
+          // Se a última mensagem conhecida NÃO foi de cliente, não deve poluir a pill
+          return false
+        }
+        return true
       })
       .map((lead) => {
         const lastMsg = lastMessages[lead.id]
-        const fallbackText = lead.status
-          ? `Aguardando resposta em ${lead.status}`
-          : 'Nova mensagem do WhatsApp'
-        const previewMessage = lastMsg?.content || fallbackText
+        const previewMessage = lastMsg?.content || 'Nova mensagem de cliente'
         const timestamp =
           lastMsg?.created_at || lead.atualizado_em || lead.criado_em || new Date().toISOString()
         const targetAba = getLeadAba(lead)
