@@ -161,7 +161,7 @@ export function KanbanCard({
         isDragging && 'opacity-50 ring-2 ring-primary border-primary dark:border-primary',
       )}
     >
-      <div className="flex justify-between items-start mb-2.5">
+      <div className="flex justify-between items-start mb-1.5">
         <h4 className="text-foreground font-semibold text-[14px] leading-tight flex items-center gap-2 pr-2">
           {isAguardando && (
             <span className="flex h-2 w-2 relative shrink-0" title="Aguardando Consultor">
@@ -210,6 +210,37 @@ export function KanbanCard({
           )}
         </div>
       </div>
+
+      {/* Origem e Indicação */}
+      {(lead.origem || lead.origem_pessoa) && (
+        <div className="flex items-center gap-1.5 text-[11px] mb-2 flex-wrap">
+          <span
+            className={cn(
+              'inline-flex items-center px-1.5 py-0.2 rounded text-[10.5px] font-medium border',
+              lead.origem === 'Corretor'
+                ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold'
+                : 'bg-muted/60 border-border/70 text-muted-foreground',
+            )}
+          >
+            {lead.origem || 'Sem origem'}
+          </span>
+          {lead.origem_pessoa && (
+            <span
+              className={cn(
+                'truncate font-medium text-[11px]',
+                lead.origem === 'Corretor'
+                  ? 'text-blue-900 dark:text-blue-200'
+                  : 'text-foreground/80',
+              )}
+              title={`Indicado por: ${lead.origem_pessoa}`}
+            >
+              {lead.origem === 'Corretor'
+                ? `Indicado por: ${lead.origem_pessoa}`
+                : `— ${lead.origem_pessoa}`}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mb-2.5" onClick={(e) => e.stopPropagation()}>
         <Select value={lead.status} onValueChange={(val) => onStatusChange(lead.id, val)}>

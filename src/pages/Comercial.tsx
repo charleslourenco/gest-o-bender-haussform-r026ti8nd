@@ -76,6 +76,18 @@ export default function Comercial() {
       setLeadForGlobalModal((prev: any) =>
         prev && prev.id === leadId ? { ...prev, ...updates } : prev,
       )
+      if (updates?.status) {
+        try {
+          const { triggerConectaPhaseSync } = await import('@/services/conecta-sync')
+          triggerConectaPhaseSync({
+            leadId,
+            newStatus: updates.status,
+            origem: leadForGlobalModal?.origem,
+          })
+        } catch {
+          // falha silenciosa
+        }
+      }
     } catch (err) {
       console.warn('Erro ao atualizar lead do modal global:', err)
     }

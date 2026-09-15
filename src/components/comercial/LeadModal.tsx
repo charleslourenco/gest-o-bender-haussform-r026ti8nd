@@ -260,7 +260,9 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
               {exigeNomePessoa(origem) && (
                 <div>
                   <label className="block text-foreground font-semibold text-[14px] mb-1.5">
-                    {getRotuloNomePessoa(origem)} *
+                    {origem === 'Corretor'
+                      ? 'Indicado por: (Nome do Corretor)'
+                      : `${getRotuloNomePessoa(origem)} *`}
                   </label>
                   <input
                     required
@@ -268,7 +270,11 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                     name="origem_pessoa"
                     value={origemPessoa}
                     onChange={(e) => setOrigemPessoa(e.target.value)}
-                    placeholder={getRotuloNomePessoa(origem)}
+                    placeholder={
+                      origem === 'Corretor'
+                        ? 'Nome do corretor (ex: Carlos Andrade)'
+                        : getRotuloNomePessoa(origem)
+                    }
                     className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                   />
                 </div>

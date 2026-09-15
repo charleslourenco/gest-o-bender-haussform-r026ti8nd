@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
+import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 
 // Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
 export const KANBAN_LEAD_COLUMNS =
@@ -34,6 +35,20 @@ export const updateLead = async (id: string, leadData: any) => {
     .select()
     .single()
   if (error) throw error
+
+  // Disparo de evento de fase APÓS a mudança já ter acontecido no banco (pós-processamento não bloqueante)
+  if (leadData?.status) {
+    try {
+      triggerConectaPhaseSync({
+        leadId: id,
+        newStatus: leadData.status,
+        origem: data?.origem,
+      })
+    } catch {
+      // Falha silenciosa garantida
+    }
+  }
+
   return data
 }
 

@@ -472,19 +472,35 @@ export function ModalAtendimento({
                     </Select>
                   </div>
                   {exigeNomePessoa(origemVal) && (
-                    <Input
-                      disabled={updatingOrigem}
-                      placeholder={`${getRotuloNomePessoa(origemVal)}...`}
-                      value={origemPessoaVal}
-                      onChange={(e) => setOrigemPessoaVal(e.target.value)}
-                      onBlur={handleOrigemPessoaBlur}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.currentTarget.blur()
+                    <div className="flex items-center gap-1">
+                      {origemVal === 'Corretor' && (
+                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">
+                          Indicado por:
+                        </span>
+                      )}
+                      <Input
+                        disabled={updatingOrigem}
+                        placeholder={
+                          origemVal === 'Corretor'
+                            ? 'Nome do corretor...'
+                            : `${getRotuloNomePessoa(origemVal)}...`
                         }
-                      }}
-                      className="h-7 text-xs w-44 bg-background/80 border-amber-500/50 focus:border-amber-500 px-2 py-0"
-                    />
+                        value={origemPessoaVal}
+                        onChange={(e) => setOrigemPessoaVal(e.target.value)}
+                        onBlur={handleOrigemPessoaBlur}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.currentTarget.blur()
+                          }
+                        }}
+                        className={cn(
+                          'h-7 text-xs w-44 bg-background/80 px-2 py-0',
+                          origemVal === 'Corretor'
+                            ? 'border-blue-500/60 focus:border-blue-500 font-medium'
+                            : 'border-amber-500/50 focus:border-amber-500',
+                        )}
+                      />
+                    </div>
                   )}
                 </div>
                 <span className="flex items-center gap-1">

@@ -678,7 +678,7 @@ function CardAtendimentoComponent({
           </div>
         )}
       </div>
-      {/* Origem e Nome da pessoa */}
+      {/* Origem e Nome da pessoa (com destaque para Corretor: "Indicado por: [nome]") */}
       {(lead?.origem || lead?.origem_pessoa) && (
         <div
           className={cn(
@@ -692,7 +692,9 @@ function CardAtendimentoComponent({
               'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border',
               isNovoContato
                 ? 'bg-white/20 border-white/30 text-white'
-                : 'bg-[#F3F4F6] dark:bg-[#252525] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#374151] dark:text-[#D1D5DB]',
+                : lead.origem === 'Corretor'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold'
+                  : 'bg-[#F3F4F6] dark:bg-[#252525] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#374151] dark:text-[#D1D5DB]',
             )}
           >
             {lead.origem || 'Sem origem'}
@@ -701,11 +703,17 @@ function CardAtendimentoComponent({
             <span
               className={cn(
                 'truncate font-medium text-[11.5px]',
-                isNovoContato ? 'text-white font-semibold' : 'text-[#1F2937] dark:text-[#F3F4F6]',
+                isNovoContato
+                  ? 'text-white font-semibold'
+                  : lead.origem === 'Corretor'
+                    ? 'text-blue-900 dark:text-blue-200 font-medium'
+                    : 'text-[#1F2937] dark:text-[#F3F4F6]',
               )}
               title={`Indicado por: ${lead.origem_pessoa}`}
             >
-              — {lead.origem_pessoa}
+              {lead.origem === 'Corretor'
+                ? `Indicado por: ${lead.origem_pessoa}`
+                : `— ${lead.origem_pessoa}`}
             </span>
           )}
         </div>

@@ -88,6 +88,7 @@ export function KanbanAtendimentos({
   // Filtros
   const [search, setSearch] = useState('')
   const [responsavelFilter, setResponsavelFilter] = useState('all')
+  const [origemFilter, setOrigemFilter] = useState('all')
   const [onlyPending, setOnlyPending] = useState(false)
 
   // Drag and Drop
@@ -736,6 +737,16 @@ export function KanbanAtendimentos({
           }
         }
 
+        // Filtro por Origem do Lead (incluindo 'Corretor' e demais origens)
+        if (origemFilter !== 'all') {
+          const leadOrigemNorm = (l.origem || '').trim().toLowerCase()
+          if (origemFilter === 'sem_origem') {
+            if (leadOrigemNorm !== '' && leadOrigemNorm !== 'sem origem') return false
+          } else {
+            if (leadOrigemNorm !== origemFilter.trim().toLowerCase()) return false
+          }
+        }
+
         // Filtro "Só pendentes": status_atendimento = 'aguardando_resposta' E com mensagem de cliente
         if (onlyPending) {
           const isPendingLead =
@@ -755,6 +766,7 @@ export function KanbanAtendimentos({
     safeAba.categoriaPadrao,
     search,
     responsavelFilter,
+    origemFilter,
     onlyPending,
     leadsWithClientMessage,
   ])
@@ -906,6 +918,25 @@ export function KanbanAtendimentos({
               {u.nome}
             </SelectItem>
           ))}
+        </SelectContent>
+      </Select>
+
+      {/* Filtro por Origem (com destaque para Corretor) */}
+      <Select value={origemFilter} onValueChange={setOrigemFilter}>
+        <SelectTrigger className="h-8 text-xs w-32 lg:w-36">
+          <SelectValue placeholder="Origem" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todas Origens</SelectItem>
+          <SelectItem value="Corretor" className="font-semibold text-blue-600 dark:text-blue-400">
+            🤝 Corretor
+          </SelectItem>
+          {ORIGENS_LEAD.filter((o) => o !== 'Corretor').map((orig) => (
+            <SelectItem key={orig} value={orig} className="text-xs">
+              {orig}
+            </SelectItem>
+          ))}
+          <SelectItem value="sem_origem">Sem Origem</SelectItem>
         </SelectContent>
       </Select>
 

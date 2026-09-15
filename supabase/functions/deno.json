@@ -1,20 +1,21 @@
 {
   "_versions": {
-    "check-permission": 9,
-    "admin-users": 11,
-    "gerar_documento_cliente": 88,
-    "send-signature-email": 11,
-    "finalize-signature-document": 283,
-    "whatsapp-webhook": 49,
-    "assistant-intelligence": 15,
-    "financeiro-ai": 20,
-    "material-normalization": 6,
-    "gerar-comprovante-caixa": 3,
-    "gerar-comprovante-item-cliente": 2,
-    "send-whatsapp-message": 241,
-    "merge-estoque-items": 2,
-    "processar-orcamento-ocr": 137,
-    "export-pdf-document": 1,
-    "gerar-dossie": 1
+    "check-permission": 10,
+    "admin-users": 12,
+    "gerar_documento_cliente": 89,
+    "send-signature-email": 12,
+    "finalize-signature-document": 286,
+    "whatsapp-webhook": 50,
+    "assistant-intelligence": 16,
+    "financeiro-ai": 21,
+    "material-normalization": 7,
+    "gerar-comprovante-caixa": 4,
+    "gerar-comprovante-item-cliente": 3,
+    "send-whatsapp-message": 244,
+    "merge-estoque-items": 3,
+    "processar-orcamento-ocr": 139,
+    "export-pdf-document": 2,
+    "gerar-dossie": 2,
+    "conecta-sync-event": 1
   }
 }
