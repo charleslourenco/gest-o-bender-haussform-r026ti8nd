@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { fetchLeadMessages, sendWhatsAppMessage } from '@/services/comercial'
