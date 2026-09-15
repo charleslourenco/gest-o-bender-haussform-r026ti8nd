@@ -97,6 +97,122 @@ export function getAbaConfig(abaId: string): AtendimentoAbaConfig {
 /**
  * Retorna a aba correspondente a um determinado Lead
  */
+/**
+ * Verifica se um lead pertence à aba informada respeitando exatamente
+ * a mesma lógica do belongsNaturally e prioridades do KanbanAtendimentos.
+ */
+export function leadBelongsToAba(
+  lead:
+    | {
+        status?: string | null
+        categoria?: string | null
+        kanban_ativo?: boolean | null
+        notas_pessoais?: unknown
+        excluido?: boolean | null
+        arquivado_comercial?: boolean | null
+      }
+    | null
+    | undefined,
+  abaId: string,
+): boolean {
+  if (!lead || typeof lead !== 'object') return false
+
+  const { meta } = parseLeadMetadados(lead.notas_pessoais)
+
+  // Verificação de exclusão/arquivamento NA ABA INFORMADA
+  const isExcluidoNaAba =
+    Array.isArray(meta?.exclusoes) && meta.exclusoes.some((e: any) => e && e.aba === abaId)
+  if (isExcluidoNaAba) return false
+
+  const isArquivadoNaAba =
+    Array.isArray(meta?.arquivamentos) && meta.arquivamentos.some((a: any) => a && a.aba === abaId)
+  if (isArquivadoNaAba) return false
+
+  // Se o card foi explicitamente encaminhado para uma aba
+  if (meta?.encaminhado_para_aba) {
+    return meta.encaminhado_para_aba === abaId
+  }
+
+  // Card NÃO encaminhado: verificar pertinência natural por categoria/status
+  const cat = typeof lead.categoria === 'string' ? lead.categoria.trim() : 'Comercial'
+  const status = typeof lead.status === 'string' ? lead.status.trim() : ''
+
+  if (abaId === 'novo-contato') {
+    return (
+      status === 'Novo contato' ||
+      status === 'Novo Contato' ||
+      status === 'Novo Lead' ||
+      status === 'Novo' ||
+      status === 'Despachados' ||
+      status === 'Encaminhado Para' ||
+      (cat === 'Comercial' && !lead.kanban_ativo)
+    )
+  }
+
+  if (abaId === 'lead-consultoria') {
+    const consultoriaStatuses = [
+      'Consultoria Inicial',
+      'Projeto',
+      'Apresentação',
+      'Negociação',
+      'Stand By',
+      'Vendido',
+      'Perdido',
+      'Aguardando Consultor',
+      'Ação Gerente',
+      'Designar Consultor',
+    ]
+    return (cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)
+  }
+
+  if (abaId === 'lead-followup') {
+    return (
+      cat.toLowerCase() === 'follow up' ||
+      status === 'Follow up' ||
+      status === 'Encaminhado p/ Consultoria'
+    )
+  }
+
+  if (abaId === 'curriculos') {
+    return (
+      cat.toLowerCase() === 'currículo' ||
+      cat.toLowerCase() === 'curriculo' ||
+      status === 'Candidato' ||
+      status === 'Encaminhado p/ RH'
+    )
+  }
+
+  if (abaId === 'lead-orcamentos') {
+    return (
+      cat.toLowerCase() === 'orçamento' ||
+      cat.toLowerCase() === 'orcamento' ||
+      status === 'Novo Orçamento' ||
+      status === 'Em andamento'
+    )
+  }
+
+  if (abaId === 'fornecedores') {
+    return cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras'
+  }
+
+  if (abaId === 'parceiros') {
+    return (
+      cat.toLowerCase() === 'parceiro' ||
+      cat.toLowerCase() === 'arquiteto externo' ||
+      cat.toLowerCase() === 'equipe'
+    )
+  }
+
+  if (abaId === 'assistencia') {
+    return cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
+  }
+
+  return false
+}
+
+/**
+ * Retorna a aba correspondente a um determinado Lead
+ */
 export function getLeadAba(
   lead:
     | {
@@ -111,91 +227,11 @@ export function getLeadAba(
   if (!lead || typeof lead !== 'object') {
     return ATENDIMENTO_ABAS[0]
   }
-  const cat = typeof lead?.categoria === 'string' ? lead.categoria.trim() : 'Comercial'
-  const status = typeof lead?.status === 'string' ? lead.status.trim() : ''
-  const { meta } = parseLeadMetadados(lead?.notas_pessoais)
 
-  if (meta?.encaminhado_para_aba) {
-    const found = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
-    if (found) return found
-  }
-
-  // 1. Novo Contato
-  if (
-    status === 'Novo contato' ||
-    status === 'Novo Contato' ||
-    status === 'Novo Lead' ||
-    status === 'Novo' ||
-    status === 'Despachados' ||
-    status === 'Encaminhado Para' ||
-    (cat === 'Comercial' && !lead?.kanban_ativo)
-  ) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'novo-contato') || ATENDIMENTO_ABAS[0]
-  }
-
-  // 2. Lead p/ Consultoria
-  const consultoriaStatuses = [
-    'Consultoria Inicial',
-    'Projeto',
-    'Apresentação',
-    'Negociação',
-    'Stand By',
-    'Vendido',
-    'Perdido',
-    'Aguardando Consultor',
-    'Ação Gerente',
-    'Designar Consultor',
-  ]
-  if ((cat === 'Comercial' || cat === 'Já é Cliente') && consultoriaStatuses.includes(status)) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-consultoria') || ATENDIMENTO_ABAS[1]
-  }
-
-  // 3. Follow up
-  if (
-    cat.toLowerCase() === 'follow up' ||
-    status === 'Follow up' ||
-    status === 'Encaminhado p/ Consultoria'
-  ) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-followup') || ATENDIMENTO_ABAS[2]
-  }
-
-  // 4. Currículos
-  if (
-    cat.toLowerCase() === 'currículo' ||
-    cat.toLowerCase() === 'curriculo' ||
-    status === 'Candidato' ||
-    status === 'Encaminhado p/ RH'
-  ) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'curriculos') || ATENDIMENTO_ABAS[3]
-  }
-
-  // 5. Orçamentos
-  if (
-    cat.toLowerCase() === 'orçamento' ||
-    cat.toLowerCase() === 'orcamento' ||
-    status === 'Novo Orçamento' ||
-    status === 'Em andamento'
-  ) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'lead-orcamentos') || ATENDIMENTO_ABAS[4]
-  }
-
-  // 6. Fornecedores
-  if (cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras') {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'fornecedores') || ATENDIMENTO_ABAS[5]
-  }
-
-  // 7. Parceiros
-  if (
-    cat.toLowerCase() === 'parceiro' ||
-    cat.toLowerCase() === 'arquiteto externo' ||
-    cat.toLowerCase() === 'equipe'
-  ) {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'parceiros') || ATENDIMENTO_ABAS[6]
-  }
-
-  // 8. Assistência
-  if (cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia') {
-    return ATENDIMENTO_ABAS.find((a) => a.id === 'assistencia') || ATENDIMENTO_ABAS[7]
+  for (const aba of ATENDIMENTO_ABAS) {
+    if (leadBelongsToAba(lead, aba.id)) {
+      return aba
+    }
   }
 
   return ATENDIMENTO_ABAS[0]

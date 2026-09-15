@@ -422,12 +422,21 @@ Deno.serve(async (req) => {
       }
 
       if (lead) {
+        // Outbound (equipe respondeu pelo telefone): limpar status_atendimento (setar null)
+        // APENAS se o valor atual for exatamente 'aguardando_resposta' — nunca sobrescrever
+        // 'finalizado', 'em_atendimento' ou status manual.
+        // NUNCA apagar nem setar null o metadado meta.encaminhado_para_aba.
+        const leadUpdatePayload: Record<string, any> = {
+          atualizado_em: nowStr,
+        }
+
+        if (lead.status_atendimento === 'aguardando_resposta') {
+          leadUpdatePayload.status_atendimento = null
+        }
+
         const { error: leadUpdateErr } = await supabase
           .from('leads')
-          .update({
-            status_atendimento: 'em_atendimento',
-            atualizado_em: nowStr,
-          })
+          .update(leadUpdatePayload)
           .eq('id', lead.id)
 
         if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)

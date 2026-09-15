@@ -30,8 +30,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { parseSafeDate, formatSafeDate } from '@/lib/date-utils'
 import {
   ATENDIMENTO_ABAS,
   AtendimentoAbaConfig,
@@ -287,16 +286,20 @@ export function ModalAtendimento({
 
       const validItems = items.filter((item) => {
         if (!item.data) return false
-        const t = new Date(item.data).getTime()
-        return !isNaN(t)
+        const d = parseSafeDate(item.data)
+        return d !== null
       })
 
-      validItems.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+      validItems.sort((a, b) => {
+        const da = parseSafeDate(a.data)?.getTime() || 0
+        const db = parseSafeDate(b.data)?.getTime() || 0
+        return db - da
+      })
 
       for (let i = 0; i < validItems.length - 1; i++) {
-        const dCurrent = new Date(validItems[i].data).getTime()
-        const dPrev = new Date(validItems[i + 1].data).getTime()
-        if (isNaN(dCurrent) || isNaN(dPrev)) continue
+        const dCurrent = parseSafeDate(validItems[i].data)?.getTime()
+        const dPrev = parseSafeDate(validItems[i + 1].data)?.getTime()
+        if (!dCurrent || !dPrev) continue
         const diffMs = Math.max(0, dCurrent - dPrev)
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
         const hours = Math.floor((diffMs / (1000 * 60 * 60)) % 24)
@@ -488,17 +491,7 @@ export function ModalAtendimento({
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Criado em: </span>
                   <strong className="text-foreground">
-                    {(() => {
-                      if (!lead.criado_em) return 'N/D'
-                      try {
-                        const d = new Date(lead.criado_em)
-                        return isNaN(d.getTime())
-                          ? 'N/D'
-                          : format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                      } catch {
-                        return 'N/D'
-                      }
-                    })()}
+                    {formatSafeDate(lead.criado_em, "dd/MM/yyyy 'às' HH:mm", { fallback: 'N/D' })}
                   </strong>
                 </span>
               </div>
@@ -603,16 +596,9 @@ export function ModalAtendimento({
                                 </p>
                                 {msg.created_at && (
                                   <span className="text-[10px] opacity-60 block mt-1">
-                                    {(() => {
-                                      try {
-                                        const d = new Date(msg.created_at)
-                                        return isNaN(d.getTime())
-                                          ? ''
-                                          : format(d, 'dd/MM/yyyy HH:mm')
-                                      } catch {
-                                        return ''
-                                      }
-                                    })()}
+                                    {formatSafeDate(msg.created_at, 'dd/MM/yyyy HH:mm', {
+                                      fallback: '',
+                                    })}
                                   </span>
                                 )}
                               </div>
@@ -661,17 +647,7 @@ export function ModalAtendimento({
                                   'text-[#667781] dark:text-[#8696a0]',
                                 )}
                               >
-                                {(() => {
-                                  if (!msg.created_at) return ''
-                                  try {
-                                    const d = new Date(msg.created_at)
-                                    return isNaN(d.getTime())
-                                      ? ''
-                                      : format(d, 'HH:mm', { locale: ptBR })
-                                  } catch {
-                                    return ''
-                                  }
-                                })()}
+                                {formatSafeDate(msg.created_at, 'HH:mm', { fallback: '' })}
                               </span>
                             </div>
                           </div>
@@ -806,17 +782,9 @@ export function ModalAtendimento({
                               </h4>
                               <span className="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {(() => {
-                                  if (!item.data) return ''
-                                  try {
-                                    const d = new Date(item.data)
-                                    return isNaN(d.getTime())
-                                      ? ''
-                                      : format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                                  } catch {
-                                    return ''
-                                  }
-                                })()}
+                                {formatSafeDate(item.data, "dd/MM/yyyy 'às' HH:mm", {
+                                  fallback: '',
+                                })}
                               </span>
                             </div>
 

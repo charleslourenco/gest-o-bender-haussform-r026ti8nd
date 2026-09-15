@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
-import { getLeadAba } from '@/components/comercial/constants'
+import {
+  ATENDIMENTO_ABAS,
+  leadBelongsToAba,
+  parseLeadMetadados,
+} from '@/components/comercial/constants'
 
 /**
  * Hook para monitorar o total global de pendências do módulo Comercial / Atendimentos.
@@ -9,7 +13,9 @@ import { getLeadAba } from '@/components/comercial/constants'
  * - lead com status_atendimento = 'aguardando_resposta'
  * - excluido = false
  * - arquivado_comercial = false
- * - possui pelo menos 1 mensagem de cliente (sender_type IN ('cliente', 'lead') OU direction = 'inbound')
+ * - status NÃO pode ser 'Perdido' nem 'Vendido'
+ * - não excluído nem arquivado nos metadados da aba (meta.exclusoes / meta.arquivamentos)
+ * - possui pelo menos 1 mensagem de cliente REAL (sender_type IN ('cliente', 'lead') OU direction = 'inbound')
  */
 export interface PendenciasCountResult {
   total: number
@@ -29,7 +35,9 @@ export function usePendenciasCount() {
       // 1. Buscar leads candidatos com status_atendimento = 'aguardando_resposta'
       const { data: leads, error: leadsErr } = await supabase
         .from('leads' as any)
-        .select('id, status, categoria, kanban_ativo, notas_pessoais')
+        .select(
+          'id, status, categoria, kanban_ativo, notas_pessoais, excluido, arquivado_comercial',
+        )
         .eq('status_atendimento', 'aguardando_resposta')
         .eq('excluido', false)
         .eq('arquivado_comercial', false)
@@ -40,14 +48,20 @@ export function usePendenciasCount() {
         return
       }
 
-      const leadIds = leads.map((l: any) => l.id).filter(Boolean)
+      // Regra: ignorar leads com status 'Perdido' ou 'Vendido'
+      const activeStatusLeads = leads.filter((l: any) => {
+        const s = typeof l?.status === 'string' ? l.status.trim().toLowerCase() : ''
+        return s !== 'perdido' && s !== 'vendido'
+      })
+
+      const leadIds = activeStatusLeads.map((l: any) => l.id).filter(Boolean)
       if (leadIds.length === 0) {
         setCount(0)
         setByAba({})
         return
       }
 
-      // 2. Filtrar apenas aqueles que realmente têm pelo menos uma mensagem de cliente
+      // 2. Filtrar apenas aqueles que realmente têm pelo menos uma mensagem REAL de cliente
       const { data: msgs, error: msgsErr } = await supabase
         .from('whatsapp_messages' as any)
         .select('lead_id')
@@ -61,21 +75,30 @@ export function usePendenciasCount() {
       }
 
       const uniqueLeadsWithClientMsg = new Set(msgs.map((m: any) => m.lead_id).filter(Boolean))
-      const validLeads = leads.filter((l: any) => uniqueLeadsWithClientMsg.has(l.id))
-      setCount(validLeads.length)
+      const validLeads = activeStatusLeads.filter((l: any) => uniqueLeadsWithClientMsg.has(l.id))
 
-      // 3. Mapear pendências por aba diretamente
+      // 3. Mapear pendências por aba usando leadBelongsToAba
       const abaCounts: Record<string, number> = {}
+      ATENDIMENTO_ABAS.forEach((aba) => {
+        abaCounts[aba.id] = 0
+      })
+
       validLeads.forEach((l: any) => {
         try {
-          const aba = getLeadAba(l)
-          if (aba?.id) {
-            abaCounts[aba.id] = (abaCounts[aba.id] || 0) + 1
+          for (const aba of ATENDIMENTO_ABAS) {
+            if (leadBelongsToAba(l, aba.id)) {
+              abaCounts[aba.id] = (abaCounts[aba.id] || 0) + 1
+              break
+            }
           }
         } catch {
           // fallback silencioso
         }
       })
+
+      // O total é a soma dos leads que pertencem a alguma aba ativa
+      const totalGlobal = Object.values(abaCounts).reduce((acc, c) => acc + c, 0)
+      setCount(totalGlobal)
       setByAba(abaCounts)
     } catch (err) {
       console.warn('Erro ao calcular pendências globais:', err)

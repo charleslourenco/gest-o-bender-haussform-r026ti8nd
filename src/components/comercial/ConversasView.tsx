@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { DateRange } from 'react-day-picker'
+import { parseSafeDate, formatSafeDate } from '@/lib/date-utils'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -248,7 +249,8 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
 
         if (date?.from && (l.created_at || (l as any).criado_em)) {
           const rawCreated = l.created_at || (l as any).criado_em
-          const leadDate = new Date(rawCreated)
+          const leadDate = parseSafeDate(rawCreated)
+          if (!leadDate) return false
           const from = new Date(date.from)
           from.setHours(0, 0, 0, 0)
           if (leadDate < from) return false
@@ -256,7 +258,8 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
 
         if (date?.to && (l.created_at || (l as any).criado_em)) {
           const rawCreated = l.created_at || (l as any).criado_em
-          const leadDate = new Date(rawCreated)
+          const leadDate = parseSafeDate(rawCreated)
+          if (!leadDate) return false
           const to = new Date(date.to)
           to.setHours(23, 59, 59, 999)
           if (leadDate > to) return false
@@ -376,6 +379,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
     <div className="flex h-full w-full bg-background">
       {isActive &&
         toolbarPortal instanceof Element &&
+        toolbarPortal.isConnected &&
         createPortal(
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4 duration-300">
             <Input
@@ -610,9 +614,9 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                               </span>
                               <p className="whitespace-pre-wrap">{parsedMsg.content}</p>
                               <span className="text-[10px] opacity-50 mt-2 block">
-                                {parsedMsg.timestamp
-                                  ? new Date(parsedMsg.timestamp).toLocaleString('pt-BR')
-                                  : ''}
+                                {formatSafeDate(parsedMsg.timestamp, "dd/MM/yyyy 'às' HH:mm", {
+                                  fallback: '',
+                                })}
                               </span>
                             </div>
                           </div>
@@ -653,12 +657,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                                 'text-[#667781] dark:text-[#8696a0]',
                               )}
                             >
-                              {parsedMsg.timestamp
-                                ? new Date(parsedMsg.timestamp).toLocaleTimeString('pt-BR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })
-                                : ''}
+                              {formatSafeDate(parsedMsg.timestamp, 'HH:mm', { fallback: '' })}
                             </span>
                           </div>
                         </div>

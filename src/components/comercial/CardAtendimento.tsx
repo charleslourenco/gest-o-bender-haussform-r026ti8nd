@@ -41,8 +41,7 @@ import {
   stringifyLeadMetadados,
   cleanColumnTitle,
 } from './constants'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
 
 export interface CardAtendimentoProps {
   lead: Lead
@@ -128,19 +127,7 @@ function CardAtendimentoComponent({
     const updateTimer = () => {
       try {
         const baseDate = (lead as any)?.atualizado_em || lead?.criado_em
-        const parsed = baseDate ? new Date(baseDate).getTime() : Date.now()
-        const start = isNaN(parsed) ? Date.now() : parsed
-        const diff = Math.max(0, Date.now() - start)
-
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
-        const mins = Math.floor((diff / 1000 / 60) % 60)
-
-        let str = ''
-        if (days > 0) str += `${days}d `
-        if (hours > 0 || days > 0) str += `${hours}h `
-        str += `${mins}m`
-        setElapsed(str)
+        setElapsed(formatElapsedTime(baseDate, '-'))
       } catch {
         setElapsed('-')
       }
@@ -161,19 +148,7 @@ function CardAtendimentoComponent({
     const updatePendingTimer = () => {
       try {
         const baseDate = lastClientMsgTime || (lead as any)?.atualizado_em || lead?.criado_em
-        const parsed = baseDate ? new Date(baseDate).getTime() : Date.now()
-        const start = isNaN(parsed) ? Date.now() : parsed
-        const diff = Math.max(0, Date.now() - start)
-
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
-        const mins = Math.floor((diff / 1000 / 60) % 60)
-
-        let str = ''
-        if (days > 0) str += `${days}d `
-        if (hours > 0) str += `${hours}h `
-        str += `${mins}m`
-        setPendingElapsed(str.trim())
+        setPendingElapsed(formatElapsedTime(baseDate, 'agora'))
       } catch {
         setPendingElapsed('agora')
       }
@@ -248,13 +223,23 @@ function CardAtendimentoComponent({
   }
 
   const consultorRaw = lead?.consultor || (lead as any)?.users
-  const consultorNome = Array.isArray(consultorRaw)
-    ? consultorRaw[0]?.nome
-    : typeof consultorRaw === 'object' && consultorRaw !== null
-      ? (consultorRaw as any).nome
-      : typeof lead?.consultor === 'string'
-        ? lead.consultor
-        : undefined
+  const consultorNome = useMemo(() => {
+    if (Array.isArray(consultorRaw)) {
+      return consultorRaw[0]?.nome || undefined
+    }
+    if (typeof consultorRaw === 'object' && consultorRaw !== null) {
+      return (consultorRaw as any)?.nome || undefined
+    }
+    if (typeof lead?.consultor === 'string') {
+      return lead.consultor
+    }
+    // Fallback: buscar na lista safeUsers pelo consultor_id
+    if (lead?.consultor_id && Array.isArray(users)) {
+      const u = users.find((user) => user && user.id === lead.consultor_id)
+      if (u?.nome) return u.nome
+    }
+    return undefined
+  }, [consultorRaw, lead?.consultor, lead?.consultor_id, users])
 
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
@@ -944,14 +929,8 @@ function CardAtendimentoComponent({
             className={cn('w-3 h-3', isNovoContato ? 'text-[#FFFFFF]' : 'opacity-70')}
           />
           {(() => {
-            const rawDate = (lead as any).atualizado_em || lead.criado_em
-            if (!rawDate) return '-'
-            try {
-              const d = new Date(rawDate)
-              return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })
-            } catch {
-              return '-'
-            }
+            const rawDate = (lead as any)?.atualizado_em || lead?.criado_em
+            return formatSafeDate(rawDate, 'dd/MM/yyyy HH:mm', { fallback: '-' })
           })()}
         </span>
         <span
@@ -1002,7 +981,11 @@ function areCardPropsEqual(
     prevLead.notas_pessoais === nextLead.notas_pessoais &&
     prevLead.atualizado_em === nextLead.atualizado_em &&
     prevLead.criado_em === nextLead.criado_em &&
-    (prevLead.consultor?.nome || '') === (nextLead.consultor?.nome || '')
+    ((Array.isArray(prevLead.consultor) ? prevLead.consultor[0]?.nome : prevLead.consultor?.nome) ||
+      '') ===
+      ((Array.isArray(nextLead.consultor)
+        ? nextLead.consultor[0]?.nome
+        : nextLead.consultor?.nome) || '')
   )
 }
 

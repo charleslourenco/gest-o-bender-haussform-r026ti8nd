@@ -8,6 +8,7 @@ import {
   AtendimentoAbaConfig,
   ATENDIMENTO_ABAS,
   getLeadAba,
+  leadBelongsToAba,
   parseLeadMetadados,
   stringifyLeadMetadados,
   cleanColumnTitle,
@@ -712,77 +713,9 @@ export function KanbanAtendimentos({
         const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
         const status = typeof l.status === 'string' ? l.status.trim() : ''
 
-        // Se o card foi encaminhado para uma aba específica:
-        // Na aba "novo-contato", se o status ainda for 'Despachados' ou 'Encaminhado Para',
-        // permite visualização transitória na coluna Despachados antes de sair definitivamente da triagem.
-        // Se o destino for outra aba, ele pertence àquela aba de destino.
-        if (meta?.encaminhado_para_aba) {
-          if (meta.encaminhado_para_aba !== safeAba.id) {
-            // Se estiver na aba 01 e ainda com status transitório "Despachados" / "Encaminhado Para",
-            // NÃO mostrar na aba 01 se já tiver saído de lá ou se pertencer à outra aba
-            // O card encaminhado deve SAIR da triagem automaticamente (não pode ficar eterno nas duas casas).
-            return false
-          }
-        } else {
-          // Card NÃO encaminhado: verificar a qual aba pertence naturalmente por categoria/status
-          let belongsNaturally = false
-
-          if (safeAba.id === 'novo-contato') {
-            belongsNaturally =
-              status === 'Novo contato' ||
-              status === 'Novo Contato' ||
-              status === 'Novo Lead' ||
-              status === 'Novo' ||
-              status === 'Despachados' ||
-              status === 'Encaminhado Para' ||
-              (cat === 'Comercial' && !l.kanban_ativo)
-          } else if (safeAba.id === 'lead-consultoria') {
-            const consultoriaStatuses = [
-              'Consultoria Inicial',
-              'Projeto',
-              'Apresentação',
-              'Negociação',
-              'Stand By',
-              'Vendido',
-              'Perdido',
-              'Aguardando Consultor',
-              'Ação Gerente',
-              'Designar Consultor',
-            ]
-            belongsNaturally =
-              (cat === 'Comercial' || cat === 'Já é Cliente') &&
-              consultoriaStatuses.includes(status)
-          } else if (safeAba.id === 'lead-followup') {
-            belongsNaturally =
-              cat.toLowerCase() === 'follow up' ||
-              status === 'Follow up' ||
-              status === 'Encaminhado p/ Consultoria'
-          } else if (safeAba.id === 'curriculos') {
-            belongsNaturally =
-              cat.toLowerCase() === 'currículo' ||
-              cat.toLowerCase() === 'curriculo' ||
-              status === 'Candidato' ||
-              status === 'Encaminhado p/ RH'
-          } else if (safeAba.id === 'lead-orcamentos') {
-            belongsNaturally =
-              cat.toLowerCase() === 'orçamento' ||
-              cat.toLowerCase() === 'orcamento' ||
-              status === 'Novo Orçamento' ||
-              status === 'Em andamento'
-          } else if (safeAba.id === 'fornecedores') {
-            belongsNaturally =
-              cat.toLowerCase() === 'fornecedor' || status === 'Encaminhado p/ Setor de Compras'
-          } else if (safeAba.id === 'parceiros') {
-            belongsNaturally =
-              cat.toLowerCase() === 'parceiro' ||
-              cat.toLowerCase() === 'arquiteto externo' ||
-              cat.toLowerCase() === 'equipe'
-          } else if (safeAba.id === 'assistencia') {
-            belongsNaturally =
-              cat.toLowerCase() === 'assistência' || cat.toLowerCase() === 'assistencia'
-          }
-
-          if (!belongsNaturally) return false
+        // Se o card foi encaminhado para uma aba específica ou pertence naturalmente
+        if (!leadBelongsToAba(l, safeAba.id)) {
+          return false
         }
 
         // Aplicar filtros de busca e responsável
@@ -992,7 +925,10 @@ export function KanbanAtendimentos({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
-      {toolbarPortal instanceof Element && isActive && createPortal(controls, toolbarPortal)}
+      {toolbarPortal instanceof Element &&
+        toolbarPortal.isConnected &&
+        isActive &&
+        createPortal(controls, toolbarPortal)}
 
       {/* Modal / Popover de Criação Rápida */}
       {isCreatingQuickLead && (
@@ -1133,11 +1069,10 @@ export function KanbanAtendimentos({
                           <CardAtendimento
                             lead={lead}
                             currentAba={safeAba}
-                            users={users}
+                            users={Array.isArray(users) ? users : []}
                             isDragging={draggingId === lead.id}
                             unreadCount={
-                              unreadCounts[lead.id] ||
-                              (lead.status_atendimento === 'aguardando_resposta' ? 1 : 0)
+                              leadsWithClientMessage.has(lead.id) ? unreadCounts[lead.id] || 0 : 0
                             }
                             isPending={
                               lead.status_atendimento === 'aguardando_resposta' &&
