@@ -97,12 +97,20 @@ export function getAbaConfig(abaId: string): AtendimentoAbaConfig {
 /**
  * Retorna a aba correspondente a um determinado Lead
  */
-export function getLeadAba(lead: {
-  status?: string | null
-  categoria?: string | null
-  kanban_ativo?: boolean | null
-  notas_pessoais?: unknown
-}): AtendimentoAbaConfig {
+export function getLeadAba(
+  lead:
+    | {
+        status?: string | null
+        categoria?: string | null
+        kanban_ativo?: boolean | null
+        notas_pessoais?: unknown
+      }
+    | null
+    | undefined,
+): AtendimentoAbaConfig {
+  if (!lead || typeof lead !== 'object') {
+    return ATENDIMENTO_ABAS[0]
+  }
   const cat = typeof lead?.categoria === 'string' ? lead.categoria.trim() : 'Comercial'
   const status = typeof lead?.status === 'string' ? lead.status.trim() : ''
   const { meta } = parseLeadMetadados(lead?.notas_pessoais)

@@ -171,8 +171,9 @@ function CardAtendimentoComponent({
   }
 
   const handleSaveDescricao = async () => {
+    const safeMeta = meta && typeof meta === 'object' ? meta : {}
     const newMeta: LeadMetadados = {
-      ...meta,
+      ...safeMeta,
       descricao_projeto: descricaoValue.trim(),
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
@@ -181,8 +182,9 @@ function CardAtendimentoComponent({
   }
 
   const handleUpdatePrioridade = async (prioridade: 'Alta' | 'Média' | 'Baixa') => {
+    const safeMeta = meta && typeof meta === 'object' ? meta : {}
     const newMeta: LeadMetadados = {
-      ...meta,
+      ...safeMeta,
       prioridade,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
@@ -191,8 +193,9 @@ function CardAtendimentoComponent({
 
   const handleUpdatePrazo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const prazo = e.target.value
+    const safeMeta = meta && typeof meta === 'object' ? meta : {}
     const newMeta: LeadMetadados = {
-      ...meta,
+      ...safeMeta,
       prazo,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
@@ -216,7 +219,7 @@ function CardAtendimentoComponent({
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
   const isEncaminhado =
-    leadStatus.toLowerCase().includes('encaminhado') || meta?.origem_aba !== undefined
+    leadStatus.toLowerCase().includes('encaminhado') || (meta && meta.origem_aba !== undefined)
   const isNovoContato = safeCurrentAbaId === 'novo-contato' && !isEncaminhado
 
   const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
@@ -598,7 +601,7 @@ function CardAtendimentoComponent({
         )}
       </div>
       {/* Origem e Nome da pessoa */}
-      {(lead.origem || lead.origem_pessoa) && (
+      {(lead?.origem || lead?.origem_pessoa) && (
         <div
           className={cn(
             'flex items-center gap-1.5 text-[12px] flex-wrap',

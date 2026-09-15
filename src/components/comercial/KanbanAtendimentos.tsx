@@ -823,14 +823,15 @@ export function KanbanAtendimentos({
     colunas.forEach((c) => map.set(c, []))
 
     const getColForLead = (l: Lead): string => {
+      if (!l || typeof l !== 'object') return colunas[0] || 'Novo contato'
       const s = typeof l.status === 'string' ? l.status.trim() : ''
       const sLower = s.toLowerCase()
 
-      const exactMatch = colunas.find((c) => c.trim().toLowerCase() === sLower)
+      const exactMatch = colunas.find((c) => c && c.trim().toLowerCase() === sLower)
       if (exactMatch) return exactMatch
 
       if (sLower.includes('encaminhado')) {
-        const encaminhadoCol = colunas.find((c) => c.toLowerCase().includes('encaminhado'))
+        const encaminhadoCol = colunas.find((c) => c && c.toLowerCase().includes('encaminhado'))
         if (encaminhadoCol) return encaminhadoCol
       }
 
@@ -839,7 +840,7 @@ export function KanbanAtendimentos({
 
     if (Array.isArray(tabLeads)) {
       tabLeads.forEach((l) => {
-        if (!l || typeof l !== 'object') return
+        if (!l || typeof l !== 'object' || !l.id) return
         const col = getColForLead(l)
         const currentList = map.get(col)
         if (currentList) {
@@ -922,16 +923,18 @@ export function KanbanAtendimentos({
 
       {/* Caixa/Pill persistente de conversas com pendência */}
       <div className="px-4 pt-2 shrink-0">
-        <PendenciasAtendimento
-          items={pendingConversations}
-          onOpenLead={(lead) => {
-            if (onOpenLeadGlobal) {
-              onOpenLeadGlobal(lead)
-            } else {
-              handleOpenLeadModal(lead)
-            }
-          }}
-        />
+        <ErrorBoundary fallback={null}>
+          <PendenciasAtendimento
+            items={pendingConversations}
+            onOpenLead={(lead) => {
+              if (onOpenLeadGlobal) {
+                onOpenLeadGlobal(lead)
+              } else {
+                handleOpenLeadModal(lead)
+              }
+            }}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* Modal / Popover de Criação Rápida */}

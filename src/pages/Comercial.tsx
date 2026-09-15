@@ -238,7 +238,25 @@ export default function Comercial() {
               className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
             >
               {aba.id === activeTab && (
-                <ErrorBoundary key={`eb-kanban-${aba.id}`}>
+                <ErrorBoundary
+                  key={`eb-kanban-${aba.id}`}
+                  fallback={
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                      <p className="text-sm font-semibold text-destructive mb-2">
+                        Ocorreu um erro ao carregar a aba &quot;{aba.titulo}&quot;.
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Os outros setores continuam funcionando normalmente.
+                      </p>
+                      <button
+                        onClick={() => setActiveTab('novo-contato')}
+                        className="text-xs px-3 py-1.5 rounded bg-muted hover:bg-muted/80 text-foreground font-medium"
+                      >
+                        Voltar para Novo Contato
+                      </button>
+                    </div>
+                  }
+                >
                   <KanbanAtendimentos
                     aba={aba}
                     toolbarPortal={toolbarNode}
