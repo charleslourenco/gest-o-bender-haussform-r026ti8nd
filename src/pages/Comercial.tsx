@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Phone, List as ListIcon, Archive } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { supabase } from '@/lib/supabase/client'
+import { usePendenciasCount } from '@/hooks/use-pendencias-count'
 
 export default function Comercial() {
   const auth = useAuth()
@@ -19,6 +20,7 @@ export default function Comercial() {
   const loading = auth?.loading ?? false
 
   const [searchParams] = useSearchParams()
+  const { byAba: pendenciasByAba } = usePendenciasCount()
   const [activeTab, setActiveTab] = useState<string>('novo-contato')
   const [toolbarNode, setToolbarNode] = useState<HTMLDivElement | null>(null)
   const [leadForGlobalModal, setLeadForGlobalModal] = useState<any | null>(null)
@@ -200,9 +202,17 @@ export default function Comercial() {
                 <TabsTrigger
                   key={aba.id}
                   value={aba.id}
-                  className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                  className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs inline-flex items-center gap-1.5"
                 >
-                  {aba.titulo}
+                  <span>{aba.titulo}</span>
+                  {(pendenciasByAba[aba.id] || 0) > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-2xs"
+                      title={`${pendenciasByAba[aba.id]} atendimento(s) pendente(s) nesta aba`}
+                    >
+                      {pendenciasByAba[aba.id]}
+                    </span>
+                  )}
                 </TabsTrigger>
               ))}
 

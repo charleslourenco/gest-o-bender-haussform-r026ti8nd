@@ -50,9 +50,12 @@ export interface CardAtendimentoProps {
   users: Array<{ id: string; nome: string }>
   isDragging?: boolean
   unreadCount?: number
+  isPending?: boolean
+  lastClientMsgTime?: string | null
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   onClick?: () => void
+  onOpenConversation?: () => void
   onUpdateLead: (id: string, updates: Partial<Lead>) => Promise<void> | void
   onArchive?: (id: string) => void
   onDelete?: (id: string) => void
@@ -66,9 +69,12 @@ function CardAtendimentoComponent({
   users,
   isDragging = false,
   unreadCount = 0,
+  isPending = false,
+  lastClientMsgTime = null,
   onDragStart,
   onDragEnd,
   onClick,
+  onOpenConversation,
   onUpdateLead,
   onArchive,
   onDelete,
@@ -92,6 +98,7 @@ function CardAtendimentoComponent({
   const [descricaoValue, setDescricaoValue] = useState(meta?.descricao_projeto || '')
 
   const [elapsed, setElapsed] = useState('')
+  const [pendingElapsed, setPendingElapsed] = useState('')
 
   const nomeInputRef = useRef<HTMLInputElement>(null)
   const telefoneInputRef = useRef<HTMLInputElement>(null)
@@ -143,6 +150,39 @@ function CardAtendimentoComponent({
     const interval = setInterval(updateTimer, 60000)
     return () => clearInterval(interval)
   }, [(lead as any)?.atualizado_em, lead?.criado_em])
+
+  // Timer de tempo decorrido desde a última mensagem do cliente (pendência)
+  useEffect(() => {
+    if (!isPending) {
+      setPendingElapsed('')
+      return
+    }
+
+    const updatePendingTimer = () => {
+      try {
+        const baseDate = lastClientMsgTime || (lead as any)?.atualizado_em || lead?.criado_em
+        const parsed = baseDate ? new Date(baseDate).getTime() : Date.now()
+        const start = isNaN(parsed) ? Date.now() : parsed
+        const diff = Math.max(0, Date.now() - start)
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
+        const mins = Math.floor((diff / 1000 / 60) % 60)
+
+        let str = ''
+        if (days > 0) str += `${days}d `
+        if (hours > 0) str += `${hours}h `
+        str += `${mins}m`
+        setPendingElapsed(str.trim())
+      } catch {
+        setPendingElapsed('agora')
+      }
+    }
+
+    updatePendingTimer()
+    const interval = setInterval(updatePendingTimer, 30000)
+    return () => clearInterval(interval)
+  }, [isPending, lastClientMsgTime, (lead as any)?.atualizado_em, lead?.criado_em])
 
   const handleSaveNome = async () => {
     const trimmed = nomeValue.trim()
@@ -219,8 +259,17 @@ function CardAtendimentoComponent({
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
   const isEncaminhado =
-    leadStatus.toLowerCase().includes('encaminhado') || (meta && meta.origem_aba !== undefined)
+    leadStatus.toLowerCase().includes('encaminhado') ||
+    leadStatus.toLowerCase().includes('despachad') ||
+    (meta && meta.origem_aba !== undefined)
   const isNovoContato = safeCurrentAbaId === 'novo-contato' && !isEncaminhado
+
+  // Destino quando o card está na coluna Despachados
+  const destinoDespachado = useMemo(() => {
+    if (!meta?.encaminhado_para_aba) return null
+    const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
+    return targetAba?.titulo || meta.encaminhado_para_aba
+  }, [meta?.encaminhado_para_aba])
 
   const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
 
@@ -294,12 +343,56 @@ function CardAtendimentoComponent({
         isNovoContato && [
           'bg-[#F97316] text-[#FFFFFF]',
           'border border-solid border-[#EA580C] dark:border-[#FB923C]',
-          'animate-pulse-laranja',
         ],
+        // Destaque para cards com pendência (quando não for o bloco laranja inteiro de novo contato)
+        !isNovoContato &&
+          isPending && ['border-amber-500/80 dark:border-amber-500/70', 'ring-1 ring-amber-500/30'],
         isDragging &&
           'opacity-50 ring-2 ring-[#3B82F6] border-[#3B82F6] dark:ring-[#58A6FF] dark:border-[#58A6FF]',
       )}
     >
+      {/* Barra de indicador de pendência no topo do card (em qualquer coluna/aba) */}
+      {isPending && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation()
+            if (onOpenConversation) {
+              onOpenConversation()
+            } else {
+              onClick?.()
+            }
+          }}
+          className={cn(
+            'flex items-center justify-between px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-all shadow-xs -mt-1 -mx-1',
+            isNovoContato
+              ? 'bg-black/25 text-white hover:bg-black/35 border border-white/20'
+              : 'bg-amber-500 text-white hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500',
+          )}
+          title="Cliente aguardando resposta! Clique para abrir conversa no WhatsApp"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+            </span>
+            <span className="truncate">Aguardando resposta</span>
+          </div>
+          <span className="text-[11px] font-mono shrink-0 pl-1">
+            há {pendingElapsed || 'instantes'}
+          </span>
+        </div>
+      )}
+      {/* Badge de destino para cards na fila temporária "Despachados" */}
+      {destinoDespachado && (leadStatus === 'Despachados' || leadStatus === 'Encaminhado Para') && (
+        <div className="flex items-center gap-1 -mt-0.5">
+          <Badge
+            variant="secondary"
+            className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold"
+          >
+            → {destinoDespachado}
+          </Badge>
+        </div>
+      )}
       {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
       <div className="flex items-start justify-between gap-1.5">
         <div className="flex-1 min-w-0">
@@ -884,6 +977,8 @@ function areCardPropsEqual(
 ): boolean {
   if (prevProps.isDragging !== nextProps.isDragging) return false
   if (prevProps.unreadCount !== nextProps.unreadCount) return false
+  if (prevProps.isPending !== nextProps.isPending) return false
+  if (prevProps.lastClientMsgTime !== nextProps.lastClientMsgTime) return false
   if (prevProps.currentAba?.id !== nextProps.currentAba?.id) return false
   if (prevProps.currentAba?.isOrcamentos !== nextProps.currentAba?.isOrcamentos) return false
   if (prevProps.users !== nextProps.users && prevProps.users?.length !== nextProps.users?.length)

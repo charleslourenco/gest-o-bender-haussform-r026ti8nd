@@ -20,7 +20,6 @@ import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
-import { PendenciasAtendimento, type PendingConversationItem } from './PendenciasAtendimento'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,7 +30,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Search, ChevronLeft, ChevronRight, User, Phone, Inbox, Share2 } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Phone,
+  Inbox,
+  Share2,
+  Bell,
+  Filter,
+} from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
@@ -76,6 +87,7 @@ export function KanbanAtendimentos({
   // Filtros
   const [search, setSearch] = useState('')
   const [responsavelFilter, setResponsavelFilter] = useState('all')
+  const [onlyPending, setOnlyPending] = useState(false)
 
   // Drag and Drop
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -131,6 +143,9 @@ export function KanbanAtendimentos({
     return cached
   }
 
+  // Set de IDs com mensagens reais de clientes
+  const [leadsWithClientMessage, setLeadsWithClientMessage] = useState<Set<string>>(new Set())
+
   // Carregar dados
   const isFetchingRef = useRef(false)
   const pendingRefetchRef = useRef(false)
@@ -159,8 +174,8 @@ export function KanbanAtendimentos({
       setLeads(safeLeads)
       setUsers(safeUsers)
 
-      // Carregar prévias da última mensagem das conversas pendentes
-      const pendingLeads = safeLeads.filter(
+      // Carregar mensagens reais de cliente para todos os leads com status_atendimento = 'aguardando_resposta'
+      const pendingCandidateLeads = safeLeads.filter(
         (l: any) =>
           l &&
           l.status_atendimento === 'aguardando_resposta' &&
@@ -168,12 +183,12 @@ export function KanbanAtendimentos({
           !l.arquivado_comercial,
       )
 
-      if (pendingLeads.length > 0) {
+      if (pendingCandidateLeads.length > 0) {
         try {
-          const pendingIds = pendingLeads.map((l: any) => l.id).filter(Boolean)
+          const pendingIds = pendingCandidateLeads.map((l: any) => l.id).filter(Boolean)
           const { data: recentMsgs } = await supabase
             .from('whatsapp_messages' as any)
-            .select('lead_id, content, created_at, sender_type')
+            .select('lead_id, content, created_at, sender_type, direction')
             .in('lead_id', pendingIds)
             .order('created_at', { ascending: false })
 
@@ -182,20 +197,31 @@ export function KanbanAtendimentos({
               string,
               { content: string; created_at: string; sender_type?: string }
             > = {}
+            const clientMsgLeadIds = new Set<string>()
+
             for (const m of recentMsgs) {
-              if (m.lead_id && !map[m.lead_id]) {
-                map[m.lead_id] = {
-                  content: m.content || '',
-                  created_at: m.created_at || '',
-                  sender_type: m.sender_type || '',
+              const isClientMsg =
+                m.direction === 'inbound' || m.sender_type === 'cliente' || m.sender_type === 'lead'
+
+              if (m.lead_id && isClientMsg) {
+                clientMsgLeadIds.add(m.lead_id)
+                if (!map[m.lead_id]) {
+                  map[m.lead_id] = {
+                    content: m.content || '',
+                    created_at: m.created_at || '',
+                    sender_type: m.sender_type || '',
+                  }
                 }
               }
             }
             setLastMessages((prev) => ({ ...prev, ...map }))
+            setLeadsWithClientMessage(clientMsgLeadIds)
           }
         } catch (msgErr) {
           console.warn('Erro ao carregar prévias de mensagens pendentes:', msgErr)
         }
+      } else {
+        setLeadsWithClientMessage(new Set())
       }
 
       // Atualizar lead selecionado no modal se estiver aberto
@@ -338,6 +364,13 @@ export function KanbanAtendimentos({
           }
 
           if (matchedLead) {
+            // Registrar que este lead tem mensagem real de cliente
+            setLeadsWithClientMessage((prev) => {
+              const next = new Set(prev)
+              next.add(matchedLead!.id)
+              return next
+            })
+
             // Incrementar badge visual de mensagens não lidas
             setUnreadCounts((prev) => ({
               ...prev,
@@ -345,11 +378,11 @@ export function KanbanAtendimentos({
             }))
 
             // Atualizar prévia da última mensagem no estado
-            if (newMsg.content) {
+            if (newMsg.content || newMsg.created_at) {
               setLastMessages((prev) => ({
                 ...prev,
                 [matchedLead!.id]: {
-                  content: newMsg.content,
+                  content: newMsg.content || '',
                   created_at: newMsg.created_at || new Date().toISOString(),
                   sender_type: newMsg.sender_type || 'cliente',
                 },
@@ -502,7 +535,7 @@ export function KanbanAtendimentos({
       }
       const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
 
-      // Ao encaminhar para uma aba de destino, o lead assume a primeira coluna da aba de destino
+      // Ao encaminhar para uma aba de destino, o lead assume a primeira coluna da aba de destino e SAI da triagem
       const targetCol = destinoAba.colunas[0] || 'Novo contato'
 
       await handleUpdateLead(leadId, {
@@ -679,10 +712,15 @@ export function KanbanAtendimentos({
         const cat = typeof l.categoria === 'string' ? l.categoria.trim() : 'Comercial'
         const status = typeof l.status === 'string' ? l.status.trim() : ''
 
-        // Se o card foi encaminhado para uma aba específica, ele pertence EXCLUSIVAMENTE àquela aba de destino.
-        // Ele NÃO deve aparecer na aba de origem nem em nenhuma outra aba.
+        // Se o card foi encaminhado para uma aba específica:
+        // Na aba "novo-contato", se o status ainda for 'Despachados' ou 'Encaminhado Para',
+        // permite visualização transitória na coluna Despachados antes de sair definitivamente da triagem.
+        // Se o destino for outra aba, ele pertence àquela aba de destino.
         if (meta?.encaminhado_para_aba) {
           if (meta.encaminhado_para_aba !== safeAba.id) {
+            // Se estiver na aba 01 e ainda com status transitório "Despachados" / "Encaminhado Para",
+            // NÃO mostrar na aba 01 se já tiver saído de lá ou se pertencer à outra aba
+            // O card encaminhado deve SAIR da triagem automaticamente (não pode ficar eterno nas duas casas).
             return false
           }
         } else {
@@ -695,6 +733,7 @@ export function KanbanAtendimentos({
               status === 'Novo Contato' ||
               status === 'Novo Lead' ||
               status === 'Novo' ||
+              status === 'Despachados' ||
               status === 'Encaminhado Para' ||
               (cat === 'Comercial' && !l.kanban_ativo)
           } else if (safeAba.id === 'lead-consultoria') {
@@ -764,57 +803,28 @@ export function KanbanAtendimentos({
           }
         }
 
+        // Filtro "Só pendentes": status_atendimento = 'aguardando_resposta' E com mensagem de cliente
+        if (onlyPending) {
+          const isPendingLead =
+            l.status_atendimento === 'aguardando_resposta' && leadsWithClientMessage.has(l.id)
+          if (!isPendingLead) return false
+        }
+
         return true
       } catch (err) {
         console.error('Erro ao processar lead no filtro da aba:', err)
         return false
       }
     })
-  }, [leads, safeAba.id, safeAba.categoriaPadrao, search, responsavelFilter])
-
-  // Lista de conversas com pendência persistentes (status_atendimento = 'aguardando_resposta' no banco)
-  // Apenas considera leads que possuem mensagem real de cliente (evita falsos positivos de leads novos sem interação)
-  const pendingConversations = useMemo((): PendingConversationItem[] => {
-    if (!Array.isArray(leads)) return []
-
-    return leads
-      .filter((l) => {
-        if (!l || !l.id) return false
-        if (l.excluido || l.arquivado_comercial) return false
-        if (l.status_atendimento !== 'aguardando_resposta') return false
-
-        // Blindagem: se temos informações das mensagens em cache, conferir se há mensagem real de cliente
-        const lastMsg = lastMessages[l.id]
-        if (lastMsg && lastMsg.sender_type && lastMsg.sender_type !== 'cliente') {
-          // Se a última mensagem conhecida NÃO foi de cliente, não deve poluir a pill
-          return false
-        }
-        return true
-      })
-      .map((lead) => {
-        const lastMsg = lastMessages[lead.id]
-        const previewMessage = lastMsg?.content || 'Nova mensagem de cliente'
-        const timestamp =
-          lastMsg?.created_at || lead.atualizado_em || lead.criado_em || new Date().toISOString()
-        const targetAba = getLeadAba(lead)
-
-        return {
-          leadId: lead.id,
-          leadName: lead.nome || 'Lead sem nome',
-          previewMessage,
-          timestamp,
-          unreadCount: unreadCounts[lead.id] || 1,
-          abaTitle: targetAba?.titulo || undefined,
-          telefone: lead.telefone || undefined,
-          lead,
-        }
-      })
-      .sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime() || 0
-        const timeB = new Date(b.timestamp).getTime() || 0
-        return timeB - timeA // mais recentes primeiro
-      })
-  }, [leads, lastMessages, unreadCounts])
+  }, [
+    leads,
+    safeAba.id,
+    safeAba.categoriaPadrao,
+    search,
+    responsavelFilter,
+    onlyPending,
+    leadsWithClientMessage,
+  ])
 
   // Agrupamento memoizado dos leads por coluna para evitar .filter() a cada render/coluna
   const leadsByColumn = useMemo(() => {
@@ -854,6 +864,32 @@ export function KanbanAtendimentos({
     return map
   }, [tabLeads, safeAba.colunas])
 
+  // Cálculo de pendências por coluna desta aba
+  const pendenciasByColumn = useMemo(() => {
+    const map = new Map<string, number>()
+    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas : []
+    colunas.forEach((c) => map.set(c, 0))
+
+    colunas.forEach((coluna) => {
+      const colLeads = leadsByColumn.get(coluna) || []
+      const pendentesCount = colLeads.filter(
+        (l) => l.status_atendimento === 'aguardando_resposta' && leadsWithClientMessage.has(l.id),
+      ).length
+      map.set(coluna, pendentesCount)
+    })
+
+    return map
+  }, [safeAba.colunas, leadsByColumn, leadsWithClientMessage])
+
+  // Total de pendências na aba atual
+  const totalPendenciasAba = useMemo(() => {
+    let sum = 0
+    pendenciasByColumn.forEach((count) => {
+      sum += count
+    })
+    return sum
+  }, [pendenciasByColumn])
+
   if (authLoading || (loading && leads.length === 0)) {
     return (
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
@@ -877,8 +913,45 @@ export function KanbanAtendimentos({
 
   // Controles da toolbar no topo
   const controls = (
-    <div className="flex items-center gap-2">
-      <div className="relative w-40 lg:w-56">
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* Toggle "Só pendentes" */}
+      <button
+        type="button"
+        onClick={() => setOnlyPending((prev) => !prev)}
+        className={cn(
+          'h-8 px-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors',
+          onlyPending
+            ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+            : 'bg-background hover:bg-muted text-muted-foreground border-border',
+        )}
+        title="Filtrar visão para apenas leads com mensagens aguardando resposta"
+      >
+        <span
+          className={cn(
+            'w-2 h-2 rounded-full',
+            onlyPending
+              ? 'bg-white'
+              : totalPendenciasAba > 0
+                ? 'bg-amber-500'
+                : 'bg-muted-foreground',
+          )}
+        />
+        <span>Só pendentes</span>
+        {totalPendenciasAba > 0 && (
+          <span
+            className={cn(
+              'px-1.5 py-0.2 rounded-full text-[10px] font-bold',
+              onlyPending
+                ? 'bg-amber-600 text-white'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+            )}
+          >
+            {totalPendenciasAba}
+          </span>
+        )}
+      </button>
+
+      <div className="relative w-36 lg:w-48">
         <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
         <Input
           placeholder="Buscar nome/tel..."
@@ -889,7 +962,7 @@ export function KanbanAtendimentos({
       </div>
 
       <Select value={responsavelFilter} onValueChange={setResponsavelFilter}>
-        <SelectTrigger className="h-8 text-xs w-36 lg:w-44">
+        <SelectTrigger className="h-8 text-xs w-36 lg:w-40">
           <SelectValue placeholder="Responsável" />
         </SelectTrigger>
         <SelectContent>
@@ -920,22 +993,6 @@ export function KanbanAtendimentos({
   return (
     <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden">
       {toolbarPortal instanceof Element && isActive && createPortal(controls, toolbarPortal)}
-
-      {/* Caixa/Pill persistente de conversas com pendência */}
-      <div className="px-4 pt-2 shrink-0">
-        <ErrorBoundary fallback={null}>
-          <PendenciasAtendimento
-            items={pendingConversations}
-            onOpenLead={(lead) => {
-              if (onOpenLeadGlobal) {
-                onOpenLeadGlobal(lead)
-              } else {
-                handleOpenLeadModal(lead)
-              }
-            }}
-          />
-        </ErrorBoundary>
-      </div>
 
       {/* Modal / Popover de Criação Rápida */}
       {isCreatingQuickLead && (
@@ -1042,6 +1099,16 @@ export function KanbanAtendimentos({
                       <span className="text-[11px] font-bold bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                         {colLeads.length}
                       </span>
+                      {(pendenciasByColumn.get(coluna) || 0) > 0 && (
+                        <span
+                          className="text-[11px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs"
+                          title={`${pendenciasByColumn.get(coluna)} atendimento(s) com mensagem aguardando resposta nesta coluna`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                          {pendenciasByColumn.get(coluna)} pendente
+                          {(pendenciasByColumn.get(coluna) || 0) > 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1072,9 +1139,21 @@ export function KanbanAtendimentos({
                               unreadCounts[lead.id] ||
                               (lead.status_atendimento === 'aguardando_resposta' ? 1 : 0)
                             }
+                            isPending={
+                              lead.status_atendimento === 'aguardando_resposta' &&
+                              leadsWithClientMessage.has(lead.id)
+                            }
+                            lastClientMsgTime={lastMessages[lead.id]?.created_at || null}
                             onDragStart={(e) => handleDragStart(e, lead.id)}
                             onDragEnd={handleDragEnd}
                             onClick={() => handleOpenLeadModal(lead)}
+                            onOpenConversation={() => {
+                              if (onOpenLeadGlobal) {
+                                onOpenLeadGlobal(lead)
+                              } else {
+                                handleOpenLeadModal(lead)
+                              }
+                            }}
                             onUpdateLead={handleUpdateLead}
                             onArchive={handleArchiveLead}
                             onDelete={() => setLeadToDelete(lead)}

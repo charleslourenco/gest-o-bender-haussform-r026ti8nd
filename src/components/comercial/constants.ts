@@ -16,7 +16,7 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
     numero: '01',
     titulo: 'Novo Contato',
     descricao: 'Novas conversas que chegam pelo WhatsApp',
-    colunas: ['Novo contato', 'Encaminhado Para'],
+    colunas: ['Novo contato', 'Despachados'],
     categoriaPadrao: 'Comercial',
   },
   {
@@ -126,6 +126,7 @@ export function getLeadAba(
     status === 'Novo Contato' ||
     status === 'Novo Lead' ||
     status === 'Novo' ||
+    status === 'Despachados' ||
     status === 'Encaminhado Para' ||
     (cat === 'Comercial' && !lead?.kanban_ativo)
   ) {
@@ -228,10 +229,10 @@ export function cleanColumnTitle(coluna: string): string {
   return coluna.replace(/^(\d+[.\-\s_]*|\d+\s+)/, '').trim() || coluna
 }
 
-// Helper para checar se uma coluna é de encaminhado
+// Helper para checar se uma coluna é de encaminhado ou despachados
 export function isColunaEncaminhado(coluna: string): boolean {
   const norm = coluna.toLowerCase()
-  return norm.includes('encaminhado')
+  return norm.includes('encaminhado') || norm.includes('despachad')
 }
 
 // Helper de mapeamento de tags/metadados no campo notas_pessoais
