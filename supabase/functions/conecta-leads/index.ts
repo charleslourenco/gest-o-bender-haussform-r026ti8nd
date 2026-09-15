@@ -103,6 +103,23 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Validação de autenticação via header x-api-key
+  const expectedApiKey = Deno.env.get('CONNECTA_API_KEY') ?? ''
+  const receivedApiKey = req.headers.get('x-api-key') || req.headers.get('X-API-KEY')
+
+  if (!expectedApiKey || !receivedApiKey || receivedApiKey !== expectedApiKey) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Chave de API inválida ou ausente.',
+      }),
+      {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ success: false, error: 'Método não permitido. Use POST.' }),

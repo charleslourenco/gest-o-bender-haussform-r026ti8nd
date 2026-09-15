@@ -143,7 +143,9 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const conectaWebhookUrl = Deno.env.get('CONECTA_WEBHOOK_URL') ?? ''
+    // A URL do endpoint de fases do Conecta pode vir de CONECTA_PHASES_URL ou CONECTA_WEBHOOK_URL
+    const conectaWebhookUrl =
+      Deno.env.get('CONECTA_PHASES_URL') ?? Deno.env.get('CONECTA_WEBHOOK_URL') ?? ''
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -222,17 +224,17 @@ Deno.serve(async (req: Request) => {
       timestamp: new Date().toISOString(),
     }
 
-    // Verificar se o secret CONECTA_WEBHOOK_URL está configurado
+    // Verificar se o secret CONECTA_PHASES_URL (ou CONECTA_WEBHOOK_URL) está configurado
     if (!conectaWebhookUrl) {
       console.log(
-        `[conecta-sync-event] [INFO] Secret CONECTA_WEBHOOK_URL ainda não configurado. Evento registrado localmente com sucesso (falha graciosa):`,
+        `[conecta-sync-event] [INFO] Secret CONECTA_PHASES_URL / CONECTA_WEBHOOK_URL ainda não configurado. Evento registrado localmente com sucesso (falha graciosa):`,
         JSON.stringify(eventData),
       )
       return new Response(
         JSON.stringify({
           success: true,
           delivered: false,
-          reason: 'Secret CONECTA_WEBHOOK_URL não configurado. Evento simulado com sucesso.',
+          reason: 'Secret CONECTA_PHASES_URL não configurado. Evento simulado com sucesso.',
           event: eventData,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
