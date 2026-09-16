@@ -77,44 +77,59 @@ function parseLeadMetadados(raw?: unknown): { notas: string; meta: Record<string
 async function dispatchWithRetry(
   url: string,
   payload: any,
+  apiKey: string,
   maxRetries = 2,
-): Promise<{ success: boolean; status?: number; error?: string }> {
+): Promise<{ success: boolean; status?: number; responseBody?: string; error?: string }> {
   let attempt = 0
   let lastError = ''
+  let lastStatus: number | undefined
+  let lastResponseBody = ''
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'User-Agent': 'BenderGestor-ConectaSync/1.0',
+  }
+  if (apiKey) {
+    headers['x-api-key'] = apiKey
+  }
 
   while (attempt <= maxRetries) {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 6000)
+      const timeoutId = setTimeout(() => controller.abort(), 7000)
 
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'BenderGestor-ConectaSync/1.0',
-        },
+        headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
 
-      if (response.ok) {
-        return { success: true, status: response.status }
+      lastStatus = response.status
+      try {
+        lastResponseBody = await response.text()
+      } catch {
+        lastResponseBody = ''
       }
 
-      lastError = `HTTP ${response.status}: ${response.statusText}`
+      if (response.ok) {
+        return { success: true, status: response.status, responseBody: lastResponseBody }
+      }
+
+      lastError = `HTTP ${response.status}: ${response.statusText}${lastResponseBody ? ` - ${lastResponseBody}` : ''}`
     } catch (err: any) {
       lastError = err?.message || String(err)
     }
 
     attempt++
     if (attempt <= maxRetries) {
-      // Pequeno backoff de 500ms
+      // Pequeno backoff
       await new Promise((resolve) => setTimeout(resolve, 500 * attempt))
     }
   }
 
-  return { success: false, error: lastError }
+  return { success: false, status: lastStatus, responseBody: lastResponseBody, error: lastError }
 }
 
 Deno.serve(async (req: Request) => {
@@ -244,23 +259,61 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // Disparo HTTP para o endpoint com retry e timeout
-    console.log(
-      `[conecta-sync-event] Enviando evento para Conecta (${conectaWebhookUrl}):`,
-      eventData,
-    )
-    const dispatchResult = await dispatchWithRetry(conectaWebhookUrl, eventData, 2)
+    // Chave de API compartilhada com Bender Conecta
+    const conectaApiKey = Deno.env.get('CONNECTA_API_KEY') ?? ''
 
-    if (!dispatchResult.success) {
+    // Contrato exato entregue pelo Bender Conecta:
+    // POST para CONECTA_PHASES_URL
+    // Headers: Content-Type: application/json, x-api-key: CONNECTA_API_KEY
+    // Body: { "conecta_lead_id": "<uuid>", "fase_conecta": "Visita agendada" }
+    // Caso conecta_lead_id não exista no lead, não temos como sincronizar a fase dele no Conecta
+    if (!conectaLeadId) {
       console.warn(
-        `[conecta-sync-event] [FALHA GRACIOSA] Conecta endpoint inacessível ou retornou erro: ${dispatchResult.error}. Registrando log silencioso.`,
+        `[conecta-sync-event] Lead ${lead.id} (${lead.nome}) não possui conecta_lead_id nos metadados. Sincronização cancelada graciosa.`,
       )
       return new Response(
         JSON.stringify({
           success: true,
           delivered: false,
-          warning: 'Falha ao contatar endpoint do Conecta (falha graciosa tolerada)',
+          ignored: true,
+          reason: 'Lead não possui conecta_lead_id registrado nos metadados.',
+          event: eventData,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Payload exato conforme o contrato do Bender Conecta
+    const webhookPayload = {
+      conecta_lead_id: conectaLeadId,
+      fase_conecta: mapping.faseConecta,
+    }
+
+    // Disparo HTTP para o endpoint com retry e timeout
+    console.log(
+      `[conecta-sync-event] Enviando fase para Conecta (${conectaWebhookUrl}) com chave x-api-key:`,
+      webhookPayload,
+    )
+    const dispatchResult = await dispatchWithRetry(
+      conectaWebhookUrl,
+      webhookPayload,
+      conectaApiKey,
+      2,
+    )
+
+    if (!dispatchResult.success) {
+      console.warn(
+        `[conecta-sync-event] [FALHA GRACIOSA] Conecta endpoint retornou erro ou falhou: ${dispatchResult.error}.`,
+      )
+      return new Response(
+        JSON.stringify({
+          success: true,
+          delivered: false,
+          warning: 'Falha ao contatar endpoint de fases do Conecta (falha graciosa tolerada)',
           error_details: dispatchResult.error,
+          status_code: dispatchResult.status,
+          response_body: dispatchResult.responseBody,
+          sent_payload: webhookPayload,
           event: eventData,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -268,13 +321,15 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(
-      `[conecta-sync-event] Evento entregue com sucesso ao Conecta! Status: ${dispatchResult.status}`,
+      `[conecta-sync-event] Fase sincronizada com sucesso no Conecta! Status: ${dispatchResult.status}`,
     )
     return new Response(
       JSON.stringify({
         success: true,
         delivered: true,
         status_code: dispatchResult.status,
+        response_body: dispatchResult.responseBody,
+        sent_payload: webhookPayload,
         event: eventData,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
