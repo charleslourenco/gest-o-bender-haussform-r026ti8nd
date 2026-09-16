@@ -1091,6 +1091,7 @@ export function KanbanAtendimentos({
                   {/* Lista de Cards da Coluna */}
                   <div className="flex-1 p-2.5 overflow-y-auto space-y-2.5 min-h-[150px]">
                     <ErrorBoundary
+                      source={`KanbanColumn-${coluna}`}
                       fallback={
                         <div className="p-3 text-xs text-destructive bg-destructive/10 rounded-lg text-center">
                           Erro ao exibir cards desta coluna
@@ -1100,6 +1101,7 @@ export function KanbanAtendimentos({
                       {colLeads.map((lead) => (
                         <ErrorBoundary
                           key={lead.id}
+                          source={`CardAtendimento-${lead.id}`}
                           fallback={
                             <div className="p-3 text-xs text-muted-foreground border border-border/60 rounded-lg bg-card/60 mb-2 flex items-center justify-between gap-2 shadow-xs">
                               <span className="font-medium text-destructive">
@@ -1189,7 +1191,7 @@ export function KanbanAtendimentos({
       </div>
       {/* MODAL DETALHADO (WhatsApp + Anotações + Timeline) */}
       {selectedLeadForModal && (
-        <ErrorBoundary fallback={null}>
+        <ErrorBoundary fallback={null} source={`ModalAtendimento-${selectedLeadForModal?.id}`}>
           <ModalAtendimento
             lead={selectedLeadForModal}
             currentAba={safeAba}

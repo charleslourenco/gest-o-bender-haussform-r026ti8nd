@@ -172,10 +172,14 @@ export default function Comercial() {
   }
 
   return (
-    <ErrorBoundary>
+    <ErrorBoundary source="ComercialPageRoot">
       {/* Modal global de atendimento aberto por toast de notificação ou atalho */}
       {leadForGlobalModal && typeof leadForGlobalModal === 'object' && leadForGlobalModal.id && (
-        <ErrorBoundary fallback={null} key={`global-modal-eb-${leadForGlobalModal.id}`}>
+        <ErrorBoundary
+          fallback={null}
+          key={`global-modal-eb-${leadForGlobalModal.id}`}
+          source="ComercialGlobalModal"
+        >
           <ModalAtendimento
             lead={leadForGlobalModal}
             currentAba={globalModalAba}
@@ -263,6 +267,7 @@ export default function Comercial() {
               {aba.id === activeTab && (
                 <ErrorBoundary
                   key={`eb-kanban-${aba.id}`}
+                  source={`ComercialKanbanAba-${aba.id}`}
                   fallback={
                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                       <p className="text-sm font-semibold text-destructive mb-2">
@@ -297,7 +302,7 @@ export default function Comercial() {
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
             {activeTab === 'lista' && (
-              <ErrorBoundary>
+              <ErrorBoundary source="ComercialListAba">
                 <ComercialList />
               </ErrorBoundary>
             )}
@@ -309,7 +314,7 @@ export default function Comercial() {
             className="flex-1 overflow-auto min-h-0 m-0 data-[state=active]:flex flex-col p-4"
           >
             {activeTab === 'arquivados' && (
-              <ErrorBoundary>
+              <ErrorBoundary source="ComercialArquivadosAba">
                 <LeadsArquivados />
               </ErrorBoundary>
             )}

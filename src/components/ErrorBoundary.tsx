@@ -5,12 +5,52 @@ import { Button } from '@/components/ui/button'
 interface Props {
   children?: ReactNode
   fallback?: ReactNode
+  source?: string
+  onError?: (error: Error, errorInfo: ErrorInfo) => void
 }
 
 interface State {
   hasError: boolean
   error: Error | null
   errorInfo: ErrorInfo | null
+}
+
+async function sendErrorToBackend(error: Error, errorInfo: ErrorInfo, source?: string) {
+  try {
+    const errorPayload = {
+      message: error?.message || String(error),
+      name: error?.name || 'Error',
+      stack: error?.stack || null,
+      componentStack: errorInfo?.componentStack || null,
+      route:
+        typeof window !== 'undefined'
+          ? window.location.pathname + window.location.search
+          : '/comercial',
+      source: source || 'ErrorBoundary',
+      timestamp: new Date().toISOString(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+    }
+
+    // Tentar persistir diretamente no backend (tabela logs_ia) para diagnóstico durável
+    try {
+      const { supabase } = await import('@/lib/supabase/client')
+      const { data: authData } = await supabase.auth.getSession()
+      const userId = authData?.session?.user?.id || null
+
+      if (userId) {
+        await supabase.from('logs_ia').insert({
+          user_id: userId,
+          acao: 'comercial_error_boundary',
+          detalhes: errorPayload,
+        })
+      }
+    } catch (dbErr) {
+      // Ignorar falha silenciosa se RLS ou desconectado
+      console.warn('[ErrorBoundary] Falha ao gravar log em logs_ia:', dbErr)
+    }
+  } catch (outerErr) {
+    console.warn('[ErrorBoundary] Falha geral no envio de diagnóstico:', outerErr)
+  }
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -26,7 +66,28 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo })
-    console.error('Uncaught error caught by ErrorBoundary:', error, errorInfo)
+
+    // Log detalhado e estruturado no console com contexto total
+    console.error('=== [DIAGNÓSTICO ERROR BOUNDARY] ===', {
+      source: this.props.source || 'Generic',
+      route: typeof window !== 'undefined' ? window.location.pathname : '',
+      errorName: error?.name,
+      errorMessage: error?.message,
+      stack: error?.stack,
+      componentStack: errorInfo?.componentStack,
+    })
+
+    // Callback opcional customizado
+    if (this.props.onError) {
+      try {
+        this.props.onError(error, errorInfo)
+      } catch (cbErr) {
+        console.warn('Erro ao executar onError do ErrorBoundary:', cbErr)
+      }
+    }
+
+    // Enviar stack trace e componentStack reais para o backend
+    sendErrorToBackend(error, errorInfo, this.props.source)
   }
 
   public render() {

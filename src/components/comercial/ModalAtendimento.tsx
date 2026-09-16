@@ -418,7 +418,7 @@ export function ModalAtendimento({
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
   return (
-    <ErrorBoundary fallback={null}>
+    <ErrorBoundary fallback={null} source={`ModalAtendimentoRoot-${lead?.id}`}>
       <Dialog open={Boolean(open)} onOpenChange={(v) => !v && onClose()}>
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 flex flex-col gap-0 overflow-hidden bg-background">
           <DialogHeader className="p-4 sm:p-5 border-b bg-muted/30 shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
