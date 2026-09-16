@@ -135,12 +135,15 @@ export function KanbanAtendimentos({
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Cache global/estável em WeakMap para parsing de metadados de leads
-  const metaCacheRef = useRef<WeakMap<Lead, ReturnType<typeof parseLeadMetadados>>>(new WeakMap())
-  const getCachedMeta = (l: Lead) => {
-    let cached = metaCacheRef.current.get(l)
+  const metaCacheRef = useRef<WeakMap<object, ReturnType<typeof parseLeadMetadados>>>(new WeakMap())
+  const getCachedMeta = (l: Lead | null | undefined) => {
+    if (!l || typeof l !== 'object') {
+      return parseLeadMetadados('')
+    }
+    let cached = metaCacheRef.current.get(l as object)
     if (!cached) {
       cached = parseLeadMetadados((l as any)?.notas_pessoais)
-      metaCacheRef.current.set(l, cached)
+      metaCacheRef.current.set(l as object, cached)
     }
     return cached
   }
@@ -921,9 +924,9 @@ export function KanbanAtendimentos({
         </SelectContent>
       </Select>
 
-      {/* Filtro por Origem (com destaque para Corretor) */}
+      {/* Filtro por Origem (com destaque para Corretor e Bender Conecta) */}
       <Select value={origemFilter} onValueChange={setOrigemFilter}>
-        <SelectTrigger className="h-8 text-xs w-32 lg:w-36">
+        <SelectTrigger className="h-8 text-xs w-36 lg:w-40">
           <SelectValue placeholder="Origem" />
         </SelectTrigger>
         <SelectContent>
@@ -931,7 +934,13 @@ export function KanbanAtendimentos({
           <SelectItem value="Corretor" className="font-semibold text-blue-600 dark:text-blue-400">
             🤝 Corretor
           </SelectItem>
-          {ORIGENS_LEAD.filter((o) => o !== 'Corretor').map((orig) => (
+          <SelectItem
+            value="Bender Conecta"
+            className="font-semibold text-blue-600 dark:text-blue-400"
+          >
+            🔗 Bender Conecta
+          </SelectItem>
+          {ORIGENS_LEAD.filter((o) => o !== 'Corretor' && o !== 'Bender Conecta').map((orig) => (
             <SelectItem key={orig} value={orig} className="text-xs">
               {orig}
             </SelectItem>
@@ -1092,8 +1101,18 @@ export function KanbanAtendimentos({
                         <ErrorBoundary
                           key={lead.id}
                           fallback={
-                            <div className="p-2 text-xs text-destructive border border-destructive/30 rounded bg-destructive/5 mb-2">
-                              Erro ao exibir card {lead.nome || lead.id}
+                            <div className="p-3 text-xs text-muted-foreground border border-border/60 rounded-lg bg-card/60 mb-2 flex items-center justify-between gap-2 shadow-xs">
+                              <span className="font-medium text-destructive">
+                                Atendimento indisponível temporariamente
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+                                onClick={() => loadData(true)}
+                              >
+                                Tentar recarregar
+                              </Button>
                             </div>
                           }
                         >

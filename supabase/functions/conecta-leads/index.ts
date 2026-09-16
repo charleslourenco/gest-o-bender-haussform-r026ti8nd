@@ -369,7 +369,7 @@ Deno.serve(async (req: Request) => {
 
     // Criar NOVO CARD na aba Comercial (Novo contato)
     // Regra:
-    // - origem: 'Corretor'
+    // - origem: 'Bender Conecta'
     // - origem_pessoa: nome do corretor
     // - conecta_lead_id nos metadados (notas_pessoais ___META_JSON___:{"conecta_lead_id":"..."})
     // - NUNCA preencher encaminhado_para_aba com o ID do Conecta
@@ -393,7 +393,7 @@ Deno.serve(async (req: Request) => {
       nome,
       telefone,
       email: email || `${telefone}@conecta.placeholder`,
-      origem: 'Corretor',
+      origem: 'Bender Conecta',
       origem_pessoa: nomeCorretor || null,
       status: 'Novo contato',
       categoria: 'Comercial',

@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -44,16 +44,30 @@ export class ErrorBoundary extends Component<Props, State> {
             Ocorreu um erro inesperado ao carregar esta área. Tente recarregar a página ou voltar
             mais tarde.
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <Button
               onClick={() => this.setState({ hasError: false, error: null })}
               variant="outline"
             >
               Tentar Novamente
             </Button>
-            <Button onClick={() => window.location.reload()}>
+            <Button onClick={() => window.location.reload()} variant="default">
               <RefreshCw className="w-4 h-4 mr-2" />
               Recarregar Página
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                try {
+                  sessionStorage.clear()
+                } catch {
+                  // ignorar se sessionStorage bloqueado
+                }
+                window.location.reload()
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Limpar cache e recarregar
             </Button>
           </div>
           {this.state.error && (

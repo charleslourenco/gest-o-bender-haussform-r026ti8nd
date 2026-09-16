@@ -6,13 +6,114 @@ import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 export const KANBAN_LEAD_COLUMNS =
   'id, nome, email, telefone, origem, origem_pessoa, consultor_id, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, consultor:users!leads_consultor_id_fkey(nome)'
 
+/**
+ * Normaliza e sanitiza um lead bruto vindo do banco ou realtime.
+ * Garante que valores nulos, arrays ou tipos anômalos nunca causem crash na UI.
+ */
+export function normalizeLead(raw: any) {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      id: `fallback-${Math.random().toString(36).slice(2, 9)}`,
+      nome: 'Lead sem nome',
+      email: '',
+      telefone: '',
+      origem: 'A definir',
+      origem_pessoa: null,
+      consultor_id: null,
+      status: 'Novo contato',
+      status_atendimento: 'novo',
+      categoria: 'Comercial',
+      criado_em: new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+      notas_pessoais: '',
+      notas: '',
+      ordem: 0,
+      kanban_ativo: true,
+      criado_por_nome: '',
+      data_venda: null,
+      excluido: false,
+      arquivado_comercial: false,
+      consultor: null,
+    }
+  }
+
+  const safeId =
+    typeof raw.id === 'string' && raw.id
+      ? raw.id
+      : String(raw.id || `fallback-${Math.random().toString(36).slice(2, 9)}`)
+  const safeNome =
+    typeof raw.nome === 'string' && raw.nome.trim() ? raw.nome.trim() : 'Lead sem nome'
+  const safeTelefone =
+    typeof raw.telefone === 'string' ? raw.telefone : raw.telefone ? String(raw.telefone) : ''
+  const safeEmail = typeof raw.email === 'string' ? raw.email : ''
+  const safeStatus =
+    typeof raw.status === 'string' && raw.status.trim() ? raw.status.trim() : 'Novo contato'
+  const safeStatusAtendimento =
+    typeof raw.status_atendimento === 'string' ? raw.status_atendimento : 'novo'
+  const safeCategoria =
+    typeof raw.categoria === 'string' && raw.categoria.trim() ? raw.categoria.trim() : 'Comercial'
+  const safeOrigem =
+    typeof raw.origem === 'string' && raw.origem.trim() ? raw.origem.trim() : 'A definir'
+  const safeOrigemPessoa =
+    typeof raw.origem_pessoa === 'string' && raw.origem_pessoa.trim()
+      ? raw.origem_pessoa.trim()
+      : null
+  const safeNotasPessoais =
+    typeof raw.notas_pessoais === 'string'
+      ? raw.notas_pessoais
+      : raw.notas_pessoais
+        ? String(raw.notas_pessoais)
+        : ''
+  const safeNotas = typeof raw.notas === 'string' ? raw.notas : raw.notas ? String(raw.notas) : ''
+  const safeCriadoEm =
+    typeof raw.criado_em === 'string' && raw.criado_em ? raw.criado_em : new Date().toISOString()
+  const safeAtualizadoEm =
+    typeof raw.atualizado_em === 'string' && raw.atualizado_em ? raw.atualizado_em : safeCriadoEm
+
+  return {
+    ...raw,
+    id: safeId,
+    nome: safeNome,
+    email: safeEmail,
+    telefone: safeTelefone,
+    origem: safeOrigem,
+    origem_pessoa: safeOrigemPessoa,
+    consultor_id: raw.consultor_id ?? null,
+    status: safeStatus,
+    status_atendimento: safeStatusAtendimento,
+    categoria: safeCategoria,
+    criado_em: safeCriadoEm,
+    atualizado_em: safeAtualizadoEm,
+    notas_pessoais: safeNotasPessoais,
+    notas: safeNotas,
+    ordem: typeof raw.ordem === 'number' ? raw.ordem : Number(raw.ordem || 0),
+    kanban_ativo: raw.kanban_ativo !== undefined ? Boolean(raw.kanban_ativo) : true,
+    criado_por_nome: typeof raw.criado_por_nome === 'string' ? raw.criado_por_nome : '',
+    data_venda: raw.data_venda ?? null,
+    excluido: Boolean(raw.excluido),
+    arquivado_comercial: Boolean(raw.arquivado_comercial),
+    consultor: raw.consultor ?? null,
+  }
+}
+
 export const fetchLeads = async () => {
   const { data, error } = await supabase
     .from('leads')
     .select(KANBAN_LEAD_COLUMNS)
     .order('criado_em', { ascending: false })
   if (error) throw error
-  return data
+  return Array.isArray(data) ? data.map(normalizeLead) : []
+}
+
+export const fetchLeadById = async (id: string) => {
+  if (!id) return null
+  const { data, error } = await supabase
+    .from('leads')
+    .select(KANBAN_LEAD_COLUMNS)
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  return data ? normalizeLead(data) : null
 }
 
 export const fetchUsers = async () => {

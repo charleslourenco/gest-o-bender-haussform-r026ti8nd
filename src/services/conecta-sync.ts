@@ -23,9 +23,13 @@ export function triggerConectaPhaseSync(options: TriggerOptions) {
 
   if (!leadId) return
 
-  // Se a origem foi fornecida e comprovadamente NÃO é 'Corretor', não precisa nem disparar a função
-  if (origem && origem.trim().toLowerCase() !== 'corretor') {
-    return
+  // Elegibilidade: 'Bender Conecta' OU 'Corretor'
+  // Se a origem foi fornecida e comprovadamente não é nenhuma das duas, não dispara (a edge function ainda valida retroativamente por metadados)
+  if (origem) {
+    const o = origem.trim().toLowerCase()
+    if (o !== 'corretor' && o !== 'bender conecta') {
+      return
+    }
   }
 
   // Executa em segundo plano desacoplado (fire-and-forget seguro)

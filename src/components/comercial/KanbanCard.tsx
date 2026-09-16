@@ -217,7 +217,7 @@ export function KanbanCard({
           <span
             className={cn(
               'inline-flex items-center px-1.5 py-0.2 rounded text-[10.5px] font-medium border',
-              lead.origem === 'Corretor'
+              lead.origem === 'Corretor' || lead.origem === 'Bender Conecta'
                 ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold'
                 : 'bg-muted/60 border-border/70 text-muted-foreground',
             )}
@@ -228,13 +228,13 @@ export function KanbanCard({
             <span
               className={cn(
                 'truncate font-medium text-[11px]',
-                lead.origem === 'Corretor'
+                lead.origem === 'Corretor' || lead.origem === 'Bender Conecta'
                   ? 'text-blue-900 dark:text-blue-200'
                   : 'text-foreground/80',
               )}
               title={`Indicado por: ${lead.origem_pessoa}`}
             >
-              {lead.origem === 'Corretor'
+              {lead.origem === 'Corretor' || lead.origem === 'Bender Conecta'
                 ? `Indicado por: ${lead.origem_pessoa}`
                 : `— ${lead.origem_pessoa}`}
             </span>

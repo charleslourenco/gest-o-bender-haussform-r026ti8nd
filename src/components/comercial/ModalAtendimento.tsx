@@ -33,14 +33,14 @@ import { toast } from 'sonner'
 import { parseSafeDate, formatSafeDate } from '@/lib/date-utils'
 import {
   ATENDIMENTO_ABAS,
-  AtendimentoAbaConfig,
+  COLUMNS,
   ORIGENS_LEAD,
   exigeNomePessoa,
   getRotuloNomePessoa,
   parseLeadMetadados,
   stringifyLeadMetadados,
+  isOrigemCorretor,
 } from './constants'
-
 export interface ModalAtendimentoProps {
   lead: Lead | null
   currentAba: AtendimentoAbaConfig
@@ -473,7 +473,7 @@ export function ModalAtendimento({
                   </div>
                   {exigeNomePessoa(origemVal) && (
                     <div className="flex items-center gap-1">
-                      {origemVal === 'Corretor' && (
+                      {isOrigemCorretor(origemVal) && (
                         <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 shrink-0">
                           Indicado por:
                         </span>
@@ -481,7 +481,7 @@ export function ModalAtendimento({
                       <Input
                         disabled={updatingOrigem}
                         placeholder={
-                          origemVal === 'Corretor'
+                          isOrigemCorretor(origemVal)
                             ? 'Nome do corretor...'
                             : `${getRotuloNomePessoa(origemVal)}...`
                         }
@@ -495,7 +495,7 @@ export function ModalAtendimento({
                         }}
                         className={cn(
                           'h-7 text-xs w-44 bg-background/80 px-2 py-0',
-                          origemVal === 'Corretor'
+                          isOrigemCorretor(origemVal)
                             ? 'border-blue-500/60 focus:border-blue-500 font-medium'
                             : 'border-amber-500/50 focus:border-amber-500',
                         )}

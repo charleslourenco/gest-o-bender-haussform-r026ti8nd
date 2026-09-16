@@ -49,7 +49,8 @@ export default function Comercial() {
           .maybeSingle()
 
         if (!leadErr && leadData && isMounted && isMountedRef.current) {
-          setLeadForGlobalModal(leadData)
+          const { normalizeLead } = await import('@/services/comercial')
+          setLeadForGlobalModal(normalizeLead(leadData))
           try {
             const targetAba = getLeadAba(leadData)
             if (targetAba?.id) {

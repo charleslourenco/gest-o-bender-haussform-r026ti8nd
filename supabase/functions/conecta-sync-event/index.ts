@@ -166,14 +166,21 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    // Regra 1: Somente leads de origem 'Corretor'
-    const leadOrigem = lead.origem || payload.origem || ''
-    if (leadOrigem.trim().toLowerCase() !== 'corretor') {
+    // Extrair conecta_lead_id do campo PRÓPRIO dos metadados
+    const { meta } = parseLeadMetadados(lead.notas_pessoais)
+    const conectaLeadId = meta?.conecta_lead_id || payload.conecta_lead_id || null
+
+    // Regra 1: Elegibilidade de espelhamento = origem 'Bender Conecta' OU 'Corretor' OU metadado conecta_lead_id presente
+    const leadOrigem = (lead.origem || payload.origem || '').trim().toLowerCase()
+    const isElegivel =
+      leadOrigem === 'bender conecta' || leadOrigem === 'corretor' || Boolean(conectaLeadId)
+
+    if (!isElegivel) {
       return new Response(
         JSON.stringify({
           success: true,
           ignored: true,
-          reason: `Origem '${leadOrigem}' não é 'Corretor'. Disparo ignorado silenciosamente.`,
+          reason: `Origem '${leadOrigem}' sem vínculo com Conecta/Corretor. Disparo ignorado silenciosamente.`,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
@@ -190,10 +197,6 @@ Deno.serve(async (req: Request) => {
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }
-
-    // Extrair conecta_lead_id do campo PRÓPRIO dos metadados
-    const { meta } = parseLeadMetadados(lead.notas_pessoais)
-    const conectaLeadId = meta?.conecta_lead_id || payload.conecta_lead_id || null
 
     // Mapeamento de fase
     const statusAtual = (payload.status_gestor || lead.status || '').trim()

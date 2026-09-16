@@ -40,6 +40,7 @@ import {
   parseLeadMetadados,
   stringifyLeadMetadados,
   cleanColumnTitle,
+  isOrigemCorretor,
 } from './constants'
 import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
 
@@ -518,10 +519,13 @@ function CardAtendimentoComponent({
                 {/* Nível 1: Todas as abas disponíveis (incluindo a aba atual para movimentação entre colunas) */}
                 {ATENDIMENTO_ABAS.map((targetAba) => {
                   // Filtrar colunas do submenu (exclui apenas se for exatamente a mesma coluna onde o lead já se encontra)
-                  const colunasDestino = Array.isArray(targetAba.colunas) ? targetAba.colunas : []
+                  const colunasDestino = Array.isArray(targetAba.colunas)
+                    ? targetAba.colunas.filter((coluna) => typeof coluna === 'string')
+                    : []
                   const availableColunas = colunasDestino.filter((coluna) => {
                     const isSameColumn =
                       targetAba.id === safeCurrentAbaId &&
+                      typeof coluna === 'string' &&
                       leadStatus.trim().toLowerCase() === coluna.trim().toLowerCase()
                     return !isSameColumn
                   })
@@ -692,7 +696,7 @@ function CardAtendimentoComponent({
               'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border',
               isNovoContato
                 ? 'bg-white/20 border-white/30 text-white'
-                : lead.origem === 'Corretor'
+                : isOrigemCorretor(lead.origem)
                   ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 font-semibold'
                   : 'bg-[#F3F4F6] dark:bg-[#252525] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#374151] dark:text-[#D1D5DB]',
             )}
@@ -705,13 +709,13 @@ function CardAtendimentoComponent({
                 'truncate font-medium text-[11.5px]',
                 isNovoContato
                   ? 'text-white font-semibold'
-                  : lead.origem === 'Corretor'
+                  : isOrigemCorretor(lead.origem)
                     ? 'text-blue-900 dark:text-blue-200 font-medium'
                     : 'text-[#1F2937] dark:text-[#F3F4F6]',
               )}
               title={`Indicado por: ${lead.origem_pessoa}`}
             >
-              {lead.origem === 'Corretor'
+              {isOrigemCorretor(lead.origem)
                 ? `Indicado por: ${lead.origem_pessoa}`
                 : `— ${lead.origem_pessoa}`}
             </span>

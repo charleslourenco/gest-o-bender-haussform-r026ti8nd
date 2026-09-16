@@ -277,12 +277,20 @@ export interface AbaAcaoRegistro {
   data: string
 }
 
-// Lista padronizada de Origens dos Leads (8 opções exatas)
+// Helper para verificar se a origem é Corretor ou Bender Conecta
+export function isOrigemCorretor(origem?: string | null): boolean {
+  if (!origem || typeof origem !== 'string') return false
+  const o = origem.trim().toLowerCase()
+  return o === 'corretor' || o === 'bender conecta'
+}
+
+// Lista padronizada de Origens dos Leads (incluindo 'Bender Conecta')
 export const ORIGENS_LEAD = [
   'Instagram',
   'Google',
   'Recompra',
   'Corretor',
+  'Bender Conecta',
   'Arquiteto',
   'Indicação',
   'Porta',
@@ -291,8 +299,8 @@ export const ORIGENS_LEAD = [
 
 export type OrigemLead = (typeof ORIGENS_LEAD)[number]
 
-// Origens que exigem o campo "Nome da pessoa" (Corretor, Arquiteto, Indicação)
-export const ORIGENS_COM_PESSOA = ['Corretor', 'Arquiteto', 'Indicação'] as const
+// Origens que exigem o campo "Nome da pessoa" (Corretor, Bender Conecta, Arquiteto, Indicação)
+export const ORIGENS_COM_PESSOA = ['Corretor', 'Bender Conecta', 'Arquiteto', 'Indicação'] as const
 
 export function exigeNomePessoa(origem?: string | null): boolean {
   if (!origem) return false
@@ -300,7 +308,7 @@ export function exigeNomePessoa(origem?: string | null): boolean {
 }
 
 export function getRotuloNomePessoa(origem?: string | null): string {
-  if (origem === 'Corretor') return 'Nome do corretor'
+  if (isOrigemCorretor(origem)) return 'Nome do corretor'
   if (origem === 'Arquiteto') return 'Nome do arquiteto'
   if (origem === 'Indicação') return 'Nome do indicador'
   return 'Nome da pessoa'
