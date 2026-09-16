@@ -788,6 +788,17 @@ export function KanbanAtendimentos({
       const exactMatch = colunas.find((c) => c && c.trim().toLowerCase() === sLower)
       if (exactMatch) return exactMatch
 
+      // Equivalência para a coluna "Orçamento Concluido" na aba de Orçamentos
+      if (safeAba?.id === 'lead-orcamentos') {
+        const orcamentoConcluidoCol = colunas.find((c) => c && c.toLowerCase().includes('concluid'))
+        if (
+          orcamentoConcluidoCol &&
+          (sLower === 'encaminhado' || sLower.includes('concluid') || sLower.includes('concluído'))
+        ) {
+          return orcamentoConcluidoCol
+        }
+      }
+
       if (sLower.includes('encaminhado')) {
         const encaminhadoCol = colunas.find((c) => c && c.toLowerCase().includes('encaminhado'))
         if (encaminhadoCol) return encaminhadoCol
