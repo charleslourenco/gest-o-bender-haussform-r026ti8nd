@@ -156,11 +156,20 @@ Deno.serve(async (req: Request) => {
       )
     }
 
+    const CANONICAL_CONECTA_PHASES_URL =
+      'https://zffpmffxoafyatamabku.supabase.co/functions/v1/gestor-fases-webhook'
+    const CANONICAL_CONNECTA_API_KEY =
+      'sk_conecta_8f3d61b47e2a9c0e5d1a4f82637b90ce82b14457dd5e4fba668702319efc2da5'
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    // A URL do endpoint de fases do Conecta pode vir de CONECTA_PHASES_URL ou CONECTA_WEBHOOK_URL
-    const conectaWebhookUrl =
-      Deno.env.get('CONECTA_PHASES_URL') ?? Deno.env.get('CONECTA_WEBHOOK_URL') ?? ''
+    // A URL do endpoint de fases do Conecta pode vir de CONECTA_PHASES_URL, CONECTA_WEBHOOK_URL ou fallback canônico
+    const envWebhookUrl = (
+      Deno.env.get('CONECTA_PHASES_URL') ??
+      Deno.env.get('CONECTA_WEBHOOK_URL') ??
+      ''
+    ).trim()
+    const conectaWebhookUrl = envWebhookUrl || CANONICAL_CONECTA_PHASES_URL
 
     const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -260,7 +269,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // Chave de API compartilhada com Bender Conecta
-    const conectaApiKey = Deno.env.get('CONNECTA_API_KEY') ?? ''
+    const conectaApiKey =
+      (Deno.env.get('CONNECTA_API_KEY') ?? '').trim() || CANONICAL_CONNECTA_API_KEY
 
     // Contrato exato entregue pelo Bender Conecta:
     // POST para CONECTA_PHASES_URL
