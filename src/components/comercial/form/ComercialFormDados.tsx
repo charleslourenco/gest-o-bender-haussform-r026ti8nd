@@ -71,14 +71,48 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
               : form.produtos_servicos?.length > 0
                 ? form.produtos_servicos
                 : p.produtos
-          return raw.map((item: any) => ({
-            id: item.id || Math.random().toString(36).substring(2),
-            nome: item.nome || item.descricao || '',
-            qtd: item.qtd || item.quantidade || 1,
-            descricao: item.descricao || item.ambiente || '',
-            valor_unitario: item.valor_unitario || 0,
-            is_outsourced: item.is_outsourced || item.tipo_fluxo === 'Compra Direta' || false,
-          }))
+          return raw.map((item: any) => {
+            // Inferência de tipo se não estiver salvo explicitamente (para dados legados):
+            let inferredTipo = item.tipo || ''
+            if (!inferredTipo) {
+              const nomeLower = (item.nome || '').toLowerCase()
+              const descLower = (item.descricao || '').toLowerCase()
+              if (
+                nomeLower.includes('acompanhamento bender essencial') ||
+                descLower.includes('essencial')
+              ) {
+                inferredTipo = 'Acompanhamento Bender Essencial'
+              } else if (
+                nomeLower.includes('acompanhamento bender forma') ||
+                descLower.includes('forma')
+              ) {
+                inferredTipo = 'Acompanhamento Bender Forma'
+              } else if (
+                nomeLower.includes('acompanhamento bender hauss') ||
+                descLower.includes('hauss')
+              ) {
+                inferredTipo = 'Acompanhamento Bender Hauss'
+              } else if (
+                item.is_outsourced ||
+                item.tipo_fluxo === 'Compra Direta' ||
+                nomeLower.includes('solto')
+              ) {
+                inferredTipo = 'Móveis soltos'
+              } else if (item.nome || item.descricao) {
+                inferredTipo = 'Sob medida'
+              }
+            }
+
+            return {
+              id: item.id || Math.random().toString(36).substring(2),
+              tipo: inferredTipo,
+              nome: item.nome || item.descricao || '',
+              qtd: item.qtd || item.quantidade || 1,
+              descricao: item.descricao || item.ambiente || '',
+              valor_unitario: item.valor_unitario || 0,
+              is_outsourced: item.is_outsourced || item.tipo_fluxo === 'Compra Direta' || false,
+            }
+          })
         })(),
         desconto: Number(form.desconto) || 0,
         forma_pagamento: pagData.forma === 'Parcelado' ? 'Parcelado' : 'À vista',
@@ -238,6 +272,25 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
           const existingNames = existingCards?.map((c) => c.nome_produto) || []
 
+          // Atualiza cards existentes para manter o campo `tipo` sincronizado caso já existam
+          for (const p of allItems) {
+            const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
+            if (existingNames.includes(productName)) {
+              await supabase
+                .from('produtos_servicos_projeto')
+                .update({
+                  tipo: p.tipo || null,
+                  is_outsourced: p.is_outsourced || false,
+                  descricao: p.descricao || '',
+                  valor_unitario: p.valor_unitario || 0,
+                  valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
+                  qtd: p.qtd || 1,
+                })
+                .eq('formulario_comercial_id', formId)
+                .eq('nome_produto', productName)
+            }
+          }
+
           const newCards = allItems
             .filter((p: any) => {
               const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
@@ -255,6 +308,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                 valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
                 status_analise: 'iniciar',
                 is_outsourced: p.is_outsourced || false,
+                tipo: p.tipo || null,
                 codigo_rastreio: null,
               }
             })

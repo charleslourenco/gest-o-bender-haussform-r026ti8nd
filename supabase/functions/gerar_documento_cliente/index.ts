@@ -247,6 +247,67 @@ Deno.serve(async (req: Request) => {
       const descontoProdutos = Number(form.desconto) || 0
       const valorTotal = subtotalProdutos - descontoProdutos
 
+      // =========================================================================
+      // CÁLCULO DOS MÓDULOS E DO ACOMPANHAMENTO CONTRATADO
+      // Regras:
+      // - tem_modulo_1/2/3 calculados pelo tipo gravado (fallback: is_outsourced → módulo 2;
+      //   'acompanhamento' no nome/descrição → módulo 3; resto → módulo 1)
+      // - acompanhamento_tipo na raiz com o(s) nome(s) do(s) plano(s) contratado(s) no formato
+      //   'Bender Essencial' / 'Bender Forma' / 'Bender Hauss' (separados por vírgula se mais de um)
+      // =========================================================================
+      let temModulo1 = false
+      let temModulo2 = false
+      let temModulo3 = false
+      const planosAcompanhamentoSet = new Set<string>()
+
+      for (const item of produtos) {
+        const itemTipo = (item.tipo || '').trim()
+        const nomeLower = (item.nome || item.nome_produto || '').toLowerCase()
+        const descLower = (item.descricao || '').toLowerCase()
+        const isOut = Boolean(item.is_outsourced)
+
+        if (itemTipo === 'Sob medida') {
+          temModulo1 = true
+        } else if (itemTipo === 'Móveis soltos') {
+          temModulo2 = true
+        } else if (itemTipo === 'Acompanhamento Bender Essencial') {
+          temModulo3 = true
+          planosAcompanhamentoSet.add('Bender Essencial')
+        } else if (itemTipo === 'Acompanhamento Bender Forma') {
+          temModulo3 = true
+          planosAcompanhamentoSet.add('Bender Forma')
+        } else if (itemTipo === 'Acompanhamento Bender Hauss') {
+          temModulo3 = true
+          planosAcompanhamentoSet.add('Bender Hauss')
+        } else {
+          // Fallback quando `tipo` não estiver gravado:
+          // is_outsourced → módulo 2; 'acompanhamento' no nome/descrição → módulo 3; resto → módulo 1
+          if (nomeLower.includes('acompanhamento') || descLower.includes('acompanhamento')) {
+            temModulo3 = true
+            if (nomeLower.includes('essencial') || descLower.includes('essencial')) {
+              planosAcompanhamentoSet.add('Bender Essencial')
+            } else if (nomeLower.includes('forma') || descLower.includes('forma')) {
+              planosAcompanhamentoSet.add('Bender Forma')
+            } else if (nomeLower.includes('hauss') || descLower.includes('hauss')) {
+              planosAcompanhamentoSet.add('Bender Hauss')
+            }
+          } else if (isOut) {
+            temModulo2 = true
+          } else {
+            temModulo1 = true
+          }
+        }
+      }
+
+      // Ordenação padronizada dos planos caso haja múltiplos
+      const ordemPlanos = ['Bender Essencial', 'Bender Forma', 'Bender Hauss']
+      const planosOrdenados = ordemPlanos.filter((p) => planosAcompanhamentoSet.has(p))
+      // Inclui outros planos caso não estejam na lista padrão
+      planosAcompanhamentoSet.forEach((p) => {
+        if (!planosOrdenados.includes(p)) planosOrdenados.push(p)
+      })
+      const acompanhamentoTipoStr = planosOrdenados.join(', ')
+
       const pagamentos = (form.pagamentos as any) || {}
       const forma_pagamento = pagamentos.forma === 'A_VISTA' ? 'À Vista' : 'Parcelado'
       const parcelas = form.parcelas || pagamentos.parcelado || []
@@ -448,10 +509,20 @@ Deno.serve(async (req: Request) => {
         EMPRESA_ENDERECO: 'Balneário Piçarras - SC',
         EMPRESA_TELEFONE: empresaTelefone,
         EMPRESA_EMAIL: 'projetos@benderhaussform.com',
+        // Flags booleanas de módulos na raiz:
+        tem_modulo_1: temModulo1,
+        tem_modulo_2: temModulo2,
+        tem_modulo_3: temModulo3,
+        // Nomes dos planos de acompanhamento contratados (ex: 'Bender Essencial' ou 'Bender Essencial, Bender Forma')
+        acompanhamento_tipo: acompanhamentoTipoStr,
         produtos: produtos.map((p: any) => {
           const quantidade = Number(p.qtd || p.quantidade) || 1
           const valorUnitario = Number(p.valor_unitario) || 0
           const vTotal = Number(p.valor_total) || valorUnitario * quantidade
+          const solicitarCompra = Boolean(
+            p.is_outsourced || p.solicitar_compra || p.tipo === 'Móveis soltos',
+          )
+          // OBS: Conforme a regra do usuário, o tipo escolhido NÃO aparece no PDF (tabela exibe só nome/descrição/quantidade/valores).
           return {
             environment: p.ambiente || p.nome_produto || p.nome || '',
             description: p.descricao || p.nome_produto || p.nome || '',
@@ -463,6 +534,7 @@ Deno.serve(async (req: Request) => {
             quantidade: String(quantidade),
             valor_unitario: formatCurrency(valorUnitario),
             valor_total: formatCurrency(vTotal),
+            solicitar_compra: solicitarCompra,
           }
         }),
         parcelas: parcelas.map((p: any, i: number) => ({

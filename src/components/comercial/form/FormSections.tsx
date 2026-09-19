@@ -1,5 +1,8 @@
 import {
   FormState,
+  ProdutoForm,
+  OPCOES_TIPO_ITEM,
+  PLANOS_ACOMPANHAMENTO,
   maskPhoneStrict,
   maskCEP,
   formatCurrencyInput,
@@ -278,6 +281,7 @@ export function SectionProdutos({ data, update }: Props) {
       ...data.produtos,
       {
         id: Math.random().toString(36).substring(2),
+        tipo: '',
         nome: '',
         qtd: 1,
         descricao: '',
@@ -285,6 +289,7 @@ export function SectionProdutos({ data, update }: Props) {
         is_outsourced: false,
       },
     ])
+
   const remProd = (id: string) => {
     if (data.produtos.length > 1)
       update(
@@ -292,6 +297,46 @@ export function SectionProdutos({ data, update }: Props) {
         data.produtos.filter((p) => p.id !== id),
       )
   }
+
+  const handleTipoChange = (id: string, novoTipo: string) => {
+    const updated = data.produtos.map((p) => {
+      if (p.id !== id) return p
+
+      const baseUpdate: ProdutoForm = {
+        ...p,
+        tipo: (novoTipo as any) || '',
+      }
+
+      // Regra 2: "Móveis soltos" marca automaticamente o checkbox 'Solicitar Compra (Item Solto/Terceiro)'
+      if (novoTipo === 'Móveis soltos') {
+        baseUpdate.is_outsourced = true
+        toast.success('Móveis soltos: "Solicitar Compra" marcado automaticamente', {
+          style: { background: '#102A43', color: '#fff', border: 'none' },
+        })
+      }
+
+      // Regra 3: ao escolher uma opção de acompanhamento, preencher automaticamente:
+      // Nome = nome exato do plano, Descrição = descrição padrão do plano,
+      // Preço sugerido = R$ 5.900,00 (Essencial) / R$ 11.900,00 (Forma) / R$ 19.900,00 (Hauss), Quantidade = 1
+      // Regra 4: a palavra 'acompanhamento' deve constar no nome/descrição gravada
+      // Campos editáveis após preenchimento e re-preenchimento se trocar o plano.
+      if (novoTipo && PLANOS_ACOMPANHAMENTO[novoTipo]) {
+        const plano = PLANOS_ACOMPANHAMENTO[novoTipo]
+        baseUpdate.nome = plano.nome
+        baseUpdate.descricao = plano.descricao
+        baseUpdate.valor_unitario = plano.preco
+        baseUpdate.qtd = plano.quantidade
+        toast.success(`Plano preenchido: ${plano.nome}`, {
+          style: { background: '#102A43', color: '#fff', border: 'none' },
+        })
+      }
+
+      return baseUpdate
+    })
+
+    update('produtos', updated)
+  }
+
   const upProd = (id: string, f: string, v: any) => {
     if (f === 'is_outsourced' && v === true) {
       toast.success('Item direcionado para o fluxo de Compras/Estoque', {
@@ -315,12 +360,13 @@ export function SectionProdutos({ data, update }: Props) {
         <Plus className="w-4 h-4" /> Adicionar Produto
       </button>
       <div className="overflow-x-auto mb-[16px]">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+        <table className="w-full text-left border-collapse min-w-[1050px]">
           <thead>
             <tr className="bg-dark-denim text-off-white font-[600]">
+              <th className="p-[12px] border border-steel-blue min-w-[200px]">Tipo *</th>
               <th className="p-[12px] border border-steel-blue min-w-[200px]">Produto/Serviço</th>
               <th className="p-[12px] border border-steel-blue w-[80px]">Qtd</th>
-              <th className="p-[12px] border border-steel-blue min-w-[200px]">Descrição</th>
+              <th className="p-[12px] border border-steel-blue min-w-[220px]">Descrição</th>
               <th className="p-[12px] border border-steel-blue w-[150px]">Valor Unitário</th>
               <th className="p-[12px] border border-steel-blue w-[150px]">Valor Total</th>
               <th className="p-[12px] border border-steel-blue w-[180px]">Solicitar Compra</th>
@@ -328,75 +374,114 @@ export function SectionProdutos({ data, update }: Props) {
             </tr>
           </thead>
           <tbody>
-            {data.produtos.map((p) => (
-              <tr key={p.id} className="bg-off-white text-midnight-navy">
-                <td className="p-[8px] border border-steel-blue">
-                  <input
-                    className={inputClass}
-                    value={p.nome}
-                    onChange={(e) => upProd(p.id, 'nome', e.target.value)}
-                  />
-                </td>
-                <td className="p-[8px] border border-steel-blue">
-                  <input
-                    type="number"
-                    min="1"
-                    className={inputClass}
-                    value={p.qtd}
-                    onChange={(e) =>
-                      upProd(p.id, 'qtd', Math.max(1, parseInt(e.target.value) || 1))
-                    }
-                  />
-                </td>
-                <td className="p-[8px] border border-steel-blue">
-                  <input
-                    className={inputClass}
-                    value={p.descricao}
-                    onChange={(e) => upProd(p.id, 'descricao', e.target.value)}
-                  />
-                </td>
-                <td className="p-[8px] border border-steel-blue">
-                  <input
-                    type="text"
-                    className={inputClass}
-                    value={formatCurrencyInput(Math.round(p.valor_unitario * 100))}
-                    onChange={(e) =>
-                      upProd(
-                        p.id,
-                        'valor_unitario',
-                        Number(e.target.value.replace(/\D/g, '')) / 100,
-                      )
-                    }
-                  />
-                </td>
-                <td className="p-[8px] border border-steel-blue font-bold">
-                  {formatCurrencyInput(Math.round(p.qtd * p.valor_unitario * 100))}
-                </td>
-                <td className="p-[8px] border border-steel-blue text-center">
-                  <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer justify-center">
+            {data.produtos.map((p) => {
+              const isLocked = !p.tipo
+              const lockedClass = isLocked ? 'opacity-40 cursor-not-allowed bg-slate-200' : ''
+
+              return (
+                <tr key={p.id} className="bg-off-white text-midnight-navy">
+                  {/* Coluna 1: Tipo (Lista suspensa obrigatória para destravar os demais campos) */}
+                  <td className="p-[8px] border border-steel-blue">
+                    <select
+                      className={`${inputClass} font-semibold`}
+                      value={p.tipo || ''}
+                      onChange={(e) => handleTipoChange(p.id, e.target.value)}
+                    >
+                      <option value="">Selecione o tipo...</option>
+                      {OPCOES_TIPO_ITEM.map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                    {isLocked && (
+                      <span className="text-[10px] text-amber-700 block mt-1 font-medium">
+                        Escolha o tipo para destravar
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-[8px] border border-steel-blue">
                     <input
-                      type="checkbox"
-                      className="w-4 h-4 accent-dark-denim"
-                      checked={p.is_outsourced || false}
-                      onChange={(e) => upProd(p.id, 'is_outsourced', e.target.checked)}
+                      disabled={isLocked}
+                      className={`${inputClass} ${lockedClass}`}
+                      value={p.nome}
+                      placeholder={
+                        isLocked ? 'Travado (escolha o tipo)' : 'Nome do produto/serviço'
+                      }
+                      onChange={(e) => upProd(p.id, 'nome', e.target.value)}
                     />
-                    <span className="leading-tight text-left">
-                      Solicitar Compra
-                      <br />
-                      <span className="text-[10px] font-normal">(Item Solto/Terceiro)</span>
-                    </span>
-                  </label>
-                </td>
-                <td className="p-[8px] border border-steel-blue text-center">
-                  <button
-                    onClick={() => remProd(p.id)}
-                    className="text-steel-blue hover:text-dark-denim"
-                  >
-                    <Trash2 className="w-5 h-5 mx-auto" />
-                  </button>
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="p-[8px] border border-steel-blue">
+                    <input
+                      type="number"
+                      min="1"
+                      disabled={isLocked}
+                      className={`${inputClass} ${lockedClass}`}
+                      value={p.qtd}
+                      onChange={(e) =>
+                        upProd(p.id, 'qtd', Math.max(1, parseInt(e.target.value) || 1))
+                      }
+                    />
+                  </td>
+                  <td className="p-[8px] border border-steel-blue">
+                    <input
+                      disabled={isLocked}
+                      className={`${inputClass} ${lockedClass}`}
+                      value={p.descricao}
+                      placeholder={isLocked ? 'Travado' : 'Descrição/Ambiente'}
+                      onChange={(e) => upProd(p.id, 'descricao', e.target.value)}
+                    />
+                  </td>
+                  <td className="p-[8px] border border-steel-blue">
+                    <input
+                      type="text"
+                      disabled={isLocked}
+                      className={`${inputClass} ${lockedClass}`}
+                      value={formatCurrencyInput(Math.round(p.valor_unitario * 100))}
+                      onChange={(e) =>
+                        upProd(
+                          p.id,
+                          'valor_unitario',
+                          Number(e.target.value.replace(/\D/g, '')) / 100,
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="p-[8px] border border-steel-blue font-bold">
+                    {formatCurrencyInput(Math.round(p.qtd * p.valor_unitario * 100))}
+                  </td>
+                  <td className="p-[8px] border border-steel-blue text-center">
+                    <label
+                      className={`flex items-center gap-2 text-xs font-semibold justify-center ${
+                        isLocked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={isLocked}
+                        className="w-4 h-4 accent-dark-denim disabled:cursor-not-allowed"
+                        checked={p.is_outsourced || false}
+                        onChange={(e) => upProd(p.id, 'is_outsourced', e.target.checked)}
+                      />
+                      <span className="leading-tight text-left">
+                        Solicitar Compra
+                        <br />
+                        <span className="text-[10px] font-normal">(Item Solto/Terceiro)</span>
+                      </span>
+                    </label>
+                  </td>
+                  <td className="p-[8px] border border-steel-blue text-center">
+                    <button
+                      onClick={() => remProd(p.id)}
+                      className="text-steel-blue hover:text-dark-denim"
+                      title="Remover linha"
+                    >
+                      <Trash2 className="w-5 h-5 mx-auto" />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

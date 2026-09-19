@@ -1,5 +1,56 @@
+export type TipoItemProduto =
+  | 'Sob medida'
+  | 'Móveis soltos'
+  | 'Acompanhamento Bender Essencial'
+  | 'Acompanhamento Bender Forma'
+  | 'Acompanhamento Bender Hauss'
+
+export const OPCOES_TIPO_ITEM: readonly TipoItemProduto[] = [
+  'Sob medida',
+  'Móveis soltos',
+  'Acompanhamento Bender Essencial',
+  'Acompanhamento Bender Forma',
+  'Acompanhamento Bender Hauss',
+] as const
+
+export interface PlanoAcompanhamentoConfig {
+  nome: string
+  descricao: string
+  preco: number
+  quantidade: number
+  acompanhamentoNome: string // 'Bender Essencial' | 'Bender Forma' | 'Bender Hauss'
+}
+
+export const PLANOS_ACOMPANHAMENTO: Record<string, PlanoAcompanhamentoConfig> = {
+  'Acompanhamento Bender Essencial': {
+    nome: 'Acompanhamento Bender Essencial',
+    descricao:
+      'Logística e gestão (recebimento/conferência de móveis soltos e eletros, baldeação, guarda de chaves), detalhamento de pedras e marmoraria, montagem de móveis soltos. Até 3 meses (2 visitas/mês).',
+    preco: 5900,
+    quantidade: 1,
+    acompanhamentoNome: 'Bender Essencial',
+  },
+  'Acompanhamento Bender Forma': {
+    nome: 'Acompanhamento Bender Forma',
+    descricao:
+      'Logística e gestão completa, supervisão técnica de instalações (pedras, marmoraria, luminotécnico, climatização, box, pontos elétricos/hidráulicos/gás) e consultoria de acabamentos e design. Até 3 meses (1 visita/semana).',
+    preco: 11900,
+    quantidade: 1,
+    acompanhamentoNome: 'Bender Forma',
+  },
+  'Acompanhamento Bender Hauss': {
+    nome: 'Acompanhamento Bender Hauss',
+    descricao:
+      'Acompanhamento completo premium: logística, supervisão técnica de instalações, consultoria de design, acompanhamento de obras e reformas estruturais, ambientação final, relatórios semanais e visitas pós-entrega. Até 3 meses (1 visita/semana).',
+    preco: 19900,
+    quantidade: 1,
+    acompanhamentoNome: 'Bender Hauss',
+  },
+}
+
 export interface ProdutoForm {
   id: string
+  tipo?: TipoItemProduto | ''
   nome: string
   qtd: number
   descricao: string
@@ -96,6 +147,7 @@ export const defaultState: FormState = {
   produtos: [
     {
       id: Math.random().toString(36).substring(2),
+      tipo: '',
       nome: '',
       qtd: 1,
       descricao: '',
