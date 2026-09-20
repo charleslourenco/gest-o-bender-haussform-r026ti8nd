@@ -202,7 +202,7 @@ Deno.serve(async (req: Request) => {
       const obra_estado = form.obra_estado || 'Não informado'
 
       const datas = (form.datas as any) || {}
-      const data_acesso_movel = datas.medida || null
+      const data_acesso_movel = datas.data_acesso_imovel || null
       const data_assinatura_contrato = new Date().toISOString().split('T')[0]
       const data_venda = datas.data_venda || data_assinatura_contrato
       const data_prevista_entrega = form.data_prevista_entrega || null
