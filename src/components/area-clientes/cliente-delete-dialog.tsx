@@ -23,16 +23,15 @@ interface ClienteDeleteDialogProps {
   triggerVariant?: 'icon' | 'button'
 }
 
-const DEPENDENT_DATA_ITEMS = [
-  'Contratos e dossiês (PDFs gerados)',
-  'Documentos assinados e envelopes de assinatura',
-  'Pagamentos e contas a receber',
-  'Itens de projeto (produtos e serviços)',
+const PRESERVED_DATA_ITEMS = [
+  'Projetos e itens de projeto (produtos e serviços)',
+  'Cards nos kanbans (Comercial, PCP, Produção e Montagem)',
   'Acompanhamentos e respectivos históricos',
-  'Caixas virtuais e itens de estoque do cliente',
-  'Solicitações de compra vinculadas',
-  'Eventos da timeline do cliente',
-  'Mensagens e sessões do WhatsApp (se aplicável)',
+  'Formulário comercial e dados de venda vinculados',
+  'Contratos, dossiês e documentos gerados',
+  'Envelopes e assinaturas digitais',
+  'Pagamentos e contas a receber',
+  'Caixas virtuais e itens de estoque',
 ]
 
 export function ClienteDeleteDialog({
@@ -62,8 +61,8 @@ export function ClienteDeleteDialog({
     if (error) {
       const { toast } = await import('@/hooks/use-toast')
       toast({
-        title: 'Erro ao excluir cliente',
-        description: 'Verifique se existem dependências pendentes.',
+        title: 'Erro ao desativar cliente',
+        description: 'Não foi possível ocultar o cliente. Tente novamente.',
         variant: 'destructive',
       })
       setOpen(false)
@@ -71,7 +70,7 @@ export function ClienteDeleteDialog({
       return
     }
     const { toast } = await import('@/hooks/use-toast')
-    toast({ title: 'Cliente excluído com sucesso.' })
+    toast({ title: 'Cliente ocultado com sucesso.' })
     setOpen(false)
     reset()
     onDeleted()
@@ -100,26 +99,33 @@ export function ClienteDeleteDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
-            Excluir Cliente
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+            Ocultar / Desativar Cliente
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                Tem certeza que deseja excluir este cliente
-                {clienteNome ? ` (${clienteNome})` : ''}? Esta ação é{' '}
-                <span className="font-semibold text-destructive">irreversível</span> e removerá
-                permanentemente todos os dados vinculados abaixo:
+                Tem certeza que deseja desativar o cliente
+                {clienteNome ? ` (${clienteNome})` : ''}? O cliente será ocultado da listagem do
+                módulo de Clientes, mas{' '}
+                <strong className="text-foreground">nenhum dado operacional será apagado</strong>.
               </p>
-              <ul className="list-disc pl-5 space-y-1 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                {DEPENDENT_DATA_ITEMS.map((item) => (
-                  <li key={item} className="text-foreground/80">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-foreground">
-                Para confirmar, digite o nome do cliente exatamente como exibido:
+              <div className="rounded-md border border-border bg-muted/40 p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-foreground">
+                  Permanecerão preservados e intactos no sistema:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                  {PRESERVED_DATA_ITEMS.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Um administrador poderá restaurar este cliente a qualquer momento através do botão{' '}
+                <strong className="text-foreground">"Recuperar Cliente"</strong>.
+              </p>
+              <p className="text-foreground font-medium text-xs">
+                Para confirmar a desativação, digite o nome do cliente exatamente como exibido:
               </p>
             </div>
           </AlertDialogDescription>
@@ -155,10 +161,10 @@ export function ClienteDeleteDialog({
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Excluindo...
+                Desativando...
               </>
             ) : (
-              'Confirmar Exclusão'
+              'Confirmar Desativação'
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

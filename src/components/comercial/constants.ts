@@ -287,17 +287,19 @@ export function isOrigemCorretor(origem?: string | null): boolean {
   return o === 'corretor' || o === 'bender conecta'
 }
 
-// Lista padronizada de Origens dos Leads (incluindo 'Bender Conecta')
+// Lista padronizada de Origens dos Leads
 export const ORIGENS_LEAD = [
   'Instagram',
   'Google',
   'Recompra',
   'Corretor',
-  'Bender Conecta',
   'Arquiteto',
   'Indicação',
   'Porta',
   'A definir',
+  'WhatsApp',
+  'Bender Conecta',
+  'Assistência Técnica',
 ] as const
 
 export type OrigemLead = (typeof ORIGENS_LEAD)[number]

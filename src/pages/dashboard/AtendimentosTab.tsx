@@ -26,35 +26,35 @@ import {
 import type { AtendimentosMetrics } from './types'
 
 const ORIGIN_COLORS = [
-  '#0284c7', // blue
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#8b5cf6', // purple
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#f97316', // orange
-  '#64748b', // slate
+  '#25d366', // whatsapp green
+  '#e1306c', // instagram pink
+  '#8b5cf6', // indicação purple
+  '#0284c7', // recompra blue
+  '#4285f4', // google blue
+  '#f59e0b', // corretor amber
+  '#f97316', // porta orange
+  '#06b6d4', // arquiteto cyan
+  '#3b82f6', // bender conecta blue
+  '#10b981', // assistência emerald
+  '#64748b', // a definir slate
 ]
 
 const STATUS_LABELS: Record<string, { label: string; badge: string }> = {
+  em_atendimento: {
+    label: 'Em Atendimento',
+    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+  },
   aguardando_resposta: {
     label: 'Aguardando Resposta',
     badge: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   },
-  respondido: {
-    label: 'Respondido',
-    badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  nao_informado: {
+    label: 'Não Informado',
+    badge: 'bg-muted text-muted-foreground',
   },
-  novo: {
-    label: 'Novos',
-    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
-  },
-  sem_resposta: {
-    label: 'Sem Resposta',
-    badge: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',
-  },
+  // Fallbacks de compatibilidade caso haja legados
   não_informado: {
-    label: 'Em Triagem',
+    label: 'Não Informado',
     badge: 'bg-muted text-muted-foreground',
   },
 }
@@ -363,13 +363,13 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
           </CardContent>
         </Card>
 
-        {/* As 8 Opções Oficiais de Origem × Conversão */}
+        {/* Origens Oficiais × Conversão */}
         <Card className="lg:col-span-2 border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <PieIcon className="h-4 w-4 text-primary" />
-                Origem × Conversão (8 Opções Oficiais)
+                Origem × Conversão
               </CardTitle>
               <CardDescription>
                 Relação entre canal de captação e taxa de fechamento de contratos
@@ -420,7 +420,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                 </ResponsiveContainer>
               </div>
 
-              {/* Tabela das 8 Origens */}
+              {/* Tabela de Origens Oficiais */}
               <div className="md:col-span-8 overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
