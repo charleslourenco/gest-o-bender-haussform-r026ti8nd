@@ -9,7 +9,15 @@ import {
   Sparkles,
   PieChart as PieIcon,
   BarChart3,
+  AlertTriangle,
+  Info,
 } from 'lucide-react'
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   ResponsiveContainer,
   BarChart,
@@ -65,18 +73,66 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     convertidos,
     taxa_conversao,
     media_dia,
+    vendas_com_data_qtd,
+    vendas_total_para_cobertura,
     status_atendimento,
     origens,
     evolucao_mensal,
     dias_semana,
   } = data
 
-  // Achar melhor origem por conversão com pelo menos 1 lead
+  // Achar melhor origem por conversão com pelo menos 1 lead (exceto 'A definir' para destacar canal real)
   const origensComLeads = origens.filter((o) => o.total > 0)
-  const melhorOrigem = [...origensComLeads].sort((a, b) => b.taxa - a.taxa)[0]
+  const origensOficiaisValidas = origensComLeads.filter((o) => o.origem !== 'A definir')
+  const melhorOrigem =
+    [...origensOficiaisValidas].sort((a, b) => b.taxa - a.taxa)[0] || origensComLeads[0]
+
+  // Dados do balde 'A definir' para Alerta de Dívida de Preenchimento (Item 3)
+  const origemADefinir = origens.find((o) => o.origem === 'A definir')
+  const temADefinirComLeads = origemADefinir && origemADefinir.total > 0
+
+  // Cobertura de data_venda (Item 5)
+  const qtdVendasData = vendas_com_data_qtd ?? 0
+  const qtdVendasTotal = vendas_total_para_cobertura ?? convertidos
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Item 3: Alerta de Origem Não Informada ("A definir") - Dívida de preenchimento */}
+      {temADefinirComLeads && (
+        <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0 shadow-sm mt-0.5 sm:mt-0">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs uppercase font-extrabold text-amber-800 dark:text-amber-300 tracking-wider">
+                  Atenção: Origem Não Registrada
+                </span>
+                <Badge
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[10px] py-0 px-2 font-bold"
+                >
+                  {origemADefinir.taxa}% de conversão
+                </Badge>
+              </div>
+              <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 mt-1 font-medium">
+                Existem{' '}
+                <strong className="font-extrabold text-amber-950 dark:text-amber-100">
+                  {origemADefinir.total} leads comerciais
+                </strong>{' '}
+                cadastrados como &quot;A definir&quot; ({origemADefinir.convertidos} deles já
+                viraram vendas). Como esses leads têm altíssima conversão, cobre o preenchimento da
+                origem pela equipe para identificar quais canais estão gerando esse retorno.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0 text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold self-stretch sm:self-auto text-center">
+            {origemADefinir.convertidos}/{origemADefinir.total} fechados
+          </div>
+        </div>
+      )}
+
       {/* 4 Cards de Métricas Principais */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border shadow-sm">
@@ -102,14 +158,43 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
             <CardTitle className="text-sm font-semibold text-muted-foreground">
               Vendas Concluídas
             </CardTitle>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Target className="h-5 w-5" />
+            <div className="flex items-center gap-1.5">
+              {/* Item 5: Tooltip discreto de cobertura de data_venda */}
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Cobertura de dados de vendas"
+                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    <p className="font-semibold">Cobertura de Data da Venda</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {qtdVendasData} de {qtdVendasTotal} vendas possuem a data registrada no lead.
+                      Análises temporais por data de fechamento são parciais.
+                    </p>
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Target className="h-5 w-5" />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-extrabold text-foreground">{convertidos}</div>
-            <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Leads transformados em clientes
+            <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center justify-between">
+              <span>Leads comerciais convertidos</span>
+              {qtdVendasTotal > 0 && (
+                <span className="text-[10px] text-muted-foreground/80 font-normal">
+                  ({qtdVendasData}/{qtdVendasTotal} c/ data)
+                </span>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -434,13 +519,28 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {origens.map((item, idx) => (
-                      <tr key={item.origem} className="hover:bg-muted/30 transition-colors">
+                      <tr
+                        key={item.origem}
+                        className={`hover:bg-muted/30 transition-colors ${
+                          item.origem === 'A definir' ? 'bg-amber-500/5' : ''
+                        }`}
+                      >
                         <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
                           <span
                             className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
                             style={{ backgroundColor: ORIGIN_COLORS[idx % ORIGIN_COLORS.length] }}
                           />
-                          {item.origem}
+                          <span className="flex items-center gap-1.5">
+                            {item.origem}
+                            {item.origem === 'A definir' && item.total > 0 && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] py-0 px-1.5 border-amber-300 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50"
+                              >
+                                Preenchimento pendente
+                              </Badge>
+                            )}
+                          </span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-medium text-foreground">
                           {item.total}

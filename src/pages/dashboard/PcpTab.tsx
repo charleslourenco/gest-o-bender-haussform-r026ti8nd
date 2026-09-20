@@ -55,8 +55,16 @@ export function PcpTab({ data }: { data: PcpMetrics }) {
 
   const formatFaseNome = (fase: string) => FASE_NOMES[fase] || fase.replace(/_/g, ' ')
 
-  // Identificar gargalo no tempo de fases
-  const gargaloItem = tempo_fases.find((f) => f.is_gargalo) || tempo_fases[0]
+  // Identificar gargalo real no tempo de fases (apenas com amostras >= 3 e media_dias válido)
+  const gargaloItem = tempo_fases.find((f) => f.is_gargalo && f.media_dias !== null)
+
+  // Filtrar fases que possuem dados reais para o gráfico
+  const fasesComTempo = tempo_fases
+    .filter((f) => f.media_dias !== null && f.transicoes_registradas > 0)
+    .map((f) => ({
+      ...f,
+      media_dias: f.media_dias ?? 0,
+    }))
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -105,12 +113,25 @@ export function PcpTab({ data }: { data: PcpMetrics }) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-extrabold text-foreground">
-              {tempo_total_medio_dias} <span className="text-base font-semibold">dias</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ciclo médio: entrada no fluxo → conclusão
-            </p>
+            {tempo_total_medio_dias !== null &&
+            tempo_total_medio_dias !== undefined &&
+            tempo_total_medio_dias > 0 ? (
+              <>
+                <div className="text-3xl font-extrabold text-foreground">
+                  {tempo_total_medio_dias} <span className="text-base font-semibold">dias</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ciclo médio real (entrada → conclusão de ambientes)
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-xl font-bold text-muted-foreground">Sem dados suficientes</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Aguardando histórico de conclusão no período
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -134,20 +155,20 @@ export function PcpTab({ data }: { data: PcpMetrics }) {
         </Card>
       </div>
 
-      {/* Destaque Visual do Gargalo (pedido expresso do Charles) */}
-      {gargaloItem && (
-        <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/70 dark:border-rose-900/50 dark:bg-rose-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Destaque Visual do Gargalo Real ou aviso se amostra for insuficiente */}
+      {gargaloItem ? (
+        <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/70 dark:border-rose-900/50 dark:bg-rose-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-rose-600 text-white shadow-sm">
+            <div className="p-2.5 rounded-lg bg-rose-600 text-white shadow-sm shrink-0">
               <Flame className="h-5 w-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs uppercase font-extrabold text-rose-700 dark:text-rose-300 tracking-wider">
-                  Gargalo Operacional Identificado
+                  Gargalo Operacional Real Identificado
                 </span>
                 <Badge variant="destructive" className="text-[10px] py-0 px-2">
-                  Maior tempo de retenção
+                  Maior tempo com amostra confiável
                 </Badge>
               </div>
               <p className="text-sm font-semibold text-foreground mt-0.5">
@@ -155,18 +176,28 @@ export function PcpTab({ data }: { data: PcpMetrics }) {
                 <strong className="text-rose-700 dark:text-rose-300">
                   {formatFaseNome(gargaloItem.fase)}
                 </strong>{' '}
-                — Média de{' '}
+                — Média real de{' '}
                 <strong className="text-rose-700 dark:text-rose-300">
                   {gargaloItem.media_dias} dias
                 </strong>{' '}
-                por ambiente
+                ({gargaloItem.transicoes_registradas} transições registradas)
               </p>
             </div>
           </div>
-          <div className="text-xs text-muted-foreground bg-background/80 dark:bg-background/40 px-3 py-1.5 rounded-md border border-border">
-            Calculado via transições da tabela{' '}
-            <code className="font-mono text-foreground">kanban_historico</code>
+          <div className="text-xs text-muted-foreground bg-background/80 dark:bg-background/40 px-3 py-1.5 rounded-md border border-border shrink-0">
+            Calculado via transições reais em{' '}
+            <code className="font-mono text-foreground">kanban_historico</code> (amostra &ge; 3)
           </div>
+        </div>
+      ) : (
+        <div className="p-3.5 rounded-xl border border-border bg-muted/40 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            <strong>Gargalo Operacional:</strong> Sem dados suficientes de transições registradas no
+            período para determinar o gargalo (mínimo de 3 transições por fase).
+          </span>
+          <Badge variant="outline" className="text-[10px]">
+            Sem dados suficientes
+          </Badge>
         </div>
       )}
 
@@ -185,66 +216,82 @@ export function PcpTab({ data }: { data: PcpMetrics }) {
           </CardHeader>
           <CardContent>
             <div className="h-[320px] w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={tempo_fases}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
-                  <XAxis
-                    type="number"
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(v) => `${v}d`}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground"
-                  />
-                  <YAxis
-                    dataKey="fase"
-                    type="category"
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={formatFaseNome}
-                    width={130}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground"
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const item = payload[0].payload as any
-                        return (
-                          <div className="bg-popover border border-border p-2.5 rounded shadow-md text-xs space-y-1">
-                            <p className="font-bold text-foreground">{formatFaseNome(item.fase)}</p>
-                            <p
-                              className={
-                                item.is_gargalo ? 'text-rose-600 font-bold' : 'text-primary'
-                              }
-                            >
-                              Tempo Médio: <strong>{item.media_dias} dias</strong>
-                            </p>
-                            {item.is_gargalo && (
-                              <Badge variant="destructive" className="text-[10px] py-0">
-                                Principal Gargalo
-                              </Badge>
-                            )}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Bar dataKey="media_dias" name="Dias" radius={[0, 4, 4, 0]}>
-                    {tempo_fases.map((entry, index) => (
-                      <Cell
-                        key={`cell-tempo-${index}`}
-                        fill={entry.is_gargalo ? '#ef4444' : '#6366f1'}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {fasesComTempo.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-sm text-muted-foreground gap-2">
+                  <Clock className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="font-medium">Sem dados suficientes de transições</p>
+                  <p className="text-xs text-muted-foreground max-w-xs text-center">
+                    Não há transições kanban suficientes no período selecionado para calcular o
+                    tempo médio por fase.
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={fasesComTempo}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+                    <XAxis
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `${v}d`}
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis
+                      dataKey="fase"
+                      type="category"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={formatFaseNome}
+                      width={130}
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      className="text-muted-foreground"
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload as any
+                          return (
+                            <div className="bg-popover border border-border p-2.5 rounded shadow-md text-xs space-y-1">
+                              <p className="font-bold text-foreground">
+                                {formatFaseNome(item.fase)}
+                              </p>
+                              <p
+                                className={
+                                  item.is_gargalo ? 'text-rose-600 font-bold' : 'text-primary'
+                                }
+                              >
+                                Tempo Médio: <strong>{item.media_dias} dias</strong>
+                              </p>
+                              <p className="text-muted-foreground text-[10px]">
+                                Base: {item.transicoes_registradas} transições registradas
+                              </p>
+                              {item.is_gargalo && (
+                                <Badge variant="destructive" className="text-[10px] py-0 mt-1">
+                                  Principal Gargalo Operacional
+                                </Badge>
+                              )}
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="media_dias" name="Dias" radius={[0, 4, 4, 0]}>
+                      {fasesComTempo.map((entry, index) => (
+                        <Cell
+                          key={`cell-tempo-${index}`}
+                          fill={entry.is_gargalo ? '#ef4444' : '#6366f1'}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>

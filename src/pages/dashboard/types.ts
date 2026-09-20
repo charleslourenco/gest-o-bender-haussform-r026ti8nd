@@ -28,6 +28,8 @@ export interface AtendimentosMetrics {
   convertidos: number
   taxa_conversao: number
   media_dia: number
+  vendas_com_data_qtd?: number
+  vendas_total_para_cobertura?: number
   status_atendimento: StatusAtendimentoItem[]
   origens: OrigemItem[]
   evolucao_mensal: EvolucaoMensalItem[]
@@ -39,6 +41,7 @@ export interface RankingConsultorItem {
   vendas: number
   valor_total: number
   ticket_medio: number
+  ticket_mediana?: number
   menor_ticket: number
   maior_ticket: number
 }
@@ -46,9 +49,14 @@ export interface RankingConsultorItem {
 export interface ClientesMetrics {
   novos_clientes: number
   valor_vendido: number
+  valor_vendido_fechado?: number
   ticket_medio: number
+  ticket_mediana?: number
   menor_ticket: number
   maior_ticket: number
+  total_formularios_valor?: number
+  total_formularios_vendidos?: number
+  maior_ticket_percentual?: number
   ranking_consultores: RankingConsultorItem[]
 }
 
@@ -59,7 +67,7 @@ export interface FaseAmbienteItem {
 
 export interface TempoFaseItem {
   fase: string
-  media_dias: number
+  media_dias: number | null
   transicoes_registradas: number
   is_gargalo: boolean
 }
@@ -81,10 +89,11 @@ export interface PcpMetrics {
   total_ambientes: number
   total_clientes: number
   ambientes_por_cliente: number
-  tempo_total_medio_dias: number
+  tempo_total_medio_dias: number | null
   taxa_pendencias: number
   fases_ambientes: FaseAmbienteItem[]
   tempo_fases: TempoFaseItem[]
+  fase_gargalo?: string | null
   carga_analista: CargaAnalistaItem[]
   carga_montagem: CargaMontadorItem[]
 }

@@ -10,7 +10,15 @@ import {
   ArrowUpRight,
   Award,
   ShoppingBag,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react'
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import type { ClientesMetrics, RankingConsultorItem } from './types'
 
@@ -22,11 +30,24 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
   const {
     novos_clientes,
     valor_vendido,
+    valor_vendido_fechado,
     ticket_medio,
+    ticket_mediana,
     menor_ticket,
     maior_ticket,
+    total_formularios_valor,
+    total_formularios_vendidos,
+    maior_ticket_percentual,
     ranking_consultores,
   } = data
+
+  // Mediana e indicadores de distorção
+  const medianaValor = ticket_mediana ?? ticket_medio
+  const pctMaiorTicket =
+    maior_ticket_percentual ?? (valor_vendido > 0 ? (maior_ticket / valor_vendido) * 100 : 0)
+  // Avisar se um único registro tiver mais de 50% ou se houver grande discrepância entre média e mediana
+  const isDistorcidoMaiorTicket = pctMaiorTicket >= 50
+  const isDistorcidoMediaMediana = medianaValor > 0 && ticket_medio > medianaValor * 1.8
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', {
@@ -61,12 +82,45 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 5 Cards de Métricas Principais: Clientes novos, Valor Vendido, Ticket Médio, Menor, Maior */}
+      {/* Alerta de distorção de ticket caso um registro seja atípico */}
+      {(isDistorcidoMaiorTicket || isDistorcidoMediaMediana) && (
+        <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/20 flex items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="text-foreground">
+              {isDistorcidoMaiorTicket ? (
+                <>
+                  <strong>Atenção estatística:</strong> O maior ticket (
+                  {formatCurrencyFull(maior_ticket)}) representa {pctMaiorTicket.toFixed(1)}% do
+                  valor total. A <strong>mediana ({formatCurrency(medianaValor)})</strong> reflete
+                  melhor o padrão habitual de vendas.
+                </>
+              ) : (
+                <>
+                  <strong>Variação de ticket:</strong> O ticket médio (
+                  {formatCurrency(ticket_medio)}) está puxado por grandes projetos (maior:{' '}
+                  {formatCurrency(maior_ticket)}). A{' '}
+                  <strong>mediana ({formatCurrency(medianaValor)})</strong> representa o centro da
+                  distribuição.
+                </>
+              )}
+            </span>
+          </div>
+          <Badge
+            variant="outline"
+            className="border-blue-300 text-blue-700 dark:text-blue-300 bg-blue-100/50 shrink-0"
+          >
+            Mediana: {formatCurrency(medianaValor)}
+          </Badge>
+        </div>
+      )}
+
+      {/* 5 Cards de Métricas Principais: Novos Clientes, Formulários com Valor (ex-Valor Vendido), Ticket Médio + Mediana, Menor, Maior */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Clientes no Período
+              Novos Clientes
             </CardTitle>
             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Users className="h-4 w-4" />
@@ -74,17 +128,41 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-extrabold text-foreground">{novos_clientes}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Contratos: <strong className="text-foreground">{totalContratos}</strong> vendas
-            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">Cadastrados no módulo Clientes</p>
           </CardContent>
         </Card>
 
+        {/* Item 4: Distinção clara de Formulários com Valor vs Vendas Fechadas */}
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Valor Total Vendido
-            </CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
+                Total em Formulários
+              </CardTitle>
+              <TooltipProvider>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Detalhes de formulários com valor"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs">
+                    <p className="font-bold">Formulários com Valor Preenchido</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Soma dos formulários comerciais com valor &gt; 0 (
+                      {total_formularios_valor ?? 0} no total, dos quais{' '}
+                      {total_formularios_vendidos ?? totalContratos} são de leads com status
+                      &quot;Vendido&quot; somando{' '}
+                      {formatCurrencyFull(valor_vendido_fechado ?? valor_vendido)}).
+                    </p>
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            </div>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <DollarSign className="h-4 w-4" />
             </div>
@@ -93,14 +171,22 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
             <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
               {formatCurrency(valor_vendido)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Receita comercial total</p>
+            <p className="text-[11px] text-muted-foreground mt-1 flex items-center justify-between">
+              <span>{total_formularios_valor ?? totalContratos} formulários c/ valor</span>
+              {total_formularios_vendidos !== undefined && (
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                  ({total_formularios_vendidos} fechados)
+                </span>
+              )}
+            </p>
           </CardContent>
         </Card>
 
+        {/* Item 4: Exibir Mediana junto do Ticket Médio */}
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">
-              Ticket Médio Geral
+              Ticket Médio & Mediana
             </CardTitle>
             <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
               <TrendingUp className="h-4 w-4" />
@@ -110,7 +196,11 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
             <div className="text-2xl font-extrabold text-foreground">
               {formatCurrency(ticket_medio)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Média por venda fechada</p>
+            <p className="text-[11px] text-muted-foreground mt-1 flex items-center justify-between">
+              <span>
+                Mediana: <strong className="text-foreground">{formatCurrency(medianaValor)}</strong>
+              </span>
+            </p>
           </CardContent>
         </Card>
 
@@ -127,7 +217,7 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
             <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">
               {formatCurrency(menor_ticket)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Menor projeto contratado</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Menor projeto formulado</p>
           </CardContent>
         </Card>
 
@@ -144,7 +234,14 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
             <div className="text-2xl font-extrabold text-teal-600 dark:text-teal-400">
               {formatCurrency(maior_ticket)}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-1">Maior projeto contratado</p>
+            <p className="text-[11px] text-muted-foreground mt-1 flex items-center justify-between">
+              <span>Maior projeto</span>
+              {pctMaiorTicket > 0 && (
+                <span className="text-[10px] text-teal-700 dark:text-teal-300 font-semibold">
+                  ({pctMaiorTicket.toFixed(0)}% do total)
+                </span>
+              )}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -269,9 +366,10 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                 <tr>
                   <th className="py-2.5 px-3 text-center w-12">#</th>
                   <th className="py-2.5 px-3">Consultor</th>
-                  <th className="py-2.5 px-3 text-right">Qtd Vendas</th>
+                  <th className="py-2.5 px-3 text-right">Formulários com Valor</th>
                   <th className="py-2.5 px-3 text-right">Total Vendido</th>
                   <th className="py-2.5 px-3 text-right">Ticket Médio</th>
+                  <th className="py-2.5 px-3 text-right">Mediana</th>
                   <th className="py-2.5 px-3 text-right">Menor Ticket</th>
                   <th className="py-2.5 px-3 text-right">Maior Ticket</th>
                   <th className="py-2.5 px-3 text-center">Part. Receita</th>
@@ -311,7 +409,7 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                         <td className="py-2.5 px-3 font-semibold text-foreground">{c.consultor}</td>
                         <td className="py-2.5 px-3 text-right font-medium">
                           <Badge variant="outline" className="font-semibold text-foreground">
-                            {c.vendas} {c.vendas === 1 ? 'venda' : 'vendas'}
+                            {c.vendas} {c.vendas === 1 ? 'formulário' : 'formulários'}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
@@ -319,6 +417,9 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                         </td>
                         <td className="py-2.5 px-3 text-right font-semibold text-purple-600 dark:text-purple-400">
                           {formatCurrencyFull(c.ticket_medio)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
+                          {formatCurrency(c.ticket_mediana ?? c.ticket_medio)}
                         </td>
                         <td className="py-2.5 px-3 text-right text-muted-foreground">
                           {formatCurrency(c.menor_ticket)}
