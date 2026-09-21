@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
+import { PcpMatrizMensal } from '@/components/pcp/PcpMatrizMensal'
 import { cn } from '@/lib/utils'
 
 type SchedulePeriod = 'anual' | 'mensal' | 'semanal' | 'diario'
@@ -98,55 +99,39 @@ export function PcpPlanejamentoView() {
         </div>
       </div>
 
-      {/* Empty State Elegante de Cronograma */}
-      <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
-        <Card className="max-w-xl w-full border border-border/60 shadow-sm bg-card/60 backdrop-blur-xs text-center p-8">
-          <CardContent className="pt-2 pb-0 flex flex-col items-center">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary border border-primary/20">
-              <Clock className="w-7 h-7" />
-            </div>
-            <h2 className="text-xl font-bold text-foreground mb-2">
-              Cronograma Operacional em Estruturação
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-6">
-              Esta visão centralizará o sequenciamento industrial, alocação de postos de trabalho e
-              balanceamento de capacidade ({periodLabels[period].toLowerCase()}).
-            </p>
-
-            <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2 border-t border-border/60">
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
-                  <Layers className="w-3.5 h-3.5 text-primary" />
-                  Mapeamento
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Cards pós-venda já catalogados e vinculados ao fluxo linear.
-                </p>
+      {/* Quando período for 'mensal', exibe a Matriz Completa de Planejamento de Capacidade Fabril */}
+      {period === 'mensal' ? (
+        <ErrorBoundary source="PCP Matriz Mensal">
+          <PcpMatrizMensal />
+        </ErrorBoundary>
+      ) : (
+        /* Para anual, semanal e diário, mantém o estado de transição explicativo */
+        <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
+          <Card className="max-w-xl w-full border border-border/60 shadow-sm bg-card/60 backdrop-blur-xs text-center p-8">
+            <CardContent className="pt-2 pb-0 flex flex-col items-center">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary border border-primary/20">
+                <Clock className="w-7 h-7" />
               </div>
+              <h2 className="text-xl font-bold text-foreground mb-2">
+                Cronograma Operacional ({periodLabels[period]})
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-6">
+                A matriz de planejamento de capacidade e semanas ISO está disponível na sub-aba{' '}
+                <strong className="text-foreground">Visão Mensal</strong>.
+              </p>
 
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
-                  <CalendarDays className="w-3.5 h-3.5 text-primary" />
-                  Gantt & Capacidade
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Módulo de carga de máquina e cronograma em integração futura.
-                </p>
+              <div className="w-full flex justify-center pt-2 border-t border-border/60">
+                <Button
+                  onClick={() => setPeriod('mensal')}
+                  className="bg-primary text-primary-foreground text-xs font-semibold"
+                >
+                  Ir para a Visão Mensal (Matriz de Capacidade)
+                </Button>
               </div>
-
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/40">
-                <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
-                  <ChevronRight className="w-3.5 h-3.5 text-primary" />
-                  Acesso Direto
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Navegue pelas abas acima para acompanhar Análise, Produção e Montagem.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
