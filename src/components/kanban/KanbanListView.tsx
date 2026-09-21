@@ -399,15 +399,19 @@ export function KanbanListView({
                     </TableCell>
                     {isMontagem ? (
                       <TableCell>
-                        {card?.alocacao_montagem && card.alocacao_montagem.length > 0
+                        {Array.isArray(card?.alocacao_montagem) &&
+                        card.alocacao_montagem.filter(Boolean).length > 0
                           ? card.alocacao_montagem
+                              .filter(Boolean)
                               .map((am: any) => {
                                 if (am?.pessoa_nome) return am.pessoa_nome
-                                const m = montadores.find((m) => m.id === am?.montador_id)
-                                return m?.nome_completo
+                                const m = Array.isArray(montadores)
+                                  ? montadores.find((m) => m?.id === am?.montador_id)
+                                  : null
+                                return m?.nome_completo || null
                               })
                               .filter(Boolean)
-                              .join(', ')
+                              .join(', ') || 'Não alocada'
                           : 'Não alocada'}
                       </TableCell>
                     ) : isProducao ? (
@@ -431,15 +435,19 @@ export function KanbanListView({
                           </Select>
                         </TableCell>
                         <TableCell>
-                          {card?.alocacao_montagem && card.alocacao_montagem.length > 0
+                          {Array.isArray(card?.alocacao_montagem) &&
+                          card.alocacao_montagem.filter(Boolean).length > 0
                             ? card.alocacao_montagem
+                                .filter(Boolean)
                                 .map((am: any) => {
                                   if (am?.pessoa_nome) return am.pessoa_nome
-                                  const m = montadores.find((m) => m.id === am?.montador_id)
-                                  return m?.nome_completo
+                                  const m = Array.isArray(montadores)
+                                    ? montadores.find((m) => m?.id === am?.montador_id)
+                                    : null
+                                  return m?.nome_completo || null
                                 })
                                 .filter(Boolean)
-                                .join(', ')
+                                .join(', ') || 'Não alocada'
                             : 'Não alocada'}
                         </TableCell>
                       </>

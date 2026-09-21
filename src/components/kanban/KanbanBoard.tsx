@@ -295,14 +295,18 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   }
 
   // Helpers para subcards
-  const isCardConcluido = (status: string) => {
+  const isCardConcluido = (status?: string | null) => {
+    if (!status) return false
     // Em Produção a última coluna é aguardando_agenda (Concluído/Pronto p/ Montagem)
     // Em Montagem a última coluna é concluido
     return status === 'concluido' || (isProducao && status === 'aguardando_agenda')
   }
 
   const getActiveSubcardsOfParent = (parentId: string) => {
-    return items.filter((it) => it?.card_pai_id === parentId && !isCardConcluido(it.status_analise))
+    if (!parentId) return []
+    return (items || []).filter(
+      (it) => it && it.card_pai_id === parentId && !isCardConcluido(it.status_analise),
+    )
   }
 
   const executeStatusChange = async (itemId: string, newStatusId: string) => {
@@ -644,7 +648,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     })
 
     const parts = Object.entries(statusCountMap).map(
-      ([st, count]) => `${count} em ${st.toLowerCase()}`,
+      ([st, count]) => `${count} em ${st ? st.toLowerCase() : ''}`,
     )
     return `↳ ${total} subcard${total > 1 ? 's' : ''}${parts.length > 0 ? ` · ${parts.join(' · ')}` : ''}`
   }
@@ -726,7 +730,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                   parentCard?.cor_vinculo ||
                   (item.card_pai_id ? '#3b82f6' : null)
                 : activeSubcardsCount > 0
-                  ? item.cor_vinculo
+                  ? item.cor_vinculo || '#3b82f6'
                   : null
 
               // Hover mútuo: se o mouse estiver no pai, realça todos os subcards. Se estiver no subcard, realça o pai e irmãos da mesma família
@@ -1062,9 +1066,9 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                         )}
                         {(isMontagemRoute || isProducao) &&
                           Array.isArray(item?.alocacao_montagem) &&
-                          (item?.alocacao_montagem?.length ?? 0) > 0 && (
+                          item.alocacao_montagem.filter(Boolean).length > 0 && (
                             <AlocadosBadge
-                              alocados={item.alocacao_montagem}
+                              alocados={item.alocacao_montagem.filter(Boolean)}
                               icon={isMontagemRoute ? 'wrench' : 'users'}
                             />
                           )}

@@ -10,6 +10,7 @@ import Financeiro from './pages/Financeiro'
 import DocumentacaoLead from './pages/DocumentacaoLead'
 import Users from './pages/Users'
 import AdminPage from './pages/admin/Admin'
+import Pcp from './pages/Pcp'
 import AnaliseTecnica from './pages/AnaliseTecnica'
 import AnaliseTecnicaDetalhe from './pages/AnaliseTecnicaDetalhe'
 import Producao from './pages/Producao'
@@ -77,6 +78,14 @@ const App = () => (
                 <Route path="/usuarios" element={<Users />} />
                 <Route path="/clientes" element={<AreaClientes />} />
                 <Route path="/clientes/:id" element={<AreaClientes />} />
+                <Route
+                  path="/pcp"
+                  element={
+                    <ErrorBoundary>
+                      <Pcp />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route
                   path="/financeiro"
                   element={

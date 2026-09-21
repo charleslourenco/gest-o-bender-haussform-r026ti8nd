@@ -310,6 +310,8 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                 is_outsourced: p.is_outsourced || false,
                 tipo: p.tipo || null,
                 codigo_rastreio: null,
+                visivel_pcp: true,
+                status_pcp: 'planejamento',
               }
             })
 

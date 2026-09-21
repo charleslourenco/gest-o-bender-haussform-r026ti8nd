@@ -28,6 +28,7 @@ const MODULES = [
   'Comercial',
   'Criar Orçamento',
   'Clientes',
+  'Planejamento e Programação de Operações',
   'Análise Técnica',
   'Produção',
   'Criar Lista de Materiais',

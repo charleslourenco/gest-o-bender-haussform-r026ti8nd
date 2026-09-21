@@ -64,15 +64,17 @@ export function AlocacaoEquipeSelect({
   const badgeLabel = isMontagem ? 'montador(es)' : 'profissional(is)'
 
   // Identifica quais IDs de pessoas ou montadores estão alocados neste card
-  const alocacoesRaw: any[] = Array.isArray(item?.alocacao_montagem) ? item.alocacao_montagem : []
+  const alocacoesRaw: any[] = Array.isArray(item?.alocacao_montagem)
+    ? item.alocacao_montagem.filter(Boolean)
+    : []
 
   const alocadosIds = new Set<string>()
   alocacoesRaw.forEach((a) => {
-    if (a?.pessoa_id) alocadosIds.add(a.pessoa_id)
-    if (a?.montador_id) alocadosIds.add(a.montador_id)
+    if (a?.pessoa_id) alocadosIds.add(String(a.pessoa_id))
+    if (a?.montador_id) alocadosIds.add(String(a.montador_id))
   })
 
-  // Conta total de alocações do card
+  // Conta total de alocações válidas do card
   const alocacoesCount = alocacoesRaw.length
 
   const { pending, clearPending, toggleMembro, resolveChoice } = useEquipeAllocation(onUpdate)
@@ -80,11 +82,14 @@ export function AlocacaoEquipeSelect({
   if (!item?.id) return null
 
   const handleSelect = (membro: MembroEquipe) => {
+    if (!membro || !membro.id) return
     if (typeof item?.onToggleMontador === 'function') {
       item.onToggleMontador(membro.id)
       return
     }
-    const isChecked = alocadosIds.has(membro.id)
+    const isChecked =
+      alocadosIds.has(membro.id) ||
+      (membro.montador_id ? alocadosIds.has(membro.montador_id) : false)
     toggleMembro(membro, item.id, item?.cliente_id ?? null, isChecked)
   }
 
@@ -245,12 +250,18 @@ export function AlocacaoEquipeSelect({
               ) : (
                 <CommandGroup heading="Equipe (CLT & PJ)">
                   {filteredEquipe.map((m) => {
-                    const isChecked = alocadosIds.has(m.id)
+                    if (!m || !m.id) return null
+                    const isChecked =
+                      alocadosIds.has(m.id) ||
+                      (m.montador_id ? alocadosIds.has(m.montador_id) : false)
                     const isBusyWithOtherClient =
                       !isChecked &&
                       Array.isArray(m?.alocacoes) &&
                       m.alocacoes.some(
-                        (a: any) => a?.produtos_servicos_projeto?.cliente_id !== item?.cliente_id,
+                        (a: any) =>
+                          a?.produtos_servicos_projeto?.cliente_id &&
+                          item?.cliente_id &&
+                          a.produtos_servicos_projeto.cliente_id !== item.cliente_id,
                       )
 
                     return (

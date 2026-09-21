@@ -2708,11 +2708,13 @@ export type Database = {
           outsourced_checked: boolean
           qtd: number
           status_analise: string
+          status_pcp?: string
           terceirizado_validado: boolean
           tipo: string | null
           valor_comissao: number | null
           valor_total: number
           valor_unitario: number
+          visivel_pcp?: boolean
         }
         Insert: {
           analista_id?: string | null
@@ -2737,11 +2739,13 @@ export type Database = {
           outsourced_checked?: boolean
           qtd: number
           status_analise?: string
+          status_pcp?: string
           terceirizado_validado?: boolean
           tipo?: string | null
           valor_comissao?: number | null
           valor_total: number
           valor_unitario: number
+          visivel_pcp?: boolean
         }
         Update: {
           analista_id?: string | null
@@ -2766,11 +2770,13 @@ export type Database = {
           outsourced_checked?: boolean
           qtd?: number
           status_analise?: string
+          status_pcp?: string
           terceirizado_validado?: boolean
           tipo?: string | null
           valor_comissao?: number | null
           valor_total?: number
           valor_unitario?: number
+          visivel_pcp?: boolean
         }
         Relationships: [
           {

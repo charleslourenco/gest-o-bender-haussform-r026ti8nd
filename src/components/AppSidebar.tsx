@@ -12,6 +12,7 @@ import {
   Phone,
   Lock,
   ClipboardList,
+  CalendarDays,
   Factory,
   Wrench,
   Hammer,
@@ -29,6 +30,12 @@ const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', module: 'Dashboard' },
   { title: 'Atendimentos', icon: Phone, url: '/comercial', module: 'Comercial' },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
+  {
+    title: 'Planejamento e Programação de Operações',
+    icon: CalendarDays,
+    url: '/pcp',
+    module: 'Planejamento e Programação de Operações',
+  },
   {
     title: 'Análise Técnica',
     icon: ClipboardList,

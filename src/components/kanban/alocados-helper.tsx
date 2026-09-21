@@ -38,8 +38,14 @@ export function getAlocadosBadgeContent(
   maxNames = 2,
 ): { briefText: string; fullTitle: string; count: number } {
   const rawList: Array<
-    string | { pessoa_nome?: string | null; montadores?: { nome_completo?: string | null } | null }
-  > = Array.isArray(alocados) ? alocados : []
+    | string
+    | {
+        pessoa_nome?: string | null
+        montadores?: { nome_completo?: string | null } | null
+        montador?: { nome_completo?: string | null } | null
+        nome?: string | null
+      }
+  > = Array.isArray(alocados) ? alocados.filter(Boolean) : []
 
   const fullNames: string[] = []
   for (const item of rawList) {
@@ -47,7 +53,11 @@ export function getAlocadosBadgeContent(
       const trimmed = item.trim()
       if (trimmed) fullNames.push(trimmed)
     } else if (item && typeof item === 'object') {
-      const name = item.pessoa_nome || item.montadores?.nome_completo
+      const name =
+        item.pessoa_nome ||
+        item.montadores?.nome_completo ||
+        item.montador?.nome_completo ||
+        item.nome
       if (name && typeof name === 'string') {
         const trimmed = name.trim()
         if (trimmed) fullNames.push(trimmed)
@@ -55,7 +65,8 @@ export function getAlocadosBadgeContent(
     }
   }
 
-  const count = typeof alocados === 'number' ? alocados : rawList.length || fullNames.length
+  const count =
+    typeof alocados === 'number' ? Math.max(0, alocados) : rawList.length || fullNames.length
   if (count <= 0) {
     return { briefText: '', fullTitle: '', count: 0 }
   }

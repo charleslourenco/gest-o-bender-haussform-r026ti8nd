@@ -20,7 +20,15 @@ import { supabase } from '@/lib/supabase/client'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const MODULES = ['Usuários', 'Administrativo', 'Comercial', 'Clientes', 'Financeiro', 'Dashboard']
+const MODULES = [
+  'Dashboard',
+  'Comercial',
+  'Clientes',
+  'Planejamento e Programação de Operações',
+  'Financeiro',
+  'Usuários',
+  'Administrativo',
+]
 const LEVELS = ['Sem Acesso', 'Leitor', 'Editor', 'Admin']
 
 interface PermissionsModalProps {
