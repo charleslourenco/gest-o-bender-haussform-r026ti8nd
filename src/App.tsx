@@ -78,51 +78,66 @@ const App = () => (
                 <Route path="/usuarios" element={<Users />} />
                 <Route path="/clientes" element={<AreaClientes />} />
                 <Route path="/clientes/:id" element={<AreaClientes />} />
+                {/* Hub de Operações em /pcp */}
                 <Route
                   path="/pcp"
                   element={
-                    <ErrorBoundary>
+                    <ErrorBoundary source="PCP Layout">
                       <Pcp />
                     </ErrorBoundary>
                   }
+                >
+                  <Route
+                    path="analise-tecnica"
+                    element={
+                      <ErrorBoundary source="PCP AnaliseTecnica">
+                        <AnaliseTecnica />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="analise-tecnica/:id"
+                    element={
+                      <ErrorBoundary source="PCP AnaliseTecnicaDetalhe">
+                        <AnaliseTecnicaDetalhe />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="producao"
+                    element={
+                      <ErrorBoundary source="PCP Producao">
+                        <Producao />
+                      </ErrorBoundary>
+                    }
+                  />
+                  <Route
+                    path="montagem"
+                    element={
+                      <ErrorBoundary source="PCP Montagem">
+                        <Montagem />
+                      </ErrorBoundary>
+                    }
+                  />
+                </Route>
+
+                {/* Redirects permanentes para manter retrocompatibilidade com links e favoritos */}
+                <Route
+                  path="/analise-tecnica"
+                  element={<Navigate to="/pcp/analise-tecnica" replace />}
                 />
+                <Route
+                  path="/analise-tecnica/:id"
+                  element={<Navigate to="/pcp/analise-tecnica/:id" replace />}
+                />
+                <Route path="/producao" element={<Navigate to="/pcp/producao" replace />} />
+                <Route path="/montagem" element={<Navigate to="/pcp/montagem" replace />} />
+
                 <Route
                   path="/financeiro"
                   element={
                     <ErrorBoundary>
                       <Financeiro />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/analise-tecnica"
-                  element={
-                    <ErrorBoundary>
-                      <AnaliseTecnica />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/analise-tecnica/:id"
-                  element={
-                    <ErrorBoundary>
-                      <AnaliseTecnicaDetalhe />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/producao"
-                  element={
-                    <ErrorBoundary>
-                      <Producao />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/montagem"
-                  element={
-                    <ErrorBoundary>
-                      <Montagem />
                     </ErrorBoundary>
                   }
                 />

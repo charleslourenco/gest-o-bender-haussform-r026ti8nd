@@ -159,7 +159,6 @@ export function CreateCardDialog({
       const path = location.pathname
       if (path.includes('/montagem')) defaultStatus = 'aguardando_agenda'
       else if (path.includes('/producao')) defaultStatus = 'aguardando_plano_corte'
-
       // Se parentCardId veio por prop ou o usuário selecionou no dropdown
       const effectiveParentId = (selectedParentId || parentCardId || '').trim() || null
       let chosenParent = effectiveParentId

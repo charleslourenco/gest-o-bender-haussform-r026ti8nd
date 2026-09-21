@@ -90,22 +90,40 @@ export default function Montagem() {
             className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
           >
             {mainTab === 'montagem' && (
-              <ErrorBoundary>
-                <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
-                  {view === 'kanban' && <KanbanBoard title="Montagem" columns={COLUMNS} />}
-                  {view === 'lista' && (
+              <div className="flex-1 overflow-hidden min-h-0 flex flex-col">
+                {view === 'kanban' && (
+                  <ErrorBoundary source="Montagem KanbanBoard">
+                    <KanbanBoard title="Montagem" columns={COLUMNS} />
+                  </ErrorBoundary>
+                )}
+                {view === 'lista' && (
+                  <ErrorBoundary source="Montagem KanbanListView">
                     <KanbanListView columns={COLUMNS} archiveFlag="arquivado_montagem" />
-                  )}
-                  {view === 'relatorio' && <RelatorioAlocacao modulo="montagem" />}
-                  {view === 'montadores' && (
+                  </ErrorBoundary>
+                )}
+                {view === 'relatorio' && (
+                  <ErrorBoundary source="Montagem RelatorioAlocacao">
+                    <RelatorioAlocacao modulo="montagem" />
+                  </ErrorBoundary>
+                )}
+                {view === 'montadores' && (
+                  <ErrorBoundary source="Montagem MontadoresTab">
                     <div className="h-full overflow-auto p-4">
                       <MontadoresTab />
                     </div>
-                  )}
-                  {view === 'arquivados' && <KanbanArquivados archiveFlag="arquivado_montagem" />}
-                  {view === 'historico' && <HistoricoMontagem />}
-                </div>
-              </ErrorBoundary>
+                  </ErrorBoundary>
+                )}
+                {view === 'arquivados' && (
+                  <ErrorBoundary source="Montagem KanbanArquivados">
+                    <KanbanArquivados archiveFlag="arquivado_montagem" />
+                  </ErrorBoundary>
+                )}
+                {view === 'historico' && (
+                  <ErrorBoundary source="Montagem HistoricoMontagem">
+                    <HistoricoMontagem />
+                  </ErrorBoundary>
+                )}
+              </div>
             )}
           </TabsContent>
 
@@ -115,7 +133,7 @@ export default function Montagem() {
             className="flex-1 overflow-hidden min-h-0 m-0 data-[state=active]:flex flex-col relative"
           >
             {mainTab === 'assistencia' && (
-              <ErrorBoundary>
+              <ErrorBoundary source="Montagem KanbanAssistencia">
                 <KanbanAssistencia />
               </ErrorBoundary>
             )}

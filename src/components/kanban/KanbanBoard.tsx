@@ -634,21 +634,21 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     const subs = subcardsByParent.get(parentId)
     if (!subs || !Array.isArray(subs) || subs.length === 0) return null
 
-    const validSubs = subs.filter((s) => s && typeof s === 'object')
+    const validSubs = subs.filter((s) => s && typeof s === 'object' && s.id)
     const total = validSubs.length
     if (total === 0) return null
 
     // Agrupar por título da coluna / status
     const statusCountMap: Record<string, number> = {}
     validSubs.forEach((s) => {
-      const statusKey = s.status_analise || 'sem_status'
+      const statusKey = s?.status_analise || 'sem_status'
       const colDef = Array.isArray(columns) ? columns.find((c) => c && c.id === statusKey) : null
       const label = colDef?.title || statusKey || 'Sem status'
       statusCountMap[label] = (statusCountMap[label] || 0) + 1
     })
 
     const parts = Object.entries(statusCountMap).map(
-      ([st, count]) => `${count} em ${st ? st.toLowerCase() : ''}`,
+      ([st, count]) => `${count} em ${st ? String(st).toLowerCase() : 'sem status'}`,
     )
     return `↳ ${total} subcard${total > 1 ? 's' : ''}${parts.length > 0 ? ` · ${parts.join(' · ')}` : ''}`
   }
@@ -726,11 +726,11 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
                 : 0
 
               const corVinculo = isSubcard
-                ? item.cor_vinculo ||
+                ? item?.cor_vinculo ||
                   parentCard?.cor_vinculo ||
-                  (item.card_pai_id ? '#3b82f6' : null)
+                  (item?.card_pai_id ? '#3b82f6' : null)
                 : activeSubcardsCount > 0
-                  ? item.cor_vinculo || '#3b82f6'
+                  ? item?.cor_vinculo || '#3b82f6'
                   : null
 
               // Hover mútuo: se o mouse estiver no pai, realça todos os subcards. Se estiver no subcard, realça o pai e irmãos da mesma família
@@ -1519,18 +1519,24 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
           </DialogHeader>
 
           <div className="max-h-48 overflow-y-auto space-y-1.5 py-2 border rounded-md p-2 bg-muted/30">
-            {pendingParentAction?.activeSubcards.map((sub) => {
-              const colDef = columns.find((c) => c.id === sub.status_analise)
+            {(Array.isArray(pendingParentAction?.activeSubcards)
+              ? pendingParentAction.activeSubcards
+              : []
+            ).map((sub) => {
+              if (!sub) return null
+              const colDef = Array.isArray(columns)
+                ? columns.find((c) => c && c.id === sub?.status_analise)
+                : null
               return (
                 <div
-                  key={sub.id}
+                  key={sub?.id || Math.random().toString()}
                   className="flex items-center justify-between text-xs p-1.5 rounded bg-card border border-border"
                 >
                   <span className="font-medium text-foreground truncate mr-2">
-                    • {sub.nome_produto}
+                    • {sub?.nome_produto || 'Sem nome'}
                   </span>
                   <Badge variant="outline" className="text-[10px] shrink-0">
-                    {colDef?.title || sub.status_analise}
+                    {colDef?.title || sub?.status_analise || 'Sem status'}
                   </Badge>
                 </div>
               )

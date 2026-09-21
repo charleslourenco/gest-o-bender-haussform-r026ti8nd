@@ -88,7 +88,7 @@ export default function AnaliseTecnicaDetalhe() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate('/analise-tecnica')}
+            onClick={() => navigate('/pcp/analise-tecnica')}
             className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <ChevronLeft className="h-5 w-5" />

@@ -65,7 +65,8 @@ export function AIAssistant() {
       path.startsWith('/analise-tecnica') ||
       path.startsWith('/dashboard') ||
       path.startsWith('/producao') ||
-      path.startsWith('/montagem')
+      path.startsWith('/montagem') ||
+      path.startsWith('/pcp')
     ) {
       newChar = 'otto'
     } else if (path.startsWith('/estoque') || path.startsWith('/compras')) {

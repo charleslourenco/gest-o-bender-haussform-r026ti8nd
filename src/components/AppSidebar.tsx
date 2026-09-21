@@ -31,19 +31,11 @@ const menuItems = [
   { title: 'Atendimentos', icon: Phone, url: '/comercial', module: 'Comercial' },
   { title: 'Clientes', icon: Users, url: '/clientes', module: 'Clientes' },
   {
-    title: 'Planejamento e Programação de Operações',
+    title: 'PCP / Operações',
     icon: CalendarDays,
     url: '/pcp',
-    module: 'Planejamento e Programação de Operações',
+    module: 'PCP / Operações',
   },
-  {
-    title: 'Análise Técnica',
-    icon: ClipboardList,
-    url: '/analise-tecnica',
-    module: 'Análise Técnica',
-  },
-  { title: 'Produção', icon: Factory, url: '/producao', module: 'Produção' },
-  { title: 'Montagem & Assistência', icon: Wrench, url: '/montagem', module: 'Montagem' },
   {
     title: 'Acompanhamentos',
     icon: ClipboardCheck,
@@ -80,6 +72,19 @@ export function AppSidebar() {
 
   const hasAccess = (moduleName: string) => {
     if (isSuperAdmin) return true
+    if (moduleName === 'PCP / Operações') {
+      // Consolidado: visível se tiver acesso a pelo menos um dos 4 módulos operacionais
+      const pcpModules = [
+        'Planejamento e Programação de Operações',
+        'Análise Técnica',
+        'Produção',
+        'Montagem',
+      ]
+      return pcpModules.some((mod) => {
+        const lvl = permissions[mod]
+        return lvl && lvl !== 'Sem Acesso'
+      })
+    }
     const level = permissions[moduleName]
     return level && level !== 'Sem Acesso'
   }

@@ -289,7 +289,7 @@ export function AnaliseProjetoKanbanBoard() {
                         setDraggingId(project.id)
                       }}
                       onDragEnd={() => setDraggingId(null)}
-                      onClick={() => navigate(`/analise-tecnica/${project.id}`)}
+                      onClick={() => navigate(`/pcp/analise-tecnica/${project.id}`)}
                       className={cn(
                         'p-4 rounded-lg shadow-sm border-2 cursor-pointer transition-all group relative',
                         isAlert
