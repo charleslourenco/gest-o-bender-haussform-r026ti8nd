@@ -1,3 +1,4 @@
+// Validação de integridade da Matriz PCP
 import { supabase } from '@/lib/supabase/client'
 
 export type PcpLinhaOperacao = 'analise' | 'producao' | 'montagem'

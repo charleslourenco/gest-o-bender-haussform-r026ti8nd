@@ -2478,6 +2478,47 @@ export type Database = {
           },
         ]
       }
+      pcp_reprogramacao_historico: {
+        Row: {
+          card_id: string
+          criado_em: string
+          id: string
+          linha_operacao: string
+          motivo: string | null
+          semana_anterior: string | null
+          semana_nova: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          card_id: string
+          criado_em?: string
+          id?: string
+          linha_operacao: string
+          motivo?: string | null
+          semana_anterior?: string | null
+          semana_nova?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          card_id?: string
+          criado_em?: string
+          id?: string
+          linha_operacao?: string
+          motivo?: string | null
+          semana_anterior?: string | null
+          semana_nova?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pcp_reprogramacao_historico_card_id_fkey'
+            columns: ['card_id']
+            isOneToOne: false
+            referencedRelation: 'produtos_servicos_projeto'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       pedidos_compra: {
         Row: {
           atualizado_em: string
@@ -2708,6 +2749,9 @@ export type Database = {
           nome_produto: string
           outsourced_checked: boolean
           qtd: number
+          semana_planejada_analise: string | null
+          semana_planejada_montagem: string | null
+          semana_planejada_producao: string | null
           status_analise: string
           status_pcp: string
           terceirizado_validado: boolean
@@ -2740,6 +2784,9 @@ export type Database = {
           nome_produto: string
           outsourced_checked?: boolean
           qtd: number
+          semana_planejada_analise?: string | null
+          semana_planejada_montagem?: string | null
+          semana_planejada_producao?: string | null
           status_analise?: string
           status_pcp?: string
           terceirizado_validado?: boolean
@@ -2772,6 +2819,9 @@ export type Database = {
           nome_produto?: string
           outsourced_checked?: boolean
           qtd?: number
+          semana_planejada_analise?: string | null
+          semana_planejada_montagem?: string | null
+          semana_planejada_producao?: string | null
           status_analise?: string
           status_pcp?: string
           terceirizado_validado?: boolean
