@@ -36,11 +36,13 @@ function computeSaleValue(form: any): number {
       ? JSON.parse(form.produtos_servicos || '[]')
       : form.produtos_servicos || []
   if (!Array.isArray(prods)) return 0
-  const subtotal = prods.reduce(
-    (a: number, p: any) => a + Number(p.valor_unitario || 0) * Number(p.qtd || p.quantidade || 1),
-    0,
-  )
-  return subtotal - (Number(form.desconto) || 0)
+  const subtotal = prods.reduce((a: number, p: any) => {
+    const q = Number(p.qtd || p.quantidade) || 1
+    const vu = Number(p.valor_unitario) || 0
+    const descPerc = Number(p.desconto_percentual) || 0
+    return a + Math.max(0, q * vu * (1 - descPerc / 100))
+  }, 0)
+  return Math.max(0, subtotal - (Number(form.desconto) || 0))
 }
 
 export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: () => void }) {

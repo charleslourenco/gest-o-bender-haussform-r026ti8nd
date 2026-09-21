@@ -52,7 +52,8 @@ export interface ProdutoForm {
   id: string
   tipo?: TipoItemProduto | ''
   nome: string
-  qtd: number
+  qtd: number | string
+  desconto_percentual?: number | string
   descricao: string
   valor_unitario: number
   is_outsourced?: boolean
@@ -150,6 +151,7 @@ export const defaultState: FormState = {
       tipo: '',
       nome: '',
       qtd: 1,
+      desconto_percentual: 0,
       descricao: '',
       valor_unitario: 0,
       is_outsourced: false,

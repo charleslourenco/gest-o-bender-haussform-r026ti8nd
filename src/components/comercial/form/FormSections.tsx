@@ -284,6 +284,7 @@ export function SectionProdutos({ data, update }: Props) {
         tipo: '',
         nome: '',
         qtd: 1,
+        desconto_percentual: 0,
         descricao: '',
         valor_unitario: 0,
         is_outsourced: false,
@@ -360,15 +361,16 @@ export function SectionProdutos({ data, update }: Props) {
         <Plus className="w-4 h-4" /> Adicionar Produto
       </button>
       <div className="overflow-x-auto mb-[16px]">
-        <table className="w-full text-left border-collapse min-w-[1050px]">
+        <table className="w-full text-left border-collapse min-w-[1150px]">
           <thead>
             <tr className="bg-dark-denim text-off-white font-[600]">
               <th className="p-[12px] border border-steel-blue min-w-[200px]">Tipo *</th>
               <th className="p-[12px] border border-steel-blue min-w-[200px]">Produto/Serviço</th>
-              <th className="p-[12px] border border-steel-blue w-[80px]">Qtd</th>
-              <th className="p-[12px] border border-steel-blue min-w-[220px]">Descrição</th>
-              <th className="p-[12px] border border-steel-blue w-[150px]">Valor Unitário</th>
-              <th className="p-[12px] border border-steel-blue w-[150px]">Valor Total</th>
+              <th className="p-[12px] border border-steel-blue w-[85px]">Qtd</th>
+              <th className="p-[12px] border border-steel-blue min-w-[200px]">Descrição</th>
+              <th className="p-[12px] border border-steel-blue w-[140px]">Valor Unitário</th>
+              <th className="p-[12px] border border-steel-blue w-[95px]">Desc. %</th>
+              <th className="p-[12px] border border-steel-blue w-[140px]">Valor Total</th>
               <th className="p-[12px] border border-steel-blue w-[180px]">Solicitar Compra</th>
               <th className="p-[12px] border border-steel-blue w-[50px]"></th>
             </tr>
@@ -377,6 +379,18 @@ export function SectionProdutos({ data, update }: Props) {
             {data.produtos.map((p) => {
               const isLocked = !p.tipo
               const lockedClass = isLocked ? 'opacity-40 cursor-not-allowed bg-slate-200' : ''
+              const numericQtd = typeof p.qtd === 'number' ? p.qtd : parseFloat(String(p.qtd)) || 0
+              const numericDescPerc =
+                typeof p.desconto_percentual === 'number'
+                  ? p.desconto_percentual
+                  : parseFloat(String(p.desconto_percentual)) || 0
+              const safeQtd = Number.isFinite(numericQtd) && numericQtd > 0 ? numericQtd : 0
+              const safeDescPerc =
+                Number.isFinite(numericDescPerc) && numericDescPerc >= 0
+                  ? Math.min(100, numericDescPerc)
+                  : 0
+              const vu = Number(p.valor_unitario) || 0
+              const totalLinha = Math.max(0, safeQtd * vu * (1 - safeDescPerc / 100))
 
               return (
                 <tr key={p.id} className="bg-off-white text-midnight-navy">
@@ -413,14 +427,33 @@ export function SectionProdutos({ data, update }: Props) {
                   </td>
                   <td className="p-[8px] border border-steel-blue">
                     <input
-                      type="number"
-                      min="1"
+                      type="text"
+                      inputMode="numeric"
                       disabled={isLocked}
-                      className={`${inputClass} ${lockedClass}`}
-                      value={p.qtd}
-                      onChange={(e) =>
-                        upProd(p.id, 'qtd', Math.max(1, parseInt(e.target.value) || 1))
-                      }
+                      className={`${inputClass} ${lockedClass} text-center`}
+                      value={p.qtd ?? ''}
+                      placeholder="1"
+                      onChange={(e) => {
+                        const raw = e.target.value
+                        // Permite campo vazio temporariamente durante digitação
+                        if (raw === '') {
+                          upProd(p.id, 'qtd', '')
+                          return
+                        }
+                        const parsed = parseInt(raw, 10)
+                        if (Number.isFinite(parsed)) {
+                          upProd(p.id, 'qtd', Math.max(1, parsed))
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const raw = e.target.value.trim()
+                        const parsed = parseInt(raw, 10)
+                        if (!Number.isFinite(parsed) || parsed < 1) {
+                          upProd(p.id, 'qtd', 1)
+                        } else {
+                          upProd(p.id, 'qtd', parsed)
+                        }
+                      }}
                     />
                   </td>
                   <td className="p-[8px] border border-steel-blue">
@@ -437,7 +470,7 @@ export function SectionProdutos({ data, update }: Props) {
                       type="text"
                       disabled={isLocked}
                       className={`${inputClass} ${lockedClass}`}
-                      value={formatCurrencyInput(Math.round(p.valor_unitario * 100))}
+                      value={formatCurrencyInput(Math.round(vu * 100))}
                       onChange={(e) =>
                         upProd(
                           p.id,
@@ -447,8 +480,54 @@ export function SectionProdutos({ data, update }: Props) {
                       }
                     />
                   </td>
+                  <td className="p-[8px] border border-steel-blue">
+                    <div className="relative flex items-center">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        disabled={isLocked}
+                        className={`${inputClass} ${lockedClass} pr-6 text-right`}
+                        value={p.desconto_percentual ?? 0}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(',', '.')
+                          if (raw === '') {
+                            upProd(p.id, 'desconto_percentual', '')
+                            return
+                          }
+                          // Permite digitar número com ponto
+                          if (/^\d*\.?\d*$/.test(raw)) {
+                            const parsed = parseFloat(raw)
+                            if (Number.isFinite(parsed)) {
+                              if (parsed > 100) {
+                                upProd(p.id, 'desconto_percentual', 100)
+                              } else {
+                                upProd(p.id, 'desconto_percentual', raw)
+                              }
+                            } else {
+                              upProd(p.id, 'desconto_percentual', raw)
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const raw = String(e.target.value).trim().replace(',', '.')
+                          const parsed = parseFloat(raw)
+                          if (!Number.isFinite(parsed) || parsed < 0) {
+                            upProd(p.id, 'desconto_percentual', 0)
+                          } else if (parsed > 100) {
+                            upProd(p.id, 'desconto_percentual', 100)
+                          } else {
+                            upProd(p.id, 'desconto_percentual', parsed)
+                          }
+                        }}
+                      />
+                      <span className="absolute right-2 text-xs font-semibold text-muted-foreground pointer-events-none">
+                        %
+                      </span>
+                    </div>
+                  </td>
                   <td className="p-[8px] border border-steel-blue font-bold">
-                    {formatCurrencyInput(Math.round(p.qtd * p.valor_unitario * 100))}
+                    {formatCurrencyInput(Math.round(totalLinha * 100))}
                   </td>
                   <td className="p-[8px] border border-steel-blue text-center">
                     <label
@@ -490,22 +569,46 @@ export function SectionProdutos({ data, update }: Props) {
 }
 
 export function SectionTotais({ data, update }: Props) {
-  const subtotal = data.produtos.reduce(
-    (acc, p) => acc + (Number(p.qtd) || 0) * (Number(p.valor_unitario) || 0),
-    0,
-  )
-  const total = Math.max(0, subtotal - (Number(data.desconto) || 0))
+  const subtotalBruto = data.produtos.reduce((acc, p) => {
+    const q = typeof p.qtd === 'number' ? p.qtd : parseFloat(String(p.qtd)) || 0
+    const vu = Number(p.valor_unitario) || 0
+    return acc + (Number.isFinite(q) && q > 0 ? q : 0) * vu
+  }, 0)
+
+  const subtotalComDescontoItens = data.produtos.reduce((acc, p) => {
+    const q = typeof p.qtd === 'number' ? p.qtd : parseFloat(String(p.qtd)) || 0
+    const vu = Number(p.valor_unitario) || 0
+    const descPercRaw =
+      typeof p.desconto_percentual === 'number'
+        ? p.desconto_percentual
+        : parseFloat(String(p.desconto_percentual)) || 0
+    const descPerc =
+      Number.isFinite(descPercRaw) && descPercRaw >= 0 ? Math.min(100, descPercRaw) : 0
+    const safeQtd = Number.isFinite(q) && q > 0 ? q : 0
+    return acc + Math.max(0, safeQtd * vu * (1 - descPerc / 100))
+  }, 0)
+
+  const totalDescontoItens = Math.max(0, subtotalBruto - subtotalComDescontoItens)
+  const total = Math.max(0, subtotalComDescontoItens - (Number(data.desconto) || 0))
 
   return (
     <div className="bg-pale-cornflower border-2 border-steel-blue text-midnight-navy p-[16px] rounded-[8px] mb-[16px]">
       <h2 className="font-bold text-[18px] mb-[12px]">SEÇÃO 5 — TOTAIS</h2>
-      <div className="flex flex-col gap-[12px] max-w-xs ml-auto">
+      <div className="flex flex-col gap-[12px] max-w-sm ml-auto">
         <div className="flex justify-between items-center bg-off-white p-3 border-2 border-steel-blue rounded">
           <span className="font-semibold">Subtotal:</span>
-          <span>{formatCurrencyInput(Math.round(subtotal * 100))}</span>
+          <span>{formatCurrencyInput(Math.round(subtotalBruto * 100))}</span>
         </div>
+        {totalDescontoItens > 0 && (
+          <div className="flex justify-between items-center bg-off-white p-3 border-2 border-steel-blue rounded text-emerald-800">
+            <span className="font-semibold text-xs">Desc. Itens (%):</span>
+            <span className="font-semibold text-xs">
+              - {formatCurrencyInput(Math.round(totalDescontoItens * 100))}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between items-center bg-off-white p-3 border-2 border-steel-blue rounded">
-          <span className="font-semibold">Desconto:</span>
+          <span className="font-semibold">Desconto (R$):</span>
           <input
             type="text"
             className="w-[120px] text-right bg-transparent outline-none font-bold"
@@ -523,11 +626,19 @@ export function SectionTotais({ data, update }: Props) {
 }
 
 export function SectionPagamento({ data, update }: Props) {
-  const subtotal = data.produtos.reduce(
-    (acc, p) => acc + (Number(p.qtd) || 0) * (Number(p.valor_unitario) || 0),
-    0,
-  )
-  const total = Math.max(0, subtotal - (Number(data.desconto) || 0))
+  const subtotalComDescontoItens = data.produtos.reduce((acc, p) => {
+    const q = typeof p.qtd === 'number' ? p.qtd : parseFloat(String(p.qtd)) || 0
+    const vu = Number(p.valor_unitario) || 0
+    const descPercRaw =
+      typeof p.desconto_percentual === 'number'
+        ? p.desconto_percentual
+        : parseFloat(String(p.desconto_percentual)) || 0
+    const descPerc =
+      Number.isFinite(descPercRaw) && descPercRaw >= 0 ? Math.min(100, descPercRaw) : 0
+    const safeQtd = Number.isFinite(q) && q > 0 ? q : 0
+    return acc + Math.max(0, safeQtd * vu * (1 - descPerc / 100))
+  }, 0)
+  const total = Math.max(0, subtotalComDescontoItens - (Number(data.desconto) || 0))
   const metodos = [
     'PIX',
     'Boleto',

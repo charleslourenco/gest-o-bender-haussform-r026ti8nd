@@ -103,11 +103,28 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
               }
             }
 
+            const parsedQtd =
+              item.qtd !== undefined && item.qtd !== null && item.qtd !== ''
+                ? Number(item.qtd)
+                : item.quantidade !== undefined &&
+                    item.quantidade !== null &&
+                    item.quantidade !== ''
+                  ? Number(item.quantidade)
+                  : 1
+            const parsedDescPerc =
+              item.desconto_percentual !== undefined &&
+              item.desconto_percentual !== null &&
+              item.desconto_percentual !== ''
+                ? Number(item.desconto_percentual)
+                : 0
+
             return {
               id: item.id || Math.random().toString(36).substring(2),
               tipo: inferredTipo,
               nome: item.nome || item.descricao || '',
-              qtd: item.qtd || item.quantidade || 1,
+              qtd: Number.isFinite(parsedQtd) && parsedQtd > 0 ? parsedQtd : 1,
+              desconto_percentual:
+                Number.isFinite(parsedDescPerc) && parsedDescPerc >= 0 ? parsedDescPerc : 0,
               descricao: item.descricao || item.ambiente || '',
               valor_unitario: item.valor_unitario || 0,
               is_outsourced: item.is_outsourced || item.tipo_fluxo === 'Compra Direta' || false,
@@ -177,11 +194,32 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
     try {
       const { data: authData } = await supabase.auth.getUser()
 
-      const valorTotal =
-        data.produtos.reduce(
-          (acc: number, p: any) => acc + Number(p.valor_unitario || 0) * Number(p.qtd || 1),
-          0,
-        ) - (data.desconto || 0)
+      const parseItemQtd = (val: any) => {
+        const n = typeof val === 'string' ? parseFloat(val) : Number(val)
+        return Number.isFinite(n) && n > 0 ? n : 1
+      }
+      const parseItemDesc = (val: any) => {
+        const n = typeof val === 'string' ? parseFloat(val) : Number(val)
+        return Number.isFinite(n) && n >= 0 ? Math.min(100, n) : 0
+      }
+      const calcItemLinha = (p: any) => {
+        const q = parseItemQtd(p.qtd)
+        const vu = Number(p.valor_unitario || 0)
+        const descPerc = parseItemDesc(p.desconto_percentual)
+        return Math.max(0, q * vu * (1 - descPerc / 100))
+      }
+
+      const produtosHigienizados = data.produtos.map((p: any) => ({
+        ...p,
+        qtd: parseItemQtd(p.qtd),
+        desconto_percentual: parseItemDesc(p.desconto_percentual),
+      }))
+
+      const subtotalComDescontoItens = produtosHigienizados.reduce(
+        (acc: number, p: any) => acc + calcItemLinha(p),
+        0,
+      )
+      const valorTotal = Math.max(0, subtotalComDescontoItens - (Number(data.desconto) || 0))
 
       if (data.forma_pagamento === 'Parcelado' && data.pagamento_parcelado?.length > 0) {
         const somaParcelas = data.pagamento_parcelado.reduce(
@@ -222,7 +260,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         obra_bairro: data.obra_bairro || null,
         obra_municipio: data.obra_municipio || null,
         obra_estado: data.obra_estado || null,
-        produtos_servicos: data.produtos as any,
+        produtos_servicos: produtosHigienizados as any,
         desconto: data.desconto || 0,
         pagamentos: [
           {
@@ -244,8 +282,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         data_pagamento: data.data_venda || null,
         nome_cliente: data.nome,
         ambientes: ambientesUnicos,
-        itens: data.produtos,
-        especificacoes: JSON.stringify(data.produtos.map((p: any) => p.descricao || p.nome || '')),
+        itens: produtosHigienizados,
+        especificacoes: JSON.stringify(
+          produtosHigienizados.map((p: any) => p.descricao || p.nome || ''),
+        ),
         data_prevista_entrega: data.data_entrega_maxima || null,
         atualizado_em: new Date().toISOString(),
       }
@@ -260,9 +300,9 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
       if (error) throw error
 
-      if (formId && data.produtos && data.produtos.length > 0) {
-        const compraDiretaItems = data.produtos.filter((p: any) => p.is_outsourced)
-        const allItems = data.produtos
+      if (formId && produtosHigienizados && produtosHigienizados.length > 0) {
+        const compraDiretaItems = produtosHigienizados.filter((p: any) => p.is_outsourced)
+        const allItems = produtosHigienizados
 
         if (allItems.length > 0) {
           const { data: existingCards } = await supabase
@@ -272,9 +312,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
           const existingNames = existingCards?.map((c) => c.nome_produto) || []
 
-          // Atualiza cards existentes para manter o campo `tipo` sincronizado caso já existam
+          // Atualiza cards existentes para manter o campo `tipo` e `desconto_percentual` sincronizados
           for (const p of allItems) {
             const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
+            const itemLinhaTotal = calcItemLinha(p)
             if (existingNames.includes(productName)) {
               await supabase
                 .from('produtos_servicos_projeto')
@@ -283,9 +324,10 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                   is_outsourced: p.is_outsourced || false,
                   descricao: p.descricao || '',
                   valor_unitario: p.valor_unitario || 0,
-                  valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
+                  valor_total: itemLinhaTotal,
                   qtd: p.qtd || 1,
-                })
+                  desconto_percentual: p.desconto_percentual || 0,
+                } as any)
                 .eq('formulario_comercial_id', formId)
                 .eq('nome_produto', productName)
             }
@@ -298,6 +340,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             })
             .map((p: any) => {
               const productName = p.nome || p.nome_produto || p.descricao || 'Produto'
+              const itemLinhaTotal = calcItemLinha(p)
               return {
                 formulario_comercial_id: formId,
                 cliente_id: dossie.cliente_id,
@@ -305,7 +348,8 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                 qtd: p.qtd || 1,
                 descricao: p.descricao || '',
                 valor_unitario: p.valor_unitario || 0,
-                valor_total: (p.valor_unitario || 0) * (p.qtd || 1),
+                valor_total: itemLinhaTotal,
+                desconto_percentual: p.desconto_percentual || 0,
                 status_analise: 'iniciar',
                 is_outsourced: p.is_outsourced || false,
                 tipo: p.tipo || null,
@@ -316,7 +360,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             })
 
           if (newCards.length > 0) {
-            await supabase.from('produtos_servicos_projeto').insert(newCards)
+            await supabase.from('produtos_servicos_projeto').insert(newCards as any)
           }
         }
 
