@@ -12,7 +12,7 @@ import {
 import { Search, Trash2, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
-import { format } from 'date-fns'
+import { formatSafeDate } from '@/lib/date-utils'
 import { Badge } from '@/components/ui/badge'
 import { ResponsavelSelect } from './ResponsavelSelect'
 
@@ -54,21 +54,25 @@ export function AcompanhamentosLista() {
     }
   }
 
-  const filtered = (items || []).filter(
-    (i) =>
-      i &&
-      (i?.nome_cliente?.toLowerCase().includes(search.toLowerCase()) ||
-        i?.codigo_projeto?.toLowerCase().includes(search.toLowerCase()) ||
-        i?.tipo_acompanhamento?.toLowerCase().includes(search.toLowerCase()) ||
-        (i?.responsaveis_acompanhamentos
-          ? (Array.isArray(i.responsaveis_acompanhamentos)
-              ? i.responsaveis_acompanhamentos[0]?.nome
-              : i.responsaveis_acompanhamentos?.nome
-            )
-              ?.toLowerCase()
-              .includes(search.toLowerCase())
-          : false)),
-  )
+  const searchLower = search.trim().toLowerCase()
+  const filtered = (items || []).filter((i) => {
+    if (!i) return false
+    if (!searchLower) return true
+
+    const nomeResp = i.responsaveis_acompanhamentos
+      ? Array.isArray(i.responsaveis_acompanhamentos)
+        ? i.responsaveis_acompanhamentos[0]?.nome
+        : i.responsaveis_acompanhamentos?.nome
+      : ''
+
+    return Boolean(
+      (i.nome_cliente && String(i.nome_cliente).toLowerCase().includes(searchLower)) ||
+      (i.codigo_projeto && String(i.codigo_projeto).toLowerCase().includes(searchLower)) ||
+      (i.tipo_acompanhamento &&
+        String(i.tipo_acompanhamento).toLowerCase().includes(searchLower)) ||
+      (nomeResp && String(nomeResp).toLowerCase().includes(searchLower)),
+    )
+  })
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -99,11 +103,16 @@ export function AcompanhamentosLista() {
             {filtered
               .filter((i) => i && i.id)
               .map((item) => {
-                const responsavelNome = item?.responsaveis_acompanhamentos
-                  ? (Array.isArray(item.responsaveis_acompanhamentos)
-                      ? item.responsaveis_acompanhamentos[0]?.nome
-                      : item.responsaveis_acompanhamentos?.nome) || '-'
-                  : '-'
+                const respRaw = item?.responsaveis_acompanhamentos
+                const resolvedNome = respRaw
+                  ? Array.isArray(respRaw)
+                    ? respRaw[0]?.nome
+                    : respRaw?.nome
+                  : null
+                const responsavelNome =
+                  resolvedNome && typeof resolvedNome === 'string' && resolvedNome.trim()
+                    ? resolvedNome.trim()
+                    : 'Sem responsável'
                 return (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium font-mono text-xs">
@@ -116,9 +125,7 @@ export function AcompanhamentosLista() {
                     <TableCell className="text-sm">
                       <div className="flex items-center gap-1.5">
                         <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" />
-                        {item?.data_criacao
-                          ? format(new Date(item.data_criacao), 'dd/MM/yyyy')
-                          : '-'}
+                        {formatSafeDate(item?.data_criacao, 'dd/MM/yyyy')}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -129,7 +136,9 @@ export function AcompanhamentosLista() {
                         <ResponsavelSelect
                           acompanhamentoId={item.id}
                           responsavelId={item?.responsavel_id ?? null}
-                          responsavelNome={responsavelNome === '-' ? null : responsavelNome}
+                          responsavelNome={
+                            responsavelNome === 'Sem responsável' ? null : responsavelNome
+                          }
                           onUpdate={fetchItems}
                           variant="inline"
                         />

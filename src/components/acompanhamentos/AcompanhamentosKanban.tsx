@@ -149,22 +149,35 @@ export function AcompanhamentosKanban() {
   }, [])
 
   const handleDragStart = (e: React.DragEvent, cardId: string) => {
-    e.dataTransfer.setData('cardId', cardId)
+    if (!cardId) return
+    try {
+      e.dataTransfer.setData('cardId', cardId)
+      e.dataTransfer.effectAllowed = 'move'
+    } catch (err) {
+      console.warn('Erro ao iniciar drag:', err)
+    }
   }
 
   const handleDragOver = (e: React.DragEvent, status: string) => {
     e.preventDefault()
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'move'
+    }
     setDragOverCol(status)
   }
 
   const handleDragLeave = (e: React.DragEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    if (
-      e.clientX <= rect.left ||
-      e.clientX >= rect.right ||
-      e.clientY <= rect.top ||
-      e.clientY >= rect.bottom
-    ) {
+    try {
+      const rect = e.currentTarget.getBoundingClientRect()
+      if (
+        e.clientX <= rect.left ||
+        e.clientX >= rect.right ||
+        e.clientY <= rect.top ||
+        e.clientY >= rect.bottom
+      ) {
+        setDragOverCol(null)
+      }
+    } catch {
       setDragOverCol(null)
     }
   }
@@ -172,12 +185,14 @@ export function AcompanhamentosKanban() {
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault()
     setDragOverCol(null)
-    const cardId = e.dataTransfer.getData('cardId')
-    if (!cardId) return
+    const cardId = e.dataTransfer?.getData('cardId')
+    if (!cardId || !status) return
 
     try {
-      // Optimistic update
-      setCards((prev) => prev.map((c) => (c?.id === cardId ? { ...c, status_atual: status } : c)))
+      // Optimistic update seguro
+      setCards((prev) =>
+        (prev || []).map((c) => (c && c.id === cardId ? { ...c, status_atual: status } : c)),
+      )
 
       const { error } = await supabase
         .from('acompanhamentos')
@@ -188,7 +203,7 @@ export function AcompanhamentosKanban() {
     } catch (error: any) {
       toast({
         title: 'Erro ao mover card',
-        description: error.message || 'Erro desconhecido',
+        description: error?.message || 'Erro desconhecido',
         variant: 'destructive',
       })
       fetchCards() // Revert
@@ -242,11 +257,16 @@ export function AcompanhamentosKanban() {
                   colCards
                     .filter((c) => c && c.id)
                     .map((card) => {
-                      const responsavelNome = card?.responsaveis_acompanhamentos
-                        ? (Array.isArray(card.responsaveis_acompanhamentos)
-                            ? card.responsaveis_acompanhamentos[0]?.nome
-                            : card.responsaveis_acompanhamentos?.nome) || 'Sem responsável'
-                        : 'Sem responsável'
+                      const respRaw = card?.responsaveis_acompanhamentos
+                      const resolvedNome = respRaw
+                        ? Array.isArray(respRaw)
+                          ? respRaw[0]?.nome
+                          : respRaw?.nome
+                        : null
+                      const responsavelNome =
+                        resolvedNome && typeof resolvedNome === 'string' && resolvedNome.trim()
+                          ? resolvedNome.trim()
+                          : 'Sem responsável'
                       return (
                         <Card
                           key={card.id}
@@ -261,15 +281,16 @@ export function AcompanhamentosKanban() {
                               </span>
                               <div className="flex items-center gap-1">
                                 <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                                  {card?.quantidade_itens || 0} iten(s)
+                                  {Number(card?.quantidade_itens) || 0} iten(s)
                                 </span>
                                 {col === 'FINALIZAÇÃO' && (
                                   <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       handleArchive(card.id)
                                     }}
-                                    className="text-muted-foreground hover:text-amber-600 p-0.5 transition-colors"
+                                    className="text-muted-foreground hover:text-amber-600 p-0.5 transition-colors cursor-pointer"
                                     title="Arquivar"
                                   >
                                     <Archive className="w-3.5 h-3.5" />

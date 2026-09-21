@@ -235,17 +235,58 @@ Deno.serve(async (req: Request) => {
         throw new Error('Nenhum produto ou serviço encontrado para gerar o documento.')
       }
 
-      const subtotalProdutos = Array.isArray(produtos)
-        ? produtos.reduce(
-            (acc: number, p: any) =>
-              acc +
-              (Number(p.valor_total) ||
-                (Number(p.valor_unitario) || 0) * (Number(p.qtd) || Number(p.quantidade) || 1)),
-            0,
-          )
-        : 0
-      const descontoProdutos = Number(form.desconto) || 0
-      const valorTotal = subtotalProdutos - descontoProdutos
+      // -------------------------------------------------------------------------
+      // CÁLCULO DE VALORES E DESCONTOS (Com suporte a desconto percentual por item)
+      // subtotalBruto = soma de (qtd × valor_unitario) de cada produto, ignorando desconto.
+      // descontoItens = soma de (qtd × valor_unitario × desconto_percentual/100) por item.
+      // descontoGlobal = form.desconto.
+      // descontoTotal = descontoItens + descontoGlobal.
+      // totalGeral = subtotalBruto − descontoTotal.
+      // FALLBACK: se nenhum item tiver desconto_percentual > 0, os valores devem ficar
+      // 100% idênticos aos de antes (contratos antigos não mudam).
+      // -------------------------------------------------------------------------
+      const temDescontoPercentual =
+        Array.isArray(produtos) &&
+        produtos.some((p: any) => {
+          const desc = Number(p.desconto_percentual)
+          return Number.isFinite(desc) && desc > 0
+        })
+
+      let subtotalBruto = 0
+      let descontoItens = 0
+      const descontoGlobal = Number(form.desconto) || 0
+
+      if (temDescontoPercentual) {
+        for (const p of produtos as any[]) {
+          const q = Number(p.qtd ?? p.quantidade) || 1
+          const vu = Number(p.valor_unitario) || 0
+          const descPerc = Math.max(0, Math.min(100, Number(p.desconto_percentual) || 0))
+          const itemBruto = q * vu
+          const itemDesc = itemBruto * (descPerc / 100)
+          subtotalBruto += itemBruto
+          descontoItens += itemDesc
+        }
+      } else {
+        // Modo legado idêntico: soma de p.valor_total (ou vu * q)
+        subtotalBruto = Array.isArray(produtos)
+          ? produtos.reduce(
+              (acc: number, p: any) =>
+                acc +
+                (Number(p.valor_total) ||
+                  (Number(p.valor_unitario) || 0) * (Number(p.qtd ?? p.quantidade) || 1)),
+              0,
+            )
+          : 0
+        descontoItens = 0
+      }
+
+      const descontoTotal = descontoItens + descontoGlobal
+      const totalGeral = Math.max(0, subtotalBruto - descontoTotal)
+
+      // Variáveis legadas mantidas para consistência e semântica
+      const subtotalProdutos = subtotalBruto
+      const descontoProdutos = descontoTotal
+      const valorTotal = totalGeral
 
       // =========================================================================
       // CÁLCULO DOS MÓDULOS E DO ACOMPANHAMENTO CONTRATADO
@@ -478,28 +519,28 @@ Deno.serve(async (req: Request) => {
         DATA_VENDA: formatDate(data_venda),
         DATA_PREVISTA_ENTREGA: formatDate(data_prevista_entrega),
         DATA_ENTREGA: formatDate(data_prevista_entrega),
-        SUBTOTAL_PRODUTOS: formatCurrency(subtotalProdutos),
-        SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalProdutos),
-        VALOR_DESCONTO: formatCurrency(descontoProdutos),
-        VALOR_DESCONTO_MOEDA: formatCurrency(descontoProdutos),
-        TOTAL_GERAL: formatCurrency(valorTotal),
-        TOTAL_GERAL_MOEDA: formatCurrency(valorTotal),
-        TOTAL_PRODUTOS: formatCurrency(valorTotal),
-        VALOR_TOTAL: formatCurrency(valorTotal),
-        VALOR_TOTAL_MOEDA: formatCurrency(valorTotal),
-        VALOR_TOTAL_CONTRATO: formatCurrency(valorTotal),
-        DESCONTO: formatCurrency(descontoProdutos),
-        DESCONTO_PRODUTOS: formatCurrency(descontoProdutos),
-        DESCONTO_MOEDA: formatCurrency(descontoProdutos),
-        total_geral: formatCurrency(subtotalProdutos),
-        valor_desconto: formatCurrency(descontoProdutos),
-        valor_final: formatCurrency(valorTotal),
+        SUBTOTAL_PRODUTOS: formatCurrency(subtotalBruto),
+        SUBTOTAL_PRODUTOS_MOEDA: formatCurrency(subtotalBruto),
+        VALOR_DESCONTO: formatCurrency(descontoTotal),
+        VALOR_DESCONTO_MOEDA: formatCurrency(descontoTotal),
+        TOTAL_GERAL: formatCurrency(totalGeral),
+        TOTAL_GERAL_MOEDA: formatCurrency(totalGeral),
+        TOTAL_PRODUTOS: formatCurrency(totalGeral),
+        VALOR_TOTAL: formatCurrency(totalGeral),
+        VALOR_TOTAL_MOEDA: formatCurrency(totalGeral),
+        VALOR_TOTAL_CONTRATO: formatCurrency(totalGeral),
+        DESCONTO: formatCurrency(descontoTotal),
+        DESCONTO_PRODUTOS: formatCurrency(descontoTotal),
+        DESCONTO_MOEDA: formatCurrency(descontoTotal),
+        total_geral: formatCurrency(totalGeral),
+        valor_desconto: formatCurrency(descontoTotal),
+        valor_final: formatCurrency(totalGeral),
         FORMA_PAGAMENTO: forma_pagamento,
         NUMERO_PARCELAS: parcelas.length || 1,
         VALOR_PARCELA:
           parcelas.length > 0
             ? formatCurrency(Number(parcelas[0].valor || parcelas[0].valor_parcela) || 0)
-            : formatCurrency(valorTotal),
+            : formatCurrency(totalGeral),
         CLAUSULA_PAGAMENTO_NARRATIVA: clausula_pagamento,
         METODO_PAGAMENTO: form.metodo_pagamento || pagamentos.forma || 'Não informado',
         VENDEDOR_NOME: vendedorNome,
@@ -518,7 +559,9 @@ Deno.serve(async (req: Request) => {
         produtos: produtos.map((p: any) => {
           const quantidade = Number(p.qtd || p.quantidade) || 1
           const valorUnitario = Number(p.valor_unitario) || 0
-          const vTotal = Number(p.valor_total) || valorUnitario * quantidade
+          const descPerc = Math.max(0, Math.min(100, Number(p.desconto_percentual) || 0))
+          // Manter valor_unitario bruto e valor_total líquido (com desconto do item aplicado)
+          const vTotal = Number(p.valor_total) || valorUnitario * quantidade * (1 - descPerc / 100)
           const solicitarCompra = Boolean(
             p.is_outsourced || p.solicitar_compra || p.tipo === 'Móveis soltos',
           )
@@ -534,6 +577,7 @@ Deno.serve(async (req: Request) => {
             quantidade: String(quantidade),
             valor_unitario: formatCurrency(valorUnitario),
             valor_total: formatCurrency(vTotal),
+            desconto_percentual: descPerc,
             solicitar_compra: solicitarCompra,
           }
         }),

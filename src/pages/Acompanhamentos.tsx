@@ -6,6 +6,7 @@ import { AcompanhamentosKanban } from '@/components/acompanhamentos/Acompanhamen
 import { AcompanhamentosLista } from '@/components/acompanhamentos/AcompanhamentosLista'
 import { AcompanhamentosResponsaveis } from '@/components/acompanhamentos/AcompanhamentosResponsaveis'
 import { AcompanhamentosArquivados } from '@/components/acompanhamentos/AcompanhamentosArquivados'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ClipboardCheck } from 'lucide-react'
 
 export default function Acompanhamentos() {
@@ -59,21 +60,27 @@ export default function Acompanhamentos() {
           value="kanban"
           className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
         >
-          <AcompanhamentosKanban />
+          <ErrorBoundary source="AcompanhamentosKanban">
+            <AcompanhamentosKanban />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent
           value="lista"
           className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
         >
-          <AcompanhamentosLista />
+          <ErrorBoundary source="AcompanhamentosLista">
+            <AcompanhamentosLista />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent
           value="arquivados"
           className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
         >
-          <AcompanhamentosArquivados />
+          <ErrorBoundary source="AcompanhamentosArquivados">
+            <AcompanhamentosArquivados />
+          </ErrorBoundary>
         </TabsContent>
 
         {isAdmin && (
@@ -81,7 +88,9 @@ export default function Acompanhamentos() {
             value="responsaveis"
             className="flex-1 min-h-0 data-[state=active]:flex flex-col m-0 p-0 border-none outline-none focus-visible:ring-0"
           >
-            <AcompanhamentosResponsaveis />
+            <ErrorBoundary source="AcompanhamentosResponsaveis">
+              <AcompanhamentosResponsaveis />
+            </ErrorBoundary>
           </TabsContent>
         )}
       </Tabs>

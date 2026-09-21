@@ -2697,6 +2697,7 @@ export type Database = {
           cor_vinculo: string | null
           criado_em: string
           data_manual: string | null
+          desconto_percentual: number
           descricao: string | null
           excluido_analise: boolean
           excluido_montagem: boolean
@@ -2728,6 +2729,7 @@ export type Database = {
           cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
+          desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean
           excluido_montagem?: boolean
@@ -2759,6 +2761,7 @@ export type Database = {
           cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
+          desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean
           excluido_montagem?: boolean

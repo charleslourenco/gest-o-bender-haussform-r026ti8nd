@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RotateCcw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { format } from 'date-fns'
+import { formatSafeDate } from '@/lib/date-utils'
 
 export function AcompanhamentosArquivados() {
   const [items, setItems] = useState<any[]>([])
@@ -65,19 +65,21 @@ export function AcompanhamentosArquivados() {
         <TableBody>
           {items.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="font-medium font-mono text-xs">{item.codigo_projeto}</TableCell>
-              <TableCell>{item.nome_cliente}</TableCell>
+              <TableCell className="font-medium font-mono text-xs">
+                {item?.codigo_projeto || 'N/A'}
+              </TableCell>
+              <TableCell>{item?.nome_cliente || '-'}</TableCell>
               <TableCell className="text-muted-foreground text-sm">
-                {item.tipo_acompanhamento}
+                {item?.tipo_acompanhamento || '-'}
               </TableCell>
               <TableCell>
-                <Badge variant="outline">{item.status_atual}</Badge>
+                <Badge variant="outline">{item?.status_atual || '-'}</Badge>
               </TableCell>
               <TableCell className="text-sm">
-                {format(new Date(item.data_atualizacao), 'dd/MM/yyyy')}
+                {formatSafeDate(item?.data_atualizacao || item?.data_criacao, 'dd/MM/yyyy')}
               </TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={() => handleUnarchive(item.id)}>
+                <Button variant="ghost" size="sm" onClick={() => handleUnarchive(item?.id)}>
                   <RotateCcw className="w-4 h-4 mr-1" />
                   Desarquivar
                 </Button>
