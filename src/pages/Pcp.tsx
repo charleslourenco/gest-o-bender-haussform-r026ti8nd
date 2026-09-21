@@ -9,15 +9,20 @@ import {
   Calendar,
   Layers,
   ChevronRight,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
 import { PcpMatrizMensal } from '@/components/pcp/PcpMatrizMensal'
+import { PcpMatrizAnual } from '@/components/pcp/PcpMatrizAnual'
+import { PcpModoLista } from '@/components/pcp/PcpModoLista'
 import { cn } from '@/lib/utils'
 
 type SchedulePeriod = 'anual' | 'mensal' | 'semanal' | 'diario'
+type ViewMode = 'grade' | 'lista'
 
 interface PcpTabItem {
   id: string
@@ -60,6 +65,11 @@ const PCP_TABS: PcpTabItem[] = [
 
 export function PcpPlanejamentoView() {
   const [period, setPeriod] = useState<SchedulePeriod>('mensal')
+  const [viewMode, setViewMode] = useState<ViewMode>('grade')
+
+  // Estado para quando o usuário dá duplo clique num mês da Visão Anual e navega para a Visão Mensal
+  const [targetMonthIndex, setTargetMonthIndex] = useState<number | undefined>(undefined)
+  const [targetYear, setTargetYear] = useState<number | undefined>(undefined)
 
   const periodLabels: Record<SchedulePeriod, string> = {
     anual: 'Visão Anual',
@@ -68,44 +78,97 @@ export function PcpPlanejamentoView() {
     diario: 'Visão Diária',
   }
 
+  const handleNavigateToMonth = (monthIndex: number, year: number) => {
+    setTargetMonthIndex(monthIndex)
+    setTargetYear(year)
+    setPeriod('mensal')
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-      {/* Sub-header de Cronograma e Seletores de período */}
-      <div className="px-6 py-3 bg-card border-b border-border flex flex-wrap items-center justify-between gap-4 shrink-0">
+      {/* Sub-header de Cronograma, Seletores de período e Alternância Grade / Lista */}
+      <div className="px-6 py-2.5 bg-card border-b border-border flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-primary" />
           <span className="text-sm font-semibold text-foreground">Cronograma de Operações</span>
-          <span className="text-xs text-muted-foreground ml-2">({periodLabels[period]})</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            ({periodLabels[period]} • {viewMode === 'grade' ? 'Grade / Calendário' : 'Modo Lista'})
+          </span>
         </div>
 
-        {/* Seletores Anual / Mensal / Semanal / Diário */}
-        <div className="flex items-center p-1 bg-muted/60 rounded-lg gap-1">
-          {(['anual', 'mensal', 'semanal', 'diario'] as SchedulePeriod[]).map((p) => (
+        <div className="flex items-center gap-3">
+          {/* Seletor de Modo: [ 📊 Grade / Calendário ] | [ 📋 Lista ] */}
+          <div className="flex items-center p-1 bg-muted/70 rounded-lg gap-1 border border-border/50">
             <Button
-              key={p}
-              variant={period === p ? 'default' : 'ghost'}
+              variant={viewMode === 'grade' ? 'default' : 'ghost'}
               size="sm"
-              onClick={() => setPeriod(p)}
+              onClick={() => setViewMode('grade')}
               className={cn(
-                'h-7 px-3 text-xs font-medium capitalize transition-all',
-                period === p
+                'h-7 px-3 text-xs font-semibold flex items-center gap-1.5 transition-all',
+                viewMode === 'grade'
                   ? 'bg-primary text-primary-foreground shadow-xs'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted',
               )}
             >
-              {p === 'diario' ? 'Diário' : p}
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Grade / Calendário
             </Button>
-          ))}
+
+            <Button
+              variant={viewMode === 'lista' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('lista')}
+              className={cn(
+                'h-7 px-3 text-xs font-semibold flex items-center gap-1.5 transition-all',
+                viewMode === 'lista'
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+              )}
+            >
+              <List className="w-3.5 h-3.5" />
+              Lista
+            </Button>
+          </div>
+
+          {/* Seletores Anual / Mensal / Semanal / Diário */}
+          <div className="flex items-center p-1 bg-muted/60 rounded-lg gap-1 border border-border/50">
+            {(['anual', 'mensal', 'semanal', 'diario'] as SchedulePeriod[]).map((p) => (
+              <Button
+                key={p}
+                variant={period === p ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  'h-7 px-3 text-xs font-medium capitalize transition-all',
+                  period === p
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                )}
+              >
+                {p === 'diario' ? 'Diário' : p}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Quando período for 'mensal', exibe a Matriz Completa de Planejamento de Capacidade Fabril */}
-      {period === 'mensal' ? (
+      {/* Renderização dinâmica com base no seletor de visualização (Grade vs Lista) e Período */}
+      {viewMode === 'lista' ? (
+        <ErrorBoundary source="PCP Modo Lista">
+          <PcpModoLista
+            initialZoom={period === 'anual' ? 'anual' : period === 'semanal' ? 'semanal' : 'mensal'}
+          />
+        </ErrorBoundary>
+      ) : period === 'anual' ? (
+        <ErrorBoundary source="PCP Matriz Anual">
+          <PcpMatrizAnual onNavigateToMonth={handleNavigateToMonth} />
+        </ErrorBoundary>
+      ) : period === 'mensal' ? (
         <ErrorBoundary source="PCP Matriz Mensal">
-          <PcpMatrizMensal />
+          <PcpMatrizMensal initialYear={targetYear} initialMonthIndex={targetMonthIndex} />
         </ErrorBoundary>
       ) : (
-        /* Para anual, semanal e diário, mantém o estado de transição explicativo */
+        /* Semanal e Diário mantêm a transição fluida para Mensal / Anual */
         <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
           <Card className="max-w-xl w-full border border-border/60 shadow-sm bg-card/60 backdrop-blur-xs text-center p-8">
             <CardContent className="pt-2 pb-0 flex flex-col items-center">
@@ -116,16 +179,25 @@ export function PcpPlanejamentoView() {
                 Cronograma Operacional ({periodLabels[period]})
               </h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-6">
-                A matriz de planejamento de capacidade e semanas ISO está disponível na sub-aba{' '}
-                <strong className="text-foreground">Visão Mensal</strong>.
+                A programação operacional detalhada com capacidade e alocação está disponível nas
+                visões <strong className="text-foreground">Anual</strong>,{' '}
+                <strong className="text-foreground">Mensal</strong> e no{' '}
+                <strong className="text-foreground">Modo Lista</strong>.
               </p>
 
-              <div className="w-full flex justify-center pt-2 border-t border-border/60">
+              <div className="w-full flex justify-center gap-3 pt-2 border-t border-border/60">
+                <Button
+                  variant="outline"
+                  onClick={() => setPeriod('anual')}
+                  className="text-xs font-semibold"
+                >
+                  Ir para a Visão Anual (12 Meses)
+                </Button>
                 <Button
                   onClick={() => setPeriod('mensal')}
                   className="bg-primary text-primary-foreground text-xs font-semibold"
                 >
-                  Ir para a Visão Mensal (Matriz de Capacidade)
+                  Ir para a Visão Mensal (Semanas ISO)
                 </Button>
               </div>
             </CardContent>

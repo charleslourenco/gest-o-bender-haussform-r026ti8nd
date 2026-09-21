@@ -10,6 +10,7 @@ interface PcpCardProps {
   card: PcpCardItem
   linha?: PcpLinhaOperacao
   currentSemana?: string | null
+  currentMes?: string | null
   onClick?: () => void
   isDragging?: boolean
   compact?: boolean
@@ -20,6 +21,7 @@ export const PcpCard: React.FC<PcpCardProps> = ({
   card,
   linha,
   currentSemana,
+  currentMes,
   onClick,
   isDragging = false,
   compact = false,
@@ -40,6 +42,9 @@ export const PcpCard: React.FC<PcpCardProps> = ({
     }
     if (currentSemana) {
       e.dataTransfer.setData('sourceSemana', currentSemana)
+    }
+    if (currentMes) {
+      e.dataTransfer.setData('sourceMes', currentMes)
     }
     e.dataTransfer.effectAllowed = 'move'
   }

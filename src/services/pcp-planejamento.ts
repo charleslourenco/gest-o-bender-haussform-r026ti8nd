@@ -35,6 +35,15 @@ export interface PcpCardItem {
   semana_planejada_analise: string | null
   semana_planejada_producao: string | null
   semana_planejada_montagem: string | null
+  mes_planejado_analise?: string | null
+  mes_planejado_producao?: string | null
+  mes_planejado_montagem?: string | null
+  analista_id?: string | null
+  analista?: {
+    id: string
+    nome: string
+    foto_perfil?: string | null
+  } | null
   // Relacionamentos
   cliente?: {
     id?: string
@@ -64,6 +73,9 @@ export interface PcpReprogramacaoItem {
   linha_operacao: PcpLinhaOperacao
   semana_anterior: string | null
   semana_nova: string | null
+  mes_anterior?: string | null
+  mes_novo?: string | null
+  tipo_planejamento?: string | null
   motivo: string | null
   usuario_id: string | null
   criado_em: string
@@ -83,6 +95,9 @@ const SELECT_QUERY = `
   excluido_analise, excluido_producao, excluido_montagem,
   criado_em, atualizado_em,
   semana_planejada_analise, semana_planejada_producao, semana_planejada_montagem,
+  mes_planejado_analise, mes_planejado_producao, mes_planejado_montagem,
+  analista_id,
+  analista:users!analista_id(id, nome, foto_perfil),
   cliente:clientes(id, nome, telefone, email),
   formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, cliente:clientes(nome)),
   card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, cor_vinculo, status_analise)
@@ -114,12 +129,18 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
     const formulario = Array.isArray(formSource) ? formSource[0] : formSource
     const paiSource = item?.card_pai
     const card_pai = Array.isArray(paiSource) ? paiSource[0] : paiSource
+    const analistaSource = item?.analista
+    const analista = Array.isArray(analistaSource) ? analistaSource[0] : analistaSource
 
     return {
       ...item,
       cliente: cliente || null,
       formulario: formulario || null,
       card_pai: card_pai || null,
+      analista: analista || null,
+      mes_planejado_analise: item.mes_planejado_analise || null,
+      mes_planejado_producao: item.mes_planejado_producao || null,
+      mes_planejado_montagem: item.mes_planejado_montagem || null,
       valor_total: Number(item.valor_total) || 0,
       valor_unitario: Number(item.valor_unitario) || 0,
       desconto_percentual: Number(item.desconto_percentual) || 0,
@@ -173,6 +194,7 @@ export async function updateCardSemanaPlanejada(
     await supabase.from('pcp_reprogramacao_historico').insert({
       card_id: cardId,
       linha_operacao: linha,
+      tipo_planejamento: 'semana',
       semana_anterior: semanaAnterior || null,
       semana_nova: semanaNova || null,
       motivo: motivo || (semanaAnterior ? 'Reprogramação temporal' : 'Alocação inicial de semana'),
@@ -180,6 +202,57 @@ export async function updateCardSemanaPlanejada(
     } as any)
   } catch (histErr) {
     console.warn('Aviso ao registrar histórico de reprogramação (não impeditivo):', histErr)
+  }
+}
+
+/**
+ * Atualiza o mês planejado de um card em uma das 3 linhas operacionais.
+ * NUNCA altera status_analise, status_pcp ou fases existentes.
+ * mesNovo no formato 'YYYY-MM' (ex: '2026-10') ou null.
+ */
+export async function updateCardMesPlanejado(
+  cardId: string,
+  linha: PcpLinhaOperacao,
+  mesNovo: string | null,
+  mesAnterior: string | null,
+  motivo?: string,
+): Promise<void> {
+  const columnMap: Record<
+    PcpLinhaOperacao,
+    'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
+  > = {
+    analise: 'mes_planejado_analise',
+    producao: 'mes_planejado_producao',
+    montagem: 'mes_planejado_montagem',
+  }
+
+  const colName = columnMap[linha]
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ [colName]: mesNovo, atualizado_em: new Date().toISOString() } as any)
+    .eq('id', cardId)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar mês planejado:', updateErr)
+    throw updateErr
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    await supabase.from('pcp_reprogramacao_historico').insert({
+      card_id: cardId,
+      linha_operacao: linha,
+      tipo_planejamento: 'mes',
+      mes_anterior: mesAnterior || null,
+      mes_novo: mesNovo || null,
+      motivo: motivo || (mesAnterior ? 'Reprogramação mensal' : 'Alocação inicial de mês'),
+      usuario_id: userId,
+    } as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico de reprogramação mensal:', histErr)
   }
 }
 

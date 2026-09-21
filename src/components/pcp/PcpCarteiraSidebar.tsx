@@ -24,12 +24,12 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'todos' | 'ambientes' | 'subcards'>('todos')
 
-  // Filtro de cards na carteira (cards sem semana_planejada_producao OU sem nenhuma semana)
-  // Conforme spec 1: "Lista os projetos e subcards (ambientes) criados a partir dos contratos que ainda não possuem semana de produção definida."
+  // Modo de exibição da carteira: aguardando semana ou aguardando mês
+  // Cards na carteira: sem semana ou sem mês de produção definidos
   const unassignedCards = cards.filter((c) => {
-    // Não deve possuir semana de produção definida
     const semSemanaProd = !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
-    return semSemanaProd
+    const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
+    return semSemanaProd && semMesProd
   })
 
   const filteredCards = unassignedCards.filter((card) => {
@@ -93,7 +93,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             </div>
             <div>
               <h2 className="text-xs font-bold text-foreground tracking-tight leading-none uppercase">
-                CARTEIRA (Aguardando Semana)
+                CARTEIRA (Aguardando Planejamento)
               </h2>
               <span className="text-[10px] text-muted-foreground font-medium">
                 {filteredCards.length} {filteredCards.length === 1 ? 'item' : 'itens'} •{' '}
@@ -193,7 +193,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
       {/* Dica de usabilidade na base */}
       <div className="p-2 border-t border-border bg-muted/30 shrink-0 text-[10px] text-muted-foreground flex items-center justify-between">
-        <span>Arraste o card para uma semana</span>
+        <span>Arraste para uma coluna temporal</span>
         <Badge variant="outline" className="text-[9px] px-1 py-0">
           Drag & Drop
         </Badge>

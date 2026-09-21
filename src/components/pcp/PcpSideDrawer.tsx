@@ -50,7 +50,29 @@ interface PcpSideDrawerProps {
     semanaAnterior: string | null,
     motivo?: string,
   ) => Promise<void>
+  onUpdateMes?: (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    novoMes: string | null,
+    mesAnterior: string | null,
+    motivo?: string,
+  ) => Promise<void>
 }
+
+const MESES_OPCOES = [
+  { key: '01', label: 'Janeiro' },
+  { key: '02', label: 'Fevereiro' },
+  { key: '03', label: 'Março' },
+  { key: '04', label: 'Abril' },
+  { key: '05', label: 'Maio' },
+  { key: '06', label: 'Junho' },
+  { key: '07', label: 'Julho' },
+  { key: '08', label: 'Agosto' },
+  { key: '09', label: 'Setembro' },
+  { key: '10', label: 'Outubro' },
+  { key: '11', label: 'Novembro' },
+  { key: '12', label: 'Dezembro' },
+]
 
 export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
   card,
@@ -58,6 +80,7 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
   onClose,
   availableWeeks,
   onUpdateSemana,
+  onUpdateMes,
 }) => {
   const navigate = useNavigate()
   const [historico, setHistorico] = useState<PcpReprogramacaoItem[]>([])
@@ -102,6 +125,28 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
     try {
       await onUpdateSemana(card.id, linha, val, currentSemana)
       // Atualizar lista local de histórico
+      const updated = await fetchReprogramacaoHistorico(card.id)
+      setHistorico(updated)
+    } finally {
+      setSavingLinha(null)
+    }
+  }
+
+  const handleMesChange = async (linha: PcpLinhaOperacao, novoMesValue: string) => {
+    if (!onUpdateMes) return
+    const val = novoMesValue === 'none' ? null : novoMesValue
+    const currentMes =
+      linha === 'analise'
+        ? card.mes_planejado_analise
+        : linha === 'producao'
+          ? card.mes_planejado_producao
+          : card.mes_planejado_montagem
+
+    if (val === currentMes) return
+
+    setSavingLinha(linha)
+    try {
+      await onUpdateMes(card.id, linha, val, currentMes)
       const updated = await fetchReprogramacaoHistorico(card.id)
       setHistorico(updated)
     } finally {
@@ -408,6 +453,8 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                         <span className="text-muted-foreground">
                           {h.semana_anterior ? (
                             <strong className="text-foreground">{h.semana_anterior}</strong>
+                          ) : h.mes_anterior ? (
+                            <strong className="text-foreground">{h.mes_anterior}</strong>
                           ) : (
                             <span className="italic">Não definido</span>
                           )}
@@ -416,6 +463,8 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                         <span>
                           {h.semana_nova ? (
                             <strong className="text-primary">{h.semana_nova}</strong>
+                          ) : h.mes_novo ? (
+                            <strong className="text-primary">{h.mes_novo}</strong>
                           ) : (
                             <span className="italic text-muted-foreground">Removido</span>
                           )}

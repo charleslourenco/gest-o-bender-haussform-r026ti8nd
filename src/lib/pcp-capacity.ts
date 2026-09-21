@@ -168,6 +168,75 @@ export function formatCompactBRL(val: number): string {
   return formatBRL(val)
 }
 
+/**
+ * Avaliação da Capacidade Financeira Mensal (Visão Anual):
+ * - Meta Mensal FULL (referência 4 semanas): R$ 1.200.000,00 a R$ 1.400.000,00
+ * - AZUL: Até R$ 1.199.999,99 (Capacidade mensal livre para novos contratos)
+ * - VERDE (META FULL MENSAL): R$ 1.200.000,00 a R$ 1.400.000,00 (Ocupação ideal do mês)
+ * - AMARELO / VERMELHO: Acima de R$ 1.400.000,00 (Alerta de sobrecarga mensal)
+ */
+export function avaliarCapacidadeFinanceiraMensal(total: number): CapacidadeInfo {
+  const formattedTotal = formatBRL(total)
+  const metaMin = 1200000
+  const metaMax = 1400000
+  const progressPct = Math.min(100, Math.round((total / metaMax) * 100))
+
+  if (total < metaMin) {
+    return {
+      status: 'azul',
+      total,
+      formattedTotal,
+      label: 'Capacidade mensal livre para novos contratos',
+      badgeText: 'Livre',
+      bgClass: 'bg-blue-500/10 dark:bg-blue-950/30',
+      borderClass: 'border-blue-300 dark:border-blue-700',
+      textClass: 'text-blue-700 dark:text-blue-400',
+      badgeClass:
+        'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border-blue-200 dark:border-blue-700',
+      progressPct,
+    }
+  }
+
+  if (total <= metaMax) {
+    return {
+      status: 'verde',
+      total,
+      formattedTotal,
+      label: 'Ocupação ideal do mês (Meta Full Mensal)',
+      badgeText: 'Meta Full (Ideal)',
+      bgClass: 'bg-emerald-500/10 dark:bg-emerald-950/30',
+      borderClass: 'border-emerald-300 dark:border-emerald-700',
+      textClass: 'text-emerald-700 dark:text-emerald-400',
+      badgeClass:
+        'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700',
+      progressPct: 100,
+    }
+  }
+
+  // Acima de 1.4M - Alerta de sobrecarga mensal
+  const isExtremo = total > 1600000
+  return {
+    status: isExtremo ? 'vermelho' : 'amarelo',
+    total,
+    formattedTotal,
+    label: 'Alerta de sobrecarga mensal na produção',
+    badgeText: isExtremo ? 'Sobrecarga Crítica' : 'Alerta Sobrecarga',
+    bgClass: isExtremo
+      ? 'bg-rose-500/15 dark:bg-rose-950/35'
+      : 'bg-amber-500/15 dark:bg-amber-950/35',
+    borderClass: isExtremo
+      ? 'border-rose-400 dark:border-rose-700'
+      : 'border-amber-400 dark:border-amber-700',
+    textClass: isExtremo
+      ? 'text-rose-700 dark:text-rose-400'
+      : 'text-amber-700 dark:text-amber-400',
+    badgeClass: isExtremo
+      ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 border-rose-200 dark:border-rose-700'
+      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border-amber-200 dark:border-amber-700',
+    progressPct: 100,
+  }
+}
+
 export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
   const formattedTotal = formatBRL(total)
   const metaMax = 350000

@@ -4,6 +4,7 @@ import {
   PcpCardItem,
   fetchPcpCards,
   updateCardSemanaPlanejada,
+  updateCardMesPlanejado,
   PcpLinhaOperacao,
 } from '@/services/pcp-planejamento'
 import {
@@ -36,10 +37,25 @@ const MESES = [
   'Dezembro',
 ]
 
-export const PcpMatrizMensal: React.FC = () => {
+interface PcpMatrizMensalProps {
+  initialYear?: number
+  initialMonthIndex?: number
+}
+
+export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
+  initialYear,
+  initialMonthIndex,
+}) => {
   const today = useMemo(() => new Date(), [])
-  const [currentYear, setCurrentYear] = useState<number>(today.getFullYear())
-  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(today.getMonth())
+  const [currentYear, setCurrentYear] = useState<number>(initialYear ?? today.getFullYear())
+  const [currentMonthIndex, setCurrentMonthIndex] = useState<number>(
+    initialMonthIndex ?? today.getMonth(),
+  )
+
+  useEffect(() => {
+    if (initialYear !== undefined) setCurrentYear(initialYear)
+    if (initialMonthIndex !== undefined) setCurrentMonthIndex(initialMonthIndex)
+  }, [initialYear, initialMonthIndex])
 
   const [cards, setCards] = useState<PcpCardItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -343,6 +359,10 @@ export const PcpMatrizMensal: React.FC = () => {
         onClose={() => setDrawerOpen(false)}
         availableWeeks={weeks}
         onUpdateSemana={handleUpdateSemanaFromDrawer}
+        onUpdateMes={async (cardId, linha, novoMes, mesAnterior, motivo) => {
+          await updateCardMesPlanejado(cardId, linha, novoMes, mesAnterior, motivo)
+          loadCards(true)
+        }}
       />
     </div>
   )
