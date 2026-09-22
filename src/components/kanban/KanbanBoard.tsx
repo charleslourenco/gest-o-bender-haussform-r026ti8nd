@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useKanbanData, getClienteNome, type KanbanItem } from '@/hooks/use-kanban-data'
+import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import { AlocadosBadge } from './alocados-helper'
 import {
   updateCardStatus,
@@ -206,6 +207,7 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
   const [selectedAnalyst, setSelectedAnalyst] = useState('all')
   const [selectedConsultant, setSelectedConsultant] = useState('all')
   const [activeView, setActiveView] = useState<'kanban' | 'lista' | 'montadores'>('kanban')
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
 
   const [validatingCardId, setValidatingCardId] = useState<string | null>(null)
   const [showTerceirizadoDialog, setShowTerceirizadoDialog] = useState(false)
@@ -244,6 +246,16 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     window.addEventListener('kanban_tab_change', handleTabChange)
     return () => window.removeEventListener('kanban_tab_change', handleTabChange)
   }, [isMontagemRoute, isProducao, isAnaliseTecnica])
+
+  useEffect(() => {
+    const handleWeekFilter = (e: any) => {
+      if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
+        setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
+      }
+    }
+    window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    return () => window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+  }, [])
 
   const handleOpenValidation = (id: string) => {
     setValidatingCardId(id)
@@ -398,6 +410,15 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
 
     if (selectedConsultant !== 'all') {
       if (item?.formulario?.user_id !== selectedConsultant) return false
+    }
+
+    // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
+    if (somenteSemanaAtual) {
+      const current = getCurrentIsoWeek()
+      const semCard = parseWeekNumber(
+        item.semana_planejada_producao || item.card_pai?.semana_planejada_producao,
+      )
+      if (semCard !== current.weekNumber) return false
     }
 
     return true

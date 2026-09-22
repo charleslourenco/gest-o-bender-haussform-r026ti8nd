@@ -48,6 +48,68 @@ interface ParentHierarchyItem {
   cor_vinculo?: string | null
   codigo_rastreio?: string | null
   status_analise?: string | null
+  // Dados de prazo e urgência (Spec Etapa 4)
+  dataPrometidaEntrega?: string | null
+  diasParaEntrega?: number | null // null se sem data
+  diasDesdeCriacao?: number // dias desde created_at / criado_em
+  agingStatus?: 'vermelho' | 'amarelo' | 'verde' | 'sem_data'
+}
+
+/**
+ * Extrai a data prometida de entrega do contrato a partir do card/formulário.
+ * Prioriza data_prevista_entrega do formulário comercial ou datas.data_entrega_maxima.
+ */
+function extrairDataPrometidaEntrega(card?: PcpCardItem): string | null {
+  if (!card) return null
+  const form = card.formulario as any
+  if (form?.data_prevista_entrega) return form.data_prevista_entrega
+  if (form?.datas?.data_entrega_maxima) return form.datas.data_entrega_maxima
+  if (form?.datas?.data_entrega_minima) return form.datas.data_entrega_minima
+  if (card.data_obra_montagem) return card.data_obra_montagem
+  return null
+}
+
+/**
+ * Calcula a diferença em dias entre duas datas (target - hoje).
+ */
+function calcularDiasAteData(dateStr: string): number {
+  const target = new Date(dateStr.length === 10 ? `${dateStr}T12:00:00` : dateStr)
+  const hoje = new Date()
+  const hojeMeioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0)
+  const diffMs = target.getTime() - hojeMeioDia.getTime()
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+}
+
+/**
+ * Calcula dias decorridos desde a criação do card até hoje.
+ */
+function calcularDiasDesdeCriacao(criadoEmStr?: string): number {
+  if (!criadoEmStr) return 0
+  const criado = new Date(criadoEmStr)
+  const hoje = new Date()
+  const diffMs = hoje.getTime() - criado.getTime()
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+}
+
+/**
+ * Semáforo visual de aging no card pai:
+ * - 🔴 Badge Vermelho = menos de 30 dias para a data de entrega e ainda sem semana agendada
+ * - 🟡 Badge Amarelo = entre 30 e 60 dias
+ * - 🟢 Badge Verde = mais de 60 dias
+ */
+function obterAgingStatus(
+  diasParaEntrega: number | null,
+  temSemanaAgendada: boolean,
+): 'vermelho' | 'amarelo' | 'verde' | 'sem_data' {
+  if (diasParaEntrega === null) return 'sem_data'
+  if (temSemanaAgendada) {
+    if (diasParaEntrega < 30) return 'vermelho'
+    if (diasParaEntrega <= 60) return 'amarelo'
+    return 'verde'
+  }
+  if (diasParaEntrega < 30) return 'vermelho'
+  if (diasParaEntrega <= 60) return 'amarelo'
+  return 'verde'
 }
 
 export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
@@ -225,6 +287,14 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
         }
 
+        const dataEntrega = extrairDataPrometidaEntrega(parent)
+        const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
+        const diasDesdeCriacao = calcularDiasDesdeCriacao(parent.criado_em)
+        const temSemana = Boolean(
+          parent.semana_planejada_producao && parent.semana_planejada_producao.trim() !== '',
+        )
+        const aging = obterAgingStatus(diasParaEntrega, temSemana)
+
         list.push({
           id: parent.id,
           isVirtual: false,
@@ -239,6 +309,10 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           cor_vinculo: parent.cor_vinculo,
           codigo_rastreio: parent.codigo_rastreio,
           status_analise: parent.status_analise,
+          dataPrometidaEntrega: dataEntrega,
+          diasParaEntrega,
+          diasDesdeCriacao,
+          agingStatus: aging,
         })
       }
     }
@@ -272,6 +346,14 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           0,
         )
 
+        const dataEntrega = extrairDataPrometidaEntrega(first)
+        const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
+        const diasDesdeCriacao = calcularDiasDesdeCriacao(first.criado_em)
+        const temSemana = Boolean(
+          first.semana_planejada_producao && first.semana_planejada_producao.trim() !== '',
+        )
+        const aging = obterAgingStatus(diasParaEntrega, temSemana)
+
         list.push({
           id: `virtual-${groupKey}`,
           isVirtual: true,
@@ -286,10 +368,22 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           cor_vinculo: first.cor_vinculo,
           codigo_rastreio: first.formulario_comercial_id ? first.codigo_rastreio : null,
           status_analise: first.status_analise,
+          dataPrometidaEntrega: dataEntrega,
+          diasParaEntrega,
+          diasDesdeCriacao,
+          agingStatus: aging,
         })
       } else {
         // Card isolado único (sem outros ambientes no mesmo cliente/contrato)
         const totalContratoValor = Number(first.valor_total) || 0
+        const dataEntrega = extrairDataPrometidaEntrega(first)
+        const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
+        const diasDesdeCriacao = calcularDiasDesdeCriacao(first.criado_em)
+        const temSemana = Boolean(
+          first.semana_planejada_producao && first.semana_planejada_producao.trim() !== '',
+        )
+        const aging = obterAgingStatus(diasParaEntrega, temSemana)
+
         list.push({
           id: first.id,
           isVirtual: false,
@@ -304,9 +398,30 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           cor_vinculo: first.cor_vinculo,
           codigo_rastreio: first.codigo_rastreio,
           status_analise: first.status_analise,
+          dataPrometidaEntrega: dataEntrega,
+          diasParaEntrega,
+          diasDesdeCriacao,
+          agingStatus: aging,
         })
       }
     }
+
+    // ORDENAÇÃO AUTOMÁTICA POR URGÊNCIA (Spec Etapa 4):
+    // Prioritariamente pela Data Prometida de Entrega no Contrato (mais urgente no topo).
+    // Cards com data definida vêm antes dos sem data; menor diasParaEntrega (mais próximo ou atrasado) no topo.
+    list.sort((a, b) => {
+      const aTem = a.diasParaEntrega !== null && a.diasParaEntrega !== undefined
+      const bTem = b.diasParaEntrega !== null && b.diasParaEntrega !== undefined
+
+      if (aTem && bTem) {
+        return (a.diasParaEntrega as number) - (b.diasParaEntrega as number)
+      }
+      if (aTem && !bTem) return -1
+      if (!aTem && bTem) return 1
+
+      // Fallback secundário: mais antigos criados primeiro (maior diasDesdeCriacao)
+      return (b.diasDesdeCriacao || 0) - (a.diasDesdeCriacao || 0)
+    })
 
     return list
   }, [cards, modo])
@@ -845,7 +960,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                   {/* Linha 1: Nome do Cliente + Botão Sanfona / Expandir */}
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                           Projeto
                         </span>
@@ -857,6 +972,15 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         {item.isVirtual && (
                           <span className="text-[9px] bg-muted text-muted-foreground px-1 rounded font-normal">
                             Contrato
+                          </span>
+                        )}
+                        {/* Selo discreto "Entrada há X dias" */}
+                        {typeof item.diasDesdeCriacao === 'number' && (
+                          <span
+                            className="text-[9px] bg-muted/80 text-muted-foreground px-1 rounded"
+                            title={`Criado no sistema há ${item.diasDesdeCriacao} dias`}
+                          >
+                            Entrada há {item.diasDesdeCriacao}d
                           </span>
                         )}
                       </div>
@@ -884,6 +1008,64 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         >
                           {item.parent?.nome_produto}
                         </p>
+                      )}
+
+                      {/* Semáforo visual de aging + Data Prometida de Entrega (Spec Etapa 4) */}
+                      {item.dataPrometidaEntrega && (
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {item.agingStatus === 'vermelho' && (
+                            <Badge
+                              variant="destructive"
+                              className="text-[9px] px-1.5 py-0 h-4 font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-700"
+                              title="Menos de 30 dias para entrega no contrato e sem semana agendada!"
+                            >
+                              🔴 Entrega:{' '}
+                              {item.diasParaEntrega !== null && item.diasParaEntrega !== undefined
+                                ? `${item.diasParaEntrega}d`
+                                : ''}{' '}
+                              (
+                              {item.dataPrometidaEntrega
+                                .slice(0, 10)
+                                .split('-')
+                                .reverse()
+                                .slice(0, 2)
+                                .join('/')}
+                              )
+                            </Badge>
+                          )}
+                          {item.agingStatus === 'amarelo' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1.5 py-0 h-4 font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+                              title="Entre 30 e 60 dias para entrega no contrato"
+                            >
+                              🟡 Entrega: {item.diasParaEntrega}d (
+                              {item.dataPrometidaEntrega
+                                .slice(0, 10)
+                                .split('-')
+                                .reverse()
+                                .slice(0, 2)
+                                .join('/')}
+                              )
+                            </Badge>
+                          )}
+                          {item.agingStatus === 'verde' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] px-1.5 py-0 h-4 font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+                              title="Mais de 60 dias para entrega no contrato"
+                            >
+                              🟢 Entrega: {item.diasParaEntrega}d (
+                              {item.dataPrometidaEntrega
+                                .slice(0, 10)
+                                .split('-')
+                                .reverse()
+                                .slice(0, 2)
+                                .join('/')}
+                              )
+                            </Badge>
+                          )}
+                        </div>
                       )}
                     </div>
 

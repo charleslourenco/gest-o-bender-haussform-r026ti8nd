@@ -7,8 +7,9 @@ import { CriarCardAvulsoModal } from './CriarCardAvulsoModal'
 import { CriarSubcardModal } from './CriarSubcardModal'
 import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ export function AnaliseKanbanBoard({
     consultor: '',
     dateRange: { from: undefined, to: undefined } as any,
   })
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
 
   const [checkModalCard, setCheckModalCard] = useState<any | null>(null)
   const [avulsoModalOpen, setAvulsoModalOpen] = useState(false)
@@ -171,6 +173,11 @@ export function AnaliseKanbanBoard({
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
     const handleFilters = (e: any) => setFilters(e.detail)
+    const handleWeekFilter = (e: any) => {
+      if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
+        setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
+      }
+    }
     const handleOpenAvulso = () => {
       setAvulsoCardToUpdate(null)
       setAvulsoModalOpen(true)
@@ -178,12 +185,14 @@ export function AnaliseKanbanBoard({
 
     window.addEventListener('kanban_search_change', handleSearch)
     window.addEventListener('analise_detalhe_filters', handleFilters)
+    window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
     window.addEventListener('open_criar_card_avulso', handleOpenAvulso)
 
     return () => {
       supabase.removeChannel(sub)
       window.removeEventListener('kanban_search_change', handleSearch)
       window.removeEventListener('analise_detalhe_filters', handleFilters)
+      window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
       window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
     }
   }, [formularioComercialId])
@@ -424,6 +433,13 @@ export function AnaliseKanbanBoard({
       matches = matches && consultorName.toLowerCase().includes(filters.consultor.toLowerCase())
     }
 
+    // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
+    if (somenteSemanaAtual) {
+      const current = getCurrentIsoWeek()
+      const semCard = parseWeekNumber(c.semana_planejada_producao)
+      if (semCard !== current.weekNumber) return false
+    }
+
     if (filters?.dateRange?.from && c.criado_em) {
       const cardDate = new Date(c.criado_em)
       cardDate.setHours(0, 0, 0, 0)
@@ -446,8 +462,26 @@ export function AnaliseKanbanBoard({
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-background">
-      <div className="px-6 py-3 bg-card border-b border-border flex justify-between items-center shadow-sm z-10 shrink-0">
+      <div className="px-6 py-3 bg-card border-b border-border flex justify-between items-center shadow-sm z-10 shrink-0 gap-3 flex-wrap">
         <h2 className="font-semibold text-lg text-foreground">{title}</h2>
+
+        {/* Spec Etapa 4: Botão de filtro rápido [ 🚀 Ver Somente Programação da Semana ] */}
+        <Button
+          variant={somenteSemanaAtual ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSomenteSemanaAtual((prev) => !prev)}
+          className={`h-8 text-xs font-bold gap-1.5 transition-all ${
+            somenteSemanaAtual
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+              : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10'
+          }`}
+          title="Filtrar cards programados para a semana ISO atual"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {somenteSemanaAtual
+            ? '✓ Mostrando Somente S. Atual'
+            : '🚀 Ver Somente Programação da Semana'}
+        </Button>
       </div>
 
       <div

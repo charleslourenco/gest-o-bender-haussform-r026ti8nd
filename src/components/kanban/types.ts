@@ -29,5 +29,11 @@ export interface CardData {
   is_outsourced?: boolean
   card_pai_id?: string | null
   cor_vinculo?: string | null
-  card_pai?: { id: string; nome_produto: string } | null
+  semana_planejada_producao?: string | null
+  card_pai?: {
+    id: string
+    nome_produto: string
+    status_analise?: string
+    semana_planejada_producao?: string | null
+  } | null
 }

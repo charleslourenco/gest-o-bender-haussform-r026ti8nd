@@ -15,7 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { LayoutTemplate, Scissors, Disc, Ruler, Clock } from 'lucide-react'
+import { LayoutTemplate, Scissors, Disc, Ruler, Clock, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const COLUMNS = [
@@ -35,6 +35,15 @@ export default function Producao() {
   const [isChapaModalOpen, setIsChapaModalOpen] = useState(false)
   const [isFitaRoloModalOpen, setIsFitaRoloModalOpen] = useState(false)
   const [isFitaPedacoModalOpen, setIsFitaPedacoModalOpen] = useState(false)
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
+
+  const toggleSomenteSemana = () => {
+    const next = !somenteSemanaAtual
+    setSomenteSemanaAtual(next)
+    window.dispatchEvent(
+      new CustomEvent('toggle_filtro_semana_atual', { detail: { somente_semana_atual: next } }),
+    )
+  }
 
   useEffect(() => {
     const handleSearch = (e: any) => setSearch(e?.detail || '')
@@ -93,6 +102,25 @@ export default function Producao() {
           )}
         >
           Arquivados
+        </Button>
+
+        {/* Spec Etapa 4: Botão de filtro rápido [ 🚀 Ver Somente Programação da Semana ] */}
+        <Button
+          variant={somenteSemanaAtual ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleSomenteSemana}
+          className={cn(
+            'h-8 text-xs font-bold gap-1.5 transition-all ml-auto',
+            somenteSemanaAtual
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+              : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10',
+          )}
+          title="Filtrar cards programados para a semana ISO atual"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          {somenteSemanaAtual
+            ? '✓ Mostrando Somente S. Atual'
+            : '🚀 Ver Somente Programação da Semana'}
         </Button>
       </div>
 

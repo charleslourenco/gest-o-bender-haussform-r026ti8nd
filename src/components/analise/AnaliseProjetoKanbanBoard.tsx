@@ -6,6 +6,7 @@ import { Calendar, User, DollarSign, Trash2, Archive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { arquivarAnaliseFormulario } from '@/services/arquivamento'
+import { getBadgeProgramacaoSemana, parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ export function AnaliseProjetoKanbanBoard() {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
   const { toast } = useToast()
   const navigate = useNavigate()
   const [users, setUsers] = useState<any[]>([])
@@ -54,7 +56,7 @@ export function AnaliseProjetoKanbanBoard() {
           arquivado_analise,
           clientes (nome),
           leads ( kanban_ativo, users (nome) ),
-          produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise )
+          produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao )
         `,
         )
         .eq('arquivado_analise' as any, false)
@@ -111,7 +113,13 @@ export function AnaliseProjetoKanbanBoard() {
     }
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
+    const handleWeekFilter = (e: any) => {
+      if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
+        setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
+      }
+    }
     window.addEventListener('kanban_search_change', handleSearch)
+    window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
 
     return () => {
       isMounted = false
@@ -128,6 +136,7 @@ export function AnaliseProjetoKanbanBoard() {
         }
       }
       window.removeEventListener('kanban_search_change', handleSearch)
+      window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
     }
   }, [])
 
@@ -186,6 +195,15 @@ export function AnaliseProjetoKanbanBoard() {
   }
 
   const filteredProjects = projects.filter((p) => {
+    if (somenteSemanaAtual) {
+      const current = getCurrentIsoWeek()
+      const hasCardInWeek = p?.produtos_servicos_projeto?.some((it: any) => {
+        const sem = parseWeekNumber(it?.semana_planejada_producao)
+        return sem === current.weekNumber
+      })
+      if (!hasCardInWeek) return false
+    }
+
     if (!searchQuery) return true
     const clientName = p.clientes?.nome?.toLowerCase() || ''
     return clientName.includes(searchQuery)
@@ -280,6 +298,12 @@ export function AnaliseProjetoKanbanBoard() {
                       p?.status_analise === 'item_terceirizado',
                   )
 
+                  // Spec Etapa 4: Sinal PROGRAMADO Sxx
+                  const semanaProgramada = project?.produtos_servicos_projeto?.find(
+                    (p: any) => p?.semana_planejada_producao,
+                  )?.semana_planejada_producao
+                  const badgeProgramacao = getBadgeProgramacaoSemana(semanaProgramada)
+
                   return (
                     <div
                       key={project.id}
@@ -370,6 +394,22 @@ export function AnaliseProjetoKanbanBoard() {
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
+
+                      {badgeProgramacao && (
+                        <div className="flex items-center mb-1.5">
+                          <span
+                            className={cn(
+                              'text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none',
+                              badgeProgramacao.isCurrent
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/50'
+                                : 'bg-muted text-muted-foreground border-border',
+                            )}
+                            title={badgeProgramacao.label}
+                          >
+                            {badgeProgramacao.label}
+                          </span>
+                        </div>
+                      )}
 
                       <h4 className="font-semibold text-sm mb-3 pr-14 line-clamp-2">
                         {clientName}

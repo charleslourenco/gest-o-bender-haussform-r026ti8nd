@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ptBR } from 'date-fns/locale'
-import { Search, ClipboardList, Filter } from 'lucide-react'
+import { Search, ClipboardList, Filter, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const PROJECT_COLUMNS = [
@@ -33,6 +33,7 @@ export default function AnaliseTecnica() {
     consultor: 'all',
     dateRange: { from: undefined, to: undefined } as any,
   })
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -59,7 +60,12 @@ export default function AnaliseTecnica() {
     // Dispatch events to child boards
     window.dispatchEvent(new CustomEvent('analise_detalhe_filters', { detail }))
     window.dispatchEvent(new CustomEvent('kanban_search_change', { detail: filters.cliente }))
-  }, [filters, users])
+    window.dispatchEvent(
+      new CustomEvent('toggle_filtro_semana_atual', {
+        detail: { somente_semana_atual: somenteSemanaAtual },
+      }),
+    )
+  }, [filters, users, somenteSemanaAtual])
 
   useEffect(() => {
     const fetchPendingRequests = async () => {
@@ -138,6 +144,25 @@ export default function AnaliseTecnica() {
           </div>
 
           <div className="flex flex-wrap lg:flex-nowrap items-center gap-3 w-full lg:w-auto">
+            {/* Spec Etapa 4: Botão de filtro rápido [ 🚀 Ver Somente Programação da Semana ] */}
+            <Button
+              variant={somenteSemanaAtual ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSomenteSemanaAtual((prev) => !prev)}
+              className={cn(
+                'h-9 text-xs font-bold gap-1.5 transition-all shrink-0',
+                somenteSemanaAtual
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                  : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10',
+              )}
+              title="Filtrar projetos com itens programados para a semana ISO atual"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {somenteSemanaAtual
+                ? '✓ Mostrando Somente S. Atual'
+                : '🚀 Ver Somente Programação da Semana'}
+            </Button>
+
             <div className="relative w-full sm:w-[260px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input

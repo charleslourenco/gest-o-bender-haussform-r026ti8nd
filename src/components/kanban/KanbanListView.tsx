@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 
 export interface KanbanColumn {
   id: string
@@ -63,6 +64,7 @@ export function KanbanListView({
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
   const PAGE_SIZE = 30
   const pageRef = useRef(0)
 
@@ -197,8 +199,17 @@ export function KanbanListView({
         fetchMontadores()
       }
     }
+    const handleWeekFilter = (e: any) => {
+      if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
+        setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
+      }
+    }
     window.addEventListener('kanban_updated', handleUpdate)
-    return () => window.removeEventListener('kanban_updated', handleUpdate)
+    window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    return () => {
+      window.removeEventListener('kanban_updated', handleUpdate)
+      window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    }
   }, [fetchCards, refreshCards, fetchUsers, fetchMontadores, isMontagem, isProducao])
 
   const updateStatus = async (id: string, status: string) => {
@@ -266,6 +277,15 @@ export function KanbanListView({
     if (columns && columns.length > 0) {
       const validColumn = columns.some((col) => col.id === c?.status_analise)
       if (!validColumn) return false
+    }
+
+    // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
+    if (somenteSemanaAtual) {
+      const current = getCurrentIsoWeek()
+      const semCard = parseWeekNumber(
+        c.semana_planejada_producao || c.card_pai?.semana_planejada_producao,
+      )
+      if (semCard !== current.weekNumber) return false
     }
 
     if (!searchQuery) return true

@@ -33,6 +33,113 @@ export function getIsoWeekAndYear(date: Date): { weekNumber: number; year: numbe
 }
 
 /**
+ * Retorna os dados da semana ISO atual (hoje).
+ */
+export function getCurrentIsoWeek(): {
+  weekNumber: number
+  year: number
+  label: string
+  key: string
+} {
+  const now = new Date()
+  const { weekNumber, year } = getIsoWeekAndYear(now)
+  const pad = weekNumber < 10 ? `0${weekNumber}` : `${weekNumber}`
+  return {
+    weekNumber,
+    year,
+    label: `S${weekNumber}`,
+    key: `${year}-W${pad}`,
+  }
+}
+
+/**
+ * Extrai o número da semana (1 a 53) de valores como 'S38', '2026-W38', 'S38/2026', '38'.
+ */
+export function parseWeekNumber(cardWeekValue: string | null | undefined): number | null {
+  if (!cardWeekValue) return null
+  const clean = cardWeekValue.trim().toUpperCase()
+  const m = clean.match(/^[SW]?(\d{1,2})$/)
+  if (m) return parseInt(m[1], 10)
+  const m2 = clean.match(/^[SW]?(\d{1,2})[/\-_ ]+(\d{4})$/)
+  if (m2) return parseInt(m2[1], 10)
+  const m3 = clean.match(/^(\d{4})[-_\s]?[SW](\d{1,2})$/)
+  if (m3) return parseInt(m3[2], 10)
+  const m4 = clean.match(/[SW](\d{1,2})\b/)
+  if (m4) return parseInt(m4[1], 10)
+  return null
+}
+
+/**
+ * Informações do badge de programação de semana para os módulos operacionais (Spec Etapa 4):
+ * - "🟢 PROGRAMADO: S38 (Esta Semana)" para a semana ISO atual
+ * - "⚪ PROGRAMADO: S40 (Futuro)" para semanas seguintes
+ * - null se semana_planejada_producao não estiver preenchida
+ */
+export function getBadgeProgramacaoSemana(
+  cardWeekValue: string | null | undefined,
+): { label: string; isCurrent: boolean; weekNum: number } | null {
+  const weekNum = parseWeekNumber(cardWeekValue)
+  if (weekNum === null) return null
+
+  const current = getCurrentIsoWeek()
+  const isCurrent = weekNum === current.weekNumber
+  const label = isCurrent
+    ? `🟢 PROGRAMADO: S${weekNum} (Esta Semana)`
+    : `⚪ PROGRAMADO: S${weekNum} (Futuro)`
+
+  return { label, isCurrent, weekNum }
+}
+
+/**
+ * Status de conclusão da Análise Técnica:
+ * Na análise técnica o card transita por: iniciar -> aguardando_liberacao -> medida_fina ->
+ * reuniao_analise -> caderno_tecnico -> alteracao_projeto -> lista_materiais -> aguardando_plano_corte.
+ * 'aguardando_plano_corte' representa 100% (concluído / pronto para corte).
+ */
+export function isAnaliseTecnicaConcluida(statusAnalise?: string | null): boolean {
+  if (!statusAnalise) return false
+  const s = statusAnalise.trim().toLowerCase()
+  // Se for aguardando_plano_corte ou qualquer status avançado de produção/montagem ou concluido
+  const statusAvancados = new Set([
+    'aguardando_plano_corte',
+    'concluido',
+    'router',
+    'coladeira',
+    'bancada',
+    'embalagem',
+    'aguardando_agenda',
+    'montagem',
+  ])
+  return statusAvancados.has(s)
+}
+
+/**
+ * Avalia o Portão de Prontidão para a tela de Produção (Spec Etapa 4):
+ * Se a semana de produção chegou (semana_planejada_producao <= semana atual):
+ * - se a Análise Técnica estiver pendente (medição/caderno/não concluído): 'bloqueado'
+ * - se a Análise Técnica estiver concluída (100%): 'liberado'
+ * Se a semana ainda não chegou ou não foi agendada: 'normal' (sem bloqueio de portão de semana atual)
+ */
+export function avaliarPortaoProntidaoProducao(
+  semanaPlanejada: string | null | undefined,
+  statusAnalise: string | null | undefined,
+): 'bloqueado' | 'liberado' | 'normal' {
+  const weekNum = parseWeekNumber(semanaPlanejada)
+  if (weekNum === null) return 'normal'
+
+  const current = getCurrentIsoWeek()
+  // A semana de produção chegou se weekNum <= semana atual
+  const chegouSemana = weekNum <= current.weekNumber
+  if (!chegouSemana) return 'normal'
+
+  const analiseConcluida = isAnaliseTecnicaConcluida(statusAnalise)
+  if (analiseConcluida) {
+    return 'liberado'
+  }
+  return 'bloqueado'
+}
+
+/**
  * Retorna a segunda-feira de uma semana ISO dado ano e semana.
  */
 export function getStartDateOfIsoWeek(week: number, year: number): Date {
@@ -75,6 +182,10 @@ export function formatRangeSegundaSexta(start: Date): string {
 /**
  * Retorna todas as 52/53 semanas ISO de um ano completo.
  */
+export function getIsoWeeksForYear(year: number): IsoWeekRange[] {
+  return getAllIsoWeeksForYear(year)
+}
+
 export function getAllIsoWeeksForYear(year: number): IsoWeekRange[] {
   const weeks: IsoWeekRange[] = []
   // 4 de janeiro sempre cai na semana ISO 1

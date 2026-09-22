@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Trash2, ShoppingBag } from 'lucide-react'
+import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,6 +31,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   const [items, setItems] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -41,6 +43,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
         .from('produtos_servicos_projeto')
         .select(`
           *,
+          semana_planejada_producao,
           cliente:clientes(nome),
           analista:users!produtos_servicos_projeto_analista_id_fkey(id, nome)
         `)
@@ -53,6 +56,15 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
       if (error) throw error
 
       let filtered = data || []
+
+      if (somenteSemanaAtual) {
+        const current = getCurrentIsoWeek()
+        filtered = filtered.filter((item) => {
+          const sem = parseWeekNumber(item.semana_planejada_producao)
+          return sem === current.weekNumber
+        })
+      }
+
       if (searchQuery) {
         const lowerQ = searchQuery.toLowerCase()
         filtered = filtered.filter(
@@ -88,9 +100,18 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
     fetchData()
 
     const handleRefresh = () => fetchData()
+    const handleWeekFilter = (e: any) => {
+      if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
+        setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
+      }
+    }
     window.addEventListener('kanban_refresh', handleRefresh)
-    return () => window.removeEventListener('kanban_refresh', handleRefresh)
-  }, [searchQuery, columns])
+    window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    return () => {
+      window.removeEventListener('kanban_refresh', handleRefresh)
+      window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    }
+  }, [searchQuery, columns, somenteSemanaAtual])
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {

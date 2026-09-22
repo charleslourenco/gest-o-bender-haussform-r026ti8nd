@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import { UserCircle2, Trash2, Archive, Plus, Layers } from 'lucide-react'
 import { getCorVinculoForCard } from '@/lib/subcards-utils'
+import { getBadgeProgramacaoSemana } from '@/lib/pcp-capacity'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -161,6 +162,11 @@ export function AnaliseKanbanCard({
   const cardCorVinculo =
     card?.cor_vinculo || (subcards.length > 0 ? getCorVinculoForCard(card.id) : null)
 
+  // Spec Etapa 4: Sinal PROGRAMADO Sxx
+  const badgeProgramacao = getBadgeProgramacaoSemana(
+    card?.semana_planejada_producao || card?.formulario?.semana_planejada_producao,
+  )
+
   return (
     <div
       draggable
@@ -177,6 +183,21 @@ export function AnaliseKanbanCard({
           : undefined
       }
     >
+      {badgeProgramacao && (
+        <div className="flex items-center mb-0.5">
+          <span
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none ${
+              badgeProgramacao.isCurrent
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/50'
+                : 'bg-muted text-muted-foreground border-border'
+            }`}
+            title={badgeProgramacao.label}
+          >
+            {badgeProgramacao.label}
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-row items-center gap-1 w-full text-[10px] mb-0.5">
         {card?.codigo_rastreio ? (
           <span className="font-bold text-primary truncate bg-primary/10 px-1.5 py-0.5 rounded">

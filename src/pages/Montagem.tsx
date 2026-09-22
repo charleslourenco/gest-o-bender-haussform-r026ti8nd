@@ -9,7 +9,7 @@ import { MontadoresTab } from '@/pages/MontadoresTab'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Hammer, Wrench } from 'lucide-react'
+import { Hammer, Wrench, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'kanban' | 'lista' | 'relatorio' | 'montadores' | 'arquivados' | 'historico'
@@ -34,6 +34,15 @@ const TABS: { id: ViewMode; label: string }[] = [
 export default function Montagem() {
   const [mainTab, setMainTab] = useState<'montagem' | 'assistencia'>('montagem')
   const [view, setView] = useState<ViewMode>('kanban')
+  const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
+
+  const toggleSomenteSemana = () => {
+    const next = !somenteSemanaAtual
+    setSomenteSemanaAtual(next)
+    window.dispatchEvent(
+      new CustomEvent('toggle_filtro_semana_atual', { detail: { somente_semana_atual: next } }),
+    )
+  }
 
   return (
     <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 overflow-hidden">
@@ -78,6 +87,25 @@ export default function Montagem() {
                   {tab.label}
                 </Button>
               ))}
+
+              {/* Spec Etapa 4: Botão de filtro rápido [ 🚀 Ver Somente Programação da Semana ] */}
+              <Button
+                variant={somenteSemanaAtual ? 'default' : 'outline'}
+                size="sm"
+                onClick={toggleSomenteSemana}
+                className={cn(
+                  'h-8 text-xs font-bold gap-1.5 transition-all whitespace-nowrap ml-2',
+                  somenteSemanaAtual
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                    : 'border-emerald-600/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10',
+                )}
+                title="Filtrar cards programados para a semana ISO atual"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {somenteSemanaAtual
+                  ? '✓ Mostrando Somente S. Atual'
+                  : '🚀 Ver Somente Programação da Semana'}
+              </Button>
             </div>
           )}
         </div>
