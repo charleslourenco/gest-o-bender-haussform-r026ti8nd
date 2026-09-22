@@ -49,8 +49,15 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const [filterType, setFilterType] = useState<'todos' | 'com_ambientes' | 'isolados'>('todos')
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({})
   const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
+  const [isEmAnaliseExpanded, setIsEmAnaliseExpanded] = useState(false)
+  const [expandedEmAnaliseParents, setExpandedEmAnaliseParents] = useState<Record<string, boolean>>(
+    {},
+  )
 
-  // Status de análise bloqueados / que NÃO devem aparecer em 'Projetos para Agendar'
+  // Status iniciais de análise que ficam na seção colapsada de rodapé "🚀 Em análise"
+  const STATUS_EM_ANALISE = useMemo(() => new Set(['iniciar', 'reuniao_analise']), [])
+
+  // Status de análise bloqueados / já em produção ou concluídos que NÃO devem aparecer em 'Projetos para Agendar'
   const STATUS_ANALISE_EXCLUIDOS = useMemo(
     () =>
       new Set([
@@ -65,14 +72,16 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         'item_terceirizado',
         'pendencia',
         'concluido',
+        'iniciar',
+        'reuniao_analise',
       ]),
     [],
   )
 
-  // Condição estrita do filtro da Carteira 'PROJETOS PARA AGENDAR':
+  // Condição estrita do filtro da Carteira principal 'PROJETOS PARA AGENDAR':
   // - visivel_pcp = true
   // - semana_planejada_producao IS NULL E mes_planejado_producao IS NULL
-  // - status_analise NOT IN ('aguardando_plano_corte','router','coladeira','bancada','embalagem','expedicao','aguardando_agenda','montagem','item_terceirizado','pendencia','concluido')
+  // - status_analise NOT IN ('aguardando_plano_corte','router','coladeira','bancada','embalagem','expedicao','aguardando_agenda','montagem','item_terceirizado','pendencia','concluido','iniciar','reuniao_analise')
   // - arquivado_analise = false, arquivado_producao = false, arquivado_montagem = false
   // - excluido_analise = false, excluido_producao = false, excluido_montagem = false
   const isCardAptoParaAgendar = (c: PcpCardItem): boolean => {
@@ -87,11 +96,31 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     const temMes = Boolean(c.mes_planejado_producao && c.mes_planejado_producao.trim() !== '')
     if (temSemana || temMes) return false
 
-    // status_analise não pode estar na lista de excluídos
+    // status_analise não pode estar na lista de excluídos (inclui iniciar e reuniao_analise)
     const st = (c.status_analise || '').toLowerCase().trim()
     if (STATUS_ANALISE_EXCLUIDOS.has(st)) return false
 
     return true
+  }
+
+  // Condição para itens em análise inicial (visão de funil no rodapé):
+  // - visivel_pcp = true
+  // - semana_planejada_producao IS NULL E mes_planejado_producao IS NULL
+  // - status_analise IN ('iniciar', 'reuniao_analise')
+  // - não arquivado e não excluído
+  const isCardEmAnalise = (c: PcpCardItem): boolean => {
+    if (c.visivel_pcp === false) return false
+    if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
+    if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
+
+    const temSemana = Boolean(
+      c.semana_planejada_producao && c.semana_planejada_producao.trim() !== '',
+    )
+    const temMes = Boolean(c.mes_planejado_producao && c.mes_planejado_producao.trim() !== '')
+    if (temSemana || temMes) return false
+
+    const st = (c.status_analise || '').toLowerCase().trim()
+    return STATUS_EM_ANALISE.has(st)
   }
 
   // Alias para manter compatibilidade com verificações internas
@@ -165,6 +194,59 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
     return list
   }, [cards, modo])
+
+  // Agrupamento hierárquico específico para o funil "🚀 Em análise" (status 'iniciar' e 'reuniao_analise')
+  const emAnaliseHierarchyList: ParentHierarchyItem[] = useMemo(() => {
+    const subcardsByParentId = new Map<string, PcpCardItem[]>()
+    for (const c of cards) {
+      if (c.card_pai_id) {
+        if (!subcardsByParentId.has(c.card_pai_id)) {
+          subcardsByParentId.set(c.card_pai_id, [])
+        }
+        subcardsByParentId.get(c.card_pai_id)!.push(c)
+      }
+    }
+
+    const list: ParentHierarchyItem[] = []
+    const allParentCards = cards.filter((c) => !c.card_pai_id)
+
+    for (const parent of allParentCards) {
+      const allSubs = subcardsByParentId.get(parent.id) || []
+      const emAnaliseSubs = allSubs.filter((s) => isCardEmAnalise(s))
+      const parentEmAnalise = isCardEmAnalise(parent)
+
+      // Aparece no grupo se o próprio pai estiver em análise ou tiver subcards em análise
+      if (parentEmAnalise || emAnaliseSubs.length > 0) {
+        const clientName =
+          parent.cliente?.nome ||
+          parent.formulario?.cliente?.nome ||
+          parent.formulario?.nome_cliente ||
+          'Cliente não informado'
+
+        const form = parent.formulario as any
+        const empreendimento =
+          form?.obra_bairro || form?.obra_municipio
+            ? [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
+            : parent.cliente?.endereco_obra || parent.cliente?.cidade || ''
+
+        const totalContratoValor =
+          Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+
+        list.push({
+          parent,
+          subcards: allSubs,
+          pendingSubcards: emAnaliseSubs,
+          isParentPending: parentEmAnalise,
+          totalSubcardsCount: allSubs.length,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+        })
+      }
+    }
+
+    return list
+  }, [cards])
 
   // Alternar expandir/recolher
   const toggleParentExpand = (parentId: string, e?: React.MouseEvent) => {
@@ -648,6 +730,192 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
               </div>
             )
           })
+        )}
+      </div>
+
+      {/* SEÇÃO RODAPÉ: 🚀 Em análise (N) colapsada - Visão de Funil (Sem arraste) */}
+      <div className="border-t border-border bg-card shrink-0 flex flex-col">
+        {/* Cabeçalho colapsável */}
+        <button
+          type="button"
+          onClick={() => setIsEmAnaliseExpanded((prev) => !prev)}
+          className={cn(
+            'w-full px-3 py-2 flex items-center justify-between text-xs font-bold transition-colors select-none',
+            'hover:bg-muted/60 text-muted-foreground hover:text-foreground',
+            isEmAnaliseExpanded && 'bg-muted/40 text-foreground border-b border-border/50',
+          )}
+          title="Itens com status 'iniciar' ou 'reuniao_analise' (em fase pré-agendamento fabril)"
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm shrink-0">🚀</span>
+            <span className="truncate">Em análise ({emAnaliseHierarchyList.length})</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge
+              variant="outline"
+              className="text-[9px] px-1.5 py-0 h-4 bg-muted/80 text-muted-foreground font-semibold"
+            >
+              Funil
+            </Badge>
+            <ChevronDown
+              className={cn(
+                'w-4 h-4 transition-transform duration-200',
+                isEmAnaliseExpanded ? 'rotate-180 text-primary' : 'rotate-0',
+              )}
+            />
+          </div>
+        </button>
+
+        {/* Conteúdo expandido (apenas leitura / clique para detalhe, SEM DRAG) */}
+        {isEmAnaliseExpanded && (
+          <div className="max-h-60 overflow-y-auto p-2 space-y-2 bg-muted/20">
+            <div className="px-1 text-[10px] text-muted-foreground/80 italic flex items-center justify-between">
+              <span>Fase inicial (iniciar / reunião)</span>
+              <span>Arraste desabilitado</span>
+            </div>
+
+            {emAnaliseHierarchyList.length === 0 ? (
+              <div className="p-3 text-center text-[11px] text-muted-foreground">
+                Nenhum projeto em análise inicial no momento.
+              </div>
+            ) : (
+              emAnaliseHierarchyList.map((item) => {
+                const isItemExpanded = Boolean(expandedEmAnaliseParents[item.parent.id])
+                const hasSubs = item.subcards.length > 0
+
+                return (
+                  <div
+                    key={item.parent.id}
+                    className="rounded-lg border border-border/70 bg-card overflow-hidden shadow-2xs opacity-90 hover:opacity-100 transition-all"
+                  >
+                    {/* Card Pai Em Análise (NÃO DRAGGABLE) */}
+                    <div
+                      onClick={() => onCardClick(item.parent)}
+                      className={cn(
+                        'p-2 bg-card hover:bg-muted/30 transition-colors cursor-pointer select-none',
+                        'border-l-4 border-l-slate-400',
+                      )}
+                      style={
+                        item.parent.cor_vinculo
+                          ? { borderLeftColor: item.parent.cor_vinculo }
+                          : undefined
+                      }
+                      title="Card em análise inicial. Clique para visualizar detalhes (drag desabilitado nesta fase)."
+                    >
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                              {item.parent.status_analise === 'reuniao_analise'
+                                ? 'Reunião de Análise'
+                                : 'Iniciar Análise'}
+                            </span>
+                            {item.parent.codigo_rastreio && (
+                              <span className="font-mono text-[9px] bg-muted text-muted-foreground px-1 rounded font-medium">
+                                {item.parent.codigo_rastreio}
+                              </span>
+                            )}
+                          </div>
+
+                          <h4
+                            className="text-xs font-bold text-foreground truncate leading-tight mt-0.5"
+                            title={item.clientName}
+                          >
+                            {item.clientName}
+                          </h4>
+
+                          <p
+                            className="text-[10px] text-muted-foreground truncate mt-0.5"
+                            title={item.empreendimento || item.parent.nome_produto}
+                          >
+                            {item.empreendimento || item.parent.nome_produto}
+                          </p>
+                        </div>
+
+                        {hasSubs ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpandedEmAnaliseParents((prev) => ({
+                                ...prev,
+                                [item.parent.id]: !prev[item.parent.id],
+                              }))
+                            }}
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
+                            title={
+                              isItemExpanded
+                                ? 'Recolher ambientes'
+                                : `Expandir ${item.subcards.length} ambientes`
+                            }
+                          >
+                            <ChevronDown
+                              className={cn(
+                                'w-3.5 h-3.5 transition-transform duration-200',
+                                isItemExpanded ? 'rotate-180 text-primary' : 'rotate-0',
+                              )}
+                            />
+                          </button>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 mt-1.5 pt-1 border-t border-border/40 text-[10px]">
+                        <div className="flex items-center gap-1">
+                          <span className="text-muted-foreground font-medium">Contrato:</span>
+                          <strong className="text-foreground font-semibold">
+                            {formatBRL(item.totalContratoValor)}
+                          </strong>
+                        </div>
+
+                        <Badge
+                          variant="secondary"
+                          className="text-[9px] px-1 py-0 h-4 bg-muted text-muted-foreground"
+                        >
+                          {hasSubs ? `${item.subcards.length} amb.` : 'Único'}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Subcards se expandido (NÃO DRAGGABLE) */}
+                    {isItemExpanded && hasSubs && (
+                      <div className="bg-muted/30 border-t border-border/50 divide-y divide-border/30 p-1 space-y-1">
+                        {item.subcards.map((subcard) => {
+                          const subcardValor = Number(subcard.valor_total) || 0
+                          return (
+                            <div
+                              key={subcard.id}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onCardClick(subcard)
+                              }}
+                              className="p-1.5 rounded bg-card/80 border border-border/60 hover:bg-card hover:border-primary/40 transition-all cursor-pointer select-none"
+                              title="Ambiente em análise inicial (arraste desabilitado)"
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-[11px] font-semibold text-foreground truncate">
+                                  {subcard.nome_produto}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  {subcard.codigo_rastreio}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1 mt-0.5 text-[9px] text-muted-foreground">
+                                <span>Valor: {formatBRL(subcardValor)}</span>
+                                <span className="capitalize">
+                                  {(subcard.status_analise || '').replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
         )}
       </div>
 

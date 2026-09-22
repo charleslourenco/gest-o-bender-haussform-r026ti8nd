@@ -240,8 +240,8 @@ export const PcpMatrizDiaria: React.FC = () => {
   // Total do mês na linha de produção
   const totalMesProducao = useMemo(() => {
     return cards.reduce((acc, c) => {
-      const dt = c.data_planejada_producao
-      if (!dt || typeof dt !== 'string') return acc
+      const dt = c?.data_planejada_producao
+      if (!dt || typeof dt !== 'string' || !dt.includes('-')) return acc
       const parts = dt.slice(0, 7).split('-')
       if (parts.length < 2) return acc
       const y = Number(parts[0])
@@ -253,11 +253,33 @@ export const PcpMatrizDiaria: React.FC = () => {
     }, 0)
   }, [cards, currentYear, currentMonthIndex])
 
-  // Contagem de pendentes na carteira (sem data planejada)
+  // Contagem de pendentes na carteira (sem data planejada e aptos para agendar)
   const unassignedCount = useMemo(() => {
-    return cards.filter(
-      (c) => !c.data_planejada_producao || c.data_planejada_producao.trim() === '',
-    ).length
+    const STATUS_BLOQUEADOS = new Set([
+      'aguardando_plano_corte',
+      'router',
+      'coladeira',
+      'bancada',
+      'embalagem',
+      'expedicao',
+      'aguardando_agenda',
+      'montagem',
+      'item_terceirizado',
+      'pendencia',
+      'concluido',
+      'iniciar',
+      'reuniao_analise',
+    ])
+    return cards.filter((c) => {
+      if (c.visivel_pcp === false) return false
+      if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
+      if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
+      const temData = Boolean(c.data_planejada_producao && c.data_planejada_producao.trim() !== '')
+      if (temData) return false
+      const st = (c.status_analise || '').toLowerCase().trim()
+      if (STATUS_BLOQUEADOS.has(st)) return false
+      return true
+    }).length
   }, [cards])
 
   return (

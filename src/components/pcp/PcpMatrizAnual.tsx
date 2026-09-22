@@ -251,13 +251,34 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     return getIsoWeeksForMonth(currentYear, today.getMonth())
   }, [currentYear, today])
 
-  // Contagem de pendentes na carteira para o ano (sem semana e sem mês de produção)
+  // Contagem de pendentes na carteira para o ano (sem semana e sem mês de produção, e aptos para agendar)
   const unassignedCount = useMemo(() => {
+    const STATUS_BLOQUEADOS = new Set([
+      'aguardando_plano_corte',
+      'router',
+      'coladeira',
+      'bancada',
+      'embalagem',
+      'expedicao',
+      'aguardando_agenda',
+      'montagem',
+      'item_terceirizado',
+      'pendencia',
+      'concluido',
+      'iniciar',
+      'reuniao_analise',
+    ])
     return cards.filter((c) => {
+      if (c.visivel_pcp === false) return false
+      if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
+      if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
       const semSemanaProd =
         !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
       const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
-      return semSemanaProd && semMesProd
+      if (!semSemanaProd || !semMesProd) return false
+      const st = (c.status_analise || '').toLowerCase().trim()
+      if (STATUS_BLOQUEADOS.has(st)) return false
+      return true
     }).length
   }, [cards])
 

@@ -308,11 +308,36 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     return avaliarCapacidadeFinanceiraMensal(cargaConsolidadaMes.totalGeral)
   }, [cargaConsolidadaMes.totalGeral])
 
-  // Contagem de pendentes na carteira (sem semana de produção)
+  // Contagem de pendentes na carteira (sem semana e sem mês de produção, e aptos para agendar)
   const unassignedCount = useMemo(() => {
-    return cards.filter(
-      (c) => !c.semana_planejada_producao || c.semana_planejada_producao.trim() === '',
-    ).length
+    const STATUS_BLOQUEADOS = new Set([
+      'aguardando_plano_corte',
+      'router',
+      'coladeira',
+      'bancada',
+      'embalagem',
+      'expedicao',
+      'aguardando_agenda',
+      'montagem',
+      'item_terceirizado',
+      'pendencia',
+      'concluido',
+      'iniciar',
+      'reuniao_analise',
+    ])
+    return cards.filter((c) => {
+      if (c.visivel_pcp === false) return false
+      if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
+      if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
+      const temSemana = Boolean(
+        c.semana_planejada_producao && c.semana_planejada_producao.trim() !== '',
+      )
+      const temMes = Boolean(c.mes_planejado_producao && c.mes_planejado_producao.trim() !== '')
+      if (temSemana || temMes) return false
+      const st = (c.status_analise || '').toLowerCase().trim()
+      if (STATUS_BLOQUEADOS.has(st)) return false
+      return true
+    }).length
   }, [cards])
 
   return (

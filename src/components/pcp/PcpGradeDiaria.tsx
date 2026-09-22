@@ -136,7 +136,7 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
       }
     }
     if (cardId) {
-      onDropCard(cardId, linha, dia.isoDate, subcardIds)
+      onDropCard(cardId, linha, dia.dateString, subcardIds)
     }
   }
   return (
@@ -181,7 +181,9 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                         title={dia.formattedFull}
                       >
                         {dia.diaSemanaCurto} {dia.diaDoMes.toString().padStart(2, '0')}/
-                        {dia.dateString.split('-')[1]}
+                        {dia.dateString && dia.dateString.includes('-')
+                          ? dia.dateString.split('-')[1]
+                          : ''}
                       </span>
                     </div>
 
