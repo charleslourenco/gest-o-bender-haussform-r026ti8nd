@@ -25,6 +25,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 }) => {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'todos' | 'ambientes' | 'subcards'>('todos')
+  const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
 
   // Modo de exibição da carteira:
   // Se modo === 'mensal', lista cards sem semana planejada de produção (mesmo que já tenham mes_planejado definido).
@@ -68,34 +69,56 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
   if (collapsed) {
     return (
-      <aside className="w-12 bg-card border-r border-border flex flex-col items-center py-3 select-none shrink-0 transition-all">
+      <aside
+        onDragOver={(e) => {
+          e.preventDefault()
+          setIsDragOverCollapsed(true)
+        }}
+        onDragLeave={() => setIsDragOverCollapsed(false)}
+        onDrop={() => {
+          setIsDragOverCollapsed(false)
+          onToggleCollapsed()
+        }}
+        className={cn(
+          'w-10 bg-card border-r border-border flex flex-col items-center py-2.5 select-none shrink-0 transition-all z-20 group relative shadow-xs',
+          isDragOverCollapsed && 'bg-primary/20 ring-2 ring-primary ring-inset',
+        )}
+      >
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggleCollapsed}
-          title="Expandir Carteira"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground mb-3"
+          title="Abrir Carteira de Pendentes"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted mb-2 group-hover:scale-105 transition-transform"
         >
           <ChevronRight className="w-4 h-4" />
         </Button>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
-            <Briefcase className="w-4 h-4" />
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="flex-1 w-full flex flex-col items-center justify-center gap-3 hover:bg-muted/40 transition-colors py-2"
+          title={`Abrir Carteira (${unassignedCards.length} pendentes)`}
+        >
+          <div className="p-1.5 rounded-md bg-primary/10 text-primary relative">
+            <Briefcase className="w-3.5 h-3.5" />
+            {unassignedCards.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
+            )}
           </div>
           <span
-            className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase whitespace-nowrap rotate-90"
+            className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground tracking-wider uppercase whitespace-nowrap"
             style={{ writingMode: 'vertical-rl' }}
           >
-            CARTEIRA ({unassignedCards.length})
+            📥 CARTEIRA ({unassignedCards.length})
           </span>
-        </div>
+        </button>
       </aside>
     )
   }
 
   return (
-    <aside className="w-[300px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all">
+    <aside className="w-[280px] sm:w-[300px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs">
       {/* Cabeçalho da Sidebar */}
       <div className="p-3 border-b border-border space-y-2.5 shrink-0 bg-card">
         <div className="flex items-center justify-between">

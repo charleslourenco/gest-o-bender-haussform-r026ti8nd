@@ -28,6 +28,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [focoLinha, setFocoLinha] = useState<PcpLinhaOperacao | 'geral'>('geral')
 
   // Drawer de detalhes
   const [selectedCard, setSelectedCard] = useState<PcpCardItem | null>(null)
@@ -210,12 +211,40 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     return getIsoWeeksForMonth(currentYear, today.getMonth())
   }, [currentYear, today])
 
+  // Contagem de pendentes na carteira para o ano (sem semana e sem mês de produção)
+  const unassignedCount = useMemo(() => {
+    return cards.filter((c) => {
+      const semSemanaProd =
+        !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
+      const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
+      return semSemanaProd && semMesProd
+    }).length
+  }, [cards])
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Barra de Controle de Período Anual */}
-      <div className="px-6 py-2.5 bg-card border-b border-border flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
-        {/* Navegador de Ano */}
-        <div className="flex items-center gap-2">
+      <div className="px-4 lg:px-6 py-2 bg-card border-b border-border flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-2xs">
+        {/* Navegador de Ano + Botão Carteira Retrátil */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={sidebarCollapsed ? 'outline' : 'secondary'}
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="h-7 px-2.5 text-xs font-semibold gap-1.5 border-border shadow-2xs"
+            title={
+              sidebarCollapsed ? 'Abrir Carteira lateral' : 'Recolher Carteira para 100% de largura'
+            }
+          >
+            <span>📥 Carteira / Pendentes</span>
+            <Badge
+              variant={unassignedCount > 0 ? 'default' : 'secondary'}
+              className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center"
+            >
+              {unassignedCount}
+            </Badge>
+          </Button>
+
           <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/50">
             <Button
               variant="ghost"
@@ -227,8 +256,8 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <span className="text-xs font-bold text-foreground px-3 min-w-[100px] text-center select-none">
-              Ano {currentYear}
+            <span className="text-xs font-bold text-foreground px-3 min-w-[80px] text-center select-none">
+              {currentYear}
             </span>
 
             <Button
@@ -246,7 +275,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
             variant="outline"
             size="sm"
             onClick={handleCurrentYear}
-            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
           >
             Ano Atual
           </Button>
@@ -263,16 +292,73 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
           </Button>
         </div>
 
+        {/* Modo Foco por Etapa */}
+        <div className="flex items-center p-0.5 bg-muted/70 rounded-lg gap-0.5 border border-border/50">
+          <Button
+            variant={focoLinha === 'geral' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('geral')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'geral'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Exibir todas as 3 linhas operacionais em paralelo"
+          >
+            <span>🌐 Visão Geral (3 Linhas)</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'analise' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('analise')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'analise'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Análise Técnica"
+          >
+            <span>📐 Foco: Análise</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'producao' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('producao')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'producao'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Produção"
+          >
+            <span>🏭 Foco: Produção</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'montagem' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('montagem')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'montagem'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Montagem"
+          >
+            <span>🔧 Foco: Montagem</span>
+          </Button>
+        </div>
+
         {/* Indicadores do Ano */}
         <div className="flex items-center gap-3 text-xs">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground text-[11px]">Planejamento Geral:</span>
-            <strong className="text-foreground font-bold">12 Meses (Jan - Dez)</strong>
-          </div>
-
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-primary">
-            <span className="text-[11px] font-medium">Carga Produção no Ano:</span>
+            <span className="text-[11px] font-medium">Carga Produção Ano:</span>
             <strong className="font-extrabold">{formatBRL(anoProdTotal)}</strong>
           </div>
         </div>
@@ -291,6 +377,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
         <PcpGradeAnual
           year={currentYear}
           cards={cards}
+          focoLinha={focoLinha}
           onDropCard={handleDropCard}
           onCardClick={handleOpenDrawer}
           onMonthDoubleClick={handleMonthDoubleClick}

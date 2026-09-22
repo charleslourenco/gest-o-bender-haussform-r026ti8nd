@@ -53,6 +53,7 @@ export const PcpMatrizDiaria: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [focoLinha, setFocoLinha] = useState<PcpLinhaOperacao | 'geral'>('geral')
 
   // Drawer
   const [selectedCard, setSelectedCard] = useState<PcpCardItem | null>(null)
@@ -232,11 +233,36 @@ export const PcpMatrizDiaria: React.FC = () => {
     }, 0)
   }, [cards, currentYear, currentMonthIndex])
 
+  // Contagem de pendentes na carteira (sem data planejada)
+  const unassignedCount = useMemo(() => {
+    return cards.filter(
+      (c) => !c.data_planejada_producao || c.data_planejada_producao.trim() === '',
+    ).length
+  }, [cards])
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Barra de controle */}
-      <div className="px-6 py-2.5 bg-card border-b border-border flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
-        <div className="flex items-center gap-2">
+      <div className="px-4 lg:px-6 py-2 bg-card border-b border-border flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={sidebarCollapsed ? 'outline' : 'secondary'}
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="h-7 px-2.5 text-xs font-semibold gap-1.5 border-border shadow-2xs"
+            title={
+              sidebarCollapsed ? 'Abrir Carteira lateral' : 'Recolher Carteira para 100% de largura'
+            }
+          >
+            <span>📥 Carteira / Pendentes</span>
+            <Badge
+              variant={unassignedCount > 0 ? 'default' : 'secondary'}
+              className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center"
+            >
+              {unassignedCount}
+            </Badge>
+          </Button>
+
           <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/50">
             <Button
               variant="ghost"
@@ -248,8 +274,8 @@ export const PcpMatrizDiaria: React.FC = () => {
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <span className="text-xs font-bold text-foreground px-2 min-w-[140px] text-center select-none">
-              {MESES[currentMonthIndex]} de {currentYear}
+            <span className="text-xs font-bold text-foreground px-2 min-w-[120px] text-center select-none">
+              {MESES[currentMonthIndex]} {currentYear}
             </span>
 
             <Button
@@ -267,7 +293,7 @@ export const PcpMatrizDiaria: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleCurrentMonth}
-            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
           >
             Mês Atual
           </Button>
@@ -284,16 +310,73 @@ export const PcpMatrizDiaria: React.FC = () => {
           </Button>
         </div>
 
+        {/* Modo Foco por Etapa */}
+        <div className="flex items-center p-0.5 bg-muted/70 rounded-lg gap-0.5 border border-border/50">
+          <Button
+            variant={focoLinha === 'geral' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('geral')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'geral'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Exibir todas as 3 linhas operacionais em paralelo"
+          >
+            <span>🌐 Visão Geral (3 Linhas)</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'analise' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('analise')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'analise'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Análise Técnica"
+          >
+            <span>📐 Foco: Análise</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'producao' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('producao')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'producao'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Produção"
+          >
+            <span>🏭 Foco: Produção</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'montagem' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('montagem')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'montagem'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Montagem"
+          >
+            <span>🔧 Foco: Montagem</span>
+          </Button>
+        </div>
+
         {/* Indicadores Resumo */}
         <div className="flex items-center gap-3 text-xs">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
-            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground text-[11px]">Dias no mês:</span>
-            <strong className="text-foreground font-bold">{diasDoMes.length} dias</strong>
-          </div>
-
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-primary">
-            <span className="text-[11px] font-medium">Carga Diária Produção (Mês):</span>
+            <span className="text-[11px] font-medium">Carga Diária Produção:</span>
             <strong className="font-extrabold">{formatBRL(totalMesProducao)}</strong>
           </div>
         </div>
@@ -312,6 +395,7 @@ export const PcpMatrizDiaria: React.FC = () => {
         <PcpGradeDiaria
           dias={diasDoMes}
           cards={cards}
+          focoLinha={focoLinha}
           onDropCard={handleDropCard}
           onCardClick={handleOpenDrawer}
         />

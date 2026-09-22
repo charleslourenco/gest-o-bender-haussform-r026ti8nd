@@ -20,7 +20,7 @@ import { PcpGradeSemanal } from './PcpGradeSemanal'
 import { PcpSideDrawer } from './PcpSideDrawer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -63,6 +63,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [focoLinha, setFocoLinha] = useState<PcpLinhaOperacao | 'geral'>('geral')
 
   // Drawer de detalhes
   const [selectedCard, setSelectedCard] = useState<PcpCardItem | null>(null)
@@ -275,12 +276,38 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     return avaliarCapacidadeFinanceiraMensal(cargaConsolidadaMes.totalGeral)
   }, [cargaConsolidadaMes.totalGeral])
 
+  // Contagem de pendentes na carteira (sem semana de produção)
+  const unassignedCount = useMemo(() => {
+    return cards.filter(
+      (c) => !c.semana_planejada_producao || c.semana_planejada_producao.trim() === '',
+    ).length
+  }, [cards])
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Barra de Controle de Período Mensal */}
-      <div className="px-6 py-2.5 bg-card border-b border-border flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
-        {/* Navegador de Mês / Ano */}
-        <div className="flex items-center gap-2">
+      <div className="px-4 lg:px-6 py-2 bg-card border-b border-border flex flex-wrap items-center justify-between gap-2.5 shrink-0 shadow-2xs">
+        {/* Navegador de Mês / Ano + Botão Carteira Retrátil */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Botão de Alternância rápida da Carteira com contagem de pendentes */}
+          <Button
+            variant={sidebarCollapsed ? 'outline' : 'secondary'}
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="h-7 px-2.5 text-xs font-semibold gap-1.5 border-border shadow-2xs"
+            title={
+              sidebarCollapsed ? 'Abrir Carteira lateral' : 'Recolher Carteira para 100% de largura'
+            }
+          >
+            <span>📥 Carteira / Pendentes</span>
+            <Badge
+              variant={unassignedCount > 0 ? 'default' : 'secondary'}
+              className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] justify-center"
+            >
+              {unassignedCount}
+            </Badge>
+          </Button>
+
           <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/50">
             <Button
               variant="ghost"
@@ -292,8 +319,8 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
               <ChevronLeft className="w-4 h-4" />
             </Button>
 
-            <span className="text-xs font-bold text-foreground px-2 min-w-[140px] text-center select-none">
-              {MESES[currentMonthIndex]} de {currentYear}
+            <span className="text-xs font-bold text-foreground px-2 min-w-[120px] text-center select-none">
+              {MESES[currentMonthIndex]} {currentYear}
             </span>
 
             <Button
@@ -311,7 +338,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
             variant="outline"
             size="sm"
             onClick={handleCurrentMonth}
-            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+            className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
           >
             Mês Atual
           </Button>
@@ -328,19 +355,75 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
           </Button>
         </div>
 
-        {/* Indicadores Resumo do Mês */}
-        <div className="flex items-center gap-3 text-xs">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted/40 border border-border/50">
-            <span className="text-muted-foreground text-[11px]">Semanas no período:</span>
-            <strong className="text-foreground font-bold">
-              {weeks.map((w) => w.label).join(', ')}
-            </strong>
-          </div>
+        {/* Modo Foco por Etapa (Seletor de Visualização) */}
+        <div className="flex items-center p-0.5 bg-muted/70 rounded-lg gap-0.5 border border-border/50">
+          <Button
+            variant={focoLinha === 'geral' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('geral')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'geral'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Exibir todas as 3 linhas operacionais em paralelo"
+          >
+            <span>🌐 Visão Geral (3 Linhas)</span>
+          </Button>
 
+          <Button
+            variant={focoLinha === 'analise' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('analise')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'analise'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Análise Técnica"
+          >
+            <span>📐 Foco: Análise</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'producao' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('producao')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'producao'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Produção"
+          >
+            <span>🏭 Foco: Produção</span>
+          </Button>
+
+          <Button
+            variant={focoLinha === 'montagem' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setFocoLinha('montagem')}
+            className={cn(
+              'h-6 px-2 text-[11px] font-semibold gap-1 transition-all',
+              focoLinha === 'montagem'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            title="Expandir linha de Montagem"
+          >
+            <span>🔧 Foco: Montagem</span>
+          </Button>
+        </div>
+
+        {/* Indicadores Resumo do Mês (Preservação de todos os cálculos em R$ e semáforo Meta Full) */}
+        <div className="flex items-center gap-2 text-xs">
           {/* Banner Mensal Consolidado: Reflete cargas das 3 linhas operacionais */}
           <div
             className={cn(
-              'flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-md border text-xs transition-colors',
+              'flex flex-wrap items-center gap-2 px-2.5 py-1 rounded-md border text-xs transition-colors',
               capacidadeMensal.bgClass,
               capacidadeMensal.borderClass,
             )}
@@ -348,35 +431,37 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
           >
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] font-medium text-foreground">Carga Total Mês:</span>
-              <strong className={cn('font-extrabold text-sm', capacidadeMensal.textClass)}>
+              <strong
+                className={cn('font-extrabold text-xs sm:text-sm', capacidadeMensal.textClass)}
+              >
                 {formatBRL(cargaConsolidadaMes.totalGeral)}
               </strong>
               <Badge
                 variant="outline"
-                className={cn('text-[9px] px-1.5 py-0 border ml-0.5', capacidadeMensal.badgeClass)}
+                className={cn('text-[9px] px-1 py-0 border ml-0.5', capacidadeMensal.badgeClass)}
               >
                 {capacidadeMensal.badgeText}
               </Badge>
             </div>
 
             {/* Divisor e breakdown das 3 linhas */}
-            <div className="hidden lg:flex items-center gap-2.5 border-l border-border/60 pl-2.5 text-[10px] text-muted-foreground">
+            <div className="hidden xl:flex items-center gap-2 border-l border-border/60 pl-2 text-[10px] text-muted-foreground">
               <span className="flex items-center gap-1" title="Carga Análise Técnica no Mês">
-                <span>📐 Análise:</span>
+                <span>📐</span>
                 <strong className="text-foreground font-semibold">
                   {formatBRL(cargaConsolidadaMes.totalAnalise)}
                 </strong>
               </span>
 
               <span className="flex items-center gap-1" title="Carga Produção no Mês">
-                <span>🏭 Produção:</span>
+                <span>🏭</span>
                 <strong className="text-foreground font-semibold">
                   {formatBRL(cargaConsolidadaMes.totalProducao)}
                 </strong>
               </span>
 
               <span className="flex items-center gap-1" title="Carga Montagem no Mês">
-                <span>🔧 Montagem:</span>
+                <span>🔧</span>
                 <strong className="text-foreground font-semibold">
                   {formatBRL(cargaConsolidadaMes.totalMontagem)}
                 </strong>
@@ -401,6 +486,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
         <PcpGradeSemanal
           weeks={weeks}
           cards={cards}
+          focoLinha={focoLinha}
           onDropCard={handleDropCard}
           onCardClick={handleOpenDrawer}
         />
