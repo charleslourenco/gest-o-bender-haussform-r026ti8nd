@@ -1,5 +1,6 @@
 // Validação de integridade da Matriz PCP
 import { supabase } from '@/lib/supabase/client'
+import { calcularDatasDerivadasPcp } from '@/lib/pcp-capacity'
 
 export type PcpLinhaOperacao = 'analise' | 'producao' | 'montagem'
 
@@ -43,6 +44,7 @@ export interface PcpCardItem {
   data_planejada_montagem?: string | null
   data_limite_analise?: string | null
   data_obra_montagem?: string | null
+  data_prometida_montagem?: string | null
   analista_id?: string | null
   analista?: {
     id: string
@@ -65,6 +67,7 @@ export interface PcpCardItem {
     data_prevista_entrega?: string | null
     obra_bairro?: string | null
     obra_municipio?: string | null
+    datas?: any
     cliente?: { nome: string } | null
   } | null
   card_pai?: {
@@ -108,11 +111,11 @@ const SELECT_QUERY = `
   semana_planejada_analise, semana_planejada_producao, semana_planejada_montagem,
   mes_planejado_analise, mes_planejado_producao, mes_planejado_montagem,
   data_planejada_analise, data_planejada_producao, data_planejada_montagem,
-  data_limite_analise, data_obra_montagem,
+  data_limite_analise, data_obra_montagem, data_prometida_montagem,
   analista_id,
   analista:users!analista_id(id, nome, foto_perfil),
   cliente:clientes(id, nome, telefone, email),
-  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, datas, cliente:clientes(nome)),
+  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, datas, obra_bairro, obra_municipio, cliente:clientes(nome)),
   card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, cor_vinculo, status_analise)
 `
 
@@ -159,6 +162,7 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
       data_planejada_montagem: item.data_planejada_montagem || null,
       data_limite_analise: item.data_limite_analise || null,
       data_obra_montagem: item.data_obra_montagem || null,
+      data_prometida_montagem: item.data_prometida_montagem || null,
       valor_total: Number(item.valor_total) || 0,
       valor_unitario: Number(item.valor_unitario) || 0,
       desconto_percentual: Number(item.desconto_percentual) || 0,
@@ -607,6 +611,91 @@ export interface ProntidaoInfo {
   iconColor: string
   badgeClass: string
   tooltip: string
+}
+
+/**
+ * Atualiza a Data Prometida na Obra (gravando em data_prometida_montagem)
+ * e recalcula automaticamente a semana sugerida de produção mantendo a margem padrão:
+ * -2 semanas para análise técnica, data da montagem e semana sugerida de produção.
+ * Registra histórico em `pcp_reprogramacao_historico`.
+ */
+export async function updateCardDataPrometidaObra(
+  cardId: string,
+  novaDataObra: string | null,
+  motivo?: string,
+): Promise<{ semanaSugeridaProducao: string | null; dataLimiteAnalise: string | null }> {
+  let semanaSugeridaProducao: string | null = null
+  let dataLimiteAnalise: string | null = null
+  let dataObraMontagem: string | null = novaDataObra || null
+
+  if (novaDataObra && novaDataObra.trim()) {
+    const cleanDate = novaDataObra.slice(0, 10)
+    // Se a data informada é a data de montagem/obra, calcular data de produção voltando 4 semanas (-28 dias)
+    // ou calcular derivadas usando calcularDatasDerivadasPcp a partir da data de produção derivada
+    const targetMontagem = new Date(`${cleanDate}T12:00:00`)
+    if (!isNaN(targetMontagem.getTime())) {
+      // Data de produção sugerida = Data de montagem na obra - 4 semanas (28 dias)
+      const dataProdDate = new Date(targetMontagem)
+      dataProdDate.setDate(targetMontagem.getDate() - 28)
+
+      const yyyy = dataProdDate.getFullYear()
+      const mm = String(dataProdDate.getMonth() + 1).padStart(2, '0')
+      const dd = String(dataProdDate.getDate()).padStart(2, '0')
+      const prodDateStr = `${yyyy}-${mm}-${dd}`
+
+      const { dataLimiteAnalise: derivedAnalise, semanaPlanejada: derivedSemana } =
+        calcularDatasDerivadasPcp(prodDateStr)
+
+      semanaSugeridaProducao = derivedSemana
+      dataLimiteAnalise = derivedAnalise
+      dataObraMontagem = cleanDate
+    }
+  }
+
+  const updatePayload: Record<string, any> = {
+    data_prometida_montagem: novaDataObra || null,
+    data_obra_montagem: dataObraMontagem,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (semanaSugeridaProducao) {
+    updatePayload.semana_planejada_producao = semanaSugeridaProducao
+  }
+  if (dataLimiteAnalise) {
+    updatePayload.data_limite_analise = dataLimiteAnalise
+  }
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update(updatePayload as any)
+    .eq('id', cardId)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar data prometida da obra:', updateErr)
+    throw updateErr
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    await supabase.from('pcp_reprogramacao_historico').insert({
+      card_id: cardId,
+      linha_operacao: 'montagem',
+      tipo_planejamento: 'dia',
+      data_anterior: null,
+      data_nova: novaDataObra || null,
+      semana_nova: semanaSugeridaProducao,
+      motivo:
+        motivo ||
+        `Atualização da Data Prometida na Obra (${novaDataObra || 'Removida'}) com recálculo sugerido para ${semanaSugeridaProducao || 'N/A'}`,
+      usuario_id: userId,
+    } as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico de reprogramação da data da obra:', histErr)
+  }
+
+  return { semanaSugeridaProducao, dataLimiteAnalise }
 }
 
 export function getProntidaoTecnica(card: PcpCardItem): ProntidaoInfo {
