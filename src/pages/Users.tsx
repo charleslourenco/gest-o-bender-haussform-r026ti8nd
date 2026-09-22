@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  UserX,
-  ShieldAlert,
-  CheckCircle2,
-  XCircle,
-  Users as UsersIcon,
-} from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, UserX, ShieldAlert, Users as UsersIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useDebounce } from '@/hooks/use-debounce'
 import { Button } from '@/components/ui/button'
@@ -133,25 +123,14 @@ export default function Users() {
       })
       if (error) throw error
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-off-white" />
-            <span>Usuário deletado com sucesso!</span>
-          </div>
-        ),
-        className: 'bg-dark-denim text-off-white border-none',
+        title: 'Usuário deletado com sucesso!',
       })
       setRefresh((r) => r + 1)
     } catch (err: any) {
       toast({
-        title: (
-          <div className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-off-white" />
-            <span>Erro ao deletar</span>
-          </div>
-        ),
+        variant: 'destructive',
+        title: 'Erro ao deletar',
         description: err.message,
-        className: 'bg-steel-blue text-off-white border-none',
       })
     } finally {
       setUserToDelete(null)
@@ -180,122 +159,105 @@ export default function Users() {
       module="Usuários"
       allowedLevels={['Editor', 'Admin']}
       fallback={
-        <div className="flex h-full min-h-[60vh] items-center justify-center p-8 text-center bg-pale-cornflower/20">
-          <div className="flex flex-col items-center gap-4 border-2 border-steel-blue/20 p-8 rounded-xl bg-off-white max-w-md shadow-sm">
-            <ShieldAlert className="h-16 w-16 text-steel-blue" />
-            <h2 className="text-2xl font-bold tracking-tight text-midnight-navy">Acesso Negado</h2>
-            <p className="text-midnight-navy/70 font-medium">
+        <div className="flex h-full min-h-[60vh] items-center justify-center p-8 text-center bg-background">
+          <div className="flex flex-col items-center gap-4 border border-border p-8 rounded-xl bg-card max-w-md shadow-sm">
+            <ShieldAlert className="h-16 w-16 text-muted-foreground" />
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Acesso Negado</h2>
+            <p className="text-muted-foreground font-medium text-sm">
               Você não tem permissão para acessar este módulo. Contate o administrador.
             </p>
           </div>
         </div>
       }
     >
-      <div className="flex flex-col gap-6 p-4 md:p-8 w-full max-w-[1400px] mx-auto animate-in fade-in duration-300">
-        <Tabs defaultValue="lista" className="w-full space-y-6">
-          <div className="bg-midnight-navy p-6 rounded-xl shadow-sm">
-            <div className="flex items-center gap-4">
-              <UsersIcon className="h-10 w-10 text-off-white hidden sm:block" />
-              <div>
-                <h1 className="text-[32px] font-bold text-off-white">Usuários</h1>
-                <p className="text-off-white/80 mt-1 font-normal">Controle de acesso e equipe</p>
+      <div className="h-full flex flex-col bg-background animate-in fade-in duration-300 overflow-hidden">
+        <Tabs defaultValue="lista" className="flex-1 flex flex-col min-h-0 w-full">
+          {/* Cabeçalho compacto padrão + Barra de Controles no estilo do sistema */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-2.5 bg-card border-b border-border shrink-0 z-30 gap-2.5">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <UsersIcon className="w-5 h-5 text-foreground" />
+                <div>
+                  <h1 className="text-base font-bold text-foreground leading-tight">Usuários</h1>
+                  <p className="text-xs text-muted-foreground hidden md:block">
+                    Controle de acesso e equipe
+                  </p>
+                </div>
               </div>
+
+              <TabsList className="h-8 bg-muted/60 p-0.5 rounded-md">
+                <TabsTrigger
+                  value="lista"
+                  className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                >
+                  Lista
+                </TabsTrigger>
+                <TabsTrigger
+                  value="matriz"
+                  className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                >
+                  Permissões
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={openAdd}
+                className="h-8 text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Adicionar Usuário</span>
+              </Button>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <TabsList className="bg-midnight-navy border border-steel-blue/40 p-1 rounded-lg shadow-sm">
-              <TabsTrigger
-                value="lista"
-                className="text-off-white/70 data-[state=active]:bg-dark-denim data-[state=active]:text-off-white rounded-md"
-              >
-                Lista
-              </TabsTrigger>
-              <TabsTrigger
-                value="matriz"
-                className="text-off-white/70 data-[state=active]:bg-dark-denim data-[state=active]:text-off-white rounded-md"
-              >
-                Permissões
-              </TabsTrigger>
-            </TabsList>
-            <Button
-              onClick={openAdd}
-              className="bg-steel-blue text-off-white hover:opacity-90 hover:bg-steel-blue px-6 py-3 h-auto min-h-[44px] rounded-lg transition-all whitespace-nowrap"
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Adicionar Usuário
-            </Button>
-          </div>
-
-          <TabsContent value="lista" className="space-y-6 m-0">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <TabsContent value="lista" className="flex-1 overflow-y-auto min-h-0 m-0 p-4 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-off-white" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por nome ou e-mail..."
-                  className="pl-10 bg-midnight-navy border-2 border-steel-blue/40 text-off-white text-base min-h-[44px] focus-visible:border-dark-denim focus-visible:border-[3px] focus-visible:ring-0 placeholder:text-off-white/50 transition-all rounded-lg"
+                  className="pl-8 h-8 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full sm:w-[200px] bg-midnight-navy border-2 border-steel-blue/40 text-off-white text-base min-h-[44px] focus:border-dark-denim focus:border-[3px] focus:ring-0 transition-all rounded-lg">
+                <SelectTrigger className="w-full sm:w-[170px] h-8 text-xs bg-background border-border text-foreground">
                   <SelectValue placeholder="Função" />
                 </SelectTrigger>
-                <SelectContent className="bg-midnight-navy border-2 border-steel-blue/40">
-                  <SelectItem
-                    value="all"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                <SelectContent className="bg-popover border-border">
+                  <SelectItem value="all" className="text-xs">
                     Todas as funções
                   </SelectItem>
-                  <SelectItem
-                    value="Consultor"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="Consultor" className="text-xs">
                     Consultor
                   </SelectItem>
-                  <SelectItem
-                    value="Analista"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="Analista" className="text-xs">
                     Analista
                   </SelectItem>
-                  <SelectItem
-                    value="Gerente"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="Gerente" className="text-xs">
                     Gerente
                   </SelectItem>
-                  <SelectItem
-                    value="Admin"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="Admin" className="text-xs">
                     Admin
                   </SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[200px] bg-midnight-navy border-2 border-steel-blue/40 text-off-white text-base min-h-[44px] focus:border-dark-denim focus:border-[3px] focus:ring-0 transition-all rounded-lg">
+                <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs bg-background border-border text-foreground">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-midnight-navy border-2 border-steel-blue/40">
-                  <SelectItem
-                    value="all"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                <SelectContent className="bg-popover border-border">
+                  <SelectItem value="all" className="text-xs">
                     Todos os status
                   </SelectItem>
-                  <SelectItem
-                    value="active"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="active" className="text-xs">
                     Ativo
                   </SelectItem>
-                  <SelectItem
-                    value="inactive"
-                    className="focus:bg-dark-denim focus:text-off-white text-base text-off-white"
-                  >
+                  <SelectItem value="inactive" className="text-xs">
                     Inativo
                   </SelectItem>
                 </SelectContent>
@@ -303,11 +265,13 @@ export default function Users() {
             </div>
 
             {errorState ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center border border-steel-blue/40 rounded-xl bg-midnight-navy shadow-sm">
-                <ShieldAlert className="h-16 w-16 text-off-white mb-6" />
-                <h3 className="text-2xl font-bold text-off-white mb-4">{errorState}</h3>
+              <div className="flex flex-col items-center justify-center py-12 text-center border border-border rounded-lg bg-card shadow-xs p-6">
+                <ShieldAlert className="h-10 w-10 text-destructive mb-3" />
+                <h3 className="text-base font-semibold text-foreground mb-1">{errorState}</h3>
                 <Button
-                  className="bg-dark-denim text-off-white hover:opacity-90 hover:bg-dark-denim px-6 py-3 h-auto min-h-[44px] rounded-lg"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 text-xs"
                   onClick={() => setRefresh((r) => r + 1)}
                 >
                   Tentar Novamente
@@ -315,42 +279,44 @@ export default function Users() {
               </div>
             ) : loading && users.length === 0 ? (
               <>
-                <div className="hidden md:block border border-steel-blue/40 rounded-xl bg-midnight-navy overflow-hidden shadow-sm">
+                <div className="hidden md:block border border-border rounded-lg bg-card overflow-hidden shadow-xs">
                   <Table>
-                    <TableHeader className="bg-dark-denim">
-                      <TableRow className="hover:bg-transparent border-b-steel-blue/20">
-                        <TableHead className="font-semibold text-off-white p-4">Nome</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">E-mail</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">Função</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">Status</TableHead>
-                        <TableHead className="text-right font-semibold text-off-white p-4">
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="border-b border-border">
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Nome
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          E-mail
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Função
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-right text-xs font-semibold text-muted-foreground py-2.5 px-3">
                           Ações
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {[...Array(5)].map((_, i) => (
-                        <TableRow
-                          key={i}
-                          className={cn(
-                            'border-b-steel-blue/20',
-                            i % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/40',
-                          )}
-                        >
-                          <TableCell className="p-4">
-                            <Skeleton className="h-6 w-48 bg-steel-blue/30" />
+                        <TableRow key={i} className="border-b border-border hover:bg-muted/30">
+                          <TableCell className="py-2.5 px-3">
+                            <Skeleton className="h-4 w-40" />
                           </TableCell>
-                          <TableCell className="p-4">
-                            <Skeleton className="h-6 w-56 bg-steel-blue/30" />
+                          <TableCell className="py-2.5 px-3">
+                            <Skeleton className="h-4 w-48" />
                           </TableCell>
-                          <TableCell className="p-4">
-                            <Skeleton className="h-6 w-24 bg-steel-blue/30" />
+                          <TableCell className="py-2.5 px-3">
+                            <Skeleton className="h-4 w-20" />
                           </TableCell>
-                          <TableCell className="p-4">
-                            <Skeleton className="h-8 w-20 rounded-full bg-steel-blue/30" />
+                          <TableCell className="py-2.5 px-3">
+                            <Skeleton className="h-5 w-16 rounded-full" />
                           </TableCell>
-                          <TableCell className="text-right p-4">
-                            <Skeleton className="h-10 w-24 inline-block bg-steel-blue/30 rounded-lg" />
+                          <TableCell className="text-right py-2.5 px-3">
+                            <Skeleton className="h-7 w-16 inline-block rounded-md" />
                           </TableCell>
                         </TableRow>
                       ))}
@@ -358,92 +324,105 @@ export default function Users() {
                   </Table>
                 </div>
 
-                <div className="md:hidden flex flex-col gap-4">
+                <div className="md:hidden flex flex-col gap-3">
                   {[...Array(5)].map((_, i) => (
                     <div
                       key={i}
-                      className={cn(
-                        'flex flex-col gap-3 p-4 rounded-xl border border-steel-blue/40 shadow-sm',
-                        i % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/40',
-                      )}
+                      className="flex flex-col gap-2 p-3.5 rounded-lg border border-border bg-card shadow-xs"
                     >
-                      <Skeleton className="h-6 w-3/4 bg-steel-blue/30" />
-                      <Skeleton className="h-4 w-1/2 bg-steel-blue/30" />
-                      <div className="mt-2 pt-3 border-t border-steel-blue/20 flex justify-between">
-                        <Skeleton className="h-6 w-24 bg-steel-blue/30" />
-                        <Skeleton className="h-8 w-20 rounded-full bg-steel-blue/30" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3.5 w-1/2" />
+                      <div className="mt-2 pt-2 border-t border-border flex justify-between items-center">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-5 w-16 rounded-full" />
                       </div>
                     </div>
                   ))}
                 </div>
               </>
             ) : users.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center border border-steel-blue/40 rounded-xl bg-midnight-navy shadow-sm">
-                <UserX className="h-20 w-20 text-off-white mb-6 opacity-50" />
-                <h3 className="text-2xl font-bold text-off-white mb-2">
+              <div className="flex flex-col items-center justify-center py-16 text-center border border-border rounded-lg bg-card shadow-xs p-6">
+                <UserX className="h-12 w-12 text-muted-foreground mb-3 opacity-60" />
+                <h3 className="text-base font-semibold text-foreground mb-1">
                   Nenhum usuário cadastrado
                 </h3>
-                <p className="text-base text-off-white/70 max-w-md">
-                  Clique em 'Adicionar Usuário' para começar.
+                <p className="text-xs text-muted-foreground max-w-sm mb-4">
+                  Nenhum registro encontrado com os filtros aplicados.
                 </p>
+                <Button
+                  size="sm"
+                  onClick={openAdd}
+                  className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Adicionar Usuário</span>
+                </Button>
               </div>
             ) : (
               <>
-                <div className="hidden md:block border border-steel-blue/40 rounded-xl bg-midnight-navy overflow-hidden shadow-sm">
+                <div className="hidden md:block border border-border rounded-lg bg-card overflow-hidden shadow-xs">
                   <Table>
-                    <TableHeader className="bg-dark-denim">
-                      <TableRow className="hover:bg-transparent border-b-steel-blue/20">
-                        <TableHead className="font-semibold text-off-white p-4">Nome</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">E-mail</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">Função</TableHead>
-                        <TableHead className="font-semibold text-off-white p-4">Status</TableHead>
-                        <TableHead className="text-right font-semibold text-off-white p-4">
+                    <TableHeader className="bg-muted/50">
+                      <TableRow className="border-b border-border">
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Nome
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          E-mail
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Função
+                        </TableHead>
+                        <TableHead className="text-xs font-semibold text-muted-foreground py-2.5 px-3">
+                          Status
+                        </TableHead>
+                        <TableHead className="text-right text-xs font-semibold text-muted-foreground py-2.5 px-3">
                           Ações
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((user, idx) => (
+                      {users.map((user) => (
                         <TableRow
                           key={user.id}
-                          className={cn(
-                            'transition-colors border-b-steel-blue/20 hover:bg-dark-denim/50',
-                            idx % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/30',
-                          )}
+                          className="border-b border-border hover:bg-muted/30 transition-colors"
                         >
-                          <TableCell className="font-medium text-off-white p-4">
+                          <TableCell className="font-medium text-xs text-foreground py-2.5 px-3">
                             {user.nome}
                           </TableCell>
-                          <TableCell className="text-off-white/80 p-4">{user.email}</TableCell>
-                          <TableCell className="text-off-white p-4 font-medium">
+                          <TableCell className="text-xs text-muted-foreground py-2.5 px-3">
+                            {user.email}
+                          </TableCell>
+                          <TableCell className="text-xs text-foreground py-2.5 px-3 font-medium">
                             {user.funcao || '-'}
                           </TableCell>
-                          <TableCell className="p-4">
+                          <TableCell className="py-2.5 px-3">
                             <Badge
-                              variant="outline"
+                              variant={user.status ? 'default' : 'secondary'}
                               className={cn(
-                                'border-none text-sm font-semibold',
+                                'text-[11px] font-medium h-5 px-2',
                                 user.status
-                                  ? 'bg-dark-denim text-off-white'
-                                  : 'bg-steel-blue text-off-white',
+                                  ? 'bg-emerald-600 hover:bg-emerald-600 text-white dark:bg-emerald-700'
+                                  : 'bg-muted text-muted-foreground hover:bg-muted',
                               )}
                             >
                               {user.status ? 'Ativo' : 'Inativo'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right p-4 space-x-2">
+                          <TableCell className="text-right py-2.5 px-3 space-x-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-off-white hover:text-off-white/80 hover:bg-dark-denim/50 min-h-[44px] min-w-[44px] rounded-lg transition-colors"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
                               onClick={() => openEdit(user)}
+                              title="Editar usuário"
                             >
-                              <Edit2 className="h-5 w-5" />
+                              <Edit2 className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-off-white hover:text-off-white/80 hover:bg-dark-denim/50 min-h-[44px] min-w-[44px] rounded-lg transition-colors"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
                               onClick={() => setUserToDelete(user)}
                               disabled={user.email === 'admin@bender.com'}
                               title={
@@ -452,7 +431,7 @@ export default function Users() {
                                   : 'Deletar'
                               }
                             >
-                              <Trash2 className="h-5 w-5" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -461,51 +440,52 @@ export default function Users() {
                   </Table>
                 </div>
 
-                <div className="md:hidden flex flex-col gap-4">
-                  {users.map((user, idx) => (
+                <div className="md:hidden flex flex-col gap-2.5">
+                  {users.map((user) => (
                     <div
                       key={user.id}
-                      className={cn(
-                        'flex flex-col gap-3 p-4 rounded-xl border border-steel-blue/40 shadow-sm',
-                        idx % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/30',
-                      )}
+                      className="flex flex-col gap-2 p-3.5 rounded-lg border border-border bg-card shadow-xs"
                     >
                       <div className="flex justify-between items-start gap-2">
                         <div className="overflow-hidden">
-                          <h3 className="font-bold text-off-white text-lg truncate">{user.nome}</h3>
-                          <p className="text-off-white/70 text-sm truncate">{user.email}</p>
+                          <h3 className="font-semibold text-foreground text-sm truncate">
+                            {user.nome}
+                          </h3>
+                          <p className="text-muted-foreground text-xs truncate">{user.email}</p>
                         </div>
                         <Badge
-                          variant="outline"
+                          variant={user.status ? 'default' : 'secondary'}
                           className={cn(
-                            'shrink-0 border-none',
+                            'shrink-0 text-[10px] font-medium h-5 px-2',
                             user.status
-                              ? 'bg-dark-denim text-off-white'
-                              : 'bg-steel-blue text-off-white',
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-muted text-muted-foreground',
                           )}
                         >
                           {user.status ? 'Ativo' : 'Inativo'}
                         </Badge>
                       </div>
-                      <div className="flex justify-between items-center mt-2 pt-3 border-t border-steel-blue/20">
-                        <span className="text-off-white font-semibold">{user.funcao || '-'}</span>
-                        <div className="flex gap-2">
+                      <div className="flex justify-between items-center mt-1 pt-2 border-t border-border">
+                        <span className="text-xs text-foreground font-medium">
+                          {user.funcao || '-'}
+                        </span>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-off-white hover:text-off-white/80 hover:bg-dark-denim/50 min-h-[44px] min-w-[44px] rounded-lg"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
                             onClick={() => openEdit(user)}
                           >
-                            <Edit2 className="h-5 w-5" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-off-white hover:text-off-white/80 hover:bg-dark-denim/50 min-h-[44px] min-w-[44px] rounded-lg"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md"
                             onClick={() => setUserToDelete(user)}
                             disabled={user.email === 'admin@bender.com'}
                           >
-                            <Trash2 className="h-5 w-5" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </div>
@@ -516,20 +496,20 @@ export default function Users() {
             )}
 
             {!loading && totalPages > 1 && (
-              <div className="mt-6 flex justify-end">
+              <div className="mt-4 flex justify-end">
                 <Pagination>
-                  <PaginationContent className="gap-2">
+                  <PaginationContent className="gap-1">
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         className={cn(
-                          'min-h-[44px] border border-steel-blue/50 text-midnight-navy hover:bg-pale-cornflower/50 rounded-lg',
+                          'h-8 text-xs border border-border text-foreground hover:bg-muted rounded-md',
                           page === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer',
                         )}
                       />
                     </PaginationItem>
                     <PaginationItem>
-                      <PaginationLink className="min-h-[44px] min-w-[44px] border border-dark-denim bg-dark-denim text-off-white rounded-lg font-medium hover:bg-dark-denim/90 hover:opacity-90 hover:text-off-white">
+                      <PaginationLink className="h-8 min-w-[32px] px-2 text-xs border border-border bg-card text-foreground rounded-md font-medium">
                         {page} de {totalPages}
                       </PaginationLink>
                     </PaginationItem>
@@ -537,7 +517,7 @@ export default function Users() {
                       <PaginationNext
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         className={cn(
-                          'min-h-[44px] border border-steel-blue/50 text-midnight-navy hover:bg-pale-cornflower/50 rounded-lg',
+                          'h-8 text-xs border border-border text-foreground hover:bg-muted rounded-md',
                           page >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer',
                         )}
                       />
@@ -558,25 +538,22 @@ export default function Users() {
               open={!!userToDelete}
               onOpenChange={(open) => !open && setUserToDelete(null)}
             >
-              <AlertDialogContent
-                className="bg-off-white border-none shadow-xl"
-                overlayClassName="bg-midnight-navy/50"
-              >
+              <AlertDialogContent className="bg-card border border-border shadow-lg max-w-md">
                 <AlertDialogHeader>
-                  <AlertDialogTitle className="text-midnight-navy text-[24px] font-bold">
+                  <AlertDialogTitle className="text-foreground text-lg font-bold">
                     Tem certeza que deseja deletar {userToDelete?.nome}?
                   </AlertDialogTitle>
-                  <AlertDialogDescription className="text-midnight-navy/80 text-base">
+                  <AlertDialogDescription className="text-muted-foreground text-sm">
                     Esta ação não pode ser desfeita. O usuário será removido permanentemente do
                     sistema e perderá todos os acessos.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="gap-4 mt-6 border-t border-steel-blue/20 pt-6">
-                  <AlertDialogCancel className="bg-steel-blue text-off-white hover:bg-steel-blue hover:opacity-90 hover:text-off-white px-6 py-3 h-auto min-h-[44px] border-none rounded-lg mt-0">
+                <AlertDialogFooter className="gap-2 mt-4 pt-4 border-t border-border">
+                  <AlertDialogCancel className="h-8 text-xs border-border text-foreground hover:bg-muted rounded-md">
                     Cancelar
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    className="bg-dark-denim text-off-white hover:opacity-90 hover:bg-dark-denim px-6 py-3 h-auto min-h-[44px] rounded-lg border-none"
+                    className="h-8 text-xs bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-md"
                     onClick={() => userToDelete && handleDelete(userToDelete.id)}
                   >
                     Deletar
@@ -585,7 +562,7 @@ export default function Users() {
               </AlertDialogContent>
             </AlertDialog>
           </TabsContent>
-          <TabsContent value="matriz" className="m-0">
+          <TabsContent value="matriz" className="flex-1 overflow-y-auto min-h-0 m-0 p-4">
             <PermissionsMatrix />
           </TabsContent>
         </Tabs>

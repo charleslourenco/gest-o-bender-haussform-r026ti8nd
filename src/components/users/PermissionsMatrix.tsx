@@ -85,9 +85,9 @@ export function PermissionsMatrix() {
       setPermissions(permsMap)
     } catch (error: any) {
       toast({
+        variant: 'destructive',
         title: 'Erro ao carregar matriz',
         description: error.message,
-        className: 'bg-steel-blue text-off-white border-none',
       })
     } finally {
       setLoading(false)
@@ -144,14 +144,13 @@ export function PermissionsMatrix() {
       toast({
         title: 'Permissão atualizada',
         description: `${user?.nome} -> ${mod}: ${level}`,
-        className: 'bg-dark-denim text-off-white border-none',
       })
     } catch (error: any) {
       setPermissions((prev) => ({ ...prev, [key]: prevLevel }))
       toast({
+        variant: 'destructive',
         title: 'Erro ao atualizar',
         description: error.message,
-        className: 'bg-steel-blue text-off-white border-none',
       })
     }
   }
@@ -183,32 +182,34 @@ export function PermissionsMatrix() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-[40px] w-full bg-dark-denim/40" />
-        <Skeleton className="h-[400px] w-full bg-dark-denim/40" />
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-[380px] w-full rounded-lg" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col space-y-2 animate-in fade-in duration-300">
-      <div className="flex items-center gap-2 mb-2 p-4 bg-midnight-navy rounded-xl">
-        <ShieldAlert className="h-6 w-6 text-off-white" />
+    <div className="flex flex-col space-y-3 animate-in fade-in duration-300">
+      <div className="flex items-center gap-2.5 p-3 bg-card border border-border rounded-lg shadow-xs">
+        <ShieldAlert className="h-5 w-5 text-muted-foreground shrink-0" />
         <div>
-          <h3 className="font-bold text-off-white text-lg">Matriz de Permissões</h3>
-          <p className="text-sm text-off-white/70">
+          <h3 className="font-semibold text-foreground text-sm leading-tight">
+            Matriz de Permissões
+          </h3>
+          <p className="text-xs text-muted-foreground">
             Configure os níveis de acesso de cada usuário por módulo. Alterações são salvas
             automaticamente.
           </p>
         </div>
       </div>
 
-      <div className="relative">
+      <div className="relative border border-border rounded-lg overflow-hidden bg-card shadow-xs">
         <div
           ref={topScrollRef}
           onScroll={handleTopScroll}
-          className="overflow-x-auto overflow-y-hidden rounded-t-xl bg-midnight-navy/50 custom-scrollbar-top"
-          style={{ height: '12px' }}
+          className="overflow-x-auto overflow-y-hidden bg-muted/40 custom-scrollbar-top border-b border-border"
+          style={{ height: '10px' }}
         >
           <div style={{ width: contentWidth, height: '1px' }} />
         </div>
@@ -216,25 +217,25 @@ export function PermissionsMatrix() {
         <div
           ref={tableScrollRef}
           onScroll={handleTableScroll}
-          className="overflow-auto rounded-b-xl bg-midnight-navy max-h-[65vh] relative"
+          className="overflow-auto max-h-[65vh] relative"
         >
-          <table className="w-full text-sm text-left border-collapse">
-            <thead className="sticky top-0 z-30 shadow-sm bg-dark-denim">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead className="sticky top-0 z-30 shadow-xs bg-muted/70 backdrop-blur-xs">
               <tr>
-                <th className="p-4 font-bold text-off-white bg-dark-denim sticky left-0 z-40 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.4)] whitespace-nowrap min-w-[200px] border-b border-steel-blue/40 border-r border-r-steel-blue/30">
+                <th className="py-2.5 px-3 font-semibold text-foreground bg-muted/90 sticky left-0 z-40 whitespace-nowrap min-w-[200px] border-b border-border border-r border-r-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]">
                   Módulos
                 </th>
                 {users.map((user) => (
                   <th
                     key={user.id}
-                    className="p-4 font-semibold text-off-white bg-dark-denim min-w-[180px] whitespace-nowrap border-b border-steel-blue/40"
+                    className="py-2.5 px-3 font-semibold text-foreground min-w-[170px] whitespace-nowrap border-b border-border"
                   >
                     <div className="flex flex-col">
                       <span className="truncate" title={user.nome}>
                         {user.nome}
                       </span>
                       <span
-                        className="text-xs text-off-white/50 font-normal truncate"
+                        className="text-[11px] text-muted-foreground font-normal truncate"
                         title={user.email}
                       >
                         {user.email}
@@ -249,13 +250,13 @@ export function PermissionsMatrix() {
                 <tr
                   key={mod}
                   className={cn(
-                    'transition-colors hover:bg-dark-denim/50 group',
-                    idx % 2 === 0 ? 'bg-midnight-navy' : 'bg-dark-denim/30',
+                    'transition-colors hover:bg-muted/40 group border-b border-border',
+                    idx % 2 === 0 ? 'bg-card' : 'bg-muted/15',
                   )}
                 >
-                  <td className="p-4 font-semibold text-off-white bg-steel-blue sticky left-0 z-20 shadow-[4px_0_12px_-4px_rgba(0,0,0,0.4)] whitespace-nowrap border-b border-steel-blue/20 border-r border-r-steel-blue/50">
+                  <td className="py-2.5 px-3 font-medium text-foreground bg-card group-hover:bg-muted/40 sticky left-0 z-20 whitespace-nowrap border-r border-r-border shadow-[2px_0_6px_-2px_rgba(0,0,0,0.1)]">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-off-white/50 group-hover:bg-off-white transition-colors" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 group-hover:bg-foreground transition-colors" />
                       {mod}
                     </div>
                   </td>
@@ -263,7 +264,7 @@ export function PermissionsMatrix() {
                     const level = permissions[`${user.id}-${mod}`] || 'Nenhum'
                     const isAdmin = user.email === 'admin@bender.com'
                     return (
-                      <td key={user.id} className="p-4 border-b border-steel-blue/10">
+                      <td key={user.id} className="p-2 border-b border-border">
                         <Select
                           value={level}
                           onValueChange={(val) => updatePermission(user.id, mod, val)}
@@ -271,52 +272,43 @@ export function PermissionsMatrix() {
                         >
                           <SelectTrigger
                             className={cn(
-                              'w-full bg-dark-denim border-2 border-steel-blue/30 text-off-white focus:ring-0 focus:border-dark-denim transition-all rounded-lg h-10',
-                              level === 'Admin' && 'border-emerald-500/50 bg-emerald-500/10',
-                              level === 'Editor' && 'border-sky-500/50 bg-sky-500/10',
-                              level === 'Leitor' && 'border-slate-400/50 bg-slate-400/10',
+                              'w-full bg-background border border-border text-foreground text-xs focus:ring-0 focus:border-primary transition-all rounded-md h-8',
+                              level === 'Admin' &&
+                                'border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+                              level === 'Editor' &&
+                                'border-sky-500/50 bg-sky-500/10 text-sky-700 dark:text-sky-400',
+                              level === 'Leitor' &&
+                                'border-border bg-muted/40 text-muted-foreground',
                               isAdmin && 'opacity-50 cursor-not-allowed',
                             )}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 truncate">
                               {getLevelIcon(level)}
                               <SelectValue placeholder="Nenhum" />
                             </div>
                           </SelectTrigger>
-                          <SelectContent className="bg-dark-denim border-2 border-steel-blue/40">
-                            <SelectItem
-                              value="Nenhum"
-                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
-                            >
+                          <SelectContent className="bg-popover border-border">
+                            <SelectItem value="Nenhum" className="text-xs">
                               <div className="flex items-center gap-2">
-                                <Shield className="h-4 w-4 text-slate-400" />
+                                <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                                 Nenhum
                               </div>
                             </SelectItem>
-                            <SelectItem
-                              value="Leitor"
-                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
-                            >
+                            <SelectItem value="Leitor" className="text-xs">
                               <div className="flex items-center gap-2">
-                                <Eye className="h-4 w-4 text-slate-400" />
+                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                 Leitor
                               </div>
                             </SelectItem>
-                            <SelectItem
-                              value="Editor"
-                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
-                            >
+                            <SelectItem value="Editor" className="text-xs">
                               <div className="flex items-center gap-2">
-                                <Edit2 className="h-4 w-4 text-sky-400" />
+                                <Edit2 className="h-3.5 w-3.5 text-sky-500" />
                                 Editor
                               </div>
                             </SelectItem>
-                            <SelectItem
-                              value="Admin"
-                              className="focus:bg-midnight-navy focus:text-off-white text-off-white"
-                            >
+                            <SelectItem value="Admin" className="text-xs">
                               <div className="flex items-center gap-2">
-                                <Key className="h-4 w-4 text-emerald-400" />
+                                <Key className="h-3.5 w-3.5 text-emerald-500" />
                                 Admin
                               </div>
                             </SelectItem>

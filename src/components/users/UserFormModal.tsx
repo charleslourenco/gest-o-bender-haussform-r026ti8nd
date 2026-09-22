@@ -129,7 +129,6 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
 
       toast({
         title: user ? 'Usuário atualizado com sucesso!' : 'Usuário criado com sucesso!',
-        className: 'bg-dark-denim text-off-white',
       })
       onSuccess(
         {
@@ -154,157 +153,156 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-off-white border-none shadow-xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border border-border shadow-lg">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-midnight-navy">
+          <DialogTitle className="text-lg font-bold text-foreground">
             {user ? 'Editar Usuário' : 'Novo Usuário'}
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="dados" className="mt-4">
-          <TabsList className="bg-pale-cornflower/30 border border-steel-blue/20 mb-6 w-full justify-start p-1 h-auto">
+        <Tabs defaultValue="dados" className="mt-2">
+          <TabsList className="bg-muted/60 mb-4 h-8 p-0.5 rounded-md">
             <TabsTrigger
               value="dados"
-              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
+              className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
             >
               Dados Pessoais
             </TabsTrigger>
             <TabsTrigger
               value="permissoes"
-              className="data-[state=active]:bg-midnight-navy data-[state=active]:text-off-white"
+              className="h-7 px-3 text-xs font-medium rounded-sm data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs"
             >
               Permissões
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dados" className="space-y-6 m-0 focus:outline-none">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-midnight-navy font-semibold">Nome Completo</Label>
+          <TabsContent value="dados" className="space-y-4 m-0 focus:outline-none">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Nome Completo</Label>
                 <Input
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                  className="h-9 text-xs bg-background border-border"
                   placeholder="Ex: João da Silva"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-midnight-navy font-semibold">Email</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Email</Label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={!!user}
-                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim disabled:opacity-60"
+                  className="h-9 text-xs bg-background border-border disabled:opacity-60"
                   placeholder="joao@bender.com"
                 />
               </div>
               {!user && (
-                <div className="space-y-2">
-                  <Label className="text-midnight-navy font-semibold">Senha Inicial</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Senha Inicial</Label>
                   <Input
                     type="password"
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
-                    className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                    className="h-9 text-xs bg-background border-border"
                     placeholder="Mínimo 8 caracteres"
                   />
                 </div>
               )}
               {user && (
-                <div className="space-y-2">
-                  <Label className="text-midnight-navy font-semibold">Nova Senha (Opcional)</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">
+                    Nova Senha (Opcional)
+                  </Label>
                   <Input
                     type="password"
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
-                    className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                    className="h-9 text-xs bg-background border-border"
                     placeholder="Deixe em branco para não alterar"
                   />
                 </div>
               )}
-              <div className="space-y-2">
-                <Label className="text-midnight-navy font-semibold">Telefone</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Telefone</Label>
                 <Input
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
-                  className="bg-white border-steel-blue/40 focus-visible:ring-dark-denim"
+                  className="h-9 text-xs bg-background border-border"
                   placeholder="(47) 90000-0000"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-midnight-navy font-semibold">Função/Cargo</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-foreground">Função/Cargo</Label>
                 <Select value={funcao} onValueChange={setFuncao}>
-                  <SelectTrigger className="bg-white border-steel-blue/40 focus:ring-0 focus:border-dark-denim focus:border-2 transition-all h-10">
+                  <SelectTrigger className="h-9 text-xs bg-background border-border">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-off-white border-steel-blue">
-                    <SelectItem value="Consultor" className="focus:bg-pale-cornflower">
+                  <SelectContent className="bg-popover border-border">
+                    <SelectItem value="Consultor" className="text-xs">
                       Consultor Comercial
                     </SelectItem>
-                    <SelectItem value="Analista" className="focus:bg-pale-cornflower">
+                    <SelectItem value="Analista" className="text-xs">
                       Analista Técnico
                     </SelectItem>
-                    <SelectItem value="Gerente" className="focus:bg-pale-cornflower">
+                    <SelectItem value="Gerente" className="text-xs">
                       Gerente
                     </SelectItem>
-                    <SelectItem value="Admin" className="focus:bg-pale-cornflower">
+                    <SelectItem value="Admin" className="text-xs">
                       Administrador
                     </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="flex items-center space-x-3 mt-6 p-4 border border-steel-blue/20 rounded-lg bg-white">
+            <div className="flex items-center space-x-3 mt-4 p-3 border border-border rounded-lg bg-muted/20">
               <Switch
                 checked={status}
                 onCheckedChange={setStatus}
-                className="data-[state=checked]:bg-emerald-500"
+                className="data-[state=checked]:bg-emerald-600"
               />
               <div>
-                <Label className="text-midnight-navy font-semibold text-base cursor-pointer">
+                <Label className="text-xs font-semibold text-foreground cursor-pointer">
                   Usuário Ativo
                 </Label>
-                <p className="text-sm text-midnight-navy/60">
+                <p className="text-[11px] text-muted-foreground">
                   Permite que o usuário faça login no sistema.
                 </p>
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="permissoes" className="space-y-6 m-0 focus:outline-none">
-            <div className="bg-pale-cornflower/20 p-4 rounded-lg mb-4 border border-steel-blue/10">
-              <p className="text-sm text-midnight-navy/80">
+          <TabsContent value="permissoes" className="space-y-4 m-0 focus:outline-none">
+            <div className="bg-muted/40 p-3 rounded-lg border border-border">
+              <p className="text-xs text-muted-foreground">
                 Defina o nível de acesso para cada módulo. <strong>Admin</strong> possui acesso
                 total de edição e exclusão. <strong>Editor</strong> pode modificar registros.{' '}
                 <strong>Leitor</strong> apenas visualiza.
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
               {MODULES.map((mod) => (
-                <div
-                  key={mod}
-                  className="flex flex-col space-y-1.5 pb-3 border-b border-steel-blue/10"
-                >
-                  <Label className="text-midnight-navy font-medium">{mod}</Label>
+                <div key={mod} className="flex flex-col space-y-1 pb-2.5 border-b border-border">
+                  <Label className="text-xs font-medium text-foreground">{mod}</Label>
                   <Select
                     value={permissions[mod] || 'Sem Acesso'}
                     onValueChange={(val) => setPermissions((p) => ({ ...p, [mod]: val }))}
                   >
-                    <SelectTrigger className="bg-white border-steel-blue/30 h-10 focus:ring-0 focus:border-dark-denim focus:border-2 transition-all">
+                    <SelectTrigger className="h-8 text-xs bg-background border-border">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-off-white border-steel-blue">
-                      <SelectItem value="Sem Acesso" className="focus:bg-pale-cornflower">
+                    <SelectContent className="bg-popover border-border">
+                      <SelectItem value="Sem Acesso" className="text-xs">
                         Sem Acesso
                       </SelectItem>
-                      <SelectItem value="Leitor" className="focus:bg-pale-cornflower">
+                      <SelectItem value="Leitor" className="text-xs">
                         Leitor
                       </SelectItem>
-                      <SelectItem value="Editor" className="focus:bg-pale-cornflower">
+                      <SelectItem value="Editor" className="text-xs">
                         Editor
                       </SelectItem>
-                      <SelectItem value="Admin" className="focus:bg-pale-cornflower">
+                      <SelectItem value="Admin" className="text-xs">
                         Admin
                       </SelectItem>
                     </SelectContent>
@@ -315,18 +313,20 @@ export function UserFormModal({ isOpen, onClose, user, onSuccess }: UserFormModa
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-end mt-8 gap-3 pt-6 border-t border-steel-blue/20">
+        <div className="flex justify-end mt-4 gap-2 pt-4 border-t border-border">
           <Button
             variant="outline"
+            size="sm"
             onClick={onClose}
-            className="border-steel-blue text-steel-blue hover:bg-pale-cornflower"
+            className="h-8 text-xs border-border"
           >
             Cancelar
           </Button>
           <Button
+            size="sm"
             onClick={handleSubmit}
             disabled={loading}
-            className="bg-dark-denim text-off-white hover:bg-midnight-navy hover:opacity-90 min-w-[120px]"
+            className="h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground min-w-[100px]"
           >
             {loading ? 'Salvando...' : 'Salvar Usuário'}
           </Button>
