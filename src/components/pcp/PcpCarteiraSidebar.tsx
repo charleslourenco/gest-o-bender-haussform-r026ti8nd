@@ -152,9 +152,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
   // Agrupamento hierárquico Nível 1 (Card Pai real OU Pai Virtual por Cliente/Contrato) + Nível 2 (Subcards / Ambientes)
   const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
+    if (!cards || !Array.isArray(cards)) return []
     // 1. Identificar todos os subcards explícitos (com card_pai_id)
     const subcardsByParentId = new Map<string, PcpCardItem[]>()
     for (const c of cards) {
+      if (!c) continue
       if (c.card_pai_id) {
         if (!subcardsByParentId.has(c.card_pai_id)) {
           subcardsByParentId.set(c.card_pai_id, [])
@@ -168,6 +170,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     // b) Cards sem card_pai_id e sem nenhum filho apontando para eles (cards avulsos / contratos sem card_pai_id)
     const parentsWithRealChildren = new Set<string>()
     for (const c of cards) {
+      if (!c) continue
       if (c.card_pai_id) {
         parentsWithRealChildren.add(c.card_pai_id)
       }
@@ -177,6 +180,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     const unparentedCards: PcpCardItem[] = []
 
     for (const c of cards) {
+      if (!c) continue
       if (!c.card_pai_id) {
         if (parentsWithRealChildren.has(c.id)) {
           realParents.push(c)
@@ -300,8 +304,10 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
   // Agrupamento hierárquico específico para o funil "🚀 Em análise" (status 'iniciar' e 'reuniao_analise')
   const emAnaliseHierarchyList: ParentHierarchyItem[] = useMemo(() => {
+    if (!cards || !Array.isArray(cards)) return []
     const subcardsByParentId = new Map<string, PcpCardItem[]>()
     for (const c of cards) {
+      if (!c) continue
       if (c.card_pai_id) {
         if (!subcardsByParentId.has(c.card_pai_id)) {
           subcardsByParentId.set(c.card_pai_id, [])
@@ -312,6 +318,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
     const parentsWithRealChildren = new Set<string>()
     for (const c of cards) {
+      if (!c) continue
       if (c.card_pai_id) {
         parentsWithRealChildren.add(c.card_pai_id)
       }
@@ -321,6 +328,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     const unparentedCards: PcpCardItem[] = []
 
     for (const c of cards) {
+      if (!c) continue
       if (!c.card_pai_id) {
         if (parentsWithRealChildren.has(c.id)) {
           realParents.push(c)
@@ -463,23 +471,27 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
   // Filtragem por busca e filtros rápidos
   const filteredHierarchy = useMemo(() => {
+    if (!hierarchyList || !Array.isArray(hierarchyList)) return []
     return hierarchyList.filter((item) => {
+      if (!item) return false
+      const subcards = Array.isArray(item.subcards) ? item.subcards : []
       // Filtro rápido
-      if (filterType === 'com_ambientes' && item.subcards.length === 0) return false
-      if (filterType === 'isolados' && item.subcards.length > 0) return false
+      if (filterType === 'com_ambientes' && subcards.length === 0) return false
+      if (filterType === 'isolados' && subcards.length > 0) return false
 
       // Busca por texto
-      if (!search.trim()) return true
-      const term = search.toLowerCase()
-      const clientMatch = item.clientName.toLowerCase().includes(term)
-      const empMatch = item.empreendimento.toLowerCase().includes(term)
+      if (!search || !search.trim()) return true
+      const term = search.toLowerCase().trim()
+      const clientMatch = (item.clientName || '').toLowerCase().includes(term)
+      const empMatch = (item.empreendimento || '').toLowerCase().includes(term)
       const parentNameMatch = (item.parent?.nome_produto || '').toLowerCase().includes(term)
       const parentCodeMatch = (item.codigo_rastreio || item.parent?.codigo_rastreio || '')
         .toLowerCase()
         .includes(term)
 
       // Verificar se algum subcard casa com a busca
-      const subcardMatch = item.subcards.some((s) => {
+      const subcardMatch = subcards.some((s) => {
+        if (!s) return false
         const subName = (s.nome_produto || '').toLowerCase()
         const subCode = (s.codigo_rastreio || '').toLowerCase()
         return subName.includes(term) || subCode.includes(term)

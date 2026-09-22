@@ -59,6 +59,7 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
 
   // Agrupamento de cards por linha e por semana
   const getCardsForCell = (linha: PcpLinhaOperacao, week: IsoWeekRange): PcpCardItem[] => {
+    if (!cards || !Array.isArray(cards)) return []
     const field =
       linha === 'analise'
         ? 'semana_planejada_analise'
@@ -66,7 +67,7 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
           ? 'semana_planejada_producao'
           : 'semana_planejada_montagem'
 
-    return cards.filter((c) => matchWeek(c[field], week))
+    return cards.filter((c) => c && matchWeek(c[field], week))
   }
 
   // Soma de R$ para qualquer linha em cada semana sem dupla contagem:
@@ -76,11 +77,12 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     const cellCards = getCardsForCell(linha, week)
     const paisComFilhosValorados = new Set<string>()
     for (const c of cellCards) {
-      if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+      if (c && c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
         paisComFilhosValorados.add(c.card_pai_id)
       }
     }
     return cellCards.reduce((acc, c) => {
+      if (!c) return acc
       const isParent = !c.card_pai_id
       if (isParent && paisComFilhosValorados.has(c.id)) {
         return acc
@@ -112,6 +114,7 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
   const handleDrop = (e: React.DragEvent, linha: PcpLinhaOperacao, week: IsoWeekRange) => {
     e.preventDefault()
     setDragOverCell(null)
+    if (!week?.label) return
     const cardId = e.dataTransfer.getData('cardId')
     const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
     let subcardIds: string[] | undefined
@@ -253,7 +256,9 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
                       <div className="w-full pt-1.5 border-t border-border/50 text-[9px] text-muted-foreground flex flex-col items-center">
                         <span>Alocado:</span>
                         <strong className="text-foreground font-semibold">
-                          {cards.filter((c) => Boolean(c[linha.field])).length}
+                          {Array.isArray(cards)
+                            ? cards.filter((c) => c && Boolean(c[linha.field])).length
+                            : 0}
                         </strong>
                       </div>
                     </div>

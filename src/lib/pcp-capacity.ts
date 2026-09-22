@@ -72,6 +72,48 @@ export function formatRangeSegundaSexta(start: Date): string {
  * Gera as semanas ISO que tocam o mês selecionado (ano + mês 0-11).
  * Ex.: S40 [05/10 a 09/10], S41 [12/10 a 16/10], S42 [19/10 a 23/10], S43 [26/10 a 30/10]
  */
+/**
+ * Retorna todas as 52/53 semanas ISO de um ano completo.
+ */
+export function getAllIsoWeeksForYear(year: number): IsoWeekRange[] {
+  const weeks: IsoWeekRange[] = []
+  // 4 de janeiro sempre cai na semana ISO 1
+  const firstThursday = new Date(Date.UTC(year, 0, 4))
+  const { weekNumber: firstWeek } = getIsoWeekAndYear(firstThursday)
+
+  // Vamos de 1 até 52 ou 53
+  for (let w = 1; w <= 53; w++) {
+    const monday = getStartDateOfIsoWeek(w, year)
+    const { weekNumber: actualWeek, year: actualYear } = getIsoWeekAndYear(monday)
+    // Se avançou de ano, encerra
+    if (actualYear !== year && w > 50) {
+      break
+    }
+    const friday = new Date(monday)
+    friday.setDate(monday.getDate() + 4)
+
+    weeks.push({
+      key: `${year}-W${pad2(w)}`,
+      label: `S${pad2(w)}`,
+      weekNumber: w,
+      year,
+      startDate: monday,
+      endDate: friday,
+      formattedRange: formatRangeSegundaSexta(monday),
+    })
+
+    // Se a próxima semana (w+1) já for do próximo ano
+    const nextMonday = new Date(monday)
+    nextMonday.setDate(monday.getDate() + 7)
+    const { year: nextYear } = getIsoWeekAndYear(nextMonday)
+    if (nextYear > year) {
+      break
+    }
+  }
+
+  return weeks
+}
+
 export function getIsoWeeksForMonth(year: number, monthIndex: number): IsoWeekRange[] {
   // Primeiro dia do mês
   const firstDay = new Date(year, monthIndex, 1)

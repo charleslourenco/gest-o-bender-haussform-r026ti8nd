@@ -239,10 +239,12 @@ export const PcpMatrizDiaria: React.FC = () => {
 
   // Total do mês na linha de produção
   const totalMesProducao = useMemo(() => {
+    if (!cards || !Array.isArray(cards)) return 0
     return cards.reduce((acc, c) => {
+      if (!c) return acc
       const dt = c?.data_planejada_producao
       if (!dt || typeof dt !== 'string' || !dt.includes('-')) return acc
-      const parts = dt.slice(0, 7).split('-')
+      const parts = String(dt).slice(0, 7).split('-')
       if (!parts || parts.length < 2) return acc
       const y = Number(parts[0])
       const m = Number(parts[1])
@@ -274,9 +276,11 @@ export const PcpMatrizDiaria: React.FC = () => {
       if (c.visivel_pcp === false) return false
       if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
       if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
-      const temData = Boolean(c.data_planejada_producao && c.data_planejada_producao.trim() !== '')
+      const temData = Boolean(
+        c?.data_planejada_producao && String(c.data_planejada_producao).trim() !== '',
+      )
       if (temData) return false
-      const st = (c.status_analise || '').toLowerCase().trim()
+      const st = (c?.status_analise || '').toLowerCase().trim()
       if (STATUS_BLOQUEADOS.has(st)) return false
       return true
     }).length

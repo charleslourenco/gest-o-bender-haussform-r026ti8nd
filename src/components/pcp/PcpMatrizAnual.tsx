@@ -224,17 +224,26 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
 
   // Totais do ano em produção: derivada direta de todos os meses do ano (agregação hierárquica unificada)
   const anoProdCards = useMemo(() => {
+    if (!cards || !Array.isArray(cards)) return []
     return cards.filter((c) => {
+      if (!c) return false
       // 1. Vinculado a mês do ano
-      if (c.mes_planejado_producao && c.mes_planejado_producao.startsWith(`${currentYear}-`)) {
+      if (
+        c.mes_planejado_producao &&
+        String(c.mes_planejado_producao).startsWith(`${currentYear}-`)
+      ) {
         return true
       }
       // 2. OU vinculado a semana que pertence a este ano
       if (c.semana_planejada_producao) {
-        const clean = c.semana_planejada_producao.trim()
+        const clean = String(c.semana_planejada_producao).trim()
         if (clean.startsWith(`${currentYear}-W`)) return true
         // Se for "Sxx" e tiver mes_planejado neste ano
-        if (clean.startsWith('S') && c.mes_planejado_producao?.startsWith(`${currentYear}-`)) {
+        if (
+          clean.startsWith('S') &&
+          c.mes_planejado_producao &&
+          String(c.mes_planejado_producao).startsWith(`${currentYear}-`)
+        ) {
           return true
         }
       }
@@ -243,7 +252,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
   }, [cards, currentYear])
 
   const anoProdTotal = useMemo(() => {
-    return anoProdCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+    return anoProdCards.reduce((acc, c) => acc + (Number(c?.valor_total) || 0), 0)
   }, [anoProdCards])
 
   // Semanas do mês atual para o side drawer
@@ -253,6 +262,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
 
   // Contagem de pendentes na carteira para o ano (sem semana e sem mês de produção, e aptos para agendar)
   const unassignedCount = useMemo(() => {
+    if (!cards || !Array.isArray(cards)) return 0
     const STATUS_BLOQUEADOS = new Set([
       'aguardando_plano_corte',
       'router',
@@ -269,12 +279,13 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
       'reuniao_analise',
     ])
     return cards.filter((c) => {
+      if (!c) return false
       if (c.visivel_pcp === false) return false
       if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
       if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
       const semSemanaProd =
-        !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
-      const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
+        !c.semana_planejada_producao || String(c.semana_planejada_producao).trim() === ''
+      const semMesProd = !c.mes_planejado_producao || String(c.mes_planejado_producao).trim() === ''
       if (!semSemanaProd || !semMesProd) return false
       const st = (c.status_analise || '').toLowerCase().trim()
       if (STATUS_BLOQUEADOS.has(st)) return false

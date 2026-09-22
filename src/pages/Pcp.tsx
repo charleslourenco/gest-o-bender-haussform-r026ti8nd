@@ -16,10 +16,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
+import { useEffect } from 'react'
 import { PcpMatrizMensal } from '@/components/pcp/PcpMatrizMensal'
 import { PcpMatrizAnual } from '@/components/pcp/PcpMatrizAnual'
 import { PcpMatrizDiaria } from '@/components/pcp/PcpMatrizDiaria'
 import { PcpModoLista } from '@/components/pcp/PcpModoLista'
+import { PcpCargaSemanal } from '@/components/pcp/PcpCargaSemanal'
+import { fetchPcpCards, PcpCardItem } from '@/services/pcp-planejamento'
 import { cn } from '@/lib/utils'
 
 type SchedulePeriod = 'anual' | 'mensal' | 'semanal' | 'diario'
@@ -72,10 +75,33 @@ export function PcpPlanejamentoView() {
   const [targetMonthIndex, setTargetMonthIndex] = useState<number | undefined>(undefined)
   const [targetYear, setTargetYear] = useState<number | undefined>(undefined)
 
+  // Cards para a Visão Carga Semanal (R$)
+  const [semanalCards, setSemanalCards] = useState<PcpCardItem[]>([])
+  const [loadingCards, setLoadingCards] = useState(false)
+
+  const loadCardsData = async () => {
+    try {
+      setLoadingCards(true)
+      const data = await fetchPcpCards()
+      setSemanalCards(Array.isArray(data) ? data : [])
+    } catch {
+      // safe fallback
+      setSemanalCards([])
+    } finally {
+      setLoadingCards(false)
+    }
+  }
+
+  useEffect(() => {
+    if (period === 'semanal' && viewMode === 'grade') {
+      loadCardsData()
+    }
+  }, [period, viewMode])
+
   const periodLabels: Record<SchedulePeriod, string> = {
     anual: 'Visão Anual',
     mensal: 'Visão Mensal',
-    semanal: 'Visão Semanal',
+    semanal: 'Carga Semanal (R$)',
     diario: 'Visão Diária',
   }
 
@@ -145,8 +171,9 @@ export function PcpPlanejamentoView() {
                     ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted',
                 )}
+                title={p === 'semanal' ? 'Visão Carga Semanal (R$) com metas fabris' : undefined}
               >
-                {p === 'diario' ? 'Diário' : p}
+                {p === 'diario' ? 'Diário' : p === 'semanal' ? 'Semanal (R$)' : p}
               </Button>
             ))}
           </div>
@@ -173,9 +200,9 @@ export function PcpPlanejamentoView() {
           <PcpMatrizDiaria />
         </ErrorBoundary>
       ) : (
-        /* Semanal é coberto nativamente pela visão Mensal (grade com semanas ISO S01-S52) */
-        <ErrorBoundary source="PCP Matriz Mensal / Semanal">
-          <PcpMatrizMensal initialYear={targetYear} initialMonthIndex={targetMonthIndex} />
+        /* ETAPA 3 — VISÃO "CARGA SEMANAL (R$)" com Semanas ISO, semáforo e detalhamento */
+        <ErrorBoundary source="PCP Carga Semanal">
+          <PcpCargaSemanal cards={semanalCards} onRefresh={loadCardsData} />
         </ErrorBoundary>
       )}
     </div>

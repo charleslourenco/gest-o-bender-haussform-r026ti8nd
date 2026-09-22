@@ -60,6 +60,8 @@ export const PcpCard: React.FC<PcpCardProps> = ({
   // Subcard: [ Cliente — Ambiente — R$ Valor ] (ex.: 'Ló Portela — Cozinha — R$ 18.000,00')
   // Pai com subcards: [ Cliente — Projeto/Ambiente — R$ Valor (+3 ambientes) ]
   // Pai sem subcards: [ Cliente — Ambiente — R$ Valor ]
+  if (!card) return null
+
   const ambienteNome = card?.nome_produto || 'Ambiente'
   const valorFormatado = formatBRL(card?.valor_total || 0)
   const tagAmbientes = !isSubcard && subcardsCount > 0 ? ` (+${subcardsCount} amb.)` : ''
@@ -81,7 +83,7 @@ export const PcpCard: React.FC<PcpCardProps> = ({
                 : 'bg-card border-border hover:border-primary/60 hover:bg-muted/40 text-foreground',
             )}
             style={
-              card.cor_vinculo
+              card?.cor_vinculo
                 ? {
                     borderLeftWidth: '3px',
                     borderLeftColor: card.cor_vinculo,
@@ -107,7 +109,7 @@ export const PcpCard: React.FC<PcpCardProps> = ({
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs max-w-sm">
           <p className="font-bold text-foreground">{fullText}</p>
-          {card.codigo_rastreio && (
+          {card?.codigo_rastreio && (
             <p className="text-[10px] text-muted-foreground font-mono">
               Rastreio: {card.codigo_rastreio}
             </p>

@@ -69,6 +69,7 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
 
   // Agrupamento de cards por linha e dia
   const getCardsForCell = (linha: PcpLinhaOperacao, dia: DiaInfo): PcpCardItem[] => {
+    if (!cards || !Array.isArray(cards)) return []
     const field =
       linha === 'analise'
         ? 'data_planejada_analise'
@@ -76,11 +77,13 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
           ? 'data_planejada_producao'
           : 'data_planejada_montagem'
 
+    const targetDate = dia?.dateString ? String(dia.dateString).slice(0, 10) : ''
+    if (!targetDate) return []
+
     return cards.filter((c) => {
+      if (!c) return false
       const val = c[field]
       if (!val || typeof val !== 'string') return false
-      const targetDate = dia?.dateString
-      if (!targetDate) return false
       return val.slice(0, 10) === targetDate
     })
   }
@@ -93,14 +96,17 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
   }
 
   const getLinhaSomaDia = (linha: PcpLinhaOperacao, dia: DiaInfo): number => {
+    if (!dia) return 0
     const diaCards = getCardsForCell(linha, dia)
     const paisComFilhosValorados = new Set<string>()
     for (const c of diaCards) {
+      if (!c) continue
       if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
         paisComFilhosValorados.add(c.card_pai_id)
       }
     }
     return diaCards.reduce((acc, c) => {
+      if (!c) return acc
       const isParent = !c.card_pai_id
       if (isParent && paisComFilhosValorados.has(c.id)) {
         return acc
@@ -127,6 +133,7 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
   const handleDrop = (e: React.DragEvent, linha: PcpLinhaOperacao, dia: DiaInfo) => {
     e.preventDefault()
     setDragOverCell(null)
+    if (!dia?.dateString) return
     const cardId = e.dataTransfer.getData('cardId')
     const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
     let subcardIds: string[] | undefined
@@ -141,6 +148,7 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
       onDropCard(cardId, linha, dia.dateString, subcardIds)
     }
   }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Scroll horizontal suave */}
@@ -162,15 +170,22 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
             </div>
 
             {/* Cabeçalho de cada dia: "Terça-feira 08/09 | Total: R$ 45.000,00" */}
-            {dias.map((dia) => {
-              const somaProducao = getProducaoSomaDia(dia)
+            {dias.map((dia, idx) => {
+              const safeKey = dia?.dateString || `dia-${idx}`
+              const somaProducao = dia ? getProducaoSomaDia(dia) : 0
+              const monthPart =
+                dia?.dateString &&
+                typeof dia.dateString === 'string' &&
+                dia.dateString.includes('-')
+                  ? dia.dateString.split('-')[1] || ''
+                  : ''
 
               return (
                 <div
-                  key={dia.dateString}
+                  key={safeKey}
                   className={cn(
                     'flex-1 min-w-[180px] p-2 border-r border-border flex flex-col justify-between gap-1 transition-colors select-none',
-                    dia.isToday ? 'bg-primary/5' : dia.isWeekend ? 'bg-muted/30' : 'bg-card',
+                    dia?.isToday ? 'bg-primary/5' : dia?.isWeekend ? 'bg-muted/30' : 'bg-card',
                   )}
                 >
                   <div className="flex items-center justify-between gap-1">
@@ -178,20 +193,16 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                       <span
                         className={cn(
                           'text-xs font-bold truncate',
-                          dia.isToday ? 'text-primary font-black' : 'text-foreground',
+                          dia?.isToday ? 'text-primary font-black' : 'text-foreground',
                         )}
-                        title={dia.formattedFull}
+                        title={dia?.formattedFull || ''}
                       >
-                        {dia.diaSemanaCurto} {String(dia?.diaDoMes ?? '').padStart(2, '0')}/
-                        {dia?.dateString &&
-                        typeof dia.dateString === 'string' &&
-                        dia.dateString.includes('-')
-                          ? dia.dateString.split('-')[1]
-                          : ''}
+                        {dia?.diaSemanaCurto || ''} {String(dia?.diaDoMes ?? '').padStart(2, '0')}
+                        {monthPart ? `/${monthPart}` : ''}
                       </span>
                     </div>
 
-                    {dia.isToday && (
+                    {dia?.isToday && (
                       <Badge
                         variant="default"
                         className="text-[9px] px-1 py-0 h-4 bg-primary text-primary-foreground font-bold shrink-0"
@@ -254,30 +265,33 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                       <div className="w-full pt-1.5 border-t border-border/50 text-[9px] text-muted-foreground flex flex-col items-center">
                         <span>Alocado:</span>
                         <strong className="text-foreground font-semibold">
-                          {cards.filter((c) => Boolean(c[linha.field])).length}
+                          {Array.isArray(cards)
+                            ? cards.filter((c) => c && Boolean(c[linha.field])).length
+                            : 0}
                         </strong>
                       </div>
                     </div>
 
                     {/* Células diárias desta linha */}
-                    {dias.map((dia) => {
-                      const cellKey = `${linha.id}-${dia.dateString}`
-                      const cellCards = getCardsForCell(linha.id, dia)
+                    {dias.map((dia, idx) => {
+                      const safeKey = dia?.dateString || `cell-${idx}`
+                      const cellKey = `${linha.id}-${safeKey}`
+                      const cellCards = dia ? getCardsForCell(linha.id, dia) : []
                       const isDragOver = dragOverCell === cellKey
-                      const totalValorCelula = getLinhaSomaDia(linha.id, dia)
+                      const totalValorCelula = dia ? getLinhaSomaDia(linha.id, dia) : 0
 
                       return (
                         <div
-                          key={dia.dateString}
+                          key={safeKey}
                           onDragOver={(e) => handleDragOver(e, cellKey)}
                           onDragLeave={(e) => handleDragLeave(e, cellKey)}
-                          onDrop={(e) => handleDrop(e, linha.id, dia)}
+                          onDrop={(e) => dia && handleDrop(e, linha.id, dia)}
                           className={cn(
                             'flex-1 min-w-[180px] p-1.5 border-r border-border flex flex-col transition-all select-none',
                             isDragOver &&
                               'bg-primary/10 border-2 border-dashed border-primary ring-2 ring-primary ring-inset',
-                            dia.isWeekend && 'bg-muted/20',
-                            isProducao && !dia.isWeekend && !isDragOver && 'hover:bg-muted/20',
+                            dia?.isWeekend && 'bg-muted/20',
+                            isProducao && !dia?.isWeekend && !isDragOver && 'hover:bg-muted/20',
                           )}
                         >
                           {/* Sub-cabeçalho da célula (apenas se houver cards) */}

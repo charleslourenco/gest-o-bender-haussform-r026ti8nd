@@ -117,6 +117,7 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
   // 1) mes_planejado_* casa com o mês
   // 2) OU se tem semana_planejada_* cujas semanas ISO pertencem ao mês (e não tem outro mês conflitante)
   const getCardsForCell = (linha: PcpLinhaOperacao, mes: MesInfo): PcpCardItem[] => {
+    if (!cards || !Array.isArray(cards)) return []
     const mesField =
       linha === 'analise'
         ? 'mes_planejado_analise'
@@ -132,6 +133,7 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
           : 'semana_planejada_montagem'
 
     return cards.filter((c) => {
+      if (!c) return false
       // Prioridade 1: Mês explícito
       if (c[mesField]) {
         return matchMonth(c[mesField], mes)
@@ -157,11 +159,12 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
     const mesCards = getCardsForCell(linha, mes)
     const paisComFilhosValorados = new Set<string>()
     for (const c of mesCards) {
-      if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+      if (c && c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
         paisComFilhosValorados.add(c.card_pai_id)
       }
     }
     return mesCards.reduce((acc, c) => {
+      if (!c) return acc
       const isParent = !c.card_pai_id
       if (isParent && paisComFilhosValorados.has(c.id)) {
         return acc
@@ -188,6 +191,7 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
   const handleDrop = (e: React.DragEvent, linha: PcpLinhaOperacao, mes: MesInfo) => {
     e.preventDefault()
     setDragOverCell(null)
+    if (!mes?.key) return
     const cardId = e.dataTransfer.getData('cardId')
     const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
     let subcardIds: string[] | undefined
@@ -308,13 +312,14 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
                           {linha.fullLabel}
                         </span>
                       </div>
-
                       <div className="w-full pt-1.5 border-t border-border/50 text-[9px] text-muted-foreground flex flex-col items-center">
-                        <span>Alocado Ano:</span>
+                        <span>Alocado:</span>
                         <strong className="text-foreground font-semibold">
-                          {cards.filter((c) => Boolean(c[linha.field])).length}
+                          {Array.isArray(cards)
+                            ? cards.filter((c) => c && Boolean(c[linha.field])).length
+                            : 0}
                         </strong>
-                      </div>
+                      </div>{' '}
                     </div>
 
                     {/* Células mensais desta linha */}
