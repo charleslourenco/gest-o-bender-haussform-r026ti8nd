@@ -36,7 +36,9 @@ import {
   Clock,
   ShieldAlert,
   AlertCircle,
+  Printer,
 } from 'lucide-react'
+import { PcpOrdemProducaoModal } from './PcpOrdemProducaoModal'
 
 interface PcpSideDrawerProps {
   card: PcpCardItem | null
@@ -86,6 +88,7 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
   const [historico, setHistorico] = useState<PcpReprogramacaoItem[]>([])
   const [loadingHistorico, setLoadingHistorico] = useState(false)
   const [savingLinha, setSavingLinha] = useState<PcpLinhaOperacao | null>(null)
+  const [opModalOpen, setOpModalOpen] = useState(false)
 
   useEffect(() => {
     if (card && open) {
@@ -208,6 +211,20 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
               Cliente: <strong className="text-foreground">{clientName}</strong>
             </SheetDescription>
           </SheetHeader>
+
+          {/* BOTÃO DE DESTAQUE: GERAR ORDEM DE PRODUÇÃO (OP) */}
+          <div className="mt-3 pt-3 border-t border-border">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setOpModalOpen(true)}
+              className="w-full h-9 bg-primary text-primary-foreground font-bold text-xs gap-2 shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>🖨️ Gerar Ordem de Produção (OP)</span>
+            </Button>
+          </div>
 
           {/* Atalhos rápidos para os Kanbans operacionais originais (conforme especificação item 4) */}
           <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-border/60">
@@ -484,11 +501,29 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
         </div>
 
         {/* Rodapé do Drawer */}
-        <div className="p-3 border-t border-border bg-muted/20 shrink-0 flex items-center justify-end">
+        <div className="p-3 border-t border-border bg-muted/20 shrink-0 flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setOpModalOpen(true)}
+            className="text-xs gap-1.5 font-semibold text-primary border-primary/30 hover:bg-primary/10"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Ficha de Fábrica (OP)</span>
+          </Button>
+
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
             Fechar Painel
           </Button>
         </div>
+
+        {/* Modal de Ordem de Produção (Print Preview e Emissão A4) */}
+        <PcpOrdemProducaoModal
+          open={opModalOpen}
+          onClose={() => setOpModalOpen(false)}
+          card={card}
+        />
       </SheetContent>
     </Sheet>
   )

@@ -51,7 +51,13 @@ export const PcpCard: React.FC<PcpCardProps> = ({
       e.dataTransfer.setData('sourceMes', currentMes)
     }
     if (!isSubcard && Array.isArray(card?.subcards) && card.subcards.length > 0) {
-      e.dataTransfer.setData('subcardIds', JSON.stringify(card.subcards.map((s) => s.id)))
+      const validSubcardIds = card.subcards
+        .filter(Boolean)
+        .map((s) => s.id)
+        .filter(Boolean)
+      if (validSubcardIds.length > 0) {
+        e.dataTransfer.setData('subcardIds', JSON.stringify(validSubcardIds))
+      }
     }
     e.dataTransfer.effectAllowed = 'move'
   }

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { PcpCardItem, PcpLinhaOperacao } from '@/services/pcp-planejamento'
 import { formatBRL } from '@/lib/pcp-capacity'
+import { safeFormatDatePtBr } from '@/lib/date-utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -62,18 +63,26 @@ interface ParentHierarchyItem {
 function extrairDataPrometidaEntrega(card?: PcpCardItem): string | null {
   if (!card) return null
   const form = card.formulario as any
-  if (form?.data_prevista_entrega) return form.data_prevista_entrega
-  if (form?.datas?.data_entrega_maxima) return form.datas.data_entrega_maxima
-  if (form?.datas?.data_entrega_minima) return form.datas.data_entrega_minima
-  if (card.data_obra_montagem) return card.data_obra_montagem
+  const dPrevista = form?.data_prevista_entrega
+  if (dPrevista && typeof dPrevista === 'string' && dPrevista.trim()) return dPrevista.trim()
+  const dMax = form?.datas?.data_entrega_maxima
+  if (dMax && typeof dMax === 'string' && dMax.trim()) return dMax.trim()
+  const dMin = form?.datas?.data_entrega_minima
+  if (dMin && typeof dMin === 'string' && dMin.trim()) return dMin.trim()
+  const dObra = card.data_obra_montagem
+  if (dObra && typeof dObra === 'string' && dObra.trim()) return dObra.trim()
   return null
 }
 
 /**
  * Calcula a diferença em dias entre duas datas (target - hoje).
  */
-function calcularDiasAteData(dateStr: string): number {
-  const target = new Date(dateStr.length === 10 ? `${dateStr}T12:00:00` : dateStr)
+function calcularDiasAteData(dateStr: string | null | undefined): number | null {
+  if (!dateStr || typeof dateStr !== 'string') return null
+  const cleanStr = dateStr.trim()
+  if (!cleanStr) return null
+  const target = new Date(cleanStr.length === 10 ? `${cleanStr}T12:00:00` : cleanStr)
+  if (isNaN(target.getTime())) return null
   const hoje = new Date()
   const hojeMeioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0)
   const diffMs = target.getTime() - hojeMeioDia.getTime()
@@ -652,7 +661,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     e.dataTransfer.setData('sourceLinha', 'producao')
 
     // Lista completa de IDs de todos os ambientes filhos/do grupo para alocação conjunta
-    const subcardIds = item.subcards.map((s) => s.id)
+    const validSubs = Array.isArray(item.subcards) ? item.subcards.filter(Boolean) : []
+    const subcardIds = validSubs.map((s) => s.id).filter(Boolean)
     e.dataTransfer.setData('subcardIds', JSON.stringify(subcardIds))
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -1011,7 +1021,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                       )}
 
                       {/* Semáforo visual de aging + Data Prometida de Entrega (Spec Etapa 4) */}
-                      {item.dataPrometidaEntrega && (
+                      {Boolean(item.dataPrometidaEntrega) && (
                         <div className="flex items-center gap-1 mt-1 flex-wrap">
                           {item.agingStatus === 'vermelho' && (
                             <Badge
@@ -1023,14 +1033,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                               {item.diasParaEntrega !== null && item.diasParaEntrega !== undefined
                                 ? `${item.diasParaEntrega}d`
                                 : ''}{' '}
-                              (
-                              {item.dataPrometidaEntrega
-                                .slice(0, 10)
-                                .split('-')
-                                .reverse()
-                                .slice(0, 2)
-                                .join('/')}
-                              )
+                              ({safeFormatDatePtBr(item.dataPrometidaEntrega, { short: true })})
                             </Badge>
                           )}
                           {item.agingStatus === 'amarelo' && (
@@ -1039,14 +1042,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                               className="text-[9px] px-1.5 py-0 h-4 font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
                               title="Entre 30 e 60 dias para entrega no contrato"
                             >
-                              🟡 Entrega: {item.diasParaEntrega}d (
-                              {item.dataPrometidaEntrega
-                                .slice(0, 10)
-                                .split('-')
-                                .reverse()
-                                .slice(0, 2)
-                                .join('/')}
-                              )
+                              🟡 Entrega:{' '}
+                              {item.diasParaEntrega !== null && item.diasParaEntrega !== undefined
+                                ? `${item.diasParaEntrega}d`
+                                : ''}{' '}
+                              ({safeFormatDatePtBr(item.dataPrometidaEntrega, { short: true })})
                             </Badge>
                           )}
                           {item.agingStatus === 'verde' && (
@@ -1055,14 +1055,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                               className="text-[9px] px-1.5 py-0 h-4 font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
                               title="Mais de 60 dias para entrega no contrato"
                             >
-                              🟢 Entrega: {item.diasParaEntrega}d (
-                              {item.dataPrometidaEntrega
-                                .slice(0, 10)
-                                .split('-')
-                                .reverse()
-                                .slice(0, 2)
-                                .join('/')}
-                              )
+                              🟢 Entrega:{' '}
+                              {item.diasParaEntrega !== null && item.diasParaEntrega !== undefined
+                                ? `${item.diasParaEntrega}d`
+                                : ''}{' '}
+                              ({safeFormatDatePtBr(item.dataPrometidaEntrega, { short: true })})
                             </Badge>
                           )}
                         </div>

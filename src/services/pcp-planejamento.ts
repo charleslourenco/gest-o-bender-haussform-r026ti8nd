@@ -68,6 +68,7 @@ export interface PcpCardItem {
     obra_bairro?: string | null
     obra_municipio?: string | null
     datas?: any
+    produtos_servicos?: any
     cliente?: { nome: string } | null
   } | null
   card_pai?: {
@@ -115,7 +116,7 @@ const SELECT_QUERY = `
   analista_id,
   analista:users!analista_id(id, nome, foto_perfil),
   cliente:clientes(id, nome, telefone, email),
-  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, datas, obra_bairro, obra_municipio, cliente:clientes(nome)),
+  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, datas, obra_bairro, obra_municipio, produtos_servicos, cliente:clientes(nome)),
   card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, cor_vinculo, status_analise)
 `
 

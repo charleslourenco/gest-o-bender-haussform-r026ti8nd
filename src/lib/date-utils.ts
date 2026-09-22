@@ -75,6 +75,37 @@ export function formatSafeDate(
 }
 
 /**
+ * Formata com segurança uma data no padrão Pt-Br (dd/MM/yyyy ou dd/MM se short=true).
+ * Suporta string ISO, Date, número, nulo ou undefined sem lançar exceção.
+ */
+export function safeFormatDatePtBr(
+  val: unknown,
+  options?: { short?: boolean; fallback?: string },
+): string {
+  const fallback = options?.fallback ?? '-'
+  if (val === null || val === undefined || val === '') return fallback
+
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return fallback
+    // Se for formato simples YYYY-MM-DD
+    const isoMatch = trimmed.slice(0, 10).split('-')
+    if (isoMatch.length === 3 && isoMatch[0].length === 4) {
+      const [ano, mes, dia] = isoMatch
+      return options?.short ? `${dia}/${mes}` : `${dia}/${mes}/${ano}`
+    }
+  }
+
+  const d = parseSafeDate(val)
+  if (!d) return fallback
+  try {
+    return dateFnsFormat(d, options?.short ? 'dd/MM' : 'dd/MM/yyyy', { locale: ptBR })
+  } catch {
+    return fallback
+  }
+}
+
+/**
  * Calcula a diferença legível em dias, horas e minutos a partir de uma data base até o momento atual.
  */
 export function formatElapsedTime(baseDate: unknown, fallback = '-'): string {

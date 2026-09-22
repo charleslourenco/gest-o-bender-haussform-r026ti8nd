@@ -184,7 +184,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         if (!matchesSearch(c)) return false
 
         // 1. Se tem data exata igual ao dia
-        if (c.data_planejada_producao) {
+        if (c.data_planejada_producao && typeof c.data_planejada_producao === 'string') {
           const cardDateStr = c.data_planejada_producao.slice(0, 10)
           return cardDateStr === dia.dateStr
         }
@@ -215,7 +215,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         if (!matchesSearch(c)) return false
 
         // Match por data_planejada_producao dentro dos 6 dias
-        if (c.data_planejada_producao) {
+        if (c.data_planejada_producao && typeof c.data_planejada_producao === 'string') {
           const cardDateStr = c.data_planejada_producao.slice(0, 10)
           if (weekDatesSet.has(cardDateStr)) return true
         }

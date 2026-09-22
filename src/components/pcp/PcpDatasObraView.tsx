@@ -73,28 +73,41 @@ export function extrairDataPrometidaObra(card: PcpCardItem): {
   data: string | null
   origem: 'card' | 'comercial_min' | 'comercial_max' | 'comercial_prevista' | 'sem_data'
 } {
-  if (card.data_prometida_montagem && card.data_prometida_montagem.trim()) {
-    return { data: card.data_prometida_montagem.slice(0, 10), origem: 'card' }
+  if (!card) return { data: null, origem: 'sem_data' }
+
+  if (
+    card.data_prometida_montagem &&
+    typeof card.data_prometida_montagem === 'string' &&
+    card.data_prometida_montagem.trim()
+  ) {
+    return { data: card.data_prometida_montagem.trim().slice(0, 10), origem: 'card' }
   }
 
   const form = card.formulario as any
   const datasJson = form?.datas
 
   if (datasJson && typeof datasJson === 'object') {
-    if (datasJson.data_entrega_minima && String(datasJson.data_entrega_minima).trim()) {
-      return { data: String(datasJson.data_entrega_minima).slice(0, 10), origem: 'comercial_min' }
+    const dMin = datasJson.data_entrega_minima
+    if (dMin && typeof dMin === 'string' && dMin.trim()) {
+      return { data: dMin.trim().slice(0, 10), origem: 'comercial_min' }
     }
-    if (datasJson.data_entrega_maxima && String(datasJson.data_entrega_maxima).trim()) {
-      return { data: String(datasJson.data_entrega_maxima).slice(0, 10), origem: 'comercial_max' }
+    const dMax = datasJson.data_entrega_maxima
+    if (dMax && typeof dMax === 'string' && dMax.trim()) {
+      return { data: dMax.trim().slice(0, 10), origem: 'comercial_max' }
     }
   }
 
-  if (form?.data_prevista_entrega && String(form.data_prevista_entrega).trim()) {
-    return { data: String(form.data_prevista_entrega).slice(0, 10), origem: 'comercial_prevista' }
+  const dPrev = form?.data_prevista_entrega
+  if (dPrev && typeof dPrev === 'string' && dPrev.trim()) {
+    return { data: dPrev.trim().slice(0, 10), origem: 'comercial_prevista' }
   }
 
-  if (card.data_obra_montagem && card.data_obra_montagem.trim()) {
-    return { data: card.data_obra_montagem.slice(0, 10), origem: 'card' }
+  if (
+    card.data_obra_montagem &&
+    typeof card.data_obra_montagem === 'string' &&
+    card.data_obra_montagem.trim()
+  ) {
+    return { data: card.data_obra_montagem.trim().slice(0, 10), origem: 'card' }
   }
 
   return { data: null, origem: 'sem_data' }
@@ -104,6 +117,7 @@ export function extrairDataPrometidaObra(card: PcpCardItem): {
  * Helper para obter texto do empreendimento do contrato
  */
 export function getEmpreendimentoDisplay(card: PcpCardItem): string {
+  if (!card) return 'Não informado'
   const form = card.formulario as any
   if (form?.obra_bairro || form?.obra_municipio) {
     return [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
@@ -118,15 +132,17 @@ export function getEmpreendimentoDisplay(card: PcpCardItem): string {
 }
 
 /**
- * Helper para formatar data ISO YYYY-MM-DD para DD/MM/YYYY
+ * Helper para formatar data ISO YYYY-MM-DD para DD/MM/YYYY com segurança
  */
-export function formatDataPtBr(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  const parts = dateStr.slice(0, 10).split('-')
-  if (parts.length === 3) {
+export function formatDataPtBr(dateStr: string | null | undefined): string {
+  if (!dateStr || typeof dateStr !== 'string') return '-'
+  const clean = dateStr.trim()
+  if (!clean) return '-'
+  const parts = clean.slice(0, 10).split('-')
+  if (parts.length === 3 && parts[0].length === 4) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`
   }
-  return dateStr
+  return clean
 }
 
 export const PcpDatasObraView: React.FC<PcpDatasObraViewProps> = ({
