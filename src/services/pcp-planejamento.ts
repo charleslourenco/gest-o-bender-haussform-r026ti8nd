@@ -215,6 +215,161 @@ export async function updateCardSemanaPlanejada(
 }
 
 /**
+ * Atualiza em lote a semana planejada de múltiplos cards (ex: pai + subcards).
+ * Garante que a data seja gravada no pai e em todos os subcards filhos.
+ */
+export async function updateMultipleCardsSemanaPlanejada(
+  cardIds: string[],
+  linha: PcpLinhaOperacao,
+  semanaNova: string | null,
+  motivo?: string,
+): Promise<void> {
+  if (cardIds.length === 0) return
+
+  const columnMap: Record<
+    PcpLinhaOperacao,
+    'semana_planejada_analise' | 'semana_planejada_producao' | 'semana_planejada_montagem'
+  > = {
+    analise: 'semana_planejada_analise',
+    producao: 'semana_planejada_producao',
+    montagem: 'semana_planejada_montagem',
+  }
+  const colName = columnMap[linha]
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ [colName]: semanaNova, atualizado_em: new Date().toISOString() } as any)
+    .in('id', cardIds)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar lote de semanas planejadas:', updateErr)
+    throw updateErr
+  }
+
+  // Histórico para cada um
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    const logs = cardIds.map((id) => ({
+      card_id: id,
+      linha_operacao: linha,
+      tipo_planejamento: 'semana',
+      semana_anterior: null,
+      semana_nova: semanaNova,
+      motivo: motivo || 'Alocação em lote (Projeto Pai + Ambientes)',
+      usuario_id: userId,
+    }))
+
+    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico em lote:', histErr)
+  }
+}
+
+/**
+ * Atualiza em lote o mês planejado de múltiplos cards (ex: pai + subcards).
+ */
+export async function updateMultipleCardsMesPlanejado(
+  cardIds: string[],
+  linha: PcpLinhaOperacao,
+  mesNovo: string | null,
+  motivo?: string,
+): Promise<void> {
+  if (cardIds.length === 0) return
+
+  const columnMap: Record<
+    PcpLinhaOperacao,
+    'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
+  > = {
+    analise: 'mes_planejado_analise',
+    producao: 'mes_planejado_producao',
+    montagem: 'mes_planejado_montagem',
+  }
+  const colName = columnMap[linha]
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ [colName]: mesNovo, atualizado_em: new Date().toISOString() } as any)
+    .in('id', cardIds)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar lote de meses planejados:', updateErr)
+    throw updateErr
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    const logs = cardIds.map((id) => ({
+      card_id: id,
+      linha_operacao: linha,
+      tipo_planejamento: 'mes',
+      mes_anterior: null,
+      mes_novo: mesNovo,
+      motivo: motivo || 'Alocação mensal em lote (Projeto Pai + Ambientes)',
+      usuario_id: userId,
+    }))
+
+    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico mensal em lote:', histErr)
+  }
+}
+
+/**
+ * Atualiza em lote a data planejada diária de múltiplos cards (ex: pai + subcards).
+ */
+export async function updateMultipleCardsDataPlanejada(
+  cardIds: string[],
+  linha: PcpLinhaOperacao,
+  dataNova: string | null,
+  motivo?: string,
+): Promise<void> {
+  if (cardIds.length === 0) return
+
+  const columnMap: Record<
+    PcpLinhaOperacao,
+    'data_planejada_analise' | 'data_planejada_producao' | 'data_planejada_montagem'
+  > = {
+    analise: 'data_planejada_analise',
+    producao: 'data_planejada_producao',
+    montagem: 'data_planejada_montagem',
+  }
+  const colName = columnMap[linha]
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ [colName]: dataNova, atualizado_em: new Date().toISOString() } as any)
+    .in('id', cardIds)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar lote de datas planejadas:', updateErr)
+    throw updateErr
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    const logs = cardIds.map((id) => ({
+      card_id: id,
+      linha_operacao: linha,
+      tipo_planejamento: 'dia',
+      data_anterior: null,
+      data_nova: dataNova,
+      motivo: motivo || 'Alocação diária em lote (Projeto Pai + Ambientes)',
+      usuario_id: userId,
+    }))
+
+    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico diário em lote:', histErr)
+  }
+}
+
+/**
  * Atualiza o mês planejado de um card em uma das 3 linhas operacionais.
  * NUNCA altera status_analise, status_pcp ou fases existentes.
  * mesNovo no formato 'YYYY-MM' (ex: '2026-10') ou null.

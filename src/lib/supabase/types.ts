@@ -2756,6 +2756,7 @@ export type Database = {
           data_planejada_analise: string | null
           data_planejada_montagem: string | null
           data_planejada_producao: string | null
+          data_prometida_montagem: string | null
           desconto_percentual: number
           descricao: string | null
           excluido_analise: boolean
@@ -2797,6 +2798,7 @@ export type Database = {
           data_planejada_analise?: string | null
           data_planejada_montagem?: string | null
           data_planejada_producao?: string | null
+          data_prometida_montagem?: string | null
           desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean
@@ -2838,6 +2840,7 @@ export type Database = {
           data_planejada_analise?: string | null
           data_planejada_montagem?: string | null
           data_planejada_producao?: string | null
+          data_prometida_montagem?: string | null
           desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean

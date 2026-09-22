@@ -19,7 +19,12 @@ interface PcpGradeDiariaProps {
   dias: DiaInfo[]
   cards: PcpCardItem[]
   focoLinha?: PcpLinhaOperacao | 'geral'
-  onDropCard: (cardId: string, linha: PcpLinhaOperacao, targetDateStr: string) => void
+  onDropCard: (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    targetDateStr: string,
+    subcardIds?: string[],
+  ) => void
   onCardClick: (card: PcpCardItem) => void
 }
 
@@ -78,10 +83,37 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
     })
   }
 
-  // Soma de R$ na linha de produção para cada dia
+  // Soma de R$ na linha de produção para cada dia (sem duplicar pai e subcards)
   const getProducaoSomaDia = (dia: DiaInfo): number => {
     const diaCards = getCardsForCell('producao', dia)
-    return diaCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+    const paisComValor = new Set<string>()
+    for (const c of diaCards) {
+      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComValor.add(c.id)
+      }
+    }
+    return diaCards.reduce((acc, c) => {
+      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+        return acc
+      }
+      return acc + (Number(c.valor_total) || 0)
+    }, 0)
+  }
+
+  const getLinhaSomaDia = (linha: PcpLinhaOperacao, dia: DiaInfo): number => {
+    const diaCards = getCardsForCell(linha, dia)
+    const paisComValor = new Set<string>()
+    for (const c of diaCards) {
+      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComValor.add(c.id)
+      }
+    }
+    return diaCards.reduce((acc, c) => {
+      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+        return acc
+      }
+      return acc + (Number(c.valor_total) || 0)
+    }, 0)
   }
 
   const handleDragOver = (e: React.DragEvent, cellKey: string) => {
@@ -103,11 +135,19 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
     e.preventDefault()
     setDragOverCell(null)
     const cardId = e.dataTransfer.getData('cardId')
+    const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
+    let subcardIds: string[] | undefined
+    if (subcardIdsRaw) {
+      try {
+        subcardIds = JSON.parse(subcardIdsRaw)
+      } catch {
+        // ignore
+      }
+    }
     if (cardId) {
-      onDropCard(cardId, linha, dia.dateString)
+      onDropCard(cardId, linha, dia.isoDate, subcardIds)
     }
   }
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Scroll horizontal suave */}
@@ -227,10 +267,7 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                       const cellKey = `${linha.id}-${dia.dateString}`
                       const cellCards = getCardsForCell(linha.id, dia)
                       const isDragOver = dragOverCell === cellKey
-                      const totalValorCelula = cellCards.reduce(
-                        (acc, c) => acc + (Number(c.valor_total) || 0),
-                        0,
-                      )
+                      const totalValorCelula = getLinhaSomaDia(linha.id, dia)
 
                       return (
                         <div

@@ -1,11 +1,21 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { PcpCardItem } from '@/services/pcp-planejamento'
-import { PcpCard } from './PcpCard'
 import { formatBRL } from '@/lib/pcp-capacity'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Briefcase, ChevronLeft, ChevronRight, Search, Layers } from 'lucide-react'
+import {
+  Briefcase,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Search,
+  Layers,
+  GripVertical,
+  Building2,
+  FolderOpen,
+  FolderClosed,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PcpCarteiraSidebarProps {
@@ -16,6 +26,18 @@ interface PcpCarteiraSidebarProps {
   onCardClick: (card: PcpCardItem) => void
 }
 
+interface ParentHierarchyItem {
+  parent: PcpCardItem
+  subcards: PcpCardItem[]
+  // Subcards que estão pendentes na carteira neste modo
+  pendingSubcards: PcpCardItem[]
+  isParentPending: boolean
+  totalSubcardsCount: number
+  totalContratoValor: number
+  clientName: string
+  empreendimento: string
+}
+
 export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   cards,
   collapsed,
@@ -24,14 +46,12 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   onCardClick,
 }) => {
   const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState<'todos' | 'ambientes' | 'subcards'>('todos')
+  const [filterType, setFilterType] = useState<'todos' | 'com_ambientes' | 'isolados'>('todos')
+  const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({})
   const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
 
-  // Modo de exibição da carteira:
-  // Se modo === 'mensal', lista cards sem semana planejada de produção (mesmo que já tenham mes_planejado definido).
-  // Se modo === 'anual', lista cards sem semana E sem mês de produção definidos.
-  // Se modo === 'diario', lista cards sem data planejada de produção.
-  const unassignedCards = cards.filter((c) => {
+  // Função para verificar se um card individual está pendente na carteira dependendo do modo
+  const isCardPending = (c: PcpCardItem): boolean => {
     const semSemanaProd = !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
     if (modo === 'mensal') {
       return semSemanaProd
@@ -43,29 +63,169 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     // modo === 'anual' (default)
     const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
     return semSemanaProd && semMesProd
-  })
+  }
 
-  const filteredCards = unassignedCards.filter((card) => {
-    // Filtro por tipo
-    if (filterType === 'ambientes' && card.card_pai_id) return false
-    if (filterType === 'subcards' && !card.card_pai_id) return false
+  // Agrupamento hierárquico Nível 1 (Card Pai / Projeto) + Nível 2 (Subcards / Ambientes)
+  const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
+    // 1. Mapear subcards pertencentes a cada card_pai_id
+    const subcardsByParentId = new Map<string, PcpCardItem[]>()
+    // Subcards órfãos (caso haja algum subcard cujo pai não esteja na lista)
+    const orphanSubcards: PcpCardItem[] = []
 
-    // Filtro por busca
-    if (!search.trim()) return true
-    const term = search.toLowerCase()
-    const clientName = (
-      card.cliente?.nome ||
-      card.formulario?.cliente?.nome ||
-      card.formulario?.nome_cliente ||
-      ''
-    ).toLowerCase()
-    const prodName = (card.nome_produto || '').toLowerCase()
-    const code = (card.codigo_rastreio || '').toLowerCase()
+    const cardsMap = new Map<string, PcpCardItem>()
+    for (const c of cards) {
+      cardsMap.set(c.id, c)
+    }
 
-    return clientName.includes(term) || prodName.includes(term) || code.includes(term)
-  })
+    for (const c of cards) {
+      if (c.card_pai_id) {
+        if (!subcardsByParentId.has(c.card_pai_id)) {
+          subcardsByParentId.set(c.card_pai_id, [])
+        }
+        subcardsByParentId.get(c.card_pai_id)!.push(c)
 
-  const totalValor = filteredCards.reduce((acc, c) => acc + (c.valor_total || 0), 0)
+        if (!cardsMap.has(c.card_pai_id)) {
+          orphanSubcards.push(c)
+        }
+      }
+    }
+
+    // 2. Construir itens de pais
+    const list: ParentHierarchyItem[] = []
+    const allParentCards = cards.filter((c) => !c.card_pai_id)
+
+    for (const parent of allParentCards) {
+      const allSubs = subcardsByParentId.get(parent.id) || []
+      const pendingSubs = allSubs.filter((s) => isCardPending(s))
+      const parentPending = isCardPending(parent)
+
+      // O item só aparece na Carteira se o pai estiver pendente OU se tiver algum subcard pendente
+      if (parentPending || pendingSubs.length > 0) {
+        const clientName =
+          parent.cliente?.nome ||
+          parent.formulario?.cliente?.nome ||
+          parent.formulario?.nome_cliente ||
+          'Cliente não informado'
+
+        // Empreendimento / Local da Obra se disponível
+        const form = parent.formulario as any
+        const empreendimento =
+          form?.obra_bairro || form?.obra_municipio
+            ? [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
+            : parent.cliente?.endereco_obra || parent.cliente?.cidade || ''
+
+        // Valor Total do Contrato: soma do valor do pai + filhos que tenham valor extra
+        const totalContratoValor =
+          Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+
+        list.push({
+          parent,
+          subcards: allSubs,
+          pendingSubcards: pendingSubs,
+          isParentPending: parentPending,
+          totalSubcardsCount: allSubs.length,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+        })
+      }
+    }
+
+    return list
+  }, [cards, modo])
+
+  // Alternar expandir/recolher
+  const toggleParentExpand = (parentId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation()
+    }
+    setExpandedParents((prev) => ({
+      ...prev,
+      [parentId]: !prev[parentId],
+    }))
+  }
+
+  // Expandir todos / recolher todos
+  const expandAll = () => {
+    const next: Record<string, boolean> = {}
+    for (const item of hierarchyList) {
+      next[item.parent.id] = true
+    }
+    setExpandedParents(next)
+  }
+
+  const collapseAll = () => {
+    setExpandedParents({})
+  }
+
+  // Filtragem por busca e filtros rápidos
+  const filteredHierarchy = useMemo(() => {
+    return hierarchyList.filter((item) => {
+      // Filtro rápido
+      if (filterType === 'com_ambientes' && item.subcards.length === 0) return false
+      if (filterType === 'isolados' && item.subcards.length > 0) return false
+
+      // Busca por texto
+      if (!search.trim()) return true
+      const term = search.toLowerCase()
+      const clientMatch = item.clientName.toLowerCase().includes(term)
+      const empMatch = item.empreendimento.toLowerCase().includes(term)
+      const parentNameMatch = (item.parent.nome_produto || '').toLowerCase().includes(term)
+      const parentCodeMatch = (item.parent.codigo_rastreio || '').toLowerCase().includes(term)
+
+      // Verificar se algum subcard casa com a busca
+      const subcardMatch = item.subcards.some((s) => {
+        const subName = (s.nome_produto || '').toLowerCase()
+        const subCode = (s.codigo_rastreio || '').toLowerCase()
+        return subName.includes(term) || subCode.includes(term)
+      })
+
+      return clientMatch || empMatch || parentNameMatch || parentCodeMatch || subcardMatch
+    })
+  }, [hierarchyList, search, filterType])
+
+  // Contagem total de cards/subcards pendentes na carteira
+  const totalPendentesCount = useMemo(() => {
+    let count = 0
+    for (const item of hierarchyList) {
+      if (item.isParentPending) count++
+      // Contar também subcards pendentes
+      count += item.pendingSubcards.length
+    }
+    return count
+  }, [hierarchyList])
+
+  // Valor total financeiro da carteira
+  const totalValorCarteira = useMemo(() => {
+    return hierarchyList.reduce((acc, item) => acc + item.totalContratoValor, 0)
+  }, [hierarchyList])
+
+  // Handlers de Drag & Drop para o Card Pai (Nível 1)
+  const handleParentDragStart = (e: React.DragEvent, item: ParentHierarchyItem) => {
+    e.dataTransfer.setData('cardId', item.parent.id)
+    e.dataTransfer.setData('isParent', 'true')
+    e.dataTransfer.setData('isSubcard', 'false')
+    e.dataTransfer.setData('sourceLinha', 'producao')
+    // Lista de IDs dos subcards para sincronização atômica
+    const subcardIds = item.subcards.map((s) => s.id)
+    e.dataTransfer.setData('subcardIds', JSON.stringify(subcardIds))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  // Handlers de Drag & Drop para o Subcard (Nível 2)
+  const handleSubcardDragStart = (
+    e: React.DragEvent,
+    subcard: PcpCardItem,
+    parent: PcpCardItem,
+  ) => {
+    e.stopPropagation()
+    e.dataTransfer.setData('cardId', subcard.id)
+    e.dataTransfer.setData('isParent', 'false')
+    e.dataTransfer.setData('isSubcard', 'true')
+    e.dataTransfer.setData('parentId', parent.id)
+    e.dataTransfer.setData('sourceLinha', 'producao')
+    e.dataTransfer.effectAllowed = 'move'
+  }
 
   if (collapsed) {
     return (
@@ -98,11 +258,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           type="button"
           onClick={onToggleCollapsed}
           className="flex-1 w-full flex flex-col items-center justify-center gap-3 hover:bg-muted/40 transition-colors py-2"
-          title={`Abrir Carteira (${unassignedCards.length} pendentes)`}
+          title={`Abrir Carteira (${totalPendentesCount} itens pendentes)`}
         >
           <div className="p-1.5 rounded-md bg-primary/10 text-primary relative">
             <Briefcase className="w-3.5 h-3.5" />
-            {unassignedCards.length > 0 && (
+            {totalPendentesCount > 0 && (
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
             )}
           </div>
@@ -110,7 +270,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground tracking-wider uppercase whitespace-nowrap"
             style={{ writingMode: 'vertical-rl' }}
           >
-            📥 CARTEIRA ({unassignedCards.length})
+            📥 CARTEIRA ({totalPendentesCount})
           </span>
         </button>
       </aside>
@@ -118,7 +278,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   }
 
   return (
-    <aside className="w-[280px] sm:w-[300px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs">
+    <aside className="w-[300px] sm:w-[320px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs">
       {/* Cabeçalho da Sidebar */}
       <div className="p-3 border-b border-border space-y-2.5 shrink-0 bg-card">
         <div className="flex items-center justify-between">
@@ -128,11 +288,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             </div>
             <div>
               <h2 className="text-xs font-bold text-foreground tracking-tight leading-none uppercase">
-                CARTEIRA (Aguardando Planejamento)
+                CARTEIRA / PROJETOS
               </h2>
               <span className="text-[10px] text-muted-foreground font-medium">
-                {filteredCards.length} {filteredCards.length === 1 ? 'item' : 'itens'} •{' '}
-                {formatBRL(totalValor)}
+                {filteredHierarchy.length} {filteredHierarchy.length === 1 ? 'projeto' : 'projetos'}{' '}
+                • {formatBRL(totalValorCarteira)}
               </span>
             </div>
           </div>
@@ -152,57 +312,82 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Buscar cliente, ambiente..."
+            placeholder="Buscar cliente, empreendimento, ambiente..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-7 text-xs bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
           />
         </div>
 
-        {/* Filtros rápidos: Todos / Ambientes / Subcards */}
-        <div className="flex items-center gap-1 p-0.5 bg-muted/60 rounded-md">
-          <button
-            type="button"
-            onClick={() => setFilterType('todos')}
-            className={cn(
-              'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
-              filterType === 'todos'
-                ? 'bg-background text-foreground shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Todos ({unassignedCards.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterType('ambientes')}
-            className={cn(
-              'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
-              filterType === 'ambientes'
-                ? 'bg-background text-foreground shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Ambientes
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterType('subcards')}
-            className={cn(
-              'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
-              filterType === 'subcards'
-                ? 'bg-background text-foreground shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            Subcards
-          </button>
+        {/* Filtros rápidos e controles de expansão */}
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1 p-0.5 bg-muted/60 rounded-md flex-1">
+            <button
+              type="button"
+              onClick={() => setFilterType('todos')}
+              className={cn(
+                'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
+                filterType === 'todos'
+                  ? 'bg-background text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Todos ({hierarchyList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('com_ambientes')}
+              className={cn(
+                'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
+                filterType === 'com_ambientes'
+                  ? 'bg-background text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              title="Apenas projetos com subcards/ambientes cadastrados"
+            >
+              C/ Ambientes
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('isolados')}
+              className={cn(
+                'flex-1 text-[10px] font-semibold py-1 rounded transition-all',
+                filterType === 'isolados'
+                  ? 'bg-background text-foreground shadow-2xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              title="Apenas cards únicos sem subcards"
+            >
+              Únicos
+            </button>
+          </div>
+
+          <div className="flex items-center gap-0.5 shrink-0 pl-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={expandAll}
+              title="Expandir todos os ambientes"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={collapseAll}
+              title="Recolher todos os ambientes"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            >
+              <FolderClosed className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Lista de Cards para arrastar */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
-        {filteredCards.length === 0 ? (
+      {/* Lista de Cards Hierárquicos (Accordion Card Pai + Subcards) */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5">
+        {filteredHierarchy.length === 0 ? (
           <div className="h-48 flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
             <Layers className="w-8 h-8 mb-2 opacity-40" />
             <p className="text-xs font-semibold text-foreground">
@@ -219,22 +404,228 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             </p>
           </div>
         ) : (
-          filteredCards.map((card) => (
-            <PcpCard
-              key={card.id}
-              card={card}
-              onClick={() => onCardClick(card)}
-              showClientName={true}
-            />
-          ))
+          filteredHierarchy.map((item) => {
+            const isExpanded = Boolean(expandedParents[item.parent.id])
+            const hasSubcards = item.subcards.length > 0
+
+            return (
+              <div
+                key={item.parent.id}
+                className={cn(
+                  'rounded-lg border border-border bg-card overflow-hidden shadow-2xs transition-all',
+                  'hover:border-primary/50 group/parent',
+                  isExpanded && 'ring-1 ring-primary/20',
+                )}
+              >
+                {/* NÍVEL 1: CARD PAI (PROJETO DO CLIENTE) */}
+                <div
+                  draggable
+                  onDragStart={(e) => handleParentDragStart(e, item)}
+                  onClick={() => onCardClick(item.parent)}
+                  className={cn(
+                    'p-2.5 bg-card hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing select-none',
+                    'border-l-4 border-l-primary',
+                  )}
+                  style={
+                    item.parent.cor_vinculo
+                      ? { borderLeftColor: item.parent.cor_vinculo }
+                      : undefined
+                  }
+                >
+                  {/* Linha 1: Nome do Cliente + Botão Sanfona / Expandir */}
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Projeto
+                        </span>
+                        {item.parent.codigo_rastreio && (
+                          <span className="font-mono text-[9px] bg-primary/10 text-primary px-1 rounded font-medium">
+                            {item.parent.codigo_rastreio}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3
+                        className="text-xs font-bold text-foreground truncate leading-tight group-hover/parent:text-primary transition-colors mt-0.5"
+                        title={item.clientName}
+                      >
+                        {item.clientName}
+                      </h3>
+
+                      {/* Empreendimento */}
+                      {item.empreendimento ? (
+                        <p
+                          className="text-[10px] text-muted-foreground truncate flex items-center gap-1 mt-0.5"
+                          title={item.empreendimento}
+                        >
+                          <Building2 className="w-2.5 h-2.5 shrink-0 opacity-70" />
+                          <span>{item.empreendimento}</span>
+                        </p>
+                      ) : (
+                        <p
+                          className="text-[10px] text-muted-foreground truncate mt-0.5"
+                          title={item.parent.nome_produto}
+                        >
+                          {item.parent.nome_produto}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Botão de seta para expandir/recolher subcards (ambientes) */}
+                    {hasSubcards ? (
+                      <button
+                        type="button"
+                        onClick={(e) => toggleParentExpand(item.parent.id, e)}
+                        className={cn(
+                          'p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shrink-0',
+                          isExpanded && 'bg-muted text-primary',
+                        )}
+                        title={
+                          isExpanded
+                            ? 'Recolher lista de ambientes'
+                            : `Expandir ${item.subcards.length} ambientes`
+                        }
+                      >
+                        <ChevronDown
+                          className={cn(
+                            'w-4 h-4 transition-transform duration-200',
+                            isExpanded ? 'rotate-180 text-primary' : 'rotate-0',
+                          )}
+                        />
+                      </button>
+                    ) : (
+                      <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 group-hover/parent:text-muted-foreground transition-colors shrink-0" />
+                    )}
+                  </div>
+
+                  {/* Linha 2: Valor Total em R$ do Contrato + Quantidade de Ambientes */}
+                  <div className="flex items-center justify-between gap-2 mt-2 pt-1.5 border-t border-border/50 text-[11px]">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        Contrato:
+                      </span>
+                      <strong className="text-primary font-bold">
+                        {formatBRL(item.totalContratoValor)}
+                      </strong>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {hasSubcards ? (
+                        <Badge
+                          variant="secondary"
+                          className={cn(
+                            'text-[9px] px-1.5 py-0 h-4 font-semibold transition-colors',
+                            isExpanded
+                              ? 'bg-primary/10 text-primary border-primary/20'
+                              : 'bg-muted text-muted-foreground',
+                          )}
+                        >
+                          <Layers className="w-2.5 h-2.5 mr-0.5" />
+                          {item.subcards.length}{' '}
+                          {item.subcards.length === 1 ? 'ambiente' : 'ambientes'}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
+                          Único
+                        </Badge>
+                      )}
+                      <GripVertical className="w-3 h-3 text-muted-foreground/40 group-hover/parent:text-muted-foreground transition-colors shrink-0" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* NÍVEL 2: SUBCARDS (AMBIENTES INDIVIDUAIS) - LISTA SANFONA */}
+                {isExpanded && hasSubcards && (
+                  <div className="bg-muted/30 border-t border-border/60 divide-y divide-border/40 p-1.5 space-y-1">
+                    <div className="px-1.5 py-1 text-[10px] font-semibold text-muted-foreground uppercase flex items-center justify-between">
+                      <span>Ambientes do Projeto ({item.subcards.length})</span>
+                      <span className="text-[9px] font-normal normal-case italic">
+                        Arraste para alocar só o ambiente
+                      </span>
+                    </div>
+
+                    {item.subcards.map((subcard) => {
+                      const subcardValor = Number(subcard.valor_total) || 0
+                      const isSubcardAlocado = !isCardPending(subcard)
+
+                      return (
+                        <div
+                          key={subcard.id}
+                          draggable
+                          onDragStart={(e) => handleSubcardDragStart(e, subcard, item.parent)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onCardClick(subcard)
+                          }}
+                          className={cn(
+                            'p-2 rounded-md bg-card/90 border border-border/70 hover:border-primary/60 transition-all cursor-grab active:cursor-grabbing select-none group/sub',
+                            'hover:bg-card hover:shadow-2xs',
+                            isSubcardAlocado && 'opacity-60 bg-muted/40',
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              {/* Código do Subcard + Nome do Ambiente */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.2 rounded shrink-0">
+                                  {subcard.codigo_rastreio || 'SUBCARD'}
+                                </span>
+                                <span
+                                  className="text-xs font-semibold text-foreground truncate group-hover/sub:text-primary transition-colors"
+                                  title={subcard.nome_produto}
+                                >
+                                  {subcard.nome_produto}
+                                </span>
+                              </div>
+
+                              {/* Status se já foi alocado individualmente */}
+                              {isSubcardAlocado && (
+                                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium block mt-0.5">
+                                  ✓ Alocado:{' '}
+                                  {subcard.semana_planejada_producao ||
+                                    subcard.mes_planejado_producao ||
+                                    subcard.data_planejada_producao}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Ícone de arraste */}
+                            <GripVertical className="w-3 h-3 text-muted-foreground/30 group-hover/sub:text-muted-foreground transition-colors shrink-0 mt-0.5" />
+                          </div>
+
+                          {/* Valor individual em R$ ou '— (parte do contrato)' */}
+                          <div className="flex items-center justify-between gap-2 mt-1.5 pt-1 border-t border-border/30 text-[10px]">
+                            <span className="text-muted-foreground font-medium">
+                              Valor individual:
+                            </span>
+                            <span
+                              className={cn(
+                                'font-bold',
+                                subcardValor > 0
+                                  ? 'text-primary'
+                                  : 'text-muted-foreground/80 italic',
+                              )}
+                            >
+                              {subcardValor > 0 ? formatBRL(subcardValor) : '— (parte do contrato)'}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })
         )}
       </div>
 
       {/* Dica de usabilidade na base */}
       <div className="p-2 border-t border-border bg-muted/30 shrink-0 text-[10px] text-muted-foreground flex items-center justify-between">
-        <span>Arraste para uma coluna temporal</span>
+        <span>Arraste Pai (todos) ou Subcard</span>
         <Badge variant="outline" className="text-[9px] px-1 py-0">
-          Drag & Drop
+          Hierárquico
         </Badge>
       </div>
     </aside>

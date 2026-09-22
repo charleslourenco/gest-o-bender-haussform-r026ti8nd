@@ -21,7 +21,12 @@ interface PcpGradeAnualProps {
   year: number
   cards: PcpCardItem[]
   focoLinha?: PcpLinhaOperacao | 'geral'
-  onDropCard: (cardId: string, linha: PcpLinhaOperacao, targetMesKey: string) => void
+  onDropCard: (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    targetMesKey: string,
+    subcardIds?: string[],
+  ) => void
   onCardClick: (card: PcpCardItem) => void
   onMonthDoubleClick: (monthIndex: number, year: number) => void
 }
@@ -142,10 +147,37 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
     })
   }
 
-  // Soma de R$ na linha de produção para cada mês
+  // Soma de R$ na linha de produção para cada mês (sem duplicar pai e subcards)
   const getProducaoSomaMes = (mes: MesInfo): number => {
     const mesCards = getCardsForCell('producao', mes)
-    return mesCards.reduce((acc, c) => acc + (c.valor_total || 0), 0)
+    const paisComValor = new Set<string>()
+    for (const c of mesCards) {
+      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComValor.add(c.id)
+      }
+    }
+    return mesCards.reduce((acc, c) => {
+      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+        return acc
+      }
+      return acc + (Number(c.valor_total) || 0)
+    }, 0)
+  }
+
+  const getLinhaSomaMes = (linha: PcpLinhaOperacao, mes: MesInfo): number => {
+    const mesCards = getCardsForCell(linha, mes)
+    const paisComValor = new Set<string>()
+    for (const c of mesCards) {
+      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComValor.add(c.id)
+      }
+    }
+    return mesCards.reduce((acc, c) => {
+      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+        return acc
+      }
+      return acc + (Number(c.valor_total) || 0)
+    }, 0)
   }
 
   const handleDragOver = (e: React.DragEvent, cellKey: string) => {
@@ -167,8 +199,17 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
     e.preventDefault()
     setDragOverCell(null)
     const cardId = e.dataTransfer.getData('cardId')
+    const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
+    let subcardIds: string[] | undefined
+    if (subcardIdsRaw) {
+      try {
+        subcardIds = JSON.parse(subcardIdsRaw)
+      } catch {
+        // ignore
+      }
+    }
     if (cardId) {
-      onDropCard(cardId, linha, mes.key)
+      onDropCard(cardId, linha, mes.key, subcardIds)
     }
   }
 
@@ -291,10 +332,7 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
                       const cellKey = `${linha.id}-${mes.key}`
                       const cellCards = getCardsForCell(linha.id, mes)
                       const isDragOver = dragOverCell === cellKey
-                      const totalValorCelula = cellCards.reduce(
-                        (acc, c) => acc + (c.valor_total || 0),
-                        0,
-                      )
+                      const totalValorCelula = getLinhaSomaMes(linha.id, mes)
 
                       // Sinalizador de cor na linha de PRODUÇÃO
                       const capacidade = avaliarCapacidadeFinanceiraMensal(totalValorCelula)

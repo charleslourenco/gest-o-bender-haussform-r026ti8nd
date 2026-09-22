@@ -155,11 +155,12 @@ export const PcpMatrizDiaria: React.FC = () => {
     setCurrentMonthIndex(n.getMonth())
   }
 
-  // Drag and Drop
+  // Drag and Drop com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
     targetLinha: PcpLinhaOperacao,
     targetDateStr: string,
+    subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
     if (!card) return
@@ -173,13 +174,20 @@ export const PcpMatrizDiaria: React.FC = () => {
       montagem: 'data_planejada_montagem',
     }
 
-    const previousDate = card[fieldMap[targetLinha]]
-    if (previousDate === targetDateStr) return
+    const isParent = !card.card_pai_id
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds
+        : isParent
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
+
+    const allAffectedIds = [cardId, ...childrenIds]
 
     // Atualização otimista
     setCards((prev) =>
       prev.map((c) =>
-        c.id === cardId
+        allAffectedIds.includes(c.id)
           ? {
               ...c,
               [fieldMap[targetLinha]]: targetDateStr,
@@ -189,22 +197,30 @@ export const PcpMatrizDiaria: React.FC = () => {
     )
 
     try {
-      await updateCardDataPlanejada(
-        cardId,
-        targetLinha,
-        targetDateStr,
-        previousDate || null,
-        `Alocado na grade diária para ${targetDateStr}`,
-      )
-      toast.success(
-        `Card [${card.nome_produto}] alocado para ${targetDateStr} em ${
-          targetLinha === 'analise'
-            ? 'Análise Técnica'
-            : targetLinha === 'producao'
-              ? 'Produção'
-              : 'Montagem'
-        }!`,
-      )
+      if (childrenIds.length > 0) {
+        const { updateMultipleCardsDataPlanejada } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsDataPlanejada(
+          allAffectedIds,
+          targetLinha,
+          targetDateStr,
+          `Programado projeto pai e ${childrenIds.length} ambiente(s) para o dia ${targetDateStr}`,
+        )
+        toast.success(
+          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetDateStr}!`,
+        )
+      } else {
+        const previousDate = card[fieldMap[targetLinha]]
+        await updateCardDataPlanejada(
+          cardId,
+          targetLinha,
+          targetDateStr,
+          previousDate || null,
+          `Alocado na grade diária para ${targetDateStr}`,
+        )
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] alocado para ${targetDateStr}!`,
+        )
+      }
     } catch (err: any) {
       toast.error('Erro ao atualizar data planejada: ' + (err.message || 'Erro'))
       loadCards(true)

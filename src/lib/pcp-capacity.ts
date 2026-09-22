@@ -363,10 +363,20 @@ export function calcularTotaisPcp(
         ? 'mes_planejado_montagem'
         : 'mes_planejado_producao'
 
-  for (const c of cards) {
+  // Mapa de pais para evitar dupla contagem se pai e filhos estiverem no mesmo período
+  const parentIdsInList = new Set<string>()
+  for (const c of cards as any[]) {
+    if (c.card_pai_id) {
+      parentIdsInList.add(c.card_pai_id)
+    }
+  }
+
+  for (const c of cards as any[]) {
     const val = Number(c.valor_total) || 0
     if (val <= 0) continue
 
+    // Se este card é um subcard (tem card_pai_id) e seu pai também tem valor > 0 e está alocado,
+    // o valor principal já reside no pai. Não dupla-contar.
     // 1. Nível Diário
     const dt = c[dataField]
     if (dt && typeof dt === 'string') {
@@ -426,6 +436,7 @@ export function calcularTotaisPcp(
 export function somarCargaProducaoMes(
   cards: {
     id: string
+    card_pai_id?: string | null
     valor_total?: number | null
     semana_planejada_producao?: string | null
     mes_planejado_producao?: string | null
@@ -453,7 +464,24 @@ export function somarCargaProducaoMes(
     return false
   })
 
-  const total = cardsNoMes.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+  // Agregação hierárquica segura contra dupla contagem:
+  // Se o card pai está alocado neste mês e possui valor > 0, os subcards não somam além do pai.
+  const parentIdsNoMesComValor = new Set<string>()
+  for (const c of cardsNoMes) {
+    if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+      parentIdsNoMesComValor.add(c.id)
+    }
+  }
+
+  let total = 0
+  for (const c of cardsNoMes) {
+    // Se for subcard cujo pai com valor já está na mesma seleção, não soma novamente
+    if (c.card_pai_id && parentIdsNoMesComValor.has(c.card_pai_id)) {
+      continue
+    }
+    total += Number(c.valor_total) || 0
+  }
+
   return { total, count: cardsNoMes.length, cardsDoMes: cardsNoMes }
 }
 
@@ -466,6 +494,7 @@ export function somarCargaProducaoMes(
 export function somarCargaTodasLinhasMes(
   cards: {
     id: string
+    card_pai_id?: string | null
     valor_total?: number | null
     semana_planejada_analise?: string | null
     semana_planejada_producao?: string | null
@@ -505,6 +534,26 @@ export function somarCargaTodasLinhasMes(
     return false
   }
 
+  // Identificar pais com valor em cada linha
+  const paisEmAnaliseComValor = new Set<string>()
+  const paisEmProducaoComValor = new Set<string>()
+  const paisEmMontagemComValor = new Set<string>()
+
+  for (const c of cards) {
+    const val = Number(c.valor_total) || 0
+    if (!c.card_pai_id && val > 0) {
+      if (matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)) {
+        paisEmAnaliseComValor.add(c.id)
+      }
+      if (matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)) {
+        paisEmProducaoComValor.add(c.id)
+      }
+      if (matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)) {
+        paisEmMontagemComValor.add(c.id)
+      }
+    }
+  }
+
   let totalAnalise = 0
   let totalProducao = 0
   let totalMontagem = 0
@@ -515,23 +564,27 @@ export function somarCargaTodasLinhasMes(
 
   for (const c of cards) {
     const val = Number(c.valor_total) || 0
-    if (val <= 0) continue
-
     const inAnalise = matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)
     const inProducao = matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)
     const inMontagem = matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)
 
     if (inAnalise) {
-      totalAnalise += val
       countAnalise++
+      if (!(c.card_pai_id && paisEmAnaliseComValor.has(c.card_pai_id))) {
+        totalAnalise += val
+      }
     }
     if (inProducao) {
-      totalProducao += val
       countProducao++
+      if (!(c.card_pai_id && paisEmProducaoComValor.has(c.card_pai_id))) {
+        totalProducao += val
+      }
     }
     if (inMontagem) {
-      totalMontagem += val
       countMontagem++
+      if (!(c.card_pai_id && paisEmMontagemComValor.has(c.card_pai_id))) {
+        totalMontagem += val
+      }
     }
     if (inAnalise || inProducao || inMontagem) {
       uniqueCardsSet.add(c.id)

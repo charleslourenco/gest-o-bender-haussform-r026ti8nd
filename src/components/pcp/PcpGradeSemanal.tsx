@@ -9,7 +9,12 @@ interface PcpGradeSemanalProps {
   weeks: IsoWeekRange[]
   cards: PcpCardItem[]
   focoLinha?: PcpLinhaOperacao | 'geral'
-  onDropCard: (cardId: string, linha: PcpLinhaOperacao, targetSemanaKey: string) => void
+  onDropCard: (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    targetSemanaKey: string,
+    subcardIds?: string[],
+  ) => void
   onCardClick: (card: PcpCardItem) => void
 }
 
@@ -64,10 +69,22 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     return cards.filter((c) => matchWeek(c[field], week))
   }
 
-  // Soma de R$ para qualquer linha em cada semana (regra estrita: valor_total individual de cada card/subcard pai ou filho)
+  // Soma de R$ para qualquer linha em cada semana
+  // Garante que se o pai e subcards estiverem alocados na mesma semana, o valor do pai não seja duplicado pelos subcards
   const getLinhaSomaSemana = (linha: PcpLinhaOperacao, week: IsoWeekRange): number => {
     const cellCards = getCardsForCell(linha, week)
-    return cellCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+    const paisComValor = new Set<string>()
+    for (const c of cellCards) {
+      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComValor.add(c.id)
+      }
+    }
+    return cellCards.reduce((acc, c) => {
+      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+        return acc
+      }
+      return acc + (Number(c.valor_total) || 0)
+    }, 0)
   }
 
   // Soma de R$ na linha de produção para cada semana
@@ -94,8 +111,17 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     e.preventDefault()
     setDragOverCell(null)
     const cardId = e.dataTransfer.getData('cardId')
+    const subcardIdsRaw = e.dataTransfer.getData('subcardIds')
+    let subcardIds: string[] | undefined
+    if (subcardIdsRaw) {
+      try {
+        subcardIds = JSON.parse(subcardIdsRaw)
+      } catch {
+        // ignore
+      }
+    }
     if (cardId) {
-      onDropCard(cardId, linha, week.label)
+      onDropCard(cardId, linha, week.label, subcardIds)
     }
   }
 
@@ -235,10 +261,7 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
                       const cellKey = `${linha.id}-${week.key}`
                       const cellCards = getCardsForCell(linha.id, week)
                       const isDragOver = dragOverCell === cellKey
-                      const totalValorCelula = cellCards.reduce(
-                        (acc, c) => acc + (c.valor_total || 0),
-                        0,
-                      )
+                      const totalValorCelula = getLinhaSomaSemana(linha.id, week)
 
                       // Se for linha de PRODUÇÃO, aplica sinalizador visual de cor na semana
                       const capacidade = avaliarCapacidadeFinanceira(totalValorCelula)

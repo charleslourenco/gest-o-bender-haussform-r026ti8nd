@@ -36,7 +36,9 @@ export const PcpCard: React.FC<PcpCardProps> = ({
     'Cliente não informado'
 
   const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation()
     e.dataTransfer.setData('cardId', card.id)
+    e.dataTransfer.setData('isSubcard', isSubcard ? 'true' : 'false')
     if (linha) {
       e.dataTransfer.setData('sourceLinha', linha)
     }

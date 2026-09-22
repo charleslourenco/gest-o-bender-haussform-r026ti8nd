@@ -151,11 +151,12 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     setCurrentMonthIndex(n.getMonth())
   }
 
-  // Ação de arrastar e soltar (Drag and Drop)
+  // Ação de arrastar e soltar (Drag and Drop) com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
     targetLinha: PcpLinhaOperacao,
     targetSemanaLabel: string,
+    subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
     if (!card) return
@@ -169,13 +170,21 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
       montagem: 'semana_planejada_montagem',
     }
 
-    const previousSemana = card[fieldMap[targetLinha]]
-    if (previousSemana === targetSemanaLabel) return
+    const isParent = !card.card_pai_id
+    // Se for pai, encontrar todos os subcards filhos para alocação conjunta
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds
+        : isParent
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
 
-    // Atualização otimista local imediata
+    const allAffectedIds = [cardId, ...childrenIds]
+
+    // Atualização otimista local imediata de todos os afetados
     setCards((prev) =>
       prev.map((c) =>
-        c.id === cardId
+        allAffectedIds.includes(c.id)
           ? {
               ...c,
               [fieldMap[targetLinha]]: targetSemanaLabel,
@@ -185,25 +194,34 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     )
 
     try {
-      await updateCardSemanaPlanejada(
-        cardId,
-        targetLinha,
-        targetSemanaLabel,
-        previousSemana,
-        `Programado via Drag and Drop na grade semanal (${targetSemanaLabel})`,
-      )
-      toast.success(
-        `Card [${card.nome_produto}] alocado para ${targetSemanaLabel} em ${
-          targetLinha === 'analise'
-            ? 'Análise Técnica'
-            : targetLinha === 'producao'
-              ? 'Produção'
-              : 'Montagem'
-        }!`,
-      )
+      if (childrenIds.length > 0) {
+        // Alocar pai + todos os subcards
+        const { updateMultipleCardsSemanaPlanejada } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsSemanaPlanejada(
+          allAffectedIds,
+          targetLinha,
+          targetSemanaLabel,
+          `Programado projeto pai e ${childrenIds.length} ambiente(s) para ${targetSemanaLabel}`,
+        )
+        toast.success(
+          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetSemanaLabel}!`,
+        )
+      } else {
+        // Alocar card isolado (pai sem filhos ou subcard isolado)
+        const previousSemana = card[fieldMap[targetLinha]]
+        await updateCardSemanaPlanejada(
+          cardId,
+          targetLinha,
+          targetSemanaLabel,
+          previousSemana,
+          `Programado via Drag and Drop (${targetSemanaLabel})`,
+        )
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] alocado para ${targetSemanaLabel}!`,
+        )
+      }
     } catch (err: any) {
       toast.error('Erro ao atualizar semana planejada: ' + (err.message || 'Erro'))
-      // Reverter
       loadCards(true)
     }
   }

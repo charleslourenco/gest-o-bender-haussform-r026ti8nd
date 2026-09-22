@@ -92,11 +92,12 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
   const handleNextYear = () => setCurrentYear((y) => y + 1)
   const handleCurrentYear = () => setCurrentYear(new Date().getFullYear())
 
-  // Arrastar e soltar em coluna de Mês
+  // Arrastar e soltar em coluna de Mês com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
     targetLinha: PcpLinhaOperacao,
     targetMesKey: string,
+    subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
     if (!card) return
@@ -110,13 +111,20 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
       montagem: 'mes_planejado_montagem',
     }
 
-    const previousMes = card[fieldMap[targetLinha]]
-    if (previousMes === targetMesKey) return
+    const isParent = !card.card_pai_id
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds
+        : isParent
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
+
+    const allAffectedIds = [cardId, ...childrenIds]
 
     // Atualização otimista
     setCards((prev) =>
       prev.map((c) =>
-        c.id === cardId
+        allAffectedIds.includes(c.id)
           ? {
               ...c,
               [fieldMap[targetLinha]]: targetMesKey,
@@ -126,22 +134,30 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     )
 
     try {
-      await updateCardMesPlanejado(
-        cardId,
-        targetLinha,
-        targetMesKey,
-        previousMes || null,
-        `Programado via Drag and Drop na grade anual (${targetMesKey})`,
-      )
-      toast.success(
-        `Card [${card.nome_produto}] alocado para o mês ${targetMesKey} em ${
-          targetLinha === 'analise'
-            ? 'Análise Técnica'
-            : targetLinha === 'producao'
-              ? 'Produção'
-              : 'Montagem'
-        }!`,
-      )
+      if (childrenIds.length > 0) {
+        const { updateMultipleCardsMesPlanejado } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsMesPlanejado(
+          allAffectedIds,
+          targetLinha,
+          targetMesKey,
+          `Programado projeto pai e ${childrenIds.length} ambiente(s) para o mês ${targetMesKey}`,
+        )
+        toast.success(
+          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetMesKey}!`,
+        )
+      } else {
+        const previousMes = card[fieldMap[targetLinha]]
+        await updateCardMesPlanejado(
+          cardId,
+          targetLinha,
+          targetMesKey,
+          previousMes || null,
+          `Programado via Drag and Drop na grade anual (${targetMesKey})`,
+        )
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] alocado para ${targetMesKey}!`,
+        )
+      }
     } catch (err: any) {
       toast.error('Erro ao atualizar mês planejado: ' + (err.message || 'Erro'))
       loadCards(true)
