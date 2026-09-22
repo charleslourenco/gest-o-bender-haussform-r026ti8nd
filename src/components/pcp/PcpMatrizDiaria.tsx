@@ -241,8 +241,11 @@ export const PcpMatrizDiaria: React.FC = () => {
   const totalMesProducao = useMemo(() => {
     return cards.reduce((acc, c) => {
       const dt = c.data_planejada_producao
-      if (!dt) return acc
-      const [y, m] = dt.slice(0, 7).split('-').map(Number)
+      if (!dt || typeof dt !== 'string') return acc
+      const parts = dt.slice(0, 7).split('-')
+      if (parts.length < 2) return acc
+      const y = Number(parts[0])
+      const m = Number(parts[1])
       if (y === currentYear && m === currentMonthIndex + 1) {
         return acc + (Number(c.valor_total) || 0)
       }
