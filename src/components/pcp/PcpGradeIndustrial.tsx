@@ -47,7 +47,7 @@ import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpSideDrawer } from './PcpSideDrawer'
 import { PcpCard } from './PcpCard'
 import { supabase } from '@/lib/supabase/client'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 const MESES_NOMES = [

@@ -2752,7 +2752,9 @@ export type Database = {
           codigo_rastreio: string | null
           cor_vinculo: string | null
           criado_em: string
+          data_limite_analise: string | null
           data_manual: string | null
+          data_obra_montagem: string | null
           data_planejada_analise: string | null
           data_planejada_montagem: string | null
           data_planejada_producao: string | null
@@ -2794,7 +2796,9 @@ export type Database = {
           codigo_rastreio?: string | null
           cor_vinculo?: string | null
           criado_em?: string
+          data_limite_analise?: string | null
           data_manual?: string | null
+          data_obra_montagem?: string | null
           data_planejada_analise?: string | null
           data_planejada_montagem?: string | null
           data_planejada_producao?: string | null
@@ -2836,7 +2840,9 @@ export type Database = {
           codigo_rastreio?: string | null
           cor_vinculo?: string | null
           criado_em?: string
+          data_limite_analise?: string | null
           data_manual?: string | null
+          data_obra_montagem?: string | null
           data_planejada_analise?: string | null
           data_planejada_montagem?: string | null
           data_planejada_producao?: string | null
