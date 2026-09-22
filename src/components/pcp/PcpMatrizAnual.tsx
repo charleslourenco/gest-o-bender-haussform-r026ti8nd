@@ -100,7 +100,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
-    if (!card) return
+    if (!card && (!subcardIds || subcardIds.length === 0)) return
 
     const fieldMap: Record<
       PcpLinhaOperacao,
@@ -111,15 +111,15 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
       montagem: 'mes_planejado_montagem',
     }
 
-    const isParent = !card.card_pai_id
+    const isParent = card ? !card.card_pai_id : false
     const childrenIds =
       subcardIds && subcardIds.length > 0
-        ? subcardIds
-        : isParent
+        ? subcardIds.filter((id) => id !== cardId)
+        : isParent && card
           ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
           : []
 
-    const allAffectedIds = [cardId, ...childrenIds]
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
 
     // Atualização otimista
     setCards((prev) =>
@@ -143,9 +143,9 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
           `Programado projeto pai e ${childrenIds.length} ambiente(s) para o mês ${targetMesKey}`,
         )
         toast.success(
-          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetMesKey}!`,
+          `Projeto [${card?.nome_produto || 'Grupo'}] e ${childrenIds.length} ambiente(s) alocados para ${targetMesKey}!`,
         )
-      } else {
+      } else if (card) {
         const previousMes = card[fieldMap[targetLinha]]
         await updateCardMesPlanejado(
           cardId,

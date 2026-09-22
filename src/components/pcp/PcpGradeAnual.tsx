@@ -109,10 +109,9 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
       index,
       key: `${year}-${monthNum}`,
       nome,
-      abreviado: nome.slice(0, 3),
+      abreviado: (nome || '').slice(0, 3),
     }
   })
-
   // Agrupamento de cards por linha e mês:
   // Um card pertence à coluna do mês se:
   // 1) mes_planejado_* casa com o mês

@@ -103,12 +103,12 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
 
   const prontidao = getProntidaoTecnica(card)
   const clientName =
-    card.cliente?.nome ||
-    card.formulario?.cliente?.nome ||
-    card.formulario?.nome_cliente ||
+    card?.cliente?.nome ||
+    card?.formulario?.cliente?.nome ||
+    card?.formulario?.nome_cliente ||
     'Cliente não informado'
 
-  const isSubcard = Boolean(card.card_pai_id)
+  const isSubcard = Boolean(card?.card_pai_id)
 
   const handleSemanaChange = async (linha: PcpLinhaOperacao, novaSemanaValue: string) => {
     const val = novaSemanaValue === 'none' ? null : novaSemanaValue
@@ -282,7 +282,7 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                 Status Operacional
               </span>
               <p className="text-sm font-semibold text-foreground mt-1 capitalize">
-                {card.status_analise.replace(/_/g, ' ')}
+                {(card.status_analise || '').replace(/_/g, ' ')}
               </p>
               <span className="text-[10px] text-muted-foreground">Fase no Kanban nativo</span>
             </div>

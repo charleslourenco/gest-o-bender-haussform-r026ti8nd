@@ -196,7 +196,7 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
     if (etapasProducao.includes(st)) {
       return {
         etapa: 'Produção',
-        coluna: st.charAt(0).toUpperCase() + st.slice(1),
+        coluna: st ? st.charAt(0).toUpperCase() + st.slice(1) : '',
         badgeClass: 'bg-amber-500/10 text-amber-700 border-amber-300 dark:border-amber-700',
         route: '/pcp/producao',
       }
@@ -651,7 +651,7 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                                 const key = `${currentYear}-${m.key}`
                                 return (
                                   <SelectItem key={key} value={key}>
-                                    {m.label.slice(0, 3)}
+                                    {(m.label || '').slice(0, 3)}
                                   </SelectItem>
                                 )
                               })}
@@ -689,7 +689,7 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                             <AvatarImage src={card.analista.foto_perfil} alt={responsavelNome} />
                           )}
                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">
-                            {responsavelNome.slice(0, 2).toUpperCase()}
+                            {(responsavelNome || 'NA').slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <span

@@ -159,7 +159,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
-    if (!card) return
+    if (!card && (!subcardIds || subcardIds.length === 0)) return
 
     const fieldMap: Record<
       PcpLinhaOperacao,
@@ -170,16 +170,16 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
       montagem: 'semana_planejada_montagem',
     }
 
-    const isParent = !card.card_pai_id
-    // Se for pai, encontrar todos os subcards filhos para alocação conjunta
+    const isParent = card ? !card.card_pai_id : false
+    // Se for pai (ou agrupador virtual), encontrar todos os subcards filhos para alocação conjunta
     const childrenIds =
       subcardIds && subcardIds.length > 0
-        ? subcardIds
-        : isParent
+        ? subcardIds.filter((id) => id !== cardId)
+        : isParent && card
           ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
           : []
 
-    const allAffectedIds = [cardId, ...childrenIds]
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
 
     // Atualização otimista local imediata de todos os afetados (semana e se targetLinha for producao, mes_planejado_producao também)
     const currentMonthNum = String(currentMonthIndex + 1).padStart(2, '0')
@@ -214,9 +214,9 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
           `Programado projeto pai e ${childrenIds.length} ambiente(s) para ${targetSemanaLabel}`,
         )
         toast.success(
-          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetSemanaLabel}!`,
+          `Projeto [${card?.nome_produto || 'Grupo'}] e ${childrenIds.length} ambiente(s) alocados para ${targetSemanaLabel}!`,
         )
-      } else {
+      } else if (card) {
         // Alocar card isolado (pai sem filhos ou subcard isolado)
         const previousSemana = card[fieldMap[targetLinha]]
         await updateCardSemanaPlanejada(

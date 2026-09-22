@@ -53,12 +53,16 @@ export interface PcpCardItem {
     nome: string
     telefone?: string | null
     email?: string | null
+    endereco_obra?: string | null
+    cidade?: string | null
   } | null
   formulario?: {
     id?: string
     nome_cliente?: string | null
     valor_total?: number | null
     data_prevista_entrega?: string | null
+    obra_bairro?: string | null
+    obra_municipio?: string | null
     cliente?: { nome: string } | null
   } | null
   card_pai?: {

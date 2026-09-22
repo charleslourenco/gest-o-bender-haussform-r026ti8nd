@@ -27,7 +27,9 @@ interface PcpCarteiraSidebarProps {
 }
 
 interface ParentHierarchyItem {
-  parent: PcpCardItem
+  id: string // parent.id ou chave virtual 'virtual-${clienteKey}-${formKey}'
+  isVirtual: boolean
+  parent?: PcpCardItem
   subcards: PcpCardItem[]
   // Subcards que estão pendentes na carteira neste modo
   pendingSubcards: PcpCardItem[]
@@ -36,6 +38,9 @@ interface ParentHierarchyItem {
   totalContratoValor: number
   clientName: string
   empreendimento: string
+  cor_vinculo?: string | null
+  codigo_rastreio?: string | null
+  status_analise?: string | null
 }
 
 export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
@@ -126,60 +131,90 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   // Alias para manter compatibilidade com verificações internas
   const isCardPending = isCardAptoParaAgendar
 
-  // Agrupamento hierárquico Nível 1 (Card Pai / Projeto) + Nível 2 (Subcards / Ambientes)
-  const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
-    // 1. Mapear subcards pertencentes a cada card_pai_id
-    const subcardsByParentId = new Map<string, PcpCardItem[]>()
-    // Subcards órfãos (caso haja algum subcard cujo pai não esteja na lista)
-    const orphanSubcards: PcpCardItem[] = []
+  // Helper para obter nome do cliente de um card
+  const getCardClientName = (c: PcpCardItem): string => {
+    return (
+      c.cliente?.nome ||
+      c.formulario?.cliente?.nome ||
+      c.formulario?.nome_cliente ||
+      'Cliente não informado'
+    )
+  }
 
-    const cardsMap = new Map<string, PcpCardItem>()
-    for (const c of cards) {
-      cardsMap.set(c.id, c)
+  // Helper para obter empreendimento / obra de um card
+  const getCardEmpreendimento = (c: PcpCardItem): string => {
+    const form = c.formulario as any
+    if (form?.obra_bairro || form?.obra_municipio) {
+      return [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
     }
+    return c.cliente?.endereco_obra || c.cliente?.cidade || ''
+  }
 
+  // Agrupamento hierárquico Nível 1 (Card Pai real OU Pai Virtual por Cliente/Contrato) + Nível 2 (Subcards / Ambientes)
+  const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
+    // 1. Identificar todos os subcards explícitos (com card_pai_id)
+    const subcardsByParentId = new Map<string, PcpCardItem[]>()
     for (const c of cards) {
       if (c.card_pai_id) {
         if (!subcardsByParentId.has(c.card_pai_id)) {
           subcardsByParentId.set(c.card_pai_id, [])
         }
         subcardsByParentId.get(c.card_pai_id)!.push(c)
+      }
+    }
 
-        if (!cardsMap.has(c.card_pai_id)) {
-          orphanSubcards.push(c)
+    // 2. Separar cards sem card_pai_id em dois grupos:
+    // a) Pais reais (que possuem filhos apontando para eles via card_pai_id)
+    // b) Cards sem card_pai_id e sem nenhum filho apontando para eles (cards avulsos / contratos sem card_pai_id)
+    const parentsWithRealChildren = new Set<string>()
+    for (const c of cards) {
+      if (c.card_pai_id) {
+        parentsWithRealChildren.add(c.card_pai_id)
+      }
+    }
+
+    const realParents: PcpCardItem[] = []
+    const unparentedCards: PcpCardItem[] = []
+
+    for (const c of cards) {
+      if (!c.card_pai_id) {
+        if (parentsWithRealChildren.has(c.id)) {
+          realParents.push(c)
+        } else {
+          unparentedCards.push(c)
         }
       }
     }
 
-    // 2. Construir itens de pais
     const list: ParentHierarchyItem[] = []
-    const allParentCards = cards.filter((c) => !c.card_pai_id)
 
-    for (const parent of allParentCards) {
+    // 3. Processar pais reais (com card_pai_id existente no banco)
+    for (const parent of realParents) {
       const allSubs = subcardsByParentId.get(parent.id) || []
       const pendingSubs = allSubs.filter((s) => isCardPending(s))
       const parentPending = isCardPending(parent)
 
-      // O item só aparece na Carteira se o pai estiver pendente OU se tiver algum subcard pendente
       if (parentPending || pendingSubs.length > 0) {
-        const clientName =
-          parent.cliente?.nome ||
-          parent.formulario?.cliente?.nome ||
-          parent.formulario?.nome_cliente ||
-          'Cliente não informado'
+        const clientName = getCardClientName(parent)
+        const empreendimento = getCardEmpreendimento(parent)
 
-        // Empreendimento / Local da Obra se disponível
-        const form = parent.formulario as any
-        const empreendimento =
-          form?.obra_bairro || form?.obra_municipio
-            ? [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
-            : parent.cliente?.endereco_obra || parent.cliente?.cidade || ''
-
-        // Valor Total do Contrato: soma do valor do pai + filhos que tenham valor extra
-        const totalContratoValor =
-          Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+        // Regra de agregação de valor sem dupla contagem:
+        // Se houver filhos com valor > 0, soma só os filhos valorados; se nenhum tiver valor > 0, soma o próprio pai
+        const subsComValor = allSubs.filter((s) => (Number(s.valor_total) || 0) > 0)
+        let totalContratoValor = 0
+        if (subsComValor.length > 0) {
+          totalContratoValor = subsComValor.reduce(
+            (acc, s) => acc + (Number(s.valor_total) || 0),
+            0,
+          )
+        } else {
+          totalContratoValor =
+            Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+        }
 
         list.push({
+          id: parent.id,
+          isVirtual: false,
           parent,
           subcards: allSubs,
           pendingSubcards: pendingSubs,
@@ -188,6 +223,74 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           totalContratoValor,
           clientName,
           empreendimento,
+          cor_vinculo: parent.cor_vinculo,
+          codigo_rastreio: parent.codigo_rastreio,
+          status_analise: parent.status_analise,
+        })
+      }
+    }
+
+    // 4. Processar cards sem card_pai_id agrupando VIRTUALMENTE por Cliente + Contrato (formulario_comercial_id)
+    // Chave de agrupamento: cliente + formulario_comercial_id
+    const virtualGroups = new Map<string, PcpCardItem[]>()
+    for (const c of unparentedCards) {
+      const cliKey = c.cliente_id || (c.cliente?.nome ? c.cliente.nome.trim().toLowerCase() : '')
+      const formKey = c.formulario_comercial_id || c.formulario?.id || 'sem_form'
+      const groupKey = `${cliKey}__${formKey}`
+
+      if (!virtualGroups.has(groupKey)) {
+        virtualGroups.set(groupKey, [])
+      }
+      virtualGroups.get(groupKey)!.push(c)
+    }
+
+    for (const [groupKey, groupCards] of virtualGroups.entries()) {
+      const pendingCards = groupCards.filter((c) => isCardPending(c))
+      if (pendingCards.length === 0) continue
+
+      const first = groupCards[0]
+      const clientName = getCardClientName(first)
+      const empreendimento = getCardEmpreendimento(first)
+
+      if (groupCards.length > 1) {
+        // Multiplos ambientes do mesmo cliente/contrato: AGRUPAR EM CARD PAI VIRTUAL
+        const totalContratoValor = groupCards.reduce(
+          (acc, c) => acc + (Number(c.valor_total) || 0),
+          0,
+        )
+
+        list.push({
+          id: `virtual-${groupKey}`,
+          isVirtual: true,
+          parent: first,
+          subcards: groupCards,
+          pendingSubcards: pendingCards,
+          isParentPending: true,
+          totalSubcardsCount: groupCards.length,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+          cor_vinculo: first.cor_vinculo,
+          codigo_rastreio: first.formulario_comercial_id ? first.codigo_rastreio : null,
+          status_analise: first.status_analise,
+        })
+      } else {
+        // Card isolado único (sem outros ambientes no mesmo cliente/contrato)
+        const totalContratoValor = Number(first.valor_total) || 0
+        list.push({
+          id: first.id,
+          isVirtual: false,
+          parent: first,
+          subcards: [],
+          pendingSubcards: [],
+          isParentPending: true,
+          totalSubcardsCount: 0,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+          cor_vinculo: first.cor_vinculo,
+          codigo_rastreio: first.codigo_rastreio,
+          status_analise: first.status_analise,
         })
       }
     }
@@ -207,32 +310,53 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       }
     }
 
-    const list: ParentHierarchyItem[] = []
-    const allParentCards = cards.filter((c) => !c.card_pai_id)
+    const parentsWithRealChildren = new Set<string>()
+    for (const c of cards) {
+      if (c.card_pai_id) {
+        parentsWithRealChildren.add(c.card_pai_id)
+      }
+    }
 
-    for (const parent of allParentCards) {
+    const realParents: PcpCardItem[] = []
+    const unparentedCards: PcpCardItem[] = []
+
+    for (const c of cards) {
+      if (!c.card_pai_id) {
+        if (parentsWithRealChildren.has(c.id)) {
+          realParents.push(c)
+        } else {
+          unparentedCards.push(c)
+        }
+      }
+    }
+
+    const list: ParentHierarchyItem[] = []
+
+    // 1. Pais reais em análise
+    for (const parent of realParents) {
       const allSubs = subcardsByParentId.get(parent.id) || []
       const emAnaliseSubs = allSubs.filter((s) => isCardEmAnalise(s))
       const parentEmAnalise = isCardEmAnalise(parent)
 
-      // Aparece no grupo se o próprio pai estiver em análise ou tiver subcards em análise
       if (parentEmAnalise || emAnaliseSubs.length > 0) {
-        const clientName =
-          parent.cliente?.nome ||
-          parent.formulario?.cliente?.nome ||
-          parent.formulario?.nome_cliente ||
-          'Cliente não informado'
+        const clientName = getCardClientName(parent)
+        const empreendimento = getCardEmpreendimento(parent)
 
-        const form = parent.formulario as any
-        const empreendimento =
-          form?.obra_bairro || form?.obra_municipio
-            ? [form.obra_bairro, form.obra_municipio].filter(Boolean).join(' - ')
-            : parent.cliente?.endereco_obra || parent.cliente?.cidade || ''
-
-        const totalContratoValor =
-          Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+        const subsComValor = allSubs.filter((s) => (Number(s.valor_total) || 0) > 0)
+        let totalContratoValor = 0
+        if (subsComValor.length > 0) {
+          totalContratoValor = subsComValor.reduce(
+            (acc, s) => acc + (Number(s.valor_total) || 0),
+            0,
+          )
+        } else {
+          totalContratoValor =
+            Number(parent.valor_total) || Number(parent.formulario?.valor_total) || 0
+        }
 
         list.push({
+          id: parent.id,
+          isVirtual: false,
           parent,
           subcards: allSubs,
           pendingSubcards: emAnaliseSubs,
@@ -241,6 +365,71 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           totalContratoValor,
           clientName,
           empreendimento,
+          cor_vinculo: parent.cor_vinculo,
+          codigo_rastreio: parent.codigo_rastreio,
+          status_analise: parent.status_analise,
+        })
+      }
+    }
+
+    // 2. Agrupamento virtual para cards sem card_pai_id em análise
+    const virtualGroups = new Map<string, PcpCardItem[]>()
+    for (const c of unparentedCards) {
+      const cliKey = c.cliente_id || (c.cliente?.nome ? c.cliente.nome.trim().toLowerCase() : '')
+      const formKey = c.formulario_comercial_id || c.formulario?.id || 'sem_form'
+      const groupKey = `${cliKey}__${formKey}`
+
+      if (!virtualGroups.has(groupKey)) {
+        virtualGroups.set(groupKey, [])
+      }
+      virtualGroups.get(groupKey)!.push(c)
+    }
+
+    for (const [groupKey, groupCards] of virtualGroups.entries()) {
+      const emAnaliseCards = groupCards.filter((c) => isCardEmAnalise(c))
+      if (emAnaliseCards.length === 0) continue
+
+      const first = groupCards[0]
+      const clientName = getCardClientName(first)
+      const empreendimento = getCardEmpreendimento(first)
+
+      if (groupCards.length > 1) {
+        const totalContratoValor = groupCards.reduce(
+          (acc, c) => acc + (Number(c.valor_total) || 0),
+          0,
+        )
+
+        list.push({
+          id: `virtual-${groupKey}`,
+          isVirtual: true,
+          parent: first,
+          subcards: groupCards,
+          pendingSubcards: emAnaliseCards,
+          isParentPending: true,
+          totalSubcardsCount: groupCards.length,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+          cor_vinculo: first.cor_vinculo,
+          codigo_rastreio: first.formulario_comercial_id ? first.codigo_rastreio : null,
+          status_analise: first.status_analise,
+        })
+      } else {
+        const totalContratoValor = Number(first.valor_total) || 0
+        list.push({
+          id: first.id,
+          isVirtual: false,
+          parent: first,
+          subcards: [],
+          pendingSubcards: [],
+          isParentPending: true,
+          totalSubcardsCount: 0,
+          totalContratoValor,
+          clientName,
+          empreendimento,
+          cor_vinculo: first.cor_vinculo,
+          codigo_rastreio: first.codigo_rastreio,
+          status_analise: first.status_analise,
         })
       }
     }
@@ -263,7 +452,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const expandAll = () => {
     const next: Record<string, boolean> = {}
     for (const item of hierarchyList) {
-      next[item.parent.id] = true
+      next[item.id] = true
     }
     setExpandedParents(next)
   }
@@ -284,8 +473,10 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       const term = search.toLowerCase()
       const clientMatch = item.clientName.toLowerCase().includes(term)
       const empMatch = item.empreendimento.toLowerCase().includes(term)
-      const parentNameMatch = (item.parent.nome_produto || '').toLowerCase().includes(term)
-      const parentCodeMatch = (item.parent.codigo_rastreio || '').toLowerCase().includes(term)
+      const parentNameMatch = (item.parent?.nome_produto || '').toLowerCase().includes(term)
+      const parentCodeMatch = (item.codigo_rastreio || item.parent?.codigo_rastreio || '')
+        .toLowerCase()
+        .includes(term)
 
       // Verificar se algum subcard casa com a busca
       const subcardMatch = item.subcards.some((s) => {
@@ -314,13 +505,17 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     return hierarchyList.reduce((acc, item) => acc + item.totalContratoValor, 0)
   }, [hierarchyList])
 
-  // Handlers de Drag & Drop para o Card Pai (Nível 1)
+  // Handlers de Drag & Drop para o Card Pai (Nível 1) - Suporte a Pai Real e Pai Virtual
   const handleParentDragStart = (e: React.DragEvent, item: ParentHierarchyItem) => {
-    e.dataTransfer.setData('cardId', item.parent.id)
+    // Para pai real, cardId é item.parent.id; para virtual, usamos o id do primeiro item ou subcard
+    const rootCardId = item.parent ? item.parent.id : item.subcards[0]?.id || item.id
+    e.dataTransfer.setData('cardId', rootCardId)
     e.dataTransfer.setData('isParent', 'true')
+    e.dataTransfer.setData('isVirtual', item.isVirtual ? 'true' : 'false')
     e.dataTransfer.setData('isSubcard', 'false')
     e.dataTransfer.setData('sourceLinha', 'producao')
-    // Lista de IDs dos subcards para sincronização atômica
+
+    // Lista completa de IDs de todos os ambientes filhos/do grupo para alocação conjunta
     const subcardIds = item.subcards.map((s) => s.id)
     e.dataTransfer.setData('subcardIds', JSON.stringify(subcardIds))
     e.dataTransfer.effectAllowed = 'move'
@@ -330,14 +525,15 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const handleSubcardDragStart = (
     e: React.DragEvent,
     subcard: PcpCardItem,
-    parent: PcpCardItem,
+    parentItem: ParentHierarchyItem,
   ) => {
     e.stopPropagation()
     e.dataTransfer.setData('cardId', subcard.id)
     e.dataTransfer.setData('isParent', 'false')
     e.dataTransfer.setData('isSubcard', 'true')
-    e.dataTransfer.setData('parentId', parent.id)
+    e.dataTransfer.setData('parentId', parentItem.parent?.id || parentItem.id)
     e.dataTransfer.setData('sourceLinha', 'producao')
+    // Não envia subcardIds para alocar somente este ambiente individual
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -519,32 +715,30 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           </div>
         ) : (
           filteredHierarchy.map((item) => {
-            const isExpanded = Boolean(expandedParents[item.parent.id])
+            const isExpanded = Boolean(expandedParents[item.id])
             const hasSubcards = item.subcards.length > 0
 
             return (
               <div
-                key={item.parent.id}
+                key={item.id}
                 className={cn(
                   'rounded-lg border border-border bg-card overflow-hidden shadow-2xs transition-all',
                   'hover:border-primary/50 group/parent',
                   isExpanded && 'ring-1 ring-primary/20',
                 )}
               >
-                {/* NÍVEL 1: CARD PAI (PROJETO DO CLIENTE) */}
+                {/* NÍVEL 1: CARD PAI (PROJETO DO CLIENTE - REAL OU VIRTUAL) */}
                 <div
                   draggable
                   onDragStart={(e) => handleParentDragStart(e, item)}
-                  onClick={() => onCardClick(item.parent)}
+                  onClick={() => {
+                    if (item.parent) onCardClick(item.parent)
+                  }}
                   className={cn(
                     'p-2.5 bg-card hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing select-none',
                     'border-l-4 border-l-primary',
                   )}
-                  style={
-                    item.parent.cor_vinculo
-                      ? { borderLeftColor: item.parent.cor_vinculo }
-                      : undefined
-                  }
+                  style={item.cor_vinculo ? { borderLeftColor: item.cor_vinculo } : undefined}
                 >
                   {/* Linha 1: Nome do Cliente + Botão Sanfona / Expandir */}
                   <div className="flex items-start justify-between gap-1.5">
@@ -553,15 +747,20 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
                           Projeto
                         </span>
-                        {item.parent.codigo_rastreio && (
+                        {item.codigo_rastreio && (
                           <span className="font-mono text-[9px] bg-primary/10 text-primary px-1 rounded font-medium">
-                            {item.parent.codigo_rastreio}
+                            {item.codigo_rastreio}
+                          </span>
+                        )}
+                        {item.isVirtual && (
+                          <span className="text-[9px] bg-muted text-muted-foreground px-1 rounded font-normal">
+                            Contrato
                           </span>
                         )}
                       </div>
 
                       <h3
-                        className="text-xs font-bold text-foreground truncate leading-tight group-hover/parent:text-primary transition-colors mt-0.5"
+                        className="text-xs font-bold text-foreground truncate leading-tight group-hover/parent:text-primary transition-colors mt-0.5 uppercase"
                         title={item.clientName}
                       >
                         {item.clientName}
@@ -579,9 +778,9 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                       ) : (
                         <p
                           className="text-[10px] text-muted-foreground truncate mt-0.5"
-                          title={item.parent.nome_produto}
+                          title={item.parent?.nome_produto}
                         >
-                          {item.parent.nome_produto}
+                          {item.parent?.nome_produto}
                         </p>
                       )}
                     </div>
@@ -590,7 +789,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                     {hasSubcards ? (
                       <button
                         type="button"
-                        onClick={(e) => toggleParentExpand(item.parent.id, e)}
+                        onClick={(e) => toggleParentExpand(item.id, e)}
                         className={cn(
                           'p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shrink-0',
                           isExpanded && 'bg-muted text-primary',
@@ -635,9 +834,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                               : 'bg-muted text-muted-foreground',
                           )}
                         >
-                          <Layers className="w-2.5 h-2.5 mr-0.5" />
-                          {item.subcards.length}{' '}
-                          {item.subcards.length === 1 ? 'ambiente' : 'ambientes'}
+                          <Layers className="w-2.5 h-2.5 mr-0.5" />({item.subcards.length}{' '}
+                          {item.subcards.length === 1 ? 'item' : 'itens'})
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">
@@ -667,7 +865,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         <div
                           key={subcard.id}
                           draggable
-                          onDragStart={(e) => handleSubcardDragStart(e, subcard, item.parent)}
+                          onDragStart={(e) => handleSubcardDragStart(e, subcard, item)}
                           onClick={(e) => {
                             e.stopPropagation()
                             onCardClick(subcard)
@@ -682,9 +880,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                             <div className="min-w-0 flex-1">
                               {/* Código do Subcard + Nome do Ambiente */}
                               <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.2 rounded shrink-0">
-                                  {subcard.codigo_rastreio || 'SUBCARD'}
-                                </span>
+                                {subcard.codigo_rastreio && (
+                                  <span className="font-mono text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.2 rounded shrink-0">
+                                    {subcard.codigo_rastreio}
+                                  </span>
+                                )}
                                 <span
                                   className="text-xs font-semibold text-foreground truncate group-hover/sub:text-primary transition-colors"
                                   title={subcard.nome_produto}
@@ -716,10 +916,12 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                             <span
                               className={cn(
                                 'font-bold',
-                                subcardValor > 0 ? 'text-primary' : 'text-foreground font-semibold',
+                                subcardValor > 0
+                                  ? 'text-primary'
+                                  : 'text-muted-foreground font-normal',
                               )}
                             >
-                              {formatBRL(subcardValor)}
+                              {subcardValor > 0 ? formatBRL(subcardValor) : '— (parte do contrato)'}
                             </span>
                           </div>
                         </div>
@@ -781,45 +983,48 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
               </div>
             ) : (
               emAnaliseHierarchyList.map((item) => {
-                const isItemExpanded = Boolean(expandedEmAnaliseParents[item.parent.id])
+                const isItemExpanded = Boolean(expandedEmAnaliseParents[item.id])
                 const hasSubs = item.subcards.length > 0
 
                 return (
                   <div
-                    key={item.parent.id}
+                    key={item.id}
                     className="rounded-lg border border-border/70 bg-card overflow-hidden shadow-2xs opacity-90 hover:opacity-100 transition-all"
                   >
                     {/* Card Pai Em Análise (NÃO DRAGGABLE) */}
                     <div
-                      onClick={() => onCardClick(item.parent)}
+                      onClick={() => {
+                        if (item.parent) onCardClick(item.parent)
+                      }}
                       className={cn(
                         'p-2 bg-card hover:bg-muted/30 transition-colors cursor-pointer select-none',
                         'border-l-4 border-l-slate-400',
                       )}
-                      style={
-                        item.parent.cor_vinculo
-                          ? { borderLeftColor: item.parent.cor_vinculo }
-                          : undefined
-                      }
+                      style={item.cor_vinculo ? { borderLeftColor: item.cor_vinculo } : undefined}
                       title="Card em análise inicial. Clique para visualizar detalhes (drag desabilitado nesta fase)."
                     >
                       <div className="flex items-start justify-between gap-1.5">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                              {item.parent.status_analise === 'reuniao_analise'
+                              {item.status_analise === 'reuniao_analise'
                                 ? 'Reunião de Análise'
                                 : 'Iniciar Análise'}
                             </span>
-                            {item.parent.codigo_rastreio && (
+                            {item.codigo_rastreio && (
                               <span className="font-mono text-[9px] bg-muted text-muted-foreground px-1 rounded font-medium">
-                                {item.parent.codigo_rastreio}
+                                {item.codigo_rastreio}
+                              </span>
+                            )}
+                            {item.isVirtual && (
+                              <span className="text-[9px] bg-muted text-muted-foreground px-1 rounded font-normal">
+                                Contrato
                               </span>
                             )}
                           </div>
 
                           <h4
-                            className="text-xs font-bold text-foreground truncate leading-tight mt-0.5"
+                            className="text-xs font-bold text-foreground truncate leading-tight mt-0.5 uppercase"
                             title={item.clientName}
                           >
                             {item.clientName}
@@ -827,9 +1032,9 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
                           <p
                             className="text-[10px] text-muted-foreground truncate mt-0.5"
-                            title={item.empreendimento || item.parent.nome_produto}
+                            title={item.empreendimento || item.parent?.nome_produto}
                           >
-                            {item.empreendimento || item.parent.nome_produto}
+                            {item.empreendimento || item.parent?.nome_produto}
                           </p>
                         </div>
 
@@ -840,7 +1045,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                               e.stopPropagation()
                               setExpandedEmAnaliseParents((prev) => ({
                                 ...prev,
-                                [item.parent.id]: !prev[item.parent.id],
+                                [item.id]: !prev[item.id],
                               }))
                             }}
                             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted shrink-0"
@@ -872,7 +1077,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                           variant="secondary"
                           className="text-[9px] px-1 py-0 h-4 bg-muted text-muted-foreground"
                         >
-                          {hasSubs ? `${item.subcards.length} amb.` : 'Único'}
+                          {hasSubs ? `(${item.subcards.length} itens)` : 'Único'}
                         </Badge>
                       </div>
                     </div>
@@ -896,12 +1101,19 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                                 <span className="text-[11px] font-semibold text-foreground truncate">
                                   {subcard.nome_produto}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground font-mono">
-                                  {subcard.codigo_rastreio}
-                                </span>
+                                {subcard.codigo_rastreio && (
+                                  <span className="text-[10px] text-muted-foreground font-mono">
+                                    {subcard.codigo_rastreio}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center justify-between gap-1 mt-0.5 text-[9px] text-muted-foreground">
-                                <span>Valor: {formatBRL(subcardValor)}</span>
+                                <span>
+                                  Valor:{' '}
+                                  {subcardValor > 0
+                                    ? formatBRL(subcardValor)
+                                    : '— (parte do contrato)'}
+                                </span>
                                 <span className="capitalize">
                                   {(subcard.status_analise || '').replace(/_/g, ' ')}
                                 </span>

@@ -163,7 +163,7 @@ export const PcpMatrizDiaria: React.FC = () => {
     subcardIds?: string[],
   ) => {
     const card = cards.find((c) => c.id === cardId)
-    if (!card) return
+    if (!card && (!subcardIds || subcardIds.length === 0)) return
 
     const fieldMap: Record<
       PcpLinhaOperacao,
@@ -174,15 +174,15 @@ export const PcpMatrizDiaria: React.FC = () => {
       montagem: 'data_planejada_montagem',
     }
 
-    const isParent = !card.card_pai_id
+    const isParent = card ? !card.card_pai_id : false
     const childrenIds =
       subcardIds && subcardIds.length > 0
-        ? subcardIds
-        : isParent
+        ? subcardIds.filter((id) => id !== cardId)
+        : isParent && card
           ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
           : []
 
-    const allAffectedIds = [cardId, ...childrenIds]
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
 
     // Atualização otimista
     setCards((prev) =>
@@ -206,9 +206,9 @@ export const PcpMatrizDiaria: React.FC = () => {
           `Programado projeto pai e ${childrenIds.length} ambiente(s) para o dia ${targetDateStr}`,
         )
         toast.success(
-          `Projeto [${card.nome_produto}] e ${childrenIds.length} ambiente(s) alocados para ${targetDateStr}!`,
+          `Projeto [${card?.nome_produto || 'Grupo'}] e ${childrenIds.length} ambiente(s) alocados para ${targetDateStr}!`,
         )
-      } else {
+      } else if (card) {
         const previousDate = card[fieldMap[targetLinha]]
         await updateCardDataPlanejada(
           cardId,
@@ -243,7 +243,7 @@ export const PcpMatrizDiaria: React.FC = () => {
       const dt = c?.data_planejada_producao
       if (!dt || typeof dt !== 'string' || !dt.includes('-')) return acc
       const parts = dt.slice(0, 7).split('-')
-      if (parts.length < 2) return acc
+      if (!parts || parts.length < 2) return acc
       const y = Number(parts[0])
       const m = Number(parts[1])
       if (y === currentYear && m === currentMonthIndex + 1) {

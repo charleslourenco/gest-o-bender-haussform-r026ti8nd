@@ -78,8 +78,10 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
 
     return cards.filter((c) => {
       const val = c[field]
-      if (!val) return false
-      return val.slice(0, 10) === dia.dateString
+      if (!val || typeof val !== 'string') return false
+      const targetDate = dia?.dateString
+      if (!targetDate) return false
+      return val.slice(0, 10) === targetDate
     })
   }
 
@@ -180,8 +182,10 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                         )}
                         title={dia.formattedFull}
                       >
-                        {dia.diaSemanaCurto} {dia.diaDoMes.toString().padStart(2, '0')}/
-                        {dia.dateString && dia.dateString.includes('-')
+                        {dia.diaSemanaCurto} {String(dia?.diaDoMes ?? '').padStart(2, '0')}/
+                        {dia?.dateString &&
+                        typeof dia.dateString === 'string' &&
+                        dia.dateString.includes('-')
                           ? dia.dateString.split('-')[1]
                           : ''}
                       </span>

@@ -27,17 +27,18 @@ export const PcpCard: React.FC<PcpCardProps> = ({
   compact = false,
   showClientName = true,
 }) => {
-  const isSubcard = Boolean(card.card_pai_id)
+  const isSubcard = Boolean(card?.card_pai_id)
   const clientName =
-    card.cliente?.nome ||
-    card.formulario?.cliente?.nome ||
-    card.formulario?.nome_cliente ||
+    card?.cliente?.nome ||
+    card?.formulario?.cliente?.nome ||
+    card?.formulario?.nome_cliente ||
     'Cliente'
 
-  const subcardsCount = Array.isArray(card.subcards) ? card.subcards.length : 0
+  const subcardsCount = Array.isArray(card?.subcards) ? card.subcards.length : 0
 
   const handleDragStart = (e: React.DragEvent) => {
     e.stopPropagation()
+    if (!card?.id) return
     e.dataTransfer.setData('cardId', card.id)
     e.dataTransfer.setData('isSubcard', isSubcard ? 'true' : 'false')
     if (linha) {
@@ -49,7 +50,7 @@ export const PcpCard: React.FC<PcpCardProps> = ({
     if (currentMes) {
       e.dataTransfer.setData('sourceMes', currentMes)
     }
-    if (!isSubcard && Array.isArray(card.subcards) && card.subcards.length > 0) {
+    if (!isSubcard && Array.isArray(card?.subcards) && card.subcards.length > 0) {
       e.dataTransfer.setData('subcardIds', JSON.stringify(card.subcards.map((s) => s.id)))
     }
     e.dataTransfer.effectAllowed = 'move'
@@ -59,8 +60,8 @@ export const PcpCard: React.FC<PcpCardProps> = ({
   // Subcard: [ Cliente — Ambiente — R$ Valor ] (ex.: 'Ló Portela — Cozinha — R$ 18.000,00')
   // Pai com subcards: [ Cliente — Projeto/Ambiente — R$ Valor (+3 ambientes) ]
   // Pai sem subcards: [ Cliente — Ambiente — R$ Valor ]
-  const ambienteNome = card.nome_produto || 'Ambiente'
-  const valorFormatado = formatBRL(card.valor_total || 0)
+  const ambienteNome = card?.nome_produto || 'Ambiente'
+  const valorFormatado = formatBRL(card?.valor_total || 0)
   const tagAmbientes = !isSubcard && subcardsCount > 0 ? ` (+${subcardsCount} amb.)` : ''
   const fullText = `${clientName} — ${ambienteNome} — ${valorFormatado}${tagAmbientes}`
 
