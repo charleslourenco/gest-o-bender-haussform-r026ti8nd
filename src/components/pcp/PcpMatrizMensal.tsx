@@ -151,6 +151,106 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     setCurrentMonthIndex(n.getMonth())
   }
 
+  // Ação de desagendamento: arrastar de volta para a Carteira / Pendentes
+  const handleDesagendarParaCarteira = async (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    isParent: boolean,
+    subcardIds?: string[],
+  ) => {
+    const card = cards.find((c) => c.id === cardId)
+    const fieldMap: Record<
+      PcpLinhaOperacao,
+      'semana_planejada_analise' | 'semana_planejada_producao' | 'semana_planejada_montagem'
+    > = {
+      analise: 'semana_planejada_analise',
+      producao: 'semana_planejada_producao',
+      montagem: 'semana_planejada_montagem',
+    }
+
+    const actuallyIsParent = isParent || (card ? !card.card_pai_id : false)
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds.filter((id) => id !== cardId)
+        : actuallyIsParent && card
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
+
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
+
+    // Atualização otimista imediata para o card reaparecer na Carteira no mesmo ciclo
+    setCards((prev) =>
+      prev.map((c) => {
+        if (!allAffectedIds.includes(c.id)) return c
+        const updated: PcpCardItem = {
+          ...c,
+          [fieldMap[linha]]: null,
+        }
+        // Na linha producao, limpar também mes_planejado_producao na visão semanal
+        if (linha === 'producao') {
+          updated.mes_planejado_producao = null
+        }
+        return updated
+      }),
+    )
+
+    try {
+      if (childrenIds.length > 0) {
+        const { updateMultipleCardsSemanaPlanejada } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsSemanaPlanejada(
+          allAffectedIds,
+          linha,
+          null,
+          'Retornado para a Carteira',
+        )
+        // Se producao, garantir que mes_planejado_producao também fique nulo no banco
+        if (linha === 'producao') {
+          const { updateMultipleCardsMesPlanejado } = await import('@/services/pcp-planejamento')
+          await updateMultipleCardsMesPlanejado(
+            allAffectedIds,
+            linha,
+            null,
+            'Retornado para a Carteira',
+          )
+        }
+        toast.success(
+          `Grupo [${card?.nome_produto || 'Projeto'}] e ${childrenIds.length} ambiente(s) retornados para a Carteira!`,
+        )
+      } else if (card) {
+        const previousSemana = card[fieldMap[linha]]
+        await updateCardSemanaPlanejada(
+          cardId,
+          linha,
+          null,
+          previousSemana,
+          'Retornado para a Carteira',
+        )
+        if (linha === 'producao' && card.mes_planejado_producao) {
+          await updateCardMesPlanejado(
+            cardId,
+            linha,
+            null,
+            card.mes_planejado_producao,
+            'Retornado para a Carteira',
+          )
+        }
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] retornado para a Carteira!`,
+        )
+      } else {
+        // Fallback caso cardId não esteja na lista local mas seja válido
+        await updateCardSemanaPlanejada(cardId, linha, null, null, 'Retornado para a Carteira')
+        if (linha === 'producao') {
+          await updateCardMesPlanejado(cardId, linha, null, null, 'Retornado para a Carteira')
+        }
+        toast.success('Item retornado para a Carteira!')
+      }
+    } catch (err: any) {
+      toast.error('Erro ao desagendar para a Carteira: ' + (err.message || 'Erro'))
+      loadCards(true)
+    }
+  }
+
   // Ação de arrastar e soltar (Drag and Drop) com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
@@ -541,6 +641,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
           modo="mensal"
           onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
           onCardClick={handleOpenDrawer}
+          onDropToCarteira={handleDesagendarParaCarteira}
         />
 
         {/* Grade Semanal Central (ISO Weeks) */}

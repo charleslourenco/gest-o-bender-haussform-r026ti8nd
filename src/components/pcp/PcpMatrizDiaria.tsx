@@ -155,6 +155,78 @@ export const PcpMatrizDiaria: React.FC = () => {
     setCurrentMonthIndex(n.getMonth())
   }
 
+  // Ação de desagendamento: arrastar de volta para a Carteira / Pendentes
+  const handleDesagendarParaCarteira = async (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    isParent: boolean,
+    subcardIds?: string[],
+  ) => {
+    const card = cards.find((c) => c.id === cardId)
+    const fieldMap: Record<
+      PcpLinhaOperacao,
+      'data_planejada_analise' | 'data_planejada_producao' | 'data_planejada_montagem'
+    > = {
+      analise: 'data_planejada_analise',
+      producao: 'data_planejada_producao',
+      montagem: 'data_planejada_montagem',
+    }
+
+    const actuallyIsParent = isParent || (card ? !card.card_pai_id : false)
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds.filter((id) => id !== cardId)
+        : actuallyIsParent && card
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
+
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
+
+    // Atualização otimista imediata para o card reaparecer na Carteira no mesmo ciclo
+    setCards((prev) =>
+      prev.map((c) => {
+        if (!allAffectedIds.includes(c.id)) return c
+        return {
+          ...c,
+          [fieldMap[linha]]: null,
+        }
+      }),
+    )
+
+    try {
+      if (childrenIds.length > 0) {
+        const { updateMultipleCardsDataPlanejada } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsDataPlanejada(
+          allAffectedIds,
+          linha,
+          null,
+          'Retornado para a Carteira',
+        )
+        toast.success(
+          `Grupo [${card?.nome_produto || 'Projeto'}] e ${childrenIds.length} ambiente(s) retornados para a Carteira!`,
+        )
+      } else if (card) {
+        const previousDate = card[fieldMap[linha]]
+        await updateCardDataPlanejada(
+          cardId,
+          linha,
+          null,
+          previousDate || null,
+          'Retornado para a Carteira',
+        )
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] retornado para a Carteira!`,
+        )
+      } else {
+        await updateCardDataPlanejada(cardId, linha, null, null, 'Retornado para a Carteira')
+        toast.success('Item retornado para a Carteira!')
+      }
+    } catch (err: any) {
+      toast.error('Erro ao desagendar para a Carteira: ' + (err.message || 'Erro'))
+      loadCards(true)
+    }
+  }
+
   // Drag and Drop com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
@@ -436,6 +508,7 @@ export const PcpMatrizDiaria: React.FC = () => {
           modo="diario"
           onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
           onCardClick={handleOpenDrawer}
+          onDropToCarteira={handleDesagendarParaCarteira}
         />
 
         <PcpGradeDiaria

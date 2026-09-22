@@ -92,6 +92,105 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
   const handleNextYear = () => setCurrentYear((y) => y + 1)
   const handleCurrentYear = () => setCurrentYear(new Date().getFullYear())
 
+  // Ação de desagendamento: arrastar de volta para a Carteira / Pendentes
+  const handleDesagendarParaCarteira = async (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    isParent: boolean,
+    subcardIds?: string[],
+  ) => {
+    const card = cards.find((c) => c.id === cardId)
+    const fieldMap: Record<
+      PcpLinhaOperacao,
+      'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
+    > = {
+      analise: 'mes_planejado_analise',
+      producao: 'mes_planejado_producao',
+      montagem: 'mes_planejado_montagem',
+    }
+
+    const actuallyIsParent = isParent || (card ? !card.card_pai_id : false)
+    const childrenIds =
+      subcardIds && subcardIds.length > 0
+        ? subcardIds.filter((id) => id !== cardId)
+        : actuallyIsParent && card
+          ? cards.filter((c) => c.card_pai_id === cardId).map((c) => c.id)
+          : []
+
+    const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
+
+    // Atualização otimista imediata para o card reaparecer na Carteira no mesmo ciclo
+    setCards((prev) =>
+      prev.map((c) => {
+        if (!allAffectedIds.includes(c.id)) return c
+        const updated: PcpCardItem = {
+          ...c,
+          [fieldMap[linha]]: null,
+        }
+        // Na linha producao, na visão anual limpar também semana_planejada_producao
+        if (linha === 'producao') {
+          updated.semana_planejada_producao = null
+        }
+        return updated
+      }),
+    )
+
+    try {
+      if (childrenIds.length > 0) {
+        const { updateMultipleCardsMesPlanejado } = await import('@/services/pcp-planejamento')
+        await updateMultipleCardsMesPlanejado(
+          allAffectedIds,
+          linha,
+          null,
+          'Retornado para a Carteira',
+        )
+        // Se producao, garantir que semana_planejada_producao também fique nula no banco
+        if (linha === 'producao') {
+          const { updateMultipleCardsSemanaPlanejada } = await import('@/services/pcp-planejamento')
+          await updateMultipleCardsSemanaPlanejada(
+            allAffectedIds,
+            linha,
+            null,
+            'Retornado para a Carteira',
+          )
+        }
+        toast.success(
+          `Grupo [${card?.nome_produto || 'Projeto'}] e ${childrenIds.length} ambiente(s) retornados para a Carteira!`,
+        )
+      } else if (card) {
+        const previousMes = card[fieldMap[linha]]
+        await updateCardMesPlanejado(
+          cardId,
+          linha,
+          null,
+          previousMes || null,
+          'Retornado para a Carteira',
+        )
+        if (linha === 'producao' && card.semana_planejada_producao) {
+          await updateCardSemanaPlanejada(
+            cardId,
+            linha,
+            null,
+            card.semana_planejada_producao,
+            'Retornado para a Carteira',
+          )
+        }
+        toast.success(
+          `${card.card_pai_id ? 'Ambiente' : 'Card'} [${card.nome_produto}] retornado para a Carteira!`,
+        )
+      } else {
+        await updateCardMesPlanejado(cardId, linha, null, null, 'Retornado para a Carteira')
+        if (linha === 'producao') {
+          await updateCardSemanaPlanejada(cardId, linha, null, null, 'Retornado para a Carteira')
+        }
+        toast.success('Item retornado para a Carteira!')
+      }
+    } catch (err: any) {
+      toast.error('Erro ao desagendar para a Carteira: ' + (err.message || 'Erro'))
+      loadCards(true)
+    }
+  }
+
   // Arrastar e soltar em coluna de Mês com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
@@ -444,6 +543,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
           modo="anual"
           onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
           onCardClick={handleOpenDrawer}
+          onDropToCarteira={handleDesagendarParaCarteira}
         />
 
         <PcpGradeAnual

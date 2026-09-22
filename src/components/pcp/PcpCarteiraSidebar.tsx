@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { PcpCardItem } from '@/services/pcp-planejamento'
+import { PcpCardItem, PcpLinhaOperacao } from '@/services/pcp-planejamento'
 import { formatBRL } from '@/lib/pcp-capacity'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import {
   Building2,
   FolderOpen,
   FolderClosed,
+  Undo2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +25,12 @@ interface PcpCarteiraSidebarProps {
   modo?: 'anual' | 'mensal' | 'semanal' | 'diario'
   onToggleCollapsed: () => void
   onCardClick: (card: PcpCardItem) => void
+  onDropToCarteira?: (
+    cardId: string,
+    linha: PcpLinhaOperacao,
+    isParent: boolean,
+    subcardIds?: string[],
+  ) => Promise<void> | void
 }
 
 interface ParentHierarchyItem {
@@ -49,11 +56,13 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   modo = 'anual',
   onToggleCollapsed,
   onCardClick,
+  onDropToCarteira,
 }) => {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'todos' | 'com_ambientes' | 'isolados'>('todos')
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({})
   const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
+  const [isDragOverSidebar, setIsDragOverSidebar] = useState(false)
   const [isEmAnaliseExpanded, setIsEmAnaliseExpanded] = useState(false)
   const [expandedEmAnaliseParents, setExpandedEmAnaliseParents] = useState<Record<string, boolean>>(
     {},
@@ -549,21 +558,62 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     e.dataTransfer.effectAllowed = 'move'
   }
 
+  // Handler unificado de drop para desagendamento na Carteira
+  const handleDropToCarteira = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOverSidebar(false)
+    setIsDragOverCollapsed(false)
+
+    const cardId = e.dataTransfer.getData('cardId')
+    if (!cardId) return
+
+    const isParentStr = e.dataTransfer.getData('isParent')
+    const isSubcardStr = e.dataTransfer.getData('isSubcard')
+    const isParent = isParentStr === 'true' || isSubcardStr === 'false'
+
+    const sourceLinha = (e.dataTransfer.getData('sourceLinha') as PcpLinhaOperacao) || 'producao'
+
+    let subcardIds: string[] | undefined
+    const rawSubcards = e.dataTransfer.getData('subcardIds')
+    if (rawSubcards) {
+      try {
+        const parsed = JSON.parse(rawSubcards)
+        if (Array.isArray(parsed)) {
+          subcardIds = parsed
+        }
+      } catch {
+        // Ignora erro de JSON parse
+      }
+    }
+
+    if (onDropToCarteira) {
+      onDropToCarteira(cardId, sourceLinha, isParent, subcardIds)
+    }
+  }
+
   if (collapsed) {
     return (
       <aside
         onDragOver={(e) => {
           e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
           setIsDragOverCollapsed(true)
         }}
-        onDragLeave={() => setIsDragOverCollapsed(false)}
-        onDrop={() => {
-          setIsDragOverCollapsed(false)
+        onDragLeave={(e) => {
+          // Evita flicker quando passa por elementos filhos
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDragOverCollapsed(false)
+          }
+        }}
+        onDrop={(e) => {
+          handleDropToCarteira(e)
           onToggleCollapsed()
         }}
         className={cn(
           'w-10 bg-card border-r border-border flex flex-col items-center py-2.5 select-none shrink-0 transition-all z-20 group relative shadow-xs',
-          isDragOverCollapsed && 'bg-primary/20 ring-2 ring-primary ring-inset',
+          isDragOverCollapsed &&
+            'bg-primary/20 ring-2 ring-primary ring-inset border-dashed border-primary',
         )}
       >
         <Button
@@ -600,7 +650,39 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   }
 
   return (
-    <aside className="w-[300px] sm:w-[320px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs">
+    <aside
+      onDragOver={(e) => {
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setIsDragOverSidebar(true)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsDragOverSidebar(false)
+        }
+      }}
+      onDrop={handleDropToCarteira}
+      className={cn(
+        'w-[300px] sm:w-[320px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs relative',
+        isDragOverSidebar &&
+          'bg-primary/10 border-2 border-dashed border-primary ring-2 ring-primary ring-inset',
+      )}
+    >
+      {/* Indicador visual de zona de soltura sobreposta */}
+      {isDragOverSidebar && (
+        <div className="absolute inset-0 bg-primary/10 backdrop-blur-[1px] border-2 border-dashed border-primary z-30 pointer-events-none flex flex-col items-center justify-center p-4 text-center animate-in fade-in-50 duration-150">
+          <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-2 shadow-xs">
+            <Undo2 className="w-6 h-6 animate-pulse" />
+          </div>
+          <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+            Solte para Retornar à Carteira
+          </p>
+          <span className="text-[11px] text-muted-foreground mt-1 max-w-[200px]">
+            O projeto/ambiente será desagendado e voltará para a lista de pendentes.
+          </span>
+        </div>
+      )}
+
       {/* Cabeçalho da Sidebar */}
       <div className="p-3 border-b border-border space-y-2.5 shrink-0 bg-card">
         <div className="flex items-center justify-between">
@@ -708,7 +790,15 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       </div>
 
       {/* Lista de Cards Hierárquicos (Accordion Card Pai + Subcards) */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5">
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          setIsDragOverSidebar(true)
+        }}
+        onDrop={handleDropToCarteira}
+        className="flex-1 overflow-y-auto p-2.5 space-y-2.5"
+      >
         {filteredHierarchy.length === 0 ? (
           <div className="h-48 flex flex-col items-center justify-center text-center p-4 text-muted-foreground">
             <Layers className="w-8 h-8 mb-2 opacity-40" />
