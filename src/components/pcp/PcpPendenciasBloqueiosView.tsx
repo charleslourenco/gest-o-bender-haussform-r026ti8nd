@@ -441,7 +441,7 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                               className="h-5 px-1.5 text-[10px] gap-1 text-primary hover:text-primary hover:bg-primary/10"
                             >
                               <Eye className="w-2.5 h-2.5" />
-                              <span>Ver</span>
+                              <span>Ver Projeto</span>
                             </Button>
                           </div>
                         ))}

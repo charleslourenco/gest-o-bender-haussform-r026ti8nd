@@ -1,9 +1,29 @@
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { CalendarDays, ClipboardList, Factory, Wrench } from 'lucide-react'
+import {
+  CalendarDays,
+  ClipboardList,
+  Factory,
+  Wrench,
+  LayoutGrid,
+  Calendar,
+  AlertTriangle,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
 import { PcpGradeIndustrial } from '@/components/pcp/PcpGradeIndustrial'
+import { PcpDatasObraView } from '@/components/pcp/PcpDatasObraView'
+import { PcpPendenciasBloqueiosView } from '@/components/pcp/PcpPendenciasBloqueiosView'
+import { PcpSideDrawer } from '@/components/pcp/PcpSideDrawer'
+import {
+  fetchPcpCards,
+  PcpCardItem,
+  updateCardSemanaPlanejada,
+  updateCardMesPlanejado,
+} from '@/services/pcp-planejamento'
+import { getIsoWeeksForYear } from '@/lib/pcp-capacity'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface PcpTabItem {
@@ -45,11 +65,139 @@ const PCP_TABS: PcpTabItem[] = [
   },
 ]
 
+export type PcpViewMode = 'grade' | 'datas-obra' | 'pendencias'
+
 export function PcpPlanejamentoView() {
+  const [viewMode, setViewMode] = useState<PcpViewMode>('grade')
+  const [cards, setCards] = useState<PcpCardItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<PcpCardItem | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  const loadCards = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await fetchPcpCards()
+      setCards(Array.isArray(data) ? data : [])
+    } catch (err: any) {
+      toast.error('Erro ao atualizar dados do PCP: ' + (err.message || 'Erro'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (viewMode !== 'grade') {
+      loadCards()
+    }
+  }, [viewMode, loadCards])
+
+  const handleOpenDrawer = (card: PcpCardItem) => {
+    setSelectedCard(card)
+    setDrawerOpen(true)
+  }
+
+  const currentYearWeeks = getIsoWeeksForYear(new Date().getFullYear())
+
   return (
-    <ErrorBoundary source="PCP Grade Industrial">
-      <PcpGradeIndustrial />
-    </ErrorBoundary>
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+      {/* Barra de seleção de visualização na aba Planejamento Operacional */}
+      <div className="px-4 lg:px-6 py-2 bg-card border-b border-border flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl">
+          <Button
+            variant={viewMode === 'grade' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('grade')}
+            className={cn(
+              'h-7 px-3 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap',
+              viewMode === 'grade'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+            <span>Grade Industrial (SEG–SÁB)</span>
+          </Button>
+
+          <Button
+            variant={viewMode === 'datas-obra' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('datas-obra')}
+            className={cn(
+              'h-7 px-3 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap',
+              viewMode === 'datas-obra'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span>🗓️ Datas da Obra</span>
+          </Button>
+
+          <Button
+            variant={viewMode === 'pendencias' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('pendencias')}
+            className={cn(
+              'h-7 px-3 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap',
+              viewMode === 'pendencias'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>⚠️ Pendências / Bloqueios</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Renderização reativa: só a visão ativa é montada */}
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
+        {viewMode === 'grade' && (
+          <ErrorBoundary source="PCP Grade Industrial">
+            <PcpGradeIndustrial />
+          </ErrorBoundary>
+        )}
+
+        {viewMode === 'datas-obra' && (
+          <ErrorBoundary source="PCP Datas da Obra">
+            <PcpDatasObraView
+              cards={cards}
+              onRefresh={loadCards}
+              onOpenCardDrawer={handleOpenDrawer}
+            />
+          </ErrorBoundary>
+        )}
+
+        {viewMode === 'pendencias' && (
+          <ErrorBoundary source="PCP Pendências e Bloqueios">
+            <PcpPendenciasBloqueiosView
+              cards={cards}
+              onRefresh={loadCards}
+              onOpenCardDrawer={handleOpenDrawer}
+            />
+          </ErrorBoundary>
+        )}
+      </div>
+
+      {/* Side drawer para detalhe de card quando acionado nas visões de Datas da Obra ou Pendências */}
+      {viewMode !== 'grade' && (
+        <PcpSideDrawer
+          card={selectedCard}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          availableWeeks={currentYearWeeks}
+          onUpdateSemana={async (cardId, linha, novaSemana, semanaAnterior, motivo) => {
+            await updateCardSemanaPlanejada(cardId, linha, novaSemana, semanaAnterior, motivo)
+            loadCards()
+          }}
+          onUpdateMes={async (cardId, linha, novoMes, mesAnterior, motivo) => {
+            await updateCardMesPlanejado(cardId, linha, novoMes, mesAnterior, motivo)
+            loadCards()
+          }}
+        />
+      )}
+    </div>
   )
 }
 
