@@ -2482,6 +2482,8 @@ export type Database = {
         Row: {
           card_id: string
           criado_em: string
+          data_anterior: string | null
+          data_nova: string | null
           id: string
           linha_operacao: string
           mes_anterior: string | null
@@ -2495,6 +2497,8 @@ export type Database = {
         Insert: {
           card_id: string
           criado_em?: string
+          data_anterior?: string | null
+          data_nova?: string | null
           id?: string
           linha_operacao: string
           mes_anterior?: string | null
@@ -2508,6 +2512,8 @@ export type Database = {
         Update: {
           card_id?: string
           criado_em?: string
+          data_anterior?: string | null
+          data_nova?: string | null
           id?: string
           linha_operacao?: string
           mes_anterior?: string | null
@@ -2747,6 +2753,9 @@ export type Database = {
           cor_vinculo: string | null
           criado_em: string
           data_manual: string | null
+          data_planejada_analise: string | null
+          data_planejada_montagem: string | null
+          data_planejada_producao: string | null
           desconto_percentual: number
           descricao: string | null
           excluido_analise: boolean
@@ -2785,6 +2794,9 @@ export type Database = {
           cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
+          data_planejada_analise?: string | null
+          data_planejada_montagem?: string | null
+          data_planejada_producao?: string | null
           desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean
@@ -2823,6 +2835,9 @@ export type Database = {
           cor_vinculo?: string | null
           criado_em?: string
           data_manual?: string | null
+          data_planejada_analise?: string | null
+          data_planejada_montagem?: string | null
+          data_planejada_producao?: string | null
           desconto_percentual?: number
           descricao?: string | null
           excluido_analise?: boolean

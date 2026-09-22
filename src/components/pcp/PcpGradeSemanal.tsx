@@ -62,10 +62,15 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     return cards.filter((c) => matchWeek(c[field], week))
   }
 
-  // Soma de R$ na linha de produção para cada semana (regra estrita: valor_total individual de cada card/subcard)
+  // Soma de R$ para qualquer linha em cada semana (regra estrita: valor_total individual de cada card/subcard pai ou filho)
+  const getLinhaSomaSemana = (linha: PcpLinhaOperacao, week: IsoWeekRange): number => {
+    const cellCards = getCardsForCell(linha, week)
+    return cellCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+  }
+
+  // Soma de R$ na linha de produção para cada semana
   const getProducaoSomaSemana = (week: IsoWeekRange): number => {
-    const weekCards = getCardsForCell('producao', week)
-    return weekCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+    return getLinhaSomaSemana('producao', week)
   }
 
   const handleDragOver = (e: React.DragEvent, cellKey: string) => {
@@ -112,7 +117,9 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
 
             {/* Colunas Semanais: S40 [05/10 a 09/10] */}
             {weeks.map((week) => {
-              const somaProducao = getProducaoSomaSemana(week)
+              const somaProducao = getLinhaSomaSemana('producao', week)
+              const somaAnalise = getLinhaSomaSemana('analise', week)
+              const somaMontagem = getLinhaSomaSemana('montagem', week)
               const capacidade = avaliarCapacidadeFinanceira(somaProducao)
 
               return (
@@ -138,26 +145,45 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
                       {capacidade.badgeText}
                     </Badge>
                   </div>
-
                   {/* Faixa de capacidade financeira no topo de cada coluna semanal (especificação item 3) */}
                   <div
                     className={cn(
-                      'rounded-md px-2 py-1 text-[11px] border font-medium flex items-center justify-between transition-colors',
+                      'rounded-md px-2 py-1 text-[11px] border font-medium flex flex-col gap-0.5 transition-colors',
                       capacidade.bgClass,
                       capacidade.borderClass,
                     )}
                     title={`Regra de Capacidade Fabril: Meta Full R$ 300k - 350k. Carga atual: ${capacidade.formattedTotal}. ${capacidade.label}`}
                   >
-                    <div className="flex items-center gap-1 truncate">
-                      <span className="text-muted-foreground text-[10px]">Carga:</span>
-                      <strong className={cn('font-bold', capacidade.textClass)}>
-                        {capacidade.formattedTotal}
-                      </strong>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1 truncate">
+                        <span className="text-muted-foreground text-[10px]">Carga:</span>
+                        <strong className={cn('font-bold', capacidade.textClass)}>
+                          {capacidade.formattedTotal}
+                        </strong>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground font-normal shrink-0">
+                        Meta: 300k - 350k
+                      </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-normal shrink-0">
-                      Meta: 300k - 350k
-                    </span>
-                  </div>
+
+                    {/* Discriminação rápida por linha no cabeçalho superior quando há carga em Análise ou Montagem */}
+                    {(somaAnalise > 0 || somaMontagem > 0) && (
+                      <div className="flex items-center gap-2 pt-0.5 border-t border-border/40 text-[9px] text-muted-foreground">
+                        {somaAnalise > 0 && (
+                          <span title="Carga Análise Técnica">
+                            📐 Análise:{' '}
+                            <strong className="text-foreground">{formatBRL(somaAnalise)}</strong>
+                          </span>
+                        )}
+                        {somaMontagem > 0 && (
+                          <span title="Carga Montagem">
+                            🔧 Montagem:{' '}
+                            <strong className="text-foreground">{formatBRL(somaMontagem)}</strong>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>{' '}
                 </div>
               )
             })}
@@ -235,13 +261,15 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
                                     : 'bg-blue-500/5'),
                         )}
                       >
-                        {/* Sub-cabeçalho da célula */}
+                        {/* Sub-cabeçalho da célula (cabeçalho de carga da respectiva linha nesta coluna semanal) */}
                         <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border/40 text-[10px] text-muted-foreground">
-                          <span className="font-semibold text-foreground/80">
-                            {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
+                          <span className="font-semibold text-foreground/80 flex items-center gap-1">
+                            <span>
+                              {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
+                            </span>
                           </span>
-                          <span className="font-medium text-foreground">
-                            {formatBRL(totalValorCelula)}
+                          <span className="font-bold text-foreground">
+                            Carga: {formatBRL(totalValorCelula)}
                           </span>
                         </div>
 

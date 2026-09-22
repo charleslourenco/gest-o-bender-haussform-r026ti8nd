@@ -13,6 +13,7 @@ import {
   formatBRL,
   avaliarCapacidadeFinanceiraMensal,
   somarCargaProducaoMes,
+  somarCargaTodasLinhasMes,
 } from '@/lib/pcp-capacity'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpGradeSemanal } from './PcpGradeSemanal'
@@ -260,14 +261,19 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
   }
 
   // Totais do mês para o banner superior:
-  // Soma cards cuja semana_planejada_producao pertence às semanas do mês OU cujo mes_planejado_producao é igual ao mês selecionado
+  // Carga consolidada das 3 linhas (Análise Técnica, Produção e Montagem) + Detalhe por Linha
+  const cargaConsolidadaMes = useMemo(() => {
+    return somarCargaTodasLinhasMes(cards, currentYear, currentMonthIndex, weeks)
+  }, [cards, currentYear, currentMonthIndex, weeks])
+
   const { total: mesProdTotal, count: mesProdCount } = useMemo(() => {
     return somarCargaProducaoMes(cards, currentYear, currentMonthIndex, weeks)
   }, [cards, currentYear, currentMonthIndex, weeks])
 
+  // Avaliação de capacidade financeira mensal com base na meta fabril (ou carga geral)
   const capacidadeMensal = useMemo(() => {
-    return avaliarCapacidadeFinanceiraMensal(mesProdTotal)
-  }, [mesProdTotal])
+    return avaliarCapacidadeFinanceiraMensal(cargaConsolidadaMes.totalGeral)
+  }, [cargaConsolidadaMes.totalGeral])
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
@@ -331,24 +337,51 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
             </strong>
           </div>
 
+          {/* Banner Mensal Consolidado: Reflete cargas das 3 linhas operacionais */}
           <div
             className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs transition-colors',
+              'flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-md border text-xs transition-colors',
               capacidadeMensal.bgClass,
               capacidadeMensal.borderClass,
             )}
-            title={`Meta Full Mensal: R$ 1.2M - 1.4M (${mesProdCount} itens). ${capacidadeMensal.label}`}
+            title={`Carga Total das 3 linhas: ${formatBRL(cargaConsolidadaMes.totalGeral)}. Análise: ${formatBRL(cargaConsolidadaMes.totalAnalise)}, Produção: ${formatBRL(cargaConsolidadaMes.totalProducao)}, Montagem: ${formatBRL(cargaConsolidadaMes.totalMontagem)}`}
           >
-            <span className="text-[11px] font-medium">Carga Total Produção Mês:</span>
-            <strong className={cn('font-extrabold', capacidadeMensal.textClass)}>
-              {formatBRL(mesProdTotal)}
-            </strong>
-            <Badge
-              variant="outline"
-              className={cn('text-[9px] px-1.5 py-0 border ml-1', capacidadeMensal.badgeClass)}
-            >
-              {capacidadeMensal.badgeText}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-foreground">Carga Total Mês:</span>
+              <strong className={cn('font-extrabold text-sm', capacidadeMensal.textClass)}>
+                {formatBRL(cargaConsolidadaMes.totalGeral)}
+              </strong>
+              <Badge
+                variant="outline"
+                className={cn('text-[9px] px-1.5 py-0 border ml-0.5', capacidadeMensal.badgeClass)}
+              >
+                {capacidadeMensal.badgeText}
+              </Badge>
+            </div>
+
+            {/* Divisor e breakdown das 3 linhas */}
+            <div className="hidden lg:flex items-center gap-2.5 border-l border-border/60 pl-2.5 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1" title="Carga Análise Técnica no Mês">
+                <span>📐 Análise:</span>
+                <strong className="text-foreground font-semibold">
+                  {formatBRL(cargaConsolidadaMes.totalAnalise)}
+                </strong>
+              </span>
+
+              <span className="flex items-center gap-1" title="Carga Produção no Mês">
+                <span>🏭 Produção:</span>
+                <strong className="text-foreground font-semibold">
+                  {formatBRL(cargaConsolidadaMes.totalProducao)}
+                </strong>
+              </span>
+
+              <span className="flex items-center gap-1" title="Carga Montagem no Mês">
+                <span>🔧 Montagem:</span>
+                <strong className="text-foreground font-semibold">
+                  {formatBRL(cargaConsolidadaMes.totalMontagem)}
+                </strong>
+              </span>
+            </div>
           </div>
         </div>
       </div>

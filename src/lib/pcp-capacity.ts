@@ -113,17 +113,82 @@ export function getIsoWeeksForMonth(year: number, monthIndex: number): IsoWeekRa
 }
 
 /**
- * Normaliza uma chave de semana para comparação flexível.
- * Aceita "2026-W40", "S40", "W40", "40" e compara com as semanas ativas.
+ * Normaliza uma chave de semana para comparação flexível e tolerante a formatos.
+ * Aceita 'S37', 's37', 'W37', '37', 'S37/2025', 'S37 2025', '37/2025', '2026-W37' e variações com ano.
+ * Regras:
+ * - Extrai o número da semana via regex (\d{1,2}) e compara com week.weekNumber.
+ * - Nos casos com ano informado (ex: 'S37/2025', '2026-W37', 'S37-2025', '37/25'):
+ *   só casa se o ano também conferir com week.year.
+ * - Quando gravado sem ano, casa com a semana exibida pelo weekNumber.
  */
 export function matchWeek(cardWeekValue: string | null | undefined, week: IsoWeekRange): boolean {
   if (!cardWeekValue) return false
-  const clean = cardWeekValue.trim()
-  if (clean === week.key) return true
-  if (clean === week.label) return true
-  if (clean.toLowerCase() === `s${week.weekNumber}`.toLowerCase()) return true
-  if (clean.toLowerCase() === `w${week.weekNumber}`.toLowerCase()) return true
-  if (clean === String(week.weekNumber)) return true
+  const raw = cardWeekValue.trim()
+  if (!raw) return false
+
+  // 1. Verificações exatas rápidas
+  if (raw === week.key) return true
+  if (raw === week.label) return true
+
+  const clean = raw.toUpperCase()
+
+  // 2. Formato ISO padrão com ano: YYYY-Www ou YYYY-Sww (ex: 2026-W37, 2026-S37, 2026W37)
+  const isoYearFirstMatch = clean.match(/^(\d{4})[-_\s]?[SW](\d{1,2})$/)
+  if (isoYearFirstMatch) {
+    const yearParsed = parseInt(isoYearFirstMatch[1], 10)
+    const weekParsed = parseInt(isoYearFirstMatch[2], 10)
+    return weekParsed === week.weekNumber && yearParsed === week.year
+  }
+
+  // 3. Formato semana seguido de ano: [SW]?37[/ -_]2025 ou [SW]?37[/ -_]25 (ex: S37/2025, S37 2025, 37/2025, W37-2025, S37-25)
+  const weekYearMatch = clean.match(/^[SW]?(\d{1,2})[/\-_ ]+(\d{4})$/)
+  if (weekYearMatch) {
+    const weekParsed = parseInt(weekYearMatch[1], 10)
+    const yearParsed = parseInt(weekYearMatch[2], 10)
+    return weekParsed === week.weekNumber && yearParsed === week.year
+  }
+
+  // 4. Formato sem ano: S37, s37, W37, w37, 37, SEMANA 37
+  // Extrai número da semana
+  const pureWeekMatch = clean.match(/^[SW]?(\d{1,2})$/)
+  if (pureWeekMatch) {
+    const weekParsed = parseInt(pureWeekMatch[1], 10)
+    return weekParsed === week.weekNumber
+  }
+
+  // 5. Fallback tolerante geral com regex:
+  // Se houver ano (4 dígitos como 202x) em qualquer parte do texto:
+  const yearMatch = clean.match(/\b(20\d{2})\b/)
+  let cleanWithoutYear = clean
+  if (yearMatch) {
+    const yearParsed = parseInt(yearMatch[1], 10)
+    if (yearParsed !== week.year) {
+      return false
+    }
+    // Remove o ano para não confundir o número da semana com dígitos do ano
+    cleanWithoutYear = clean.replace(yearMatch[0], '')
+  }
+
+  // Extrai o número da semana: procura explicitamente por S ou W seguido de número, ou número isolado
+  const prefixMatch = cleanWithoutYear.match(/[SW]\s*(\d{1,2})\b/)
+  if (prefixMatch) {
+    const weekParsed = parseInt(prefixMatch[1], 10)
+    return weekParsed === week.weekNumber
+  }
+
+  const pureDigitsMatch = cleanWithoutYear.match(/\b(\d{1,2})\b/)
+  if (pureDigitsMatch) {
+    const weekParsed = parseInt(pureDigitsMatch[1], 10)
+    return weekParsed === week.weekNumber
+  }
+
+  // Fallback geral com extração de 1 ou 2 dígitos via regex
+  const generalDigitMatch = cleanWithoutYear.match(/(\d{1,2})/)
+  if (generalDigitMatch) {
+    const weekParsed = parseInt(generalDigitMatch[1], 10)
+    return weekParsed === week.weekNumber
+  }
+
   return false
 }
 
@@ -352,6 +417,12 @@ export function calcularTotaisPcp(
  * QUANTO cards cuja semana_planejada_producao pertença às semanas do mês.
  * Garante que cada card seja somado no máximo UMA vez no mês (sem duplicar).
  */
+/**
+ * Soma o valor total de cards atribuídos a um mês específico (YYYY-MM),
+ * considerando tanto os cards com mes_planejado_producao igual ao mês
+ * QUANTO cards cuja semana_planejada_producao pertença às semanas do mês.
+ * Garante que cada card seja somado no máximo UMA vez no mês (sem duplicar).
+ */
 export function somarCargaProducaoMes(
   cards: {
     id: string
@@ -384,6 +455,102 @@ export function somarCargaProducaoMes(
 
   const total = cardsNoMes.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
   return { total, count: cardsNoMes.length, cardsDoMes: cardsNoMes }
+}
+
+/**
+ * Soma o valor total de carga de cards para todas as 3 linhas (Análise Técnica, Produção e Montagem)
+ * em um determinado mês (YYYY-MM) e suas semanas ISO.
+ * Garante que se um card estiver planejado em qualquer uma das 3 linhas naquele mês/semanas,
+ * sua carga seja computada. Cada card individual é contado com seu valor_total (> 0).
+ */
+export function somarCargaTodasLinhasMes(
+  cards: {
+    id: string
+    valor_total?: number | null
+    semana_planejada_analise?: string | null
+    semana_planejada_producao?: string | null
+    semana_planejada_montagem?: string | null
+    mes_planejado_analise?: string | null
+    mes_planejado_producao?: string | null
+    mes_planejado_montagem?: string | null
+  }[],
+  year: number,
+  monthIndex: number,
+  weeksDoMes: IsoWeekRange[],
+): {
+  totalGeral: number
+  totalAnalise: number
+  totalProducao: number
+  totalMontagem: number
+  countGeral: number
+  countAnalise: number
+  countProducao: number
+  countMontagem: number
+} {
+  const monthNum = String(monthIndex + 1).padStart(2, '0')
+  const mesKey = `${year}-${monthNum}`
+
+  const matchLinha = (
+    semanaVal: string | null | undefined,
+    mesVal: string | null | undefined,
+  ): boolean => {
+    if (weeksDoMes.some((w) => matchWeek(semanaVal, w))) return true
+    if (mesVal) {
+      const clean = mesVal.trim()
+      if (clean === mesKey) return true
+      if (clean === monthNum) return true
+      if (clean === String(monthIndex + 1)) return true
+      if (clean.endsWith(`-${monthNum}`)) return true
+    }
+    return false
+  }
+
+  let totalAnalise = 0
+  let totalProducao = 0
+  let totalMontagem = 0
+  let countAnalise = 0
+  let countProducao = 0
+  let countMontagem = 0
+  const uniqueCardsSet = new Set<string>()
+
+  for (const c of cards) {
+    const val = Number(c.valor_total) || 0
+    if (val <= 0) continue
+
+    const inAnalise = matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)
+    const inProducao = matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)
+    const inMontagem = matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)
+
+    if (inAnalise) {
+      totalAnalise += val
+      countAnalise++
+    }
+    if (inProducao) {
+      totalProducao += val
+      countProducao++
+    }
+    if (inMontagem) {
+      totalMontagem += val
+      countMontagem++
+    }
+    if (inAnalise || inProducao || inMontagem) {
+      uniqueCardsSet.add(c.id)
+    }
+  }
+
+  // totalGeral reflete a soma de todas as 3 linhas
+  const totalGeral = totalAnalise + totalProducao + totalMontagem
+
+  return {
+    totalGeral,
+    totalAnalise,
+    totalProducao,
+    totalMontagem,
+    countGeral: uniqueCardsSet.size,
+    countAnalise,
+    countProducao,
+    countMontagem,
+  }
 }
 
 export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
