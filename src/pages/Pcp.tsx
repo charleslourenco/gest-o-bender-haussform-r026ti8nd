@@ -1,32 +1,10 @@
-import { useState } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
-import {
-  CalendarDays,
-  ClipboardList,
-  Factory,
-  Wrench,
-  Clock,
-  Calendar,
-  Layers,
-  ChevronRight,
-  LayoutGrid,
-  List,
-} from 'lucide-react'
+import { CalendarDays, ClipboardList, Factory, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
-import { useEffect } from 'react'
-import { PcpMatrizMensal } from '@/components/pcp/PcpMatrizMensal'
-import { PcpMatrizAnual } from '@/components/pcp/PcpMatrizAnual'
-import { PcpMatrizDiaria } from '@/components/pcp/PcpMatrizDiaria'
-import { PcpModoLista } from '@/components/pcp/PcpModoLista'
-import { PcpCargaSemanal } from '@/components/pcp/PcpCargaSemanal'
-import { fetchPcpCards, PcpCardItem } from '@/services/pcp-planejamento'
+import { PcpGradeIndustrial } from '@/components/pcp/PcpGradeIndustrial'
 import { cn } from '@/lib/utils'
-
-type SchedulePeriod = 'anual' | 'mensal' | 'semanal' | 'diario'
-type ViewMode = 'grade' | 'lista'
 
 interface PcpTabItem {
   id: string
@@ -68,144 +46,10 @@ const PCP_TABS: PcpTabItem[] = [
 ]
 
 export function PcpPlanejamentoView() {
-  const [period, setPeriod] = useState<SchedulePeriod>('mensal')
-  const [viewMode, setViewMode] = useState<ViewMode>('grade')
-
-  // Estado para quando o usuário dá duplo clique num mês da Visão Anual e navega para a Visão Mensal
-  const [targetMonthIndex, setTargetMonthIndex] = useState<number | undefined>(undefined)
-  const [targetYear, setTargetYear] = useState<number | undefined>(undefined)
-
-  // Cards para a Visão Carga Semanal (R$)
-  const [semanalCards, setSemanalCards] = useState<PcpCardItem[]>([])
-  const [loadingCards, setLoadingCards] = useState(false)
-
-  const loadCardsData = async () => {
-    try {
-      setLoadingCards(true)
-      const data = await fetchPcpCards()
-      setSemanalCards(Array.isArray(data) ? data : [])
-    } catch {
-      // safe fallback
-      setSemanalCards([])
-    } finally {
-      setLoadingCards(false)
-    }
-  }
-
-  useEffect(() => {
-    if (period === 'semanal' && viewMode === 'grade') {
-      loadCardsData()
-    }
-  }, [period, viewMode])
-
-  const periodLabels: Record<SchedulePeriod, string> = {
-    anual: 'Visão Anual',
-    mensal: 'Visão Mensal',
-    semanal: 'Carga Semanal (R$)',
-    diario: 'Visão Diária',
-  }
-
-  const handleNavigateToMonth = (monthIndex: number, year: number) => {
-    setTargetMonthIndex(monthIndex)
-    setTargetYear(year)
-    setPeriod('mensal')
-  }
-
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-      {/* Sub-header de Cronograma, Seletores de período e Alternância Grade / Lista */}
-      <div className="px-6 py-2.5 bg-card border-b border-border flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-2xs">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Cronograma de Operações</span>
-          <span className="text-xs text-muted-foreground ml-2">
-            ({periodLabels[period]} • {viewMode === 'grade' ? 'Grade / Calendário' : 'Modo Lista'})
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Seletor de Modo: [ 📊 Grade / Calendário ] | [ 📋 Lista ] */}
-          <div className="flex items-center p-1 bg-muted/70 rounded-lg gap-1 border border-border/50">
-            <Button
-              variant={viewMode === 'grade' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grade')}
-              className={cn(
-                'h-7 px-3 text-xs font-semibold flex items-center gap-1.5 transition-all',
-                viewMode === 'grade'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-              )}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              Grade / Calendário
-            </Button>
-
-            <Button
-              variant={viewMode === 'lista' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('lista')}
-              className={cn(
-                'h-7 px-3 text-xs font-semibold flex items-center gap-1.5 transition-all',
-                viewMode === 'lista'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-              )}
-            >
-              <List className="w-3.5 h-3.5" />
-              Lista
-            </Button>
-          </div>
-
-          {/* Seletores Anual / Mensal / Semanal / Diário */}
-          <div className="flex items-center p-1 bg-muted/60 rounded-lg gap-1 border border-border/50">
-            {(['anual', 'mensal', 'semanal', 'diario'] as SchedulePeriod[]).map((p) => (
-              <Button
-                key={p}
-                variant={period === p ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setPeriod(p)}
-                className={cn(
-                  'h-7 px-3 text-xs font-medium capitalize transition-all',
-                  period === p
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                )}
-                title={p === 'semanal' ? 'Visão Carga Semanal (R$) com metas fabris' : undefined}
-              >
-                {p === 'diario' ? 'Diário' : p === 'semanal' ? 'Semanal (R$)' : p}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Renderização dinâmica com base no seletor de visualização (Grade vs Lista) e Período */}
-      {viewMode === 'lista' ? (
-        <ErrorBoundary source="PCP Modo Lista">
-          <PcpModoLista
-            initialZoom={period === 'anual' ? 'anual' : period === 'semanal' ? 'semanal' : 'mensal'}
-          />
-        </ErrorBoundary>
-      ) : period === 'anual' ? (
-        <ErrorBoundary source="PCP Matriz Anual">
-          <PcpMatrizAnual onNavigateToMonth={handleNavigateToMonth} />
-        </ErrorBoundary>
-      ) : period === 'mensal' ? (
-        <ErrorBoundary source="PCP Matriz Mensal">
-          <PcpMatrizMensal initialYear={targetYear} initialMonthIndex={targetMonthIndex} />
-        </ErrorBoundary>
-      ) : period === 'diario' ? (
-        <ErrorBoundary source="PCP Matriz Diária">
-          <PcpMatrizDiaria />
-        </ErrorBoundary>
-      ) : (
-        /* ETAPA 3 — VISÃO "CARGA SEMANAL (R$)" com Semanas ISO, semáforo e detalhamento */
-        <ErrorBoundary source="PCP Carga Semanal">
-          <PcpCargaSemanal cards={semanalCards} onRefresh={loadCardsData} />
-        </ErrorBoundary>
-      )}
-    </div>
+    <ErrorBoundary source="PCP Grade Industrial">
+      <PcpGradeIndustrial />
+    </ErrorBoundary>
   )
 }
 

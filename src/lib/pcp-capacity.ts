@@ -708,7 +708,7 @@ export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
       total,
       formattedTotal,
       label: 'Capacidade disponível para puxar mais projetos',
-      badgeText: 'Disponível',
+      badgeText: 'Livre',
       bgClass: 'bg-blue-500/10 dark:bg-blue-950/30',
       borderClass: 'border-blue-300 dark:border-blue-700',
       textClass: 'text-blue-700 dark:text-blue-400',
@@ -723,8 +723,8 @@ export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
       status: 'verde',
       total,
       formattedTotal,
-      label: 'Nível ideal de ocupação (Meta Full)',
-      badgeText: 'Meta Full (Ideal)',
+      label: 'Nível ideal de ocupação (META FULL)',
+      badgeText: 'META FULL',
       bgClass: 'bg-emerald-500/10 dark:bg-emerald-950/30',
       borderClass: 'border-emerald-300 dark:border-emerald-700',
       textClass: 'text-emerald-700 dark:text-emerald-400',
@@ -740,7 +740,7 @@ export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
       total,
       formattedTotal,
       label: 'Atenção / Limite próximo',
-      badgeText: 'Atenção (Limite Próximo)',
+      badgeText: 'Atenção',
       bgClass: 'bg-amber-500/10 dark:bg-amber-950/30',
       borderClass: 'border-amber-300 dark:border-amber-700',
       textClass: 'text-amber-700 dark:text-amber-400',
@@ -763,4 +763,117 @@ export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
       'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 border-rose-200 dark:border-rose-700',
     progressPct: 100,
   }
+}
+
+/**
+ * Representa um dia de trabalho da semana (Segunda a Sábado) para a Grade Industrial.
+ */
+export interface DiaSemanaIndustrial {
+  /** Ex: '2026-09-08' */
+  dateStr: string
+  /** 0 = Seg, 1 = Ter, 2 = Qua, 3 = Qui, 4 = Sex, 5 = Sáb */
+  dayIndex: number
+  /** 'SEG' | 'TER' | 'QUA' | 'QUI' | 'SEX' | 'SÁB' */
+  sigla: string
+  /** 'Segunda' | 'Terça' ... */
+  nomeCurto: string
+  /** '08/09' */
+  formattedDiaMes: string
+  /** Data objeto Date */
+  date: Date
+}
+
+const DIAS_SIGLAS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB']
+const DIAS_NOMES = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+
+/**
+ * Retorna os 6 dias úteis industriais (Segunda a Sábado) de uma semana ISO.
+ */
+export function getDiasSemanaIndustrial(week: IsoWeekRange): DiaSemanaIndustrial[] {
+  const dias: DiaSemanaIndustrial[] = []
+  const monday = new Date(week.startDate)
+
+  for (let i = 0; i < 6; i++) {
+    const cur = new Date(monday)
+    cur.setDate(monday.getDate() + i)
+
+    const yyyy = cur.getFullYear()
+    const mm = String(cur.getMonth() + 1).padStart(2, '0')
+    const dd = String(cur.getDate()).padStart(2, '0')
+    const dateStr = `${yyyy}-${mm}-${dd}`
+
+    dias.push({
+      dateStr,
+      dayIndex: i,
+      sigla: DIAS_SIGLAS[i],
+      nomeCurto: DIAS_NOMES[i],
+      formattedDiaMes: `${dd}/${mm}`,
+      date: cur,
+    })
+  }
+
+  return dias
+}
+
+/**
+ * Calcula datas derivadas a partir de uma data ou semana planejada de produção:
+ * - data_limite_analise: 2 semanas antes (-14 dias)
+ * - data_obra_montagem: 4 semanas depois (+28 dias)
+ */
+export function calcularDatasDerivadasPcp(dataBase: string | Date): {
+  dataLimiteAnalise: string
+  dataObraMontagem: string
+} {
+  const base = typeof dataBase === 'string' ? new Date(`${dataBase}T12:00:00`) : new Date(dataBase)
+
+  const limiteAnalise = new Date(base)
+  limiteAnalise.setDate(base.getDate() - 14)
+
+  const obraMontagem = new Date(base)
+  obraMontagem.setDate(base.getDate() + 28)
+
+  const fmt = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  return {
+    dataLimiteAnalise: fmt(limiteAnalise),
+    dataObraMontagem: fmt(obraMontagem),
+  }
+}
+
+/**
+ * Calcula a soma em R$ dos cards de uma coluna diária ou semana ISO,
+ * aplicando a regra anti-dupla-contagem:
+ * se o card pai tiver filhos na seleção com valor_total > 0, soma apenas os filhos.
+ * Pai sem filhos valorados na seleção soma o próprio valor.
+ */
+export function somarCardsComAntiDuplaContagem(
+  cards: {
+    id: string
+    card_pai_id?: string | null
+    valor_total?: number | null
+  }[],
+): number {
+  if (!cards || cards.length === 0) return 0
+
+  const paisComFilhosValorados = new Set<string>()
+  for (const c of cards) {
+    if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+      paisComFilhosValorados.add(c.card_pai_id)
+    }
+  }
+
+  let total = 0
+  for (const c of cards) {
+    const isParent = !c.card_pai_id
+    if (isParent && paisComFilhosValorados.has(c.id)) {
+      continue
+    }
+    total += Number(c.valor_total) || 0
+  }
+  return total
 }

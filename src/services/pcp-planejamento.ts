@@ -41,6 +41,8 @@ export interface PcpCardItem {
   data_planejada_analise?: string | null
   data_planejada_producao?: string | null
   data_planejada_montagem?: string | null
+  data_limite_analise?: string | null
+  data_obra_montagem?: string | null
   analista_id?: string | null
   analista?: {
     id: string
@@ -106,10 +108,11 @@ const SELECT_QUERY = `
   semana_planejada_analise, semana_planejada_producao, semana_planejada_montagem,
   mes_planejado_analise, mes_planejado_producao, mes_planejado_montagem,
   data_planejada_analise, data_planejada_producao, data_planejada_montagem,
+  data_limite_analise, data_obra_montagem,
   analista_id,
   analista:users!analista_id(id, nome, foto_perfil),
   cliente:clientes(id, nome, telefone, email),
-  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, cliente:clientes(nome)),
+  formulario:formulario_comercial(id, nome_cliente, valor_total, data_prevista_entrega, datas, cliente:clientes(nome)),
   card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, cor_vinculo, status_analise)
 `
 
@@ -154,6 +157,8 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
       data_planejada_analise: item.data_planejada_analise || null,
       data_planejada_producao: item.data_planejada_producao || null,
       data_planejada_montagem: item.data_planejada_montagem || null,
+      data_limite_analise: item.data_limite_analise || null,
+      data_obra_montagem: item.data_obra_montagem || null,
       valor_total: Number(item.valor_total) || 0,
       valor_unitario: Number(item.valor_unitario) || 0,
       desconto_percentual: Number(item.desconto_percentual) || 0,
@@ -176,6 +181,11 @@ export async function updateCardSemanaPlanejada(
   semanaNova: string | null,
   semanaAnterior: string | null,
   motivo?: string,
+  extraDates?: {
+    dataLimiteAnalise?: string | null
+    dataObraMontagem?: string | null
+    dataPlanejada?: string | null
+  },
 ): Promise<void> {
   const columnMap: Record<
     PcpLinhaOperacao,
@@ -188,10 +198,27 @@ export async function updateCardSemanaPlanejada(
 
   const colName = columnMap[linha]
 
+  const updatePayload: Record<string, any> = {
+    [colName]: semanaNova,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (extraDates) {
+    if (extraDates.dataLimiteAnalise !== undefined) {
+      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+    }
+    if (extraDates.dataObraMontagem !== undefined) {
+      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+    }
+    if (extraDates.dataPlanejada !== undefined && linha === 'producao') {
+      updatePayload.data_planejada_producao = extraDates.dataPlanejada
+    }
+  }
+
   // 1. Atualizar a coluna aditiva do card
   const { error: updateErr } = await supabase
     .from('produtos_servicos_projeto')
-    .update({ [colName]: semanaNova, atualizado_em: new Date().toISOString() } as any)
+    .update(updatePayload as any)
     .eq('id', cardId)
 
   if (updateErr) {
@@ -227,6 +254,11 @@ export async function updateMultipleCardsSemanaPlanejada(
   linha: PcpLinhaOperacao,
   semanaNova: string | null,
   motivo?: string,
+  extraDates?: {
+    dataLimiteAnalise?: string | null
+    dataObraMontagem?: string | null
+    dataPlanejada?: string | null
+  },
 ): Promise<void> {
   if (cardIds.length === 0) return
 
@@ -240,9 +272,26 @@ export async function updateMultipleCardsSemanaPlanejada(
   }
   const colName = columnMap[linha]
 
+  const updatePayload: Record<string, any> = {
+    [colName]: semanaNova,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (extraDates) {
+    if (extraDates.dataLimiteAnalise !== undefined) {
+      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+    }
+    if (extraDates.dataObraMontagem !== undefined) {
+      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+    }
+    if (extraDates.dataPlanejada !== undefined && linha === 'producao') {
+      updatePayload.data_planejada_producao = extraDates.dataPlanejada
+    }
+  }
+
   const { error: updateErr } = await supabase
     .from('produtos_servicos_projeto')
-    .update({ [colName]: semanaNova, atualizado_em: new Date().toISOString() } as any)
+    .update(updatePayload as any)
     .in('id', cardIds)
 
   if (updateErr) {
@@ -330,6 +379,11 @@ export async function updateMultipleCardsDataPlanejada(
   linha: PcpLinhaOperacao,
   dataNova: string | null,
   motivo?: string,
+  extraDates?: {
+    dataLimiteAnalise?: string | null
+    dataObraMontagem?: string | null
+    semanaPlanejada?: string | null
+  },
 ): Promise<void> {
   if (cardIds.length === 0) return
 
@@ -343,9 +397,26 @@ export async function updateMultipleCardsDataPlanejada(
   }
   const colName = columnMap[linha]
 
+  const updatePayload: Record<string, any> = {
+    [colName]: dataNova,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (extraDates) {
+    if (extraDates.dataLimiteAnalise !== undefined) {
+      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+    }
+    if (extraDates.dataObraMontagem !== undefined) {
+      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+    }
+    if (extraDates.semanaPlanejada !== undefined && linha === 'producao') {
+      updatePayload.semana_planejada_producao = extraDates.semanaPlanejada
+    }
+  }
+
   const { error: updateErr } = await supabase
     .from('produtos_servicos_projeto')
-    .update({ [colName]: dataNova, atualizado_em: new Date().toISOString() } as any)
+    .update(updatePayload as any)
     .in('id', cardIds)
 
   if (updateErr) {
@@ -434,6 +505,11 @@ export async function updateCardDataPlanejada(
   dataNova: string | null,
   dataAnterior: string | null,
   motivo?: string,
+  extraDates?: {
+    dataLimiteAnalise?: string | null
+    dataObraMontagem?: string | null
+    semanaPlanejada?: string | null
+  },
 ): Promise<void> {
   const columnMap: Record<
     PcpLinhaOperacao,
@@ -446,9 +522,26 @@ export async function updateCardDataPlanejada(
 
   const colName = columnMap[linha]
 
+  const updatePayload: Record<string, any> = {
+    [colName]: dataNova,
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (extraDates) {
+    if (extraDates.dataLimiteAnalise !== undefined) {
+      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+    }
+    if (extraDates.dataObraMontagem !== undefined) {
+      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+    }
+    if (extraDates.semanaPlanejada !== undefined && linha === 'producao') {
+      updatePayload.semana_planejada_producao = extraDates.semanaPlanejada
+    }
+  }
+
   const { error: updateErr } = await supabase
     .from('produtos_servicos_projeto')
-    .update({ [colName]: dataNova, atualizado_em: new Date().toISOString() } as any)
+    .update(updatePayload as any)
     .eq('id', cardId)
 
   if (updateErr) {
