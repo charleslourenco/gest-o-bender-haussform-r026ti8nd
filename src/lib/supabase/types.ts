@@ -2484,9 +2484,12 @@ export type Database = {
           criado_em: string
           id: string
           linha_operacao: string
+          mes_anterior: string | null
+          mes_novo: string | null
           motivo: string | null
           semana_anterior: string | null
           semana_nova: string | null
+          tipo_planejamento: string | null
           usuario_id: string | null
         }
         Insert: {
@@ -2494,9 +2497,12 @@ export type Database = {
           criado_em?: string
           id?: string
           linha_operacao: string
+          mes_anterior?: string | null
+          mes_novo?: string | null
           motivo?: string | null
           semana_anterior?: string | null
           semana_nova?: string | null
+          tipo_planejamento?: string | null
           usuario_id?: string | null
         }
         Update: {
@@ -2504,9 +2510,12 @@ export type Database = {
           criado_em?: string
           id?: string
           linha_operacao?: string
+          mes_anterior?: string | null
+          mes_novo?: string | null
           motivo?: string | null
           semana_anterior?: string | null
           semana_nova?: string | null
+          tipo_planejamento?: string | null
           usuario_id?: string | null
         }
         Relationships: [
@@ -2746,6 +2755,9 @@ export type Database = {
           formulario_comercial_id: string | null
           id: string
           is_outsourced: boolean
+          mes_planejado_analise: string | null
+          mes_planejado_montagem: string | null
+          mes_planejado_producao: string | null
           nome_produto: string
           outsourced_checked: boolean
           qtd: number
@@ -2781,6 +2793,9 @@ export type Database = {
           formulario_comercial_id?: string | null
           id?: string
           is_outsourced?: boolean
+          mes_planejado_analise?: string | null
+          mes_planejado_montagem?: string | null
+          mes_planejado_producao?: string | null
           nome_produto: string
           outsourced_checked?: boolean
           qtd: number
@@ -2816,6 +2831,9 @@ export type Database = {
           formulario_comercial_id?: string | null
           id?: string
           is_outsourced?: boolean
+          mes_planejado_analise?: string | null
+          mes_planejado_montagem?: string | null
+          mes_planejado_producao?: string | null
           nome_produto?: string
           outsourced_checked?: boolean
           qtd?: number

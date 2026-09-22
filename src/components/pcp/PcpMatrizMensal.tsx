@@ -11,7 +11,8 @@ import {
   getIsoWeeksForMonth,
   IsoWeekRange,
   formatBRL,
-  avaliarCapacidadeFinanceira,
+  avaliarCapacidadeFinanceiraMensal,
+  somarCargaProducaoMes,
 } from '@/lib/pcp-capacity'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpGradeSemanal } from './PcpGradeSemanal'
@@ -258,11 +259,15 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     setDrawerOpen(true)
   }
 
-  // Totais do mês para o banner superior
-  const mesProdCards = cards.filter((c) =>
-    weeks.some((w) => w.label === c.semana_planejada_producao),
-  )
-  const mesProdTotal = mesProdCards.reduce((acc, c) => acc + (c.valor_total || 0), 0)
+  // Totais do mês para o banner superior:
+  // Soma cards cuja semana_planejada_producao pertence às semanas do mês OU cujo mes_planejado_producao é igual ao mês selecionado
+  const { total: mesProdTotal, count: mesProdCount } = useMemo(() => {
+    return somarCargaProducaoMes(cards, currentYear, currentMonthIndex, weeks)
+  }, [cards, currentYear, currentMonthIndex, weeks])
+
+  const capacidadeMensal = useMemo(() => {
+    return avaliarCapacidadeFinanceiraMensal(mesProdTotal)
+  }, [mesProdTotal])
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
@@ -326,19 +331,35 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
             </strong>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-primary">
+          <div
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs transition-colors',
+              capacidadeMensal.bgClass,
+              capacidadeMensal.borderClass,
+            )}
+            title={`Meta Full Mensal: R$ 1.2M - 1.4M (${mesProdCount} itens). ${capacidadeMensal.label}`}
+          >
             <span className="text-[11px] font-medium">Carga Total Produção Mês:</span>
-            <strong className="font-extrabold">{formatBRL(mesProdTotal)}</strong>
+            <strong className={cn('font-extrabold', capacidadeMensal.textClass)}>
+              {formatBRL(mesProdTotal)}
+            </strong>
+            <Badge
+              variant="outline"
+              className={cn('text-[9px] px-1.5 py-0 border ml-1', capacidadeMensal.badgeClass)}
+            >
+              {capacidadeMensal.badgeText}
+            </Badge>
           </div>
         </div>
       </div>
 
       {/* Área Central: Barra Lateral Esquerda (Carteira) + Área Central (Grade Semanal) */}
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Barra Lateral Esquerda: CARTEIRA (Aguardando Semana) */}
+        {/* Barra Lateral Esquerda: CARTEIRA (Aguardando Semana no nível Mensal) */}
         <PcpCarteiraSidebar
           cards={cards}
           collapsed={sidebarCollapsed}
+          modo="mensal"
           onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
           onCardClick={handleOpenDrawer}
         />

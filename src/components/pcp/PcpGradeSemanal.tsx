@@ -62,10 +62,10 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     return cards.filter((c) => matchWeek(c[field], week))
   }
 
-  // Soma de R$ na linha de produção para cada semana
+  // Soma de R$ na linha de produção para cada semana (regra estrita: valor_total individual de cada card/subcard)
   const getProducaoSomaSemana = (week: IsoWeekRange): number => {
     const weekCards = getCardsForCell('producao', week)
-    return weekCards.reduce((acc, c) => acc + (c.valor_total || 0), 0)
+    return weekCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
   }
 
   const handleDragOver = (e: React.DragEvent, cellKey: string) => {

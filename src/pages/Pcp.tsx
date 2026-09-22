@@ -18,6 +18,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
 import { PcpMatrizMensal } from '@/components/pcp/PcpMatrizMensal'
 import { PcpMatrizAnual } from '@/components/pcp/PcpMatrizAnual'
+import { PcpMatrizDiaria } from '@/components/pcp/PcpMatrizDiaria'
 import { PcpModoLista } from '@/components/pcp/PcpModoLista'
 import { cn } from '@/lib/utils'
 
@@ -167,42 +168,15 @@ export function PcpPlanejamentoView() {
         <ErrorBoundary source="PCP Matriz Mensal">
           <PcpMatrizMensal initialYear={targetYear} initialMonthIndex={targetMonthIndex} />
         </ErrorBoundary>
+      ) : period === 'diario' ? (
+        <ErrorBoundary source="PCP Matriz Diária">
+          <PcpMatrizDiaria />
+        </ErrorBoundary>
       ) : (
-        /* Semanal e Diário mantêm a transição fluida para Mensal / Anual */
-        <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
-          <Card className="max-w-xl w-full border border-border/60 shadow-sm bg-card/60 backdrop-blur-xs text-center p-8">
-            <CardContent className="pt-2 pb-0 flex flex-col items-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 text-primary border border-primary/20">
-                <Clock className="w-7 h-7" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground mb-2">
-                Cronograma Operacional ({periodLabels[period]})
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-6">
-                A programação operacional detalhada com capacidade e alocação está disponível nas
-                visões <strong className="text-foreground">Anual</strong>,{' '}
-                <strong className="text-foreground">Mensal</strong> e no{' '}
-                <strong className="text-foreground">Modo Lista</strong>.
-              </p>
-
-              <div className="w-full flex justify-center gap-3 pt-2 border-t border-border/60">
-                <Button
-                  variant="outline"
-                  onClick={() => setPeriod('anual')}
-                  className="text-xs font-semibold"
-                >
-                  Ir para a Visão Anual (12 Meses)
-                </Button>
-                <Button
-                  onClick={() => setPeriod('mensal')}
-                  className="bg-primary text-primary-foreground text-xs font-semibold"
-                >
-                  Ir para a Visão Mensal (Semanas ISO)
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        /* Semanal é coberto nativamente pela visão Mensal (grade com semanas ISO S01-S52) */
+        <ErrorBoundary source="PCP Matriz Mensal / Semanal">
+          <PcpMatrizMensal initialYear={targetYear} initialMonthIndex={targetMonthIndex} />
+        </ErrorBoundary>
       )}
     </div>
   )

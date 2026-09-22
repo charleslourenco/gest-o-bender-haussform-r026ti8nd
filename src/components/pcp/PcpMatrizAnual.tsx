@@ -181,12 +181,29 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     }
   }
 
-  // Totais do ano em produção
-  const anoProdCards = cards.filter((c) => {
-    if (!c.mes_planejado_producao) return false
-    return c.mes_planejado_producao.startsWith(`${currentYear}-`)
-  })
-  const anoProdTotal = anoProdCards.reduce((acc, c) => acc + (c.valor_total || 0), 0)
+  // Totais do ano em produção: derivada direta de todos os meses do ano (agregação hierárquica unificada)
+  const anoProdCards = useMemo(() => {
+    return cards.filter((c) => {
+      // 1. Vinculado a mês do ano
+      if (c.mes_planejado_producao && c.mes_planejado_producao.startsWith(`${currentYear}-`)) {
+        return true
+      }
+      // 2. OU vinculado a semana que pertence a este ano
+      if (c.semana_planejada_producao) {
+        const clean = c.semana_planejada_producao.trim()
+        if (clean.startsWith(`${currentYear}-W`)) return true
+        // Se for "Sxx" e tiver mes_planejado neste ano
+        if (clean.startsWith('S') && c.mes_planejado_producao?.startsWith(`${currentYear}-`)) {
+          return true
+        }
+      }
+      return false
+    })
+  }, [cards, currentYear])
+
+  const anoProdTotal = useMemo(() => {
+    return anoProdCards.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+  }, [anoProdCards])
 
   // Semanas do mês atual para o side drawer
   const drawerWeeks = useMemo(() => {
@@ -266,6 +283,7 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
         <PcpCarteiraSidebar
           cards={cards}
           collapsed={sidebarCollapsed}
+          modo="anual"
           onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
           onCardClick={handleOpenDrawer}
         />

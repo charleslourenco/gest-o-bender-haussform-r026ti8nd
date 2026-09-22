@@ -1,6 +1,11 @@
 import React, { useState } from 'react'
 import { PcpCardItem, PcpLinhaOperacao } from '@/services/pcp-planejamento'
-import { avaliarCapacidadeFinanceiraMensal, formatBRL } from '@/lib/pcp-capacity'
+import {
+  avaliarCapacidadeFinanceiraMensal,
+  formatBRL,
+  getIsoWeeksForMonth,
+  matchWeek,
+} from '@/lib/pcp-capacity'
 import { PcpCard } from './PcpCard'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -101,16 +106,38 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
     }
   })
 
-  // Agrupamento de cards por linha e mês
+  // Agrupamento de cards por linha e mês:
+  // Um card pertence à coluna do mês se:
+  // 1) mes_planejado_* casa com o mês
+  // 2) OU se tem semana_planejada_* cujas semanas ISO pertencem ao mês (e não tem outro mês conflitante)
   const getCardsForCell = (linha: PcpLinhaOperacao, mes: MesInfo): PcpCardItem[] => {
-    const field =
+    const mesField =
       linha === 'analise'
         ? 'mes_planejado_analise'
         : linha === 'producao'
           ? 'mes_planejado_producao'
           : 'mes_planejado_montagem'
 
-    return cards.filter((c) => matchMonth(c[field], mes))
+    const semanaField =
+      linha === 'analise'
+        ? 'semana_planejada_analise'
+        : linha === 'producao'
+          ? 'semana_planejada_producao'
+          : 'semana_planejada_montagem'
+
+    return cards.filter((c) => {
+      // Prioridade 1: Mês explícito
+      if (c[mesField]) {
+        return matchMonth(c[mesField], mes)
+      }
+      // Prioridade 2: Semana ISO que toca este mês
+      if (c[semanaField]) {
+        // Obter semanas ISO deste mês
+        const weeksDoMes = getIsoWeeksForMonth(year, mes.index)
+        return weeksDoMes.some((w) => matchWeek(c[semanaField], w))
+      }
+      return false
+    })
   }
 
   // Soma de R$ na linha de produção para cada mês

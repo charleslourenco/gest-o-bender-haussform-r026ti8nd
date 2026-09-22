@@ -38,6 +38,9 @@ export interface PcpCardItem {
   mes_planejado_analise?: string | null
   mes_planejado_producao?: string | null
   mes_planejado_montagem?: string | null
+  data_planejada_analise?: string | null
+  data_planejada_producao?: string | null
+  data_planejada_montagem?: string | null
   analista_id?: string | null
   analista?: {
     id: string
@@ -75,6 +78,8 @@ export interface PcpReprogramacaoItem {
   semana_nova: string | null
   mes_anterior?: string | null
   mes_novo?: string | null
+  data_anterior?: string | null
+  data_nova?: string | null
   tipo_planejamento?: string | null
   motivo: string | null
   usuario_id: string | null
@@ -96,6 +101,7 @@ const SELECT_QUERY = `
   criado_em, atualizado_em,
   semana_planejada_analise, semana_planejada_producao, semana_planejada_montagem,
   mes_planejado_analise, mes_planejado_producao, mes_planejado_montagem,
+  data_planejada_analise, data_planejada_producao, data_planejada_montagem,
   analista_id,
   analista:users!analista_id(id, nome, foto_perfil),
   cliente:clientes(id, nome, telefone, email),
@@ -141,6 +147,9 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
       mes_planejado_analise: item.mes_planejado_analise || null,
       mes_planejado_producao: item.mes_planejado_producao || null,
       mes_planejado_montagem: item.mes_planejado_montagem || null,
+      data_planejada_analise: item.data_planejada_analise || null,
+      data_planejada_producao: item.data_planejada_producao || null,
+      data_planejada_montagem: item.data_planejada_montagem || null,
       valor_total: Number(item.valor_total) || 0,
       valor_unitario: Number(item.valor_unitario) || 0,
       desconto_percentual: Number(item.desconto_percentual) || 0,
@@ -253,6 +262,56 @@ export async function updateCardMesPlanejado(
     } as any)
   } catch (histErr) {
     console.warn('Aviso ao registrar histórico de reprogramação mensal:', histErr)
+  }
+}
+
+/**
+ * Atualiza a data planejada diária de um card em uma das 3 linhas operacionais.
+ * dataNova no formato 'YYYY-MM-DD' (ex: '2026-09-08') ou null.
+ */
+export async function updateCardDataPlanejada(
+  cardId: string,
+  linha: PcpLinhaOperacao,
+  dataNova: string | null,
+  dataAnterior: string | null,
+  motivo?: string,
+): Promise<void> {
+  const columnMap: Record<
+    PcpLinhaOperacao,
+    'data_planejada_analise' | 'data_planejada_producao' | 'data_planejada_montagem'
+  > = {
+    analise: 'data_planejada_analise',
+    producao: 'data_planejada_producao',
+    montagem: 'data_planejada_montagem',
+  }
+
+  const colName = columnMap[linha]
+
+  const { error: updateErr } = await supabase
+    .from('produtos_servicos_projeto')
+    .update({ [colName]: dataNova, atualizado_em: new Date().toISOString() } as any)
+    .eq('id', cardId)
+
+  if (updateErr) {
+    console.error('Erro ao atualizar data planejada:', updateErr)
+    throw updateErr
+  }
+
+  try {
+    const { data: authData } = await supabase.auth.getUser()
+    const userId = authData?.user?.id || null
+
+    await supabase.from('pcp_reprogramacao_historico').insert({
+      card_id: cardId,
+      linha_operacao: linha,
+      tipo_planejamento: 'dia',
+      data_anterior: dataAnterior || null,
+      data_nova: dataNova || null,
+      motivo: motivo || (dataAnterior ? 'Reprogramação diária' : 'Alocação diária'),
+      usuario_id: userId,
+    } as any)
+  } catch (histErr) {
+    console.warn('Aviso ao registrar histórico de reprogramação diária:', histErr)
   }
 }
 

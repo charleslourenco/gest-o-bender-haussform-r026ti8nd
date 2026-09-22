@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 interface PcpCarteiraSidebarProps {
   cards: PcpCardItem[]
   collapsed: boolean
+  modo?: 'anual' | 'mensal' | 'semanal' | 'diario'
   onToggleCollapsed: () => void
   onCardClick: (card: PcpCardItem) => void
 }
@@ -18,16 +19,27 @@ interface PcpCarteiraSidebarProps {
 export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   cards,
   collapsed,
+  modo = 'anual',
   onToggleCollapsed,
   onCardClick,
 }) => {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<'todos' | 'ambientes' | 'subcards'>('todos')
 
-  // Modo de exibição da carteira: aguardando semana ou aguardando mês
-  // Cards na carteira: sem semana ou sem mês de produção definidos
+  // Modo de exibição da carteira:
+  // Se modo === 'mensal', lista cards sem semana planejada de produção (mesmo que já tenham mes_planejado definido).
+  // Se modo === 'anual', lista cards sem semana E sem mês de produção definidos.
+  // Se modo === 'diario', lista cards sem data planejada de produção.
   const unassignedCards = cards.filter((c) => {
     const semSemanaProd = !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
+    if (modo === 'mensal') {
+      return semSemanaProd
+    }
+    if (modo === 'diario') {
+      const semDataProd = !c.data_planejada_producao || c.data_planejada_producao.trim() === ''
+      return semDataProd
+    }
+    // modo === 'anual' (default)
     const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
     return semSemanaProd && semMesProd
   })
@@ -61,7 +73,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           variant="ghost"
           size="icon"
           onClick={onToggleCollapsed}
-          title="Expandir Carteira (Aguardando Semana)"
+          title="Expandir Carteira"
           className="h-8 w-8 text-muted-foreground hover:text-foreground mb-3"
         >
           <ChevronRight className="w-4 h-4" />
@@ -176,7 +188,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             <p className="text-[11px] text-muted-foreground mt-1 max-w-[200px]">
               {search
                 ? 'Tente outro termo de busca'
-                : 'Todos os cards já possuem semana de produção definida.'}
+                : modo === 'mensal'
+                  ? 'Todos os cards já possuem semana de produção definida.'
+                  : modo === 'diario'
+                    ? 'Todos os cards já possuem data definida.'
+                    : 'Todos os cards já possuem planejamento definido.'}
             </p>
           </div>
         ) : (

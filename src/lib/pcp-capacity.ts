@@ -237,6 +237,155 @@ export function avaliarCapacidadeFinanceiraMensal(total: number): CapacidadeInfo
   }
 }
 
+/**
+ * Funções compartilhadas de agregação em cascata de valores do PCP.
+ * Regra estrita: soma SEMPRE o valor_total do próprio card/subcard individual,
+ * nunca multiplicando ou somando o valor do projeto pai.
+ */
+
+export interface TotaisPcpAgregados {
+  totalDiarioPorData: Record<string, number>
+  totalSemanalPorKey: Record<string, number>
+  totalSemanalPorLabel: Record<string, number>
+  totalMensalPorKey: Record<string, number>
+  totalAnualPorAno: Record<number, number>
+}
+
+/**
+ * Calcula a soma em cascata em todos os níveis (Diário, Semanal, Mensal, Anual)
+ * para uma dada linha operacional (default: 'producao').
+ * Os cálculos são derivados reativamente sobre a lista de cards (fonte única).
+ */
+export function calcularTotaisPcp(
+  cards: {
+    valor_total?: number | null
+    data_planejada_producao?: string | null
+    data_planejada_analise?: string | null
+    data_planejada_montagem?: string | null
+    semana_planejada_producao?: string | null
+    semana_planejada_analise?: string | null
+    semana_planejada_montagem?: string | null
+    mes_planejado_producao?: string | null
+    mes_planejado_analise?: string | null
+    mes_planejado_montagem?: string | null
+  }[],
+  linha: 'producao' | 'analise' | 'montagem' = 'producao',
+): TotaisPcpAgregados {
+  const totalDiarioPorData: Record<string, number> = {}
+  const totalSemanalPorKey: Record<string, number> = {}
+  const totalSemanalPorLabel: Record<string, number> = {}
+  const totalMensalPorKey: Record<string, number> = {}
+  const totalAnualPorAno: Record<number, number> = {}
+
+  const dataField =
+    linha === 'analise'
+      ? 'data_planejada_analise'
+      : linha === 'montagem'
+        ? 'data_planejada_montagem'
+        : 'data_planejada_producao'
+
+  const semanaField =
+    linha === 'analise'
+      ? 'semana_planejada_analise'
+      : linha === 'montagem'
+        ? 'semana_planejada_montagem'
+        : 'semana_planejada_producao'
+
+  const mesField =
+    linha === 'analise'
+      ? 'mes_planejado_analise'
+      : linha === 'montagem'
+        ? 'mes_planejado_montagem'
+        : 'mes_planejado_producao'
+
+  for (const c of cards) {
+    const val = Number(c.valor_total) || 0
+    if (val <= 0) continue
+
+    // 1. Nível Diário
+    const dt = c[dataField]
+    if (dt && typeof dt === 'string') {
+      const cleanDt = dt.slice(0, 10)
+      totalDiarioPorData[cleanDt] = (totalDiarioPorData[cleanDt] || 0) + val
+    }
+
+    // 2. Nível Semanal
+    const sem = c[semanaField]
+    if (sem && typeof sem === 'string') {
+      const cleanSem = sem.trim()
+      totalSemanalPorLabel[cleanSem] = (totalSemanalPorLabel[cleanSem] || 0) + val
+      if (cleanSem.startsWith('S') || cleanSem.startsWith('s')) {
+        const num = cleanSem.slice(1).padStart(2, '0')
+        totalSemanalPorLabel[`S${parseInt(num, 10)}`] =
+          (totalSemanalPorLabel[`S${parseInt(num, 10)}`] || 0) + val
+      }
+    }
+
+    // 3. Nível Mensal
+    const mes = c[mesField]
+    if (mes && typeof mes === 'string') {
+      const cleanMes = mes.trim()
+      totalMensalPorKey[cleanMes] = (totalMensalPorKey[cleanMes] || 0) + val
+
+      // Extrair ano do mês "YYYY-MM"
+      if (cleanMes.includes('-')) {
+        const ano = parseInt(cleanMes.split('-')[0], 10)
+        if (!isNaN(ano)) {
+          totalAnualPorAno[ano] = (totalAnualPorAno[ano] || 0) + val
+        }
+      }
+    }
+  }
+
+  return {
+    totalDiarioPorData,
+    totalSemanalPorKey,
+    totalSemanalPorLabel,
+    totalMensalPorKey,
+    totalAnualPorAno,
+  }
+}
+
+/**
+ * Soma o valor total de cards atribuídos a um mês específico (YYYY-MM),
+ * considerando tanto os cards com mes_planejado_producao igual ao mês
+ * QUANTO cards cuja semana_planejada_producao pertença às semanas do mês.
+ * Garante que cada card seja somado no máximo UMA vez no mês (sem duplicar).
+ */
+export function somarCargaProducaoMes(
+  cards: {
+    id: string
+    valor_total?: number | null
+    semana_planejada_producao?: string | null
+    mes_planejado_producao?: string | null
+  }[],
+  year: number,
+  monthIndex: number,
+  weeksDoMes: IsoWeekRange[],
+): { total: number; count: number; cardsDoMes: any[] } {
+  const monthNum = String(monthIndex + 1).padStart(2, '0')
+  const mesKey = `${year}-${monthNum}`
+
+  const cardsNoMes = cards.filter((c) => {
+    // 1. Vinculado a uma semana que toca este mês
+    const matchSemana = weeksDoMes.some((w) => matchWeek(c.semana_planejada_producao, w))
+    if (matchSemana) return true
+
+    // 2. OU mes_planejado_producao é este mês (formato 'YYYY-MM', 'MM' ou 'M')
+    if (c.mes_planejado_producao) {
+      const clean = c.mes_planejado_producao.trim()
+      if (clean === mesKey) return true
+      if (clean === monthNum) return true
+      if (clean === String(monthIndex + 1)) return true
+      if (clean.endsWith(`-${monthNum}`)) return true
+    }
+    return false
+  })
+
+  const total = cardsNoMes.reduce((acc, c) => acc + (Number(c.valor_total) || 0), 0)
+  return { total, count: cardsNoMes.length, cardsDoMes: cardsNoMes }
+}
+
 export function avaliarCapacidadeFinanceira(total: number): CapacidadeInfo {
   const formattedTotal = formatBRL(total)
   const metaMax = 350000
