@@ -183,6 +183,29 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     mesAnterior: string | null,
     motivo?: string,
   ) => {
+    const fieldMap: Record<
+      PcpLinhaOperacao,
+      'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
+    > = {
+      analise: 'mes_planejado_analise',
+      producao: 'mes_planejado_producao',
+      montagem: 'mes_planejado_montagem',
+    }
+
+    setCards((prev) =>
+      prev.map((c) => {
+        if (c.id !== cardId) return c
+        const updated: PcpCardItem = {
+          ...c,
+          [fieldMap[linha]]: novoMes,
+        }
+        if (!novoMes && linha === 'producao') {
+          updated.semana_planejada_producao = null
+        }
+        return updated
+      }),
+    )
+
     await updateCardMesPlanejado(cardId, linha, novoMes, mesAnterior, motivo)
     loadCards(true)
   }

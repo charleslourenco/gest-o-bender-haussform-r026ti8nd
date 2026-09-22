@@ -50,20 +50,52 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({})
   const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
 
-  // Função para verificar se um card individual está pendente na carteira dependendo do modo
-  const isCardPending = (c: PcpCardItem): boolean => {
-    const semSemanaProd = !c.semana_planejada_producao || c.semana_planejada_producao.trim() === ''
-    if (modo === 'mensal') {
-      return semSemanaProd
-    }
-    if (modo === 'diario') {
-      const semDataProd = !c.data_planejada_producao || c.data_planejada_producao.trim() === ''
-      return semDataProd
-    }
-    // modo === 'anual' (default)
-    const semMesProd = !c.mes_planejado_producao || c.mes_planejado_producao.trim() === ''
-    return semSemanaProd && semMesProd
+  // Status de análise bloqueados / que NÃO devem aparecer em 'Projetos para Agendar'
+  const STATUS_ANALISE_EXCLUIDOS = useMemo(
+    () =>
+      new Set([
+        'aguardando_plano_corte',
+        'router',
+        'coladeira',
+        'bancada',
+        'embalagem',
+        'expedicao',
+        'aguardando_agenda',
+        'montagem',
+        'item_terceirizado',
+        'pendencia',
+        'concluido',
+      ]),
+    [],
+  )
+
+  // Condição estrita do filtro da Carteira 'PROJETOS PARA AGENDAR':
+  // - visivel_pcp = true
+  // - semana_planejada_producao IS NULL E mes_planejado_producao IS NULL
+  // - status_analise NOT IN ('aguardando_plano_corte','router','coladeira','bancada','embalagem','expedicao','aguardando_agenda','montagem','item_terceirizado','pendencia','concluido')
+  // - arquivado_analise = false, arquivado_producao = false, arquivado_montagem = false
+  // - excluido_analise = false, excluido_producao = false, excluido_montagem = false
+  const isCardAptoParaAgendar = (c: PcpCardItem): boolean => {
+    if (c.visivel_pcp === false) return false
+    if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
+    if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
+
+    // semana e mês de produção nulos
+    const temSemana = Boolean(
+      c.semana_planejada_producao && c.semana_planejada_producao.trim() !== '',
+    )
+    const temMes = Boolean(c.mes_planejado_producao && c.mes_planejado_producao.trim() !== '')
+    if (temSemana || temMes) return false
+
+    // status_analise não pode estar na lista de excluídos
+    const st = (c.status_analise || '').toLowerCase().trim()
+    if (STATUS_ANALISE_EXCLUIDOS.has(st)) return false
+
+    return true
   }
+
+  // Alias para manter compatibilidade com verificações internas
+  const isCardPending = isCardAptoParaAgendar
 
   // Agrupamento hierárquico Nível 1 (Card Pai / Projeto) + Nível 2 (Subcards / Ambientes)
   const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
@@ -270,8 +302,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground tracking-wider uppercase whitespace-nowrap"
             style={{ writingMode: 'vertical-rl' }}
           >
-            📥 CARTEIRA ({totalPendentesCount})
-          </span>
+            📥 PARA AGENDAR ({totalPendentesCount})
+          </span>{' '}
         </button>
       </aside>
     )
@@ -288,7 +320,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
             </div>
             <div>
               <h2 className="text-xs font-bold text-foreground tracking-tight leading-none uppercase">
-                CARTEIRA / PROJETOS
+                PROJETOS PARA AGENDAR
               </h2>
               <span className="text-[10px] text-muted-foreground font-medium">
                 {filteredHierarchy.length} {filteredHierarchy.length === 1 ? 'projeto' : 'projetos'}{' '}
@@ -602,12 +634,10 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                             <span
                               className={cn(
                                 'font-bold',
-                                subcardValor > 0
-                                  ? 'text-primary'
-                                  : 'text-muted-foreground/80 italic',
+                                subcardValor > 0 ? 'text-primary' : 'text-foreground font-semibold',
                               )}
                             >
-                              {subcardValor > 0 ? formatBRL(subcardValor) : '— (parte do contrato)'}
+                              {formatBRL(subcardValor)}
                             </span>
                           </div>
                         </div>

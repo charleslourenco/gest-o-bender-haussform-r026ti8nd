@@ -83,33 +83,24 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
     })
   }
 
-  // Soma de R$ na linha de produção para cada dia (sem duplicar pai e subcards)
+  // Soma de R$ na linha de produção para cada dia sem dupla contagem:
+  // quando um card pai possui filhos com valor_total > 0, soma APENAS os filhos (pai é só contêiner);
+  // pai sem filhos valorados soma o próprio valor.
   const getProducaoSomaDia = (dia: DiaInfo): number => {
-    const diaCards = getCardsForCell('producao', dia)
-    const paisComValor = new Set<string>()
-    for (const c of diaCards) {
-      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
-        paisComValor.add(c.id)
-      }
-    }
-    return diaCards.reduce((acc, c) => {
-      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
-        return acc
-      }
-      return acc + (Number(c.valor_total) || 0)
-    }, 0)
+    return getLinhaSomaDia('producao', dia)
   }
 
   const getLinhaSomaDia = (linha: PcpLinhaOperacao, dia: DiaInfo): number => {
     const diaCards = getCardsForCell(linha, dia)
-    const paisComValor = new Set<string>()
+    const paisComFilhosValorados = new Set<string>()
     for (const c of diaCards) {
-      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
-        paisComValor.add(c.id)
+      if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComFilhosValorados.add(c.card_pai_id)
       }
     }
     return diaCards.reduce((acc, c) => {
-      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+      const isParent = !c.card_pai_id
+      if (isParent && paisComFilhosValorados.has(c.id)) {
         return acc
       }
       return acc + (Number(c.valor_total) || 0)
@@ -283,30 +274,32 @@ export const PcpGradeDiaria: React.FC<PcpGradeDiariaProps> = ({
                             isProducao && !dia.isWeekend && !isDragOver && 'hover:bg-muted/20',
                           )}
                         >
-                          {/* Sub-cabeçalho da célula */}
-                          <div className="flex items-center justify-between pb-1 mb-1 border-b border-border/40 text-[9px] text-muted-foreground">
-                            <span className="font-semibold text-foreground/80">
-                              {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {formatBRL(totalValorCelula)}
-                            </span>
-                          </div>
+                          {/* Sub-cabeçalho da célula (apenas se houver cards) */}
+                          {cellCards.length > 0 && (
+                            <div className="flex items-center justify-between pb-0.5 mb-1 text-[9px] text-muted-foreground border-b border-border/20">
+                              <span className="font-medium text-foreground/70">
+                                {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {formatBRL(totalValorCelula)}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Lista de cards alocados no dia */}
                           <div
                             className={cn(
-                              'flex-1 overflow-y-auto space-y-1.5 pr-0.5',
+                              'flex-1 overflow-y-auto space-y-1 pr-0.5',
                               isExpandedFull ? 'max-h-[600px]' : 'max-h-[380px]',
                             )}
                           >
                             {cellCards.length === 0 ? (
                               <div
                                 className={cn(
-                                  'h-full min-h-[60px] rounded flex flex-col items-center justify-center text-center p-1 text-muted-foreground/40 transition-colors',
+                                  'h-full min-h-[44px] rounded flex flex-col items-center justify-center text-center p-1 transition-colors',
                                   isDragOver
-                                    ? 'border-2 border-dashed border-primary bg-primary/10 text-primary font-medium text-[10px]'
-                                    : 'border border-dashed border-transparent hover:border-border/30',
+                                    ? 'border-2 border-dashed border-primary bg-primary/10 text-primary font-semibold text-[10px]'
+                                    : 'border-none bg-transparent',
                                 )}
                               >
                                 {isDragOver && <span>Solte aqui</span>}

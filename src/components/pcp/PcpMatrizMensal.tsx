@@ -181,16 +181,26 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
 
     const allAffectedIds = [cardId, ...childrenIds]
 
-    // Atualização otimista local imediata de todos os afetados
+    // Atualização otimista local imediata de todos os afetados (semana e se targetLinha for producao, mes_planejado_producao também)
+    const currentMonthNum = String(currentMonthIndex + 1).padStart(2, '0')
+    const currentMesKey = `${currentYear}-${currentMonthNum}`
+
     setCards((prev) =>
-      prev.map((c) =>
-        allAffectedIds.includes(c.id)
-          ? {
-              ...c,
-              [fieldMap[targetLinha]]: targetSemanaLabel,
-            }
-          : c,
-      ),
+      prev.map((c) => {
+        if (!allAffectedIds.includes(c.id)) return c
+        const updated: PcpCardItem = {
+          ...c,
+          [fieldMap[targetLinha]]: targetSemanaLabel,
+        }
+        // Ao planejar semana de produção, garantir que mes_planejado_producao receba o mês atual caso esteja vazio
+        if (
+          targetLinha === 'producao' &&
+          (!c.mes_planejado_producao || c.mes_planejado_producao.trim() === '')
+        ) {
+          updated.mes_planejado_producao = currentMesKey
+        }
+        return updated
+      }),
     )
 
     try {
@@ -244,14 +254,18 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     }
 
     setCards((prev) =>
-      prev.map((c) =>
-        c.id === cardId
-          ? {
-              ...c,
-              [fieldMap[linha]]: novaSemana,
-            }
-          : c,
-      ),
+      prev.map((c) => {
+        if (c.id !== cardId) return c
+        const updated: PcpCardItem = {
+          ...c,
+          [fieldMap[linha]]: novaSemana,
+        }
+        // Se desagendou (novaSemana é null ou ''), e a linha for produção, limpar também o mês caso estivesse vinculado
+        if (!novaSemana && linha === 'producao') {
+          updated.mes_planejado_producao = null
+        }
+        return updated
+      }),
     )
 
     if (selectedCard && selectedCard.id === cardId) {

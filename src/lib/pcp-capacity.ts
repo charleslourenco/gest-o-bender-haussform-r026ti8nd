@@ -363,11 +363,45 @@ export function calcularTotaisPcp(
         ? 'mes_planejado_montagem'
         : 'mes_planejado_producao'
 
-  // Mapa de pais para evitar dupla contagem se pai e filhos estiverem no mesmo período
-  const parentIdsInList = new Set<string>()
+  // Regra sem dupla contagem:
+  // Quando um card pai possui filhos com valor_total > 0 no período/célula,
+  // soma APENAS os filhos (o pai é só contêiner);
+  // pai sem filhos valorados soma o próprio valor.
+
+  // 1. Identificar quais pais possuem filhos com valor > 0 para cada dimensão
+  const paisComFilhosValoradosDiario = new Map<string, Set<string>>() // date -> Set<parentId>
+  const paisComFilhosValoradosSemanal = new Map<string, Set<string>>() // semLabel -> Set<parentId>
+  const paisComFilhosValoradosMensal = new Map<string, Set<string>>() // mesKey -> Set<parentId>
+
   for (const c of cards as any[]) {
-    if (c.card_pai_id) {
-      parentIdsInList.add(c.card_pai_id)
+    const val = Number(c.valor_total) || 0
+    if (val <= 0 || !c.card_pai_id) continue
+
+    const dt = c[dataField]
+    if (dt && typeof dt === 'string') {
+      const cleanDt = dt.slice(0, 10)
+      if (!paisComFilhosValoradosDiario.has(cleanDt)) {
+        paisComFilhosValoradosDiario.set(cleanDt, new Set())
+      }
+      paisComFilhosValoradosDiario.get(cleanDt)!.add(c.card_pai_id)
+    }
+
+    const sem = c[semanaField]
+    if (sem && typeof sem === 'string') {
+      const cleanSem = sem.trim()
+      if (!paisComFilhosValoradosSemanal.has(cleanSem)) {
+        paisComFilhosValoradosSemanal.set(cleanSem, new Set())
+      }
+      paisComFilhosValoradosSemanal.get(cleanSem)!.add(c.card_pai_id)
+    }
+
+    const mes = c[mesField]
+    if (mes && typeof mes === 'string') {
+      const cleanMes = mes.trim()
+      if (!paisComFilhosValoradosMensal.has(cleanMes)) {
+        paisComFilhosValoradosMensal.set(cleanMes, new Set())
+      }
+      paisComFilhosValoradosMensal.get(cleanMes)!.add(c.card_pai_id)
     }
   }
 
@@ -375,24 +409,31 @@ export function calcularTotaisPcp(
     const val = Number(c.valor_total) || 0
     if (val <= 0) continue
 
-    // Se este card é um subcard (tem card_pai_id) e seu pai também tem valor > 0 e está alocado,
-    // o valor principal já reside no pai. Não dupla-contar.
+    const isParent = !c.card_pai_id
+
     // 1. Nível Diário
     const dt = c[dataField]
     if (dt && typeof dt === 'string') {
       const cleanDt = dt.slice(0, 10)
-      totalDiarioPorData[cleanDt] = (totalDiarioPorData[cleanDt] || 0) + val
+      const paiTemFilhosValorados = isParent && paisComFilhosValoradosDiario.get(cleanDt)?.has(c.id)
+      if (!paiTemFilhosValorados) {
+        totalDiarioPorData[cleanDt] = (totalDiarioPorData[cleanDt] || 0) + val
+      }
     }
 
     // 2. Nível Semanal
     const sem = c[semanaField]
     if (sem && typeof sem === 'string') {
       const cleanSem = sem.trim()
-      totalSemanalPorLabel[cleanSem] = (totalSemanalPorLabel[cleanSem] || 0) + val
-      if (cleanSem.startsWith('S') || cleanSem.startsWith('s')) {
-        const num = cleanSem.slice(1).padStart(2, '0')
-        totalSemanalPorLabel[`S${parseInt(num, 10)}`] =
-          (totalSemanalPorLabel[`S${parseInt(num, 10)}`] || 0) + val
+      const paiTemFilhosValorados =
+        isParent && paisComFilhosValoradosSemanal.get(cleanSem)?.has(c.id)
+      if (!paiTemFilhosValorados) {
+        totalSemanalPorLabel[cleanSem] = (totalSemanalPorLabel[cleanSem] || 0) + val
+        if (cleanSem.startsWith('S') || cleanSem.startsWith('s')) {
+          const num = cleanSem.slice(1).padStart(2, '0')
+          totalSemanalPorLabel[`S${parseInt(num, 10)}`] =
+            (totalSemanalPorLabel[`S${parseInt(num, 10)}`] || 0) + val
+        }
       }
     }
 
@@ -400,13 +441,17 @@ export function calcularTotaisPcp(
     const mes = c[mesField]
     if (mes && typeof mes === 'string') {
       const cleanMes = mes.trim()
-      totalMensalPorKey[cleanMes] = (totalMensalPorKey[cleanMes] || 0) + val
+      const paiTemFilhosValorados =
+        isParent && paisComFilhosValoradosMensal.get(cleanMes)?.has(c.id)
+      if (!paiTemFilhosValorados) {
+        totalMensalPorKey[cleanMes] = (totalMensalPorKey[cleanMes] || 0) + val
 
-      // Extrair ano do mês "YYYY-MM"
-      if (cleanMes.includes('-')) {
-        const ano = parseInt(cleanMes.split('-')[0], 10)
-        if (!isNaN(ano)) {
-          totalAnualPorAno[ano] = (totalAnualPorAno[ano] || 0) + val
+        // Extrair ano do mês "YYYY-MM"
+        if (cleanMes.includes('-')) {
+          const ano = parseInt(cleanMes.split('-')[0], 10)
+          if (!isNaN(ano)) {
+            totalAnualPorAno[ano] = (totalAnualPorAno[ano] || 0) + val
+          }
         }
       }
     }
@@ -464,19 +509,21 @@ export function somarCargaProducaoMes(
     return false
   })
 
-  // Agregação hierárquica segura contra dupla contagem:
-  // Se o card pai está alocado neste mês e possui valor > 0, os subcards não somam além do pai.
-  const parentIdsNoMesComValor = new Set<string>()
+  // Regra sem dupla contagem:
+  // quando um card pai possui filhos com valor_total > 0, a carga das células soma APENAS os filhos
+  // (pai é só contêiner); pai sem filhos valorados soma o próprio valor.
+  const parentIdsComFilhosValorados = new Set<string>()
   for (const c of cardsNoMes) {
-    if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
-      parentIdsNoMesComValor.add(c.id)
+    if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+      parentIdsComFilhosValorados.add(c.card_pai_id)
     }
   }
 
   let total = 0
   for (const c of cardsNoMes) {
-    // Se for subcard cujo pai com valor já está na mesma seleção, não soma novamente
-    if (c.card_pai_id && parentIdsNoMesComValor.has(c.card_pai_id)) {
+    const isParent = !c.card_pai_id
+    // Se o pai tiver filhos valorados na seleção, o pai não soma seu próprio valor
+    if (isParent && parentIdsComFilhosValorados.has(c.id)) {
       continue
     }
     total += Number(c.valor_total) || 0
@@ -534,22 +581,22 @@ export function somarCargaTodasLinhasMes(
     return false
   }
 
-  // Identificar pais com valor em cada linha
-  const paisEmAnaliseComValor = new Set<string>()
-  const paisEmProducaoComValor = new Set<string>()
-  const paisEmMontagemComValor = new Set<string>()
+  // Identificar pais cujos filhos possuem valor > 0 em cada linha
+  const paisComFilhosValoradosAnalise = new Set<string>()
+  const paisComFilhosValoradosProducao = new Set<string>()
+  const paisComFilhosValoradosMontagem = new Set<string>()
 
   for (const c of cards) {
     const val = Number(c.valor_total) || 0
-    if (!c.card_pai_id && val > 0) {
+    if (c.card_pai_id && val > 0) {
       if (matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)) {
-        paisEmAnaliseComValor.add(c.id)
+        paisComFilhosValoradosAnalise.add(c.card_pai_id)
       }
       if (matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)) {
-        paisEmProducaoComValor.add(c.id)
+        paisComFilhosValoradosProducao.add(c.card_pai_id)
       }
       if (matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)) {
-        paisEmMontagemComValor.add(c.id)
+        paisComFilhosValoradosMontagem.add(c.card_pai_id)
       }
     }
   }
@@ -568,21 +615,23 @@ export function somarCargaTodasLinhasMes(
     const inProducao = matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)
     const inMontagem = matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)
 
+    const isParent = !c.card_pai_id
+
     if (inAnalise) {
       countAnalise++
-      if (!(c.card_pai_id && paisEmAnaliseComValor.has(c.card_pai_id))) {
+      if (!(isParent && paisComFilhosValoradosAnalise.has(c.id))) {
         totalAnalise += val
       }
     }
     if (inProducao) {
       countProducao++
-      if (!(c.card_pai_id && paisEmProducaoComValor.has(c.card_pai_id))) {
+      if (!(isParent && paisComFilhosValoradosProducao.has(c.id))) {
         totalProducao += val
       }
     }
     if (inMontagem) {
       countMontagem++
-      if (!(c.card_pai_id && paisEmMontagemComValor.has(c.card_pai_id))) {
+      if (!(isParent && paisComFilhosValoradosMontagem.has(c.id))) {
         totalMontagem += val
       }
     }

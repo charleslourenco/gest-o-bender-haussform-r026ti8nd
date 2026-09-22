@@ -49,17 +49,55 @@ export function CriarSubcardModal({ parentCard, onClose, onSuccess }: CriarSubca
       // Herdar cliente, formulário do pai
       // Subcard em Análise Técnica nasce com status do pai ou 'iniciar'
       const initialStatus = parentCard?.status_analise || 'iniciar'
+      const formId = parentCard.formulario_comercial_id || null
+
+      let valorUnitario = 0
+      let descontoPercentual = 0
+      let valorTotal = 0
+      const subcardQtd = Number(qtd)
+
+      // Buscar valor correspondente no JSON produtos_servicos do formulário
+      if (formId) {
+        const { data: formData } = await supabase
+          .from('formulario_comercial')
+          .select('produtos_servicos')
+          .eq('id', formId)
+          .maybeSingle()
+
+        if (formData && Array.isArray(formData.produtos_servicos)) {
+          const nomeNorm = nome.trim().toLowerCase()
+          const matchedItem = formData.produtos_servicos.find((item: any) => {
+            if (!item || !item.nome) return false
+            const itNorm = String(item.nome).trim().toLowerCase()
+            return (
+              itNorm === nomeNorm ||
+              (nomeNorm.length >= 4 && itNorm.includes(nomeNorm)) ||
+              (itNorm.length >= 4 && nomeNorm.includes(itNorm))
+            )
+          })
+
+          if (matchedItem) {
+            valorUnitario = Number(matchedItem.valor_unitario) || 0
+            descontoPercentual =
+              Number(matchedItem.desconto_percentual ?? matchedItem.desconto) || 0
+            const itemQtd = Number(matchedItem.qtd) || subcardQtd
+            const totalCalc = valorUnitario * (1 - descontoPercentual / 100) * itemQtd
+            valorTotal = Math.round(totalCalc * 100) / 100
+          }
+        }
+      }
 
       const newSubcard = {
         card_pai_id: parentCard.id,
         cor_vinculo: cor,
         nome_produto: nome.trim(),
         status_analise: initialStatus,
-        qtd: Number(qtd),
-        valor_unitario: 0,
-        valor_total: 0,
+        qtd: subcardQtd,
+        valor_unitario: valorUnitario,
+        desconto_percentual: descontoPercentual,
+        valor_total: valorTotal,
         cliente_id: parentCard.cliente_id || null,
-        formulario_comercial_id: parentCard.formulario_comercial_id || null,
+        formulario_comercial_id: formId,
         descricao: descricao.trim() || null,
       }
 

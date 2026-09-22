@@ -69,18 +69,20 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
     return cards.filter((c) => matchWeek(c[field], week))
   }
 
-  // Soma de R$ para qualquer linha em cada semana
-  // Garante que se o pai e subcards estiverem alocados na mesma semana, o valor do pai não seja duplicado pelos subcards
+  // Soma de R$ para qualquer linha em cada semana sem dupla contagem:
+  // quando um card pai possui filhos com valor_total > 0, soma APENAS os filhos (pai é só contêiner);
+  // pai sem filhos valorados soma o próprio valor.
   const getLinhaSomaSemana = (linha: PcpLinhaOperacao, week: IsoWeekRange): number => {
     const cellCards = getCardsForCell(linha, week)
-    const paisComValor = new Set<string>()
+    const paisComFilhosValorados = new Set<string>()
     for (const c of cellCards) {
-      if (!c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
-        paisComValor.add(c.id)
+      if (c.card_pai_id && (Number(c.valor_total) || 0) > 0) {
+        paisComFilhosValorados.add(c.card_pai_id)
       }
     }
     return cellCards.reduce((acc, c) => {
-      if (c.card_pai_id && paisComValor.has(c.card_pai_id)) {
+      const isParent = !c.card_pai_id
+      if (isParent && paisComFilhosValorados.has(c.id)) {
         return acc
       }
       return acc + (Number(c.valor_total) || 0)
@@ -288,30 +290,32 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
                                       : 'bg-blue-500/5'),
                           )}
                         >
-                          {/* Sub-cabeçalho da célula (cabeçalho de carga da respectiva linha nesta coluna semanal) */}
-                          <div className="flex items-center justify-between pb-1 mb-1 border-b border-border/40 text-[9px] text-muted-foreground">
-                            <span className="font-semibold text-foreground/80">
-                              {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
-                            </span>
-                            <span className="font-bold text-foreground">
-                              {formatBRL(totalValorCelula)}
-                            </span>
-                          </div>
+                          {/* Sub-cabeçalho da célula (exibido apenas quando houver cards) */}
+                          {cellCards.length > 0 && (
+                            <div className="flex items-center justify-between pb-0.5 mb-1 text-[9px] text-muted-foreground border-b border-border/20">
+                              <span className="font-medium text-foreground/70">
+                                {cellCards.length} {cellCards.length === 1 ? 'card' : 'cards'}
+                              </span>
+                              <span className="font-semibold text-foreground">
+                                {formatBRL(totalValorCelula)}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Lista de cards alocados na célula */}
                           <div
                             className={cn(
-                              'flex-1 overflow-y-auto space-y-1.5 pr-0.5',
+                              'flex-1 overflow-y-auto space-y-1 pr-0.5',
                               isExpandedFull ? 'max-h-[600px]' : 'max-h-[380px]',
                             )}
                           >
                             {cellCards.length === 0 ? (
                               <div
                                 className={cn(
-                                  'h-full min-h-[60px] rounded flex flex-col items-center justify-center text-center p-1 text-muted-foreground/40 transition-colors',
+                                  'h-full min-h-[44px] rounded flex flex-col items-center justify-center text-center p-1 transition-colors',
                                   isDragOver
-                                    ? 'border-2 border-dashed border-primary bg-primary/10 text-primary font-medium text-[10px]'
-                                    : 'border border-dashed border-transparent hover:border-border/30',
+                                    ? 'border-2 border-dashed border-primary bg-primary/10 text-primary font-semibold text-[10px]'
+                                    : 'border-none bg-transparent',
                                 )}
                               >
                                 {isDragOver && <span>Solte aqui</span>}

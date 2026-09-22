@@ -199,13 +199,61 @@ export function CreateCardDialog({
 
       const effectiveClienteId = chosenParent?.cliente_id || clienteId
 
+      // Se for subcard (effectiveParentId), tentar herdar valor do JSON de produtos_servicos do formulário
+      let valorUnitario = 0
+      let descontoPercentual = 0
+      let valorTotal = 0
+      let formularioId = chosenParent?.formulario_comercial_id || null
+
+      if (effectiveParentId && !formularioId) {
+        const { data: parentRecord } = await supabase
+          .from('produtos_servicos_projeto')
+          .select('formulario_comercial_id')
+          .eq('id', effectiveParentId)
+          .maybeSingle()
+        if (parentRecord?.formulario_comercial_id) {
+          formularioId = parentRecord.formulario_comercial_id
+        }
+      }
+
+      if (formularioId) {
+        const { data: formData } = await supabase
+          .from('formulario_comercial')
+          .select('produtos_servicos')
+          .eq('id', formularioId)
+          .maybeSingle()
+
+        if (formData && Array.isArray(formData.produtos_servicos)) {
+          const nomeNorm = produtoNome.trim().toLowerCase()
+          const matched = formData.produtos_servicos.find((item: any) => {
+            if (!item || !item.nome) return false
+            const itNorm = String(item.nome).trim().toLowerCase()
+            return (
+              itNorm === nomeNorm ||
+              (nomeNorm.length >= 4 && itNorm.includes(nomeNorm)) ||
+              (itNorm.length >= 4 && nomeNorm.includes(itNorm))
+            )
+          })
+
+          if (matched) {
+            valorUnitario = Number(matched.valor_unitario) || 0
+            descontoPercentual = Number(matched.desconto_percentual ?? matched.desconto) || 0
+            const itemQtd = Number(matched.qtd) || qtd
+            const totalCalc = valorUnitario * (1 - descontoPercentual / 100) * itemQtd
+            valorTotal = Math.round(totalCalc * 100) / 100
+          }
+        }
+      }
+
       const { error } = await supabase.from('produtos_servicos_projeto').insert({
         cliente_id: effectiveClienteId,
+        formulario_comercial_id: formularioId,
         nome_produto: produtoNome.trim(),
         qtd,
         descricao,
-        valor_unitario: 0,
-        valor_total: 0,
+        valor_unitario: valorUnitario,
+        desconto_percentual: descontoPercentual,
+        valor_total: valorTotal,
         status_analise: defaultStatus,
         codigo_rastreio: codigoRastreio,
         card_pai_id: effectiveParentId,
