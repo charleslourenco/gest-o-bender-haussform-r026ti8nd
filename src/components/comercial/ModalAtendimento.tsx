@@ -41,6 +41,7 @@ import {
   parseLeadMetadados,
   stringifyLeadMetadados,
   isOrigemCorretor,
+  isStatusPerdido,
 } from './constants'
 export interface ModalAtendimentoProps {
   lead: Lead | null
@@ -278,8 +279,22 @@ export function ModalAtendimento({
         })
       }
 
+      if (isStatusPerdido(lead.status) && lead.motivo_perda) {
+        items.push({
+          id: `loss-${lead.id}`,
+          titulo: 'Registro de Perda do Lead',
+          descricao: `Lead marcado como "${lead.status}". Etapa quando perdido: "${lead.etapa_perda || 'Não informada'}". Motivo registrado: "${lead.motivo_perda}".`,
+          data: (lead as any)?.atualizado_em || lead.criado_em,
+          icone: 'status',
+        })
+      }
+
       const updatedAt = (lead as any)?.atualizado_em
-      if (updatedAt && updatedAt !== lead.criado_em) {
+      if (
+        updatedAt &&
+        updatedAt !== lead.criado_em &&
+        (!isStatusPerdido(lead.status) || !lead.motivo_perda)
+      ) {
         items.push({
           id: `update-${lead.id}`,
           titulo: 'Última Atualização Registrada',
@@ -440,6 +455,14 @@ export function ModalAtendimento({
                 <Badge variant="secondary" className="text-xs font-semibold">
                   {currentAba?.titulo || 'Atendimentos'}
                 </Badge>
+                {isStatusPerdido(lead.status) && lead.motivo_perda && (
+                  <Badge
+                    variant="destructive"
+                    className="text-xs font-medium bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800"
+                  >
+                    Perdido • Fase: {lead.etapa_perda || '-'} • Motivo: {lead.motivo_perda}
+                  </Badge>
+                )}
               </div>
 
               <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">

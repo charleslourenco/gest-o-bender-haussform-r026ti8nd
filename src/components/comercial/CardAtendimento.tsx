@@ -41,6 +41,7 @@ import {
   stringifyLeadMetadados,
   cleanColumnTitle,
   isOrigemCorretor,
+  isStatusPerdido,
 } from './constants'
 import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
 
@@ -739,6 +740,40 @@ function CardAtendimentoComponent({
           )}
         </div>
       )}
+      {/* Exibição discreta quando o lead estiver em Perdido E tiver motivo gravado */}
+      {isStatusPerdido(lead?.status) && lead?.motivo_perda && (
+        <div
+          className={cn(
+            'p-2 rounded-md border text-[11px] leading-snug space-y-0.5',
+            isNovoContato
+              ? 'bg-black/25 border-white/20 text-white'
+              : 'bg-rose-50/80 dark:bg-rose-950/30 border-rose-200/80 dark:border-rose-900/40 text-rose-900 dark:text-rose-200',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-1 font-semibold text-[10.5px] uppercase tracking-wider text-rose-700 dark:text-rose-400">
+            <span>Perdido</span>
+            {lead.etapa_perda && (
+              <>
+                <span>•</span>
+                <span className="font-normal normal-case text-muted-foreground dark:text-rose-300/80">
+                  Fase:{' '}
+                  <strong className="font-semibold text-foreground dark:text-rose-200">
+                    {lead.etapa_perda}
+                  </strong>
+                </span>
+              </>
+            )}
+          </div>
+          <div
+            className="truncate text-foreground/90 dark:text-rose-100"
+            title={`Motivo: ${lead.motivo_perda}`}
+          >
+            <span className="font-semibold text-rose-700 dark:text-rose-400">Motivo:</span>{' '}
+            {lead.motivo_perda}
+          </div>
+        </div>
+      )}{' '}
       {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}{' '}
       {currentAba?.isOrcamentos && (
         <div
@@ -1030,6 +1065,8 @@ function areCardPropsEqual(
       prevLead.notas_pessoais === nextLead.notas_pessoais &&
       prevLead.atualizado_em === nextLead.atualizado_em &&
       prevLead.criado_em === nextLead.criado_em &&
+      prevLead.motivo_perda === nextLead.motivo_perda &&
+      prevLead.etapa_perda === nextLead.etapa_perda &&
       getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead)
     )
   } catch {

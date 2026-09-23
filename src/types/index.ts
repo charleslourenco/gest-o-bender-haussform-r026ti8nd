@@ -28,6 +28,8 @@ export interface Lead {
   kanban_ativo?: boolean
   categoria?: string
   status_atendimento?: string
+  motivo_perda?: string | null
+  etapa_perda?: string | null
 }
 
 export interface Client {

@@ -16,11 +16,13 @@ import {
   ORIGENS_LEAD,
   exigeNomePessoa,
   getRotuloNomePessoa,
+  isStatusPerdido,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
+import { MotivoPerdaModal, MotivoPerdaConfirmData } from './MotivoPerdaModal'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -99,6 +101,13 @@ export function KanbanAtendimentos({
   const [selectedLeadForModal, setSelectedLeadForModal] = useState<Lead | null>(null)
   const [leadToSell, setLeadToSell] = useState<Lead | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
+  const [pendingPerda, setPendingPerda] = useState<{
+    lead: Lead
+    targetStatus: string
+    etapaAnterior: string
+    targetAbaId?: string
+    targetCategoria?: string
+  } | null>(null)
 
   // Novo Lead rápido
   const [isCreatingQuickLead, setIsCreatingQuickLead] = useState(false)
@@ -450,6 +459,23 @@ export function KanbanAtendimentos({
   // Atualizar Lead (reutilizável)
   const handleUpdateLead = async (id: string, updates: Partial<Lead>) => {
     try {
+      const currentLead = leads.find((l) => l.id === id)
+
+      // Se o status estiver mudando e o NOVO status NÃO for Perdido, mas o lead TINHA motivo_perda/etapa_perda gravados
+      // ou estava em Perdido, limpamos motivo_perda e etapa_perda conforme Requisito 5:
+      // "Se o lead for retirado de Perdido (movido para outra coluna), limpar motivo_perda/etapa_perda para não carregar dados de perda antiga."
+      const cleanPerdaUpdates: Partial<Lead> = {}
+      if (
+        updates.status &&
+        !isStatusPerdido(updates.status) &&
+        (isStatusPerdido(currentLead?.status) ||
+          currentLead?.motivo_perda ||
+          currentLead?.etapa_perda)
+      ) {
+        cleanPerdaUpdates.motivo_perda = null
+        cleanPerdaUpdates.etapa_perda = null
+      }
+
       // Obter nome do consultor se consultor_id foi alterado
       let consultorObj: { nome: string } | null | undefined = undefined
       if ('consultor_id' in updates) {
@@ -461,8 +487,13 @@ export function KanbanAtendimentos({
         }
       }
 
-      const mergedUpdates = {
+      const finalPayload: Partial<Lead> = {
+        ...cleanPerdaUpdates,
         ...updates,
+      }
+
+      const mergedUpdates = {
+        ...finalPayload,
         ...(consultorObj !== undefined ? { consultor: consultorObj } : {}),
       }
 
@@ -476,13 +507,13 @@ export function KanbanAtendimentos({
         setSelectedLeadForModal((prev) => (prev ? { ...prev, ...mergedUpdates } : null))
       }
 
-      await updateLead(id, updates)
+      await updateLead(id, finalPayload)
 
       // Se moveu para vendido, acionar modal de venda
       if (updates.status === 'Vendido') {
         const leadObj = leads.find((l) => l.id === id)
         if (leadObj) {
-          setLeadToSell({ ...leadObj, ...updates, status: 'Vendido' })
+          setLeadToSell({ ...leadObj, ...mergedUpdates, status: 'Vendido' })
         }
       }
     } catch (err: any) {
@@ -498,6 +529,18 @@ export function KanbanAtendimentos({
 
     const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === targetAbaId)
     if (!targetAba) return
+
+    // Se o destino for uma coluna de Perdido, interceptar com o modal de motivo de perda!
+    if (isStatusPerdido(targetColuna)) {
+      setPendingPerda({
+        lead,
+        targetStatus: targetColuna,
+        etapaAnterior: lead.status || safeAba.colunas[0] || 'Novo contato',
+        targetAbaId,
+        targetCategoria: targetAba.categoriaPadrao,
+      })
+      return
+    }
 
     try {
       const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
@@ -691,7 +734,57 @@ export function KanbanAtendimentos({
     const lead = leads.find((l) => l.id === id)
     if (!lead || lead.status === targetCol) return
 
+    // Se a coluna de destino for Perdido/SDR: Perdido, interceptar com o modal de motivo da perda!
+    // O status só persiste se o usuário confirmar no modal preenchendo o motivo.
+    // Se cancelar, nada é salvo e o card permanece na coluna/etapa anterior.
+    if (isStatusPerdido(targetCol)) {
+      setPendingPerda({
+        lead,
+        targetStatus: targetCol,
+        etapaAnterior: lead.status || safeAba.colunas[0] || 'Novo contato',
+      })
+      return
+    }
+
     await handleUpdateLead(id, { status: targetCol })
+  }
+
+  // Confirmação do modal de Motivo de Perda
+  const handleConfirmPerda = async ({ motivo_perda, etapa_perda }: MotivoPerdaConfirmData) => {
+    if (!pendingPerda) return
+    const { lead, targetStatus, targetAbaId, targetCategoria } = pendingPerda
+
+    try {
+      const updates: Partial<Lead> = {
+        status: targetStatus,
+        motivo_perda,
+        etapa_perda,
+      }
+
+      if (targetCategoria) {
+        updates.categoria = targetCategoria
+      }
+
+      if (targetAbaId) {
+        const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+        const newMeta: LeadMetadados = {
+          ...meta,
+          origem_aba: safeAba.id,
+          encaminhado_para_aba: targetAbaId,
+          encaminhado_em: new Date().toISOString(),
+        }
+        ;(updates as any).notas_pessoais = stringifyLeadMetadados(notas, newMeta)
+      }
+
+      await handleUpdateLead(lead.id, updates)
+      toast.success(
+        `Lead movido para "${cleanColumnTitle(targetStatus)}" com motivo: "${motivo_perda}"`,
+      )
+      setPendingPerda(null)
+    } catch (err: any) {
+      console.error('Erro ao registrar perda do lead:', err)
+      toast.error('Erro ao salvar motivo de perda')
+    }
   }
 
   // Filtragem dos Leads pertencentes a esta Aba
@@ -1274,6 +1367,18 @@ export function KanbanAtendimentos({
       {/* Modal de Exclusão de Lead */}
       {leadToDelete && (
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
+      )}
+
+      {/* Modal de Motivo de Perda (interceptação obrigatória antes de persistir status Perdido) */}
+      {pendingPerda && (
+        <MotivoPerdaModal
+          open={Boolean(pendingPerda)}
+          lead={pendingPerda.lead}
+          targetStatus={pendingPerda.targetStatus}
+          etapaAnterior={pendingPerda.etapaAnterior}
+          onClose={() => setPendingPerda(null)}
+          onConfirm={handleConfirmPerda}
+        />
       )}
     </div>
   )

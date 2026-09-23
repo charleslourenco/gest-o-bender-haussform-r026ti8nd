@@ -4,7 +4,7 @@ import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 
 // Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
 export const KANBAN_LEAD_COLUMNS =
-  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, consultor:users!leads_consultor_id_fkey(nome)'
+  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(nome)'
 
 /**
  * Normaliza e sanitiza um lead bruto vindo do banco ou realtime.
@@ -33,6 +33,8 @@ export function normalizeLead(raw: any) {
       data_venda: null,
       excluido: false,
       arquivado_comercial: false,
+      motivo_perda: null,
+      etapa_perda: null,
       consultor: null,
     }
   }
@@ -92,6 +94,12 @@ export function normalizeLead(raw: any) {
     data_venda: raw.data_venda ?? null,
     excluido: Boolean(raw.excluido),
     arquivado_comercial: Boolean(raw.arquivado_comercial),
+    motivo_perda:
+      typeof raw.motivo_perda === 'string' && raw.motivo_perda.trim()
+        ? raw.motivo_perda.trim()
+        : null,
+    etapa_perda:
+      typeof raw.etapa_perda === 'string' && raw.etapa_perda.trim() ? raw.etapa_perda.trim() : null,
     consultor: (() => {
       const source = raw.consultor ?? raw.users
       if (Array.isArray(source)) {

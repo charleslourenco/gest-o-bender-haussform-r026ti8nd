@@ -339,6 +339,30 @@ export function isOrigemCorretor(origem?: string | null): boolean {
 }
 
 // Lista padronizada de Origens dos Leads
+// Lista padronizada de Motivos de Perda do Lead
+export const MOTIVOS_PERDA = [
+  'Preço',
+  'Prazo',
+  'Escolheu concorrente',
+  'Sem resposta / sem retorno',
+  'Sem perfil / não é o público',
+  'Orçamento não aprovado',
+  'Desistiu do projeto',
+  'Outro',
+] as const
+
+export type MotivoPerda = (typeof MOTIVOS_PERDA)[number]
+
+/**
+ * Verifica se um determinado status/coluna representa a fase de "Perdido"
+ * (cobre 'Perdido', 'SDR: Perdido', e variações case-insensitive).
+ */
+export function isStatusPerdido(status?: string | null): boolean {
+  if (!status || typeof status !== 'string') return false
+  const s = status.trim().toLowerCase()
+  return s === 'perdido' || s === 'sdr: perdido' || s === 'sdr:perdido'
+}
+
 export const ORIGENS_LEAD = [
   'Instagram',
   'Google',
