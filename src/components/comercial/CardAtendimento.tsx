@@ -225,19 +225,31 @@ function CardAtendimentoComponent({
 
   const consultorRaw = lead?.consultor || (lead as any)?.users
   const consultorNome = useMemo(() => {
-    if (Array.isArray(consultorRaw)) {
-      return consultorRaw[0]?.nome || undefined
-    }
-    if (typeof consultorRaw === 'object' && consultorRaw !== null) {
-      return (consultorRaw as any)?.nome || undefined
-    }
-    if (typeof lead?.consultor === 'string') {
-      return lead.consultor
-    }
-    // Fallback: buscar na lista safeUsers pelo consultor_id
-    if (lead?.consultor_id && Array.isArray(users)) {
-      const u = users.find((user) => user && user.id === lead.consultor_id)
-      if (u?.nome) return u.nome
+    try {
+      if (Array.isArray(consultorRaw)) {
+        const first = consultorRaw[0]
+        if (typeof first === 'object' && first !== null && typeof first.nome === 'string') {
+          return first.nome
+        }
+        if (typeof first === 'string') return first
+        return undefined
+      }
+      if (typeof consultorRaw === 'object' && consultorRaw !== null) {
+        if (typeof (consultorRaw as any)?.nome === 'string') {
+          return (consultorRaw as any).nome
+        }
+        return undefined
+      }
+      if (typeof lead?.consultor === 'string') {
+        return lead.consultor
+      }
+      // Fallback: buscar na lista safeUsers pelo consultor_id
+      if (lead?.consultor_id && Array.isArray(users)) {
+        const u = users.find((user) => user && user.id === lead.consultor_id)
+        if (typeof u?.nome === 'string') return u.nome
+      }
+    } catch {
+      return undefined
     }
     return undefined
   }, [consultorRaw, lead?.consultor, lead?.consultor_id, users])
@@ -248,7 +260,8 @@ function CardAtendimentoComponent({
     leadStatus.toLowerCase().includes('encaminhado') ||
     leadStatus.toLowerCase().includes('despachad') ||
     (meta && meta.origem_aba !== undefined)
-  const isNovoContato = safeCurrentAbaId === 'novo-contato' && !isEncaminhado
+  const isNovoContato =
+    safeCurrentAbaId === 'novo-contato' && !isEncaminhado && !leadStatus.startsWith('SDR:')
 
   // Destino quando o card está na coluna Despachados
   const destinoDespachado = useMemo(() => {
@@ -962,6 +975,23 @@ function CardAtendimentoComponent({
   )
 }
 
+function getSafeConsultorNome(l: Record<string, any> | undefined): string {
+  if (!l) return ''
+  const c = l.consultor
+  if (Array.isArray(c)) {
+    const first = c[0]
+    if (first && typeof first === 'object' && typeof first.nome === 'string') return first.nome
+    if (typeof first === 'string') return first
+    return ''
+  }
+  if (c && typeof c === 'object') {
+    if (typeof c.nome === 'string') return c.nome
+    return ''
+  }
+  if (typeof c === 'string') return c
+  return ''
+}
+
 function areCardPropsEqual(
   prevProps: CardAtendimentoProps,
   nextProps: CardAtendimentoProps,
@@ -993,11 +1023,7 @@ function areCardPropsEqual(
     prevLead.notas_pessoais === nextLead.notas_pessoais &&
     prevLead.atualizado_em === nextLead.atualizado_em &&
     prevLead.criado_em === nextLead.criado_em &&
-    ((Array.isArray(prevLead.consultor) ? prevLead.consultor[0]?.nome : prevLead.consultor?.nome) ||
-      '') ===
-      ((Array.isArray(nextLead.consultor)
-        ? nextLead.consultor[0]?.nome
-        : nextLead.consultor?.nome) || '')
+    getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead)
   )
 }
 

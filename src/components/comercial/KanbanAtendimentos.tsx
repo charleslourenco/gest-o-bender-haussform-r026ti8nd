@@ -781,12 +781,26 @@ export function KanbanAtendimentos({
     colunas.forEach((c) => map.set(c, []))
 
     const getColForLead = (l: Lead): string => {
-      if (!l || typeof l !== 'object') return colunas[0] || 'Novo contato'
+      const fallbackCol = colunas[0] || 'Novo contato'
+      if (!l || typeof l !== 'object') return fallbackCol
       const s = typeof l.status === 'string' ? l.status.trim() : ''
+      if (!s) return fallbackCol
       const sLower = s.toLowerCase()
 
       const exactMatch = colunas.find((c) => c && c.trim().toLowerCase() === sLower)
       if (exactMatch) return exactMatch
+
+      // Na aba 01 (novo-contato / SDR), garantir mapeamentos específicos
+      if (safeAba?.id === 'novo-contato') {
+        if (sLower === 'novo lead' || sLower === 'novo' || sLower === 'novo contato') {
+          const novoCol = colunas.find((c) => c.toLowerCase() === 'novo contato')
+          if (novoCol) return novoCol
+        }
+        if (sLower === 'encaminhado para' || sLower === 'despachados') {
+          const despachadosCol = colunas.find((c) => c.toLowerCase() === 'despachados')
+          if (despachadosCol) return despachadosCol
+        }
+      }
 
       // Equivalência para a coluna "Orçamento Concluido" na aba de Orçamentos
       if (safeAba?.id === 'lead-orcamentos') {
@@ -804,7 +818,7 @@ export function KanbanAtendimentos({
         if (encaminhadoCol) return encaminhadoCol
       }
 
-      return colunas[0] || 'Novo contato'
+      return fallbackCol
     }
 
     if (Array.isArray(tabLeads)) {

@@ -92,7 +92,13 @@ export function normalizeLead(raw: any) {
     data_venda: raw.data_venda ?? null,
     excluido: Boolean(raw.excluido),
     arquivado_comercial: Boolean(raw.arquivado_comercial),
-    consultor: raw.consultor ?? null,
+    consultor: Array.isArray(raw.consultor)
+      ? raw.consultor[0] && typeof raw.consultor[0] === 'object'
+        ? raw.consultor[0]
+        : null
+      : raw.consultor && typeof raw.consultor === 'object'
+        ? raw.consultor
+        : null,
   }
 }
 

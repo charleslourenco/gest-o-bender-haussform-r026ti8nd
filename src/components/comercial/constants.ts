@@ -16,7 +16,16 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
     numero: '01',
     titulo: 'Novo Contato',
     descricao: 'Novas conversas que chegam pelo WhatsApp',
-    colunas: ['Novo contato', 'Despachados'],
+    colunas: [
+      'Novo contato',
+      'Despachados',
+      'SDR: Em contato',
+      'SDR: Follow up 1',
+      'SDR: Follow up 2',
+      'SDR: Follow up 3',
+      'SDR: Stand By',
+      'SDR: Perdido',
+    ],
     categoriaPadrao: 'Comercial',
   },
   {
@@ -138,15 +147,47 @@ export function leadBelongsToAba(
   const status = typeof lead.status === 'string' ? lead.status.trim() : ''
 
   if (abaId === 'novo-contato') {
-    return (
+    // Status reservados de outras abas não podem ser capturados pela aba SDR
+    const consultoriaReservedStatuses = [
+      'Consultoria Inicial',
+      'Projeto',
+      'Apresentação',
+      'Negociação',
+      'Stand By',
+      'Vendido',
+      'Perdido',
+      'Aguardando Consultor',
+      'Ação Gerente',
+      'Designar Consultor',
+    ]
+
+    // Status prefixados exclusivos de SDR
+    if (status.startsWith('SDR:')) {
+      return true
+    }
+
+    // Status naturais de entrada/despacho da aba 01
+    if (
       status === 'Novo contato' ||
       status === 'Novo Contato' ||
       status === 'Novo Lead' ||
       status === 'Novo' ||
       status === 'Despachados' ||
-      status === 'Encaminhado Para' ||
-      (cat === 'Comercial' && !lead.kanban_ativo)
-    )
+      status === 'Encaminhado Para'
+    ) {
+      return true
+    }
+
+    // Leads de categoria Comercial inativos que NÃO tenham status reservado de outras abas
+    if (
+      cat === 'Comercial' &&
+      !lead.kanban_ativo &&
+      !consultoriaReservedStatuses.includes(status)
+    ) {
+      return true
+    }
+
+    return false
   }
 
   if (abaId === 'lead-consultoria') {
@@ -264,8 +305,13 @@ export const NAO_COMERCIAL_COLUMNS = ['Novo', 'Em Análise', 'Respondido', 'Arqu
 
 // Helper para limpar prefixos numéricos dos nomes de coluna (ex: "3 Consultoria Inicial" -> "Consultoria Inicial", "01 Novo Contato" -> "Novo Contato")
 export function cleanColumnTitle(coluna: string): string {
-  if (!coluna) return ''
-  return coluna.replace(/^(\d+[.\-\s_]*|\d+\s+)/, '').trim() || coluna
+  if (!coluna || typeof coluna !== 'string') return ''
+  let cleaned = coluna.trim()
+  if (cleaned.startsWith('SDR:')) {
+    cleaned = cleaned.slice(4).trim()
+  }
+  cleaned = cleaned.replace(/^(\d+[.\-\s_]*|\d+\s+)/, '').trim()
+  return cleaned || coluna
 }
 
 // Helper para checar se uma coluna é de encaminhado ou despachados
@@ -339,47 +385,44 @@ export function parseLeadMetadados(raw?: unknown): { notas: string; meta: LeadMe
     return { notas: '', meta: {} }
   }
 
-  let text = ''
-  if (typeof raw === 'string') {
-    text = raw
-  } else if (typeof raw === 'object') {
-    try {
-      // Se for um objeto já parseado
-      return { notas: '', meta: (raw as any) || {} }
-    } catch {
-      return { notas: '', meta: {} }
-    }
-  } else {
-    try {
-      text = String(raw)
-    } catch {
-      return { notas: '', meta: {} }
-    }
-  }
-
-  if (!text) return { notas: '', meta: {} }
-
-  const idx = text.indexOf(META_PREFIX)
-  if (idx === -1) {
-    // Se o texto for exatamente "null" ou "undefined", desconsiderar como nota
-    const trimmed = text.trim()
-    if (trimmed === 'null' || trimmed === 'undefined') {
-      return { notas: '', meta: {} }
-    }
-    return { notas: text, meta: {} }
-  }
-
-  let cleanNotas = text.slice(0, idx).trimEnd()
-  if (cleanNotas.trim() === 'null' || cleanNotas.trim() === 'undefined') {
-    cleanNotas = ''
-  }
-
-  const jsonStr = text.slice(idx + META_PREFIX.length).trim()
   try {
-    const meta = JSON.parse(jsonStr)
-    return { notas: cleanNotas, meta: meta && typeof meta === 'object' ? meta : {} }
+    let text = ''
+    if (typeof raw === 'string') {
+      text = raw
+    } else if (typeof raw === 'object') {
+      const safeObj = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as any) : {}
+      return { notas: '', meta: safeObj }
+    } else {
+      text = String(raw)
+    }
+
+    if (!text) return { notas: '', meta: {} }
+
+    const idx = text.indexOf(META_PREFIX)
+    if (idx === -1) {
+      // Se o texto for exatamente "null" ou "undefined", desconsiderar como nota
+      const trimmed = text.trim()
+      if (trimmed === 'null' || trimmed === 'undefined') {
+        return { notas: '', meta: {} }
+      }
+      return { notas: text, meta: {} }
+    }
+
+    let cleanNotas = text.slice(0, idx).trimEnd()
+    if (cleanNotas.trim() === 'null' || cleanNotas.trim() === 'undefined') {
+      cleanNotas = ''
+    }
+
+    const jsonStr = text.slice(idx + META_PREFIX.length).trim()
+    try {
+      const parsed = JSON.parse(jsonStr)
+      const safeMeta = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+      return { notas: cleanNotas, meta: safeMeta }
+    } catch {
+      return { notas: cleanNotas || text, meta: {} }
+    }
   } catch {
-    return { notas: cleanNotas || text, meta: {} }
+    return { notas: '', meta: {} }
   }
 }
 
