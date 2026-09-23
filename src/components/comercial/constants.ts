@@ -66,7 +66,7 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
     numero: '05',
     titulo: 'Leads p/ Orçamentos',
     descricao: 'Solicitações de orçamento com prazo e prioridade',
-    colunas: ['Novo Orçamento', 'Em andamento', 'Orçamento Concluido', 'Perdido'],
+    colunas: ['Novo Orçamento', 'Em andamento', 'Orçamento Concluido', 'Vendido', 'Perdido'],
     categoriaPadrao: 'Orçamento',
     isOrcamentos: true,
   },
@@ -232,6 +232,7 @@ export function leadBelongsToAba(
       status === 'Em andamento' ||
       status === 'Orçamento Concluido' ||
       status === 'Orçamento Concluído' ||
+      status === 'Vendido' ||
       status === 'Encaminhado'
     )
   }
