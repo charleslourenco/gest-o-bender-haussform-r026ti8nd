@@ -873,11 +873,20 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">Não designado</SelectItem>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.nome}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(users) &&
+                      users
+                        .filter(
+                          (u) =>
+                            u &&
+                            typeof u === 'object' &&
+                            typeof u.id === 'string' &&
+                            u.id.trim() !== '',
+                        )
+                        .map((u) => (
+                          <SelectItem key={u.id.trim()} value={u.id.trim()}>
+                            {u.nome || u.id}
+                          </SelectItem>
+                        ))}
                   </SelectContent>
                 </Select>
               </div>

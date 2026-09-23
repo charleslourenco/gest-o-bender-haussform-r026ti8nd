@@ -85,6 +85,12 @@ export function ModalAtendimento({
   const [origemPessoaVal, setOrigemPessoaVal] = useState<string>(lead?.origem_pessoa || '')
   const [updatingOrigem, setUpdatingOrigem] = useState(false)
 
+  const safeUsers = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    return users.filter(
+      (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
+    )
+  }, [users])
   // Notas e Notas Pessoais
   const [notasIa, setNotasIa] = useState('')
   const [notasPessoaisClean, setNotasPessoaisClean] = useState('')

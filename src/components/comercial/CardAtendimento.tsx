@@ -936,7 +936,7 @@ function CardAtendimentoComponent({
             <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {safeUsers.map((u) => (
-                <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
+                <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
                   {u.nome || u.id}
                 </SelectItem>
               ))}
