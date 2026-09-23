@@ -4,6 +4,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
+import LeadsSemOrigem from './pages/LeadsSemOrigem'
 import Comercial from './pages/Comercial'
 import AreaClientes from './pages/AreaClientes'
 import Financeiro from './pages/Financeiro'
@@ -59,6 +60,14 @@ const App = () => (
               >
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route
+                  path="/leads-sem-origem"
+                  element={
+                    <ErrorBoundary source="LeadsSemOrigem">
+                      <LeadsSemOrigem />
+                    </ErrorBoundary>
+                  }
+                />
                 <Route
                   path="/comercial"
                   element={

@@ -23,6 +23,11 @@ export interface DiaSemanaItem {
   total: number
 }
 
+export interface LeadsSemOrigemItem {
+  total: number
+  convertidos: number
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -34,6 +39,7 @@ export interface AtendimentosMetrics {
   origens: OrigemItem[]
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
+  leads_sem_origem?: LeadsSemOrigemItem
 }
 
 export interface RankingConsultorItem {

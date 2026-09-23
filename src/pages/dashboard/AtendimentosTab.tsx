@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Users,
   Target,
@@ -10,6 +12,7 @@ import {
   PieChart as PieIcon,
   BarChart3,
   AlertTriangle,
+  ClipboardList,
   Info,
 } from 'lucide-react'
 import {
@@ -34,16 +37,15 @@ import {
 import type { AtendimentosMetrics } from './types'
 
 const ORIGIN_COLORS = [
-  '#25d366', // whatsapp green
   '#e1306c', // instagram pink
   '#8b5cf6', // indicação purple
   '#0284c7', // recompra blue
   '#4285f4', // google blue
+  '#1877F2', // meta ads blue
   '#f59e0b', // corretor amber
   '#f97316', // porta orange
   '#06b6d4', // arquiteto cyan
   '#3b82f6', // bender conecta blue
-  '#10b981', // assistência emerald
   '#64748b', // a definir slate
 ]
 
@@ -79,6 +81,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     origens,
     evolucao_mensal,
     dias_semana,
+    leads_sem_origem,
   } = data
 
   // Achar melhor origem por conversão com pelo menos 1 lead (exceto 'A definir' para destacar canal real)
@@ -87,9 +90,13 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
   const melhorOrigem =
     [...origensOficiaisValidas].sort((a, b) => b.taxa - a.taxa)[0] || origensComLeads[0]
 
-  // Dados do balde 'A definir' para Alerta de Dívida de Preenchimento (Item 3)
+  // Dados para o Alerta de Origem Não Registrada (prioriza metrics.leads_sem_origem com fallback seguro)
   const origemADefinir = origens.find((o) => o.origem === 'A definir')
-  const temADefinirComLeads = origemADefinir && origemADefinir.total > 0
+  const totalSemOrigem = leads_sem_origem?.total ?? (origemADefinir?.total || 0)
+  const convertidosSemOrigem = leads_sem_origem?.convertidos ?? (origemADefinir?.convertidos || 0)
+  const taxaSemOrigem =
+    totalSemOrigem > 0 ? Number(((convertidosSemOrigem / totalSemOrigem) * 100).toFixed(1)) : 0
+  const temSemOrigem = totalSemOrigem > 0
 
   // Cobertura de data_venda (Item 5)
   const qtdVendasData = vendas_com_data_qtd ?? 0
@@ -97,9 +104,9 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Item 3: Alerta de Origem Não Informada ("A definir") - Dívida de preenchimento */}
-      {temADefinirComLeads && (
-        <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+      {/* Alerta de Origem Não Registrada - Prioriza metrics.leads_sem_origem */}
+      {temSemOrigem && (
+        <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-start sm:items-center gap-3">
             <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0 shadow-sm mt-0.5 sm:mt-0">
               <AlertTriangle className="h-5 w-5" />
@@ -113,22 +120,34 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                   variant="outline"
                   className="border-amber-400 text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[10px] py-0 px-2 font-bold"
                 >
-                  {origemADefinir.taxa}% de conversão
+                  {taxaSemOrigem}% de conversão
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 mt-1 font-medium">
                 Existem{' '}
                 <strong className="font-extrabold text-amber-950 dark:text-amber-100">
-                  {origemADefinir.total} leads comerciais
+                  {totalSemOrigem} leads comerciais
                 </strong>{' '}
-                cadastrados como &quot;A definir&quot; ({origemADefinir.convertidos} deles já
-                viraram vendas). Como esses leads têm altíssima conversão, cobre o preenchimento da
-                origem pela equipe para identificar quais canais estão gerando esse retorno.
+                com origem não preenchida ou pendente ({convertidosSemOrigem} deles já viraram
+                vendas). Para manter as métricas de captação precisas, atribua a origem correta para
+                esses contatos.
               </p>
             </div>
           </div>
-          <div className="shrink-0 text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold self-stretch sm:self-auto text-center">
-            {origemADefinir.convertidos}/{origemADefinir.total} fechados
+          <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0 justify-between sm:justify-end">
+            <div className="text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold text-center whitespace-nowrap">
+              {convertidosSemOrigem}/{totalSemOrigem} fechados
+            </div>
+            <Button
+              asChild
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-600 dark:hover:bg-amber-500 font-semibold gap-1.5 shadow-sm text-xs whitespace-nowrap"
+            >
+              <Link to="/leads-sem-origem">
+                <ClipboardList className="h-4 w-4" />
+                Ver e corrigir leads sem origem
+              </Link>
+            </Button>
           </div>
         </div>
       )}
