@@ -25,6 +25,7 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
       'SDR: Follow up 3',
       'SDR: Stand By',
       'SDR: Perdido',
+      'SDR: Não é lead',
     ],
     categoriaPadrao: 'Comercial',
   },

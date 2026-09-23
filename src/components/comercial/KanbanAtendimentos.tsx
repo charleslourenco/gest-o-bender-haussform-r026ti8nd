@@ -941,11 +941,13 @@ export function KanbanAtendimentos({
         <SelectContent>
           <SelectItem value="all">Todos Responsáveis</SelectItem>
           <SelectItem value="unassigned">Não atribuído</SelectItem>
-          {users.map((u) => (
-            <SelectItem key={u.id} value={u.id} className="text-xs">
-              {u.nome}
-            </SelectItem>
-          ))}
+          {users
+            .filter((u) => u && typeof u.id === 'string' && u.id.trim() !== '')
+            .map((u) => (
+              <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
+                {u.nome || u.id}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
 

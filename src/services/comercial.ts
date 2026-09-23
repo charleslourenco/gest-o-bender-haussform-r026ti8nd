@@ -92,13 +92,34 @@ export function normalizeLead(raw: any) {
     data_venda: raw.data_venda ?? null,
     excluido: Boolean(raw.excluido),
     arquivado_comercial: Boolean(raw.arquivado_comercial),
-    consultor: Array.isArray(raw.consultor)
-      ? raw.consultor[0] && typeof raw.consultor[0] === 'object'
-        ? raw.consultor[0]
-        : null
-      : raw.consultor && typeof raw.consultor === 'object'
-        ? raw.consultor
-        : null,
+    consultor: (() => {
+      const source = raw.consultor ?? raw.users
+      if (Array.isArray(source)) {
+        const first = source[0]
+        if (
+          first &&
+          typeof first === 'object' &&
+          typeof first.nome === 'string' &&
+          first.nome.trim()
+        ) {
+          return { nome: first.nome.trim() }
+        }
+        if (typeof first === 'string' && first.trim()) {
+          return { nome: first.trim() }
+        }
+        return null
+      }
+      if (source && typeof source === 'object') {
+        if (typeof source.nome === 'string' && source.nome.trim()) {
+          return { nome: source.nome.trim() }
+        }
+        return null
+      }
+      if (typeof source === 'string' && source.trim()) {
+        return { nome: source.trim() }
+      }
+      return null
+    })(),
   }
 }
 

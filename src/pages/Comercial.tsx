@@ -222,12 +222,12 @@ export default function Comercial() {
                   className="py-1.5 px-3 rounded-md text-xs font-bold transition-colors whitespace-nowrap shrink-0 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs inline-flex items-center gap-1.5"
                 >
                   <span>{aba.titulo}</span>
-                  {(pendenciasByAba[aba.id] || 0) > 0 && (
+                  {(pendenciasByAba?.[aba.id] || 0) > 0 && (
                     <span
                       className="inline-flex items-center justify-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white shadow-2xs"
-                      title={`${pendenciasByAba[aba.id]} atendimento(s) pendente(s) nesta aba`}
+                      title={`${pendenciasByAba?.[aba.id]} atendimento(s) pendente(s) nesta aba`}
                     >
-                      {pendenciasByAba[aba.id]}
+                      {pendenciasByAba?.[aba.id]}
                     </span>
                   )}
                 </TabsTrigger>

@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseSafeDate, formatSafeDate } from '@/lib/date-utils'
 import {
+  type AtendimentoAbaConfig,
   ATENDIMENTO_ABAS,
   COLUMNS,
   ORIGENS_LEAD,

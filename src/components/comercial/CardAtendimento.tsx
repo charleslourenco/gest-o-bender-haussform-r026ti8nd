@@ -270,7 +270,10 @@ function CardAtendimentoComponent({
     return targetAba?.titulo || meta.encaminhado_para_aba
   }, [meta?.encaminhado_para_aba])
 
-  const safeUsers = Array.isArray(users) ? users.filter(Boolean) : []
+  const safeUsers = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    return users.filter((u) => u && typeof u.id === 'string' && u.id.trim() !== '')
+  }, [users])
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
@@ -932,8 +935,8 @@ function CardAtendimentoComponent({
             <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {safeUsers.map((u) => (
-                <SelectItem key={u.id} value={u.id} className="text-xs">
-                  {u.nome}
+                <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
+                  {u.nome || u.id}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -976,19 +979,20 @@ function CardAtendimentoComponent({
 }
 
 function getSafeConsultorNome(l: Record<string, any> | undefined): string {
-  if (!l) return ''
-  const c = l.consultor
+  if (!l || typeof l !== 'object') return ''
+  const c = l.consultor ?? l.users
   if (Array.isArray(c)) {
     const first = c[0]
-    if (first && typeof first === 'object' && typeof first.nome === 'string') return first.nome
-    if (typeof first === 'string') return first
+    if (first && typeof first === 'object' && typeof first.nome === 'string')
+      return first.nome.trim()
+    if (typeof first === 'string') return first.trim()
     return ''
   }
   if (c && typeof c === 'object') {
-    if (typeof c.nome === 'string') return c.nome
+    if (typeof c.nome === 'string') return c.nome.trim()
     return ''
   }
-  if (typeof c === 'string') return c
+  if (typeof c === 'string') return c.trim()
   return ''
 }
 
@@ -996,35 +1000,40 @@ function areCardPropsEqual(
   prevProps: CardAtendimentoProps,
   nextProps: CardAtendimentoProps,
 ): boolean {
-  if (prevProps.isDragging !== nextProps.isDragging) return false
-  if (prevProps.unreadCount !== nextProps.unreadCount) return false
-  if (prevProps.isPending !== nextProps.isPending) return false
-  if (prevProps.lastClientMsgTime !== nextProps.lastClientMsgTime) return false
-  if (prevProps.currentAba?.id !== nextProps.currentAba?.id) return false
-  if (prevProps.currentAba?.isOrcamentos !== nextProps.currentAba?.isOrcamentos) return false
-  if (prevProps.users !== nextProps.users && prevProps.users?.length !== nextProps.users?.length)
+  try {
+    if (prevProps.isDragging !== nextProps.isDragging) return false
+    if (prevProps.unreadCount !== nextProps.unreadCount) return false
+    if (prevProps.isPending !== nextProps.isPending) return false
+    if (prevProps.lastClientMsgTime !== nextProps.lastClientMsgTime) return false
+    if (prevProps.currentAba?.id !== nextProps.currentAba?.id) return false
+    if (prevProps.currentAba?.isOrcamentos !== nextProps.currentAba?.isOrcamentos) return false
+    if (prevProps.users !== nextProps.users && prevProps.users?.length !== nextProps.users?.length)
+      return false
+
+    const prevLead = prevProps.lead as Record<string, any> | undefined
+    const nextLead = nextProps.lead as Record<string, any> | undefined
+
+    if (prevLead === nextLead) return true
+    if (!prevLead || !nextLead || typeof prevLead !== 'object' || typeof nextLead !== 'object')
+      return false
+
+    return (
+      prevLead.id === nextLead.id &&
+      prevLead.nome === nextLead.nome &&
+      prevLead.telefone === nextLead.telefone &&
+      prevLead.origem === nextLead.origem &&
+      prevLead.origem_pessoa === nextLead.origem_pessoa &&
+      prevLead.consultor_id === nextLead.consultor_id &&
+      prevLead.status === nextLead.status &&
+      prevLead.categoria === nextLead.categoria &&
+      prevLead.notas_pessoais === nextLead.notas_pessoais &&
+      prevLead.atualizado_em === nextLead.atualizado_em &&
+      prevLead.criado_em === nextLead.criado_em &&
+      getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead)
+    )
+  } catch {
     return false
-
-  const prevLead = prevProps.lead as Record<string, any> | undefined
-  const nextLead = nextProps.lead as Record<string, any> | undefined
-
-  if (prevLead === nextLead) return true
-  if (!prevLead || !nextLead) return false
-
-  return (
-    prevLead.id === nextLead.id &&
-    prevLead.nome === nextLead.nome &&
-    prevLead.telefone === nextLead.telefone &&
-    prevLead.origem === nextLead.origem &&
-    prevLead.origem_pessoa === nextLead.origem_pessoa &&
-    prevLead.consultor_id === nextLead.consultor_id &&
-    prevLead.status === nextLead.status &&
-    prevLead.categoria === nextLead.categoria &&
-    prevLead.notas_pessoais === nextLead.notas_pessoais &&
-    prevLead.atualizado_em === nextLead.atualizado_em &&
-    prevLead.criado_em === nextLead.criado_em &&
-    getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead)
-  )
+  }
 }
 
 export const CardAtendimento = React.memo(CardAtendimentoComponent, areCardPropsEqual)
