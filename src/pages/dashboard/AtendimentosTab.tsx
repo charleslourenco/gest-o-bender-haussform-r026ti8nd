@@ -15,6 +15,10 @@ import {
   ClipboardList,
   Info,
   DollarSign,
+  Hourglass,
+  Zap,
+  Timer,
+  CheckCircle2,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -103,10 +107,22 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     status_atendimento,
     origens,
     ticket_medio_origens,
+    ciclo_vendas,
     evolucao_mensal,
     dias_semana,
     leads_sem_origem,
   } = data
+
+  const formatDias = (dias: number | undefined | null) => {
+    if (dias === undefined || dias === null || isNaN(dias)) return '0,0 dias'
+    return `${dias.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} dias`
+  }
+
+  const cicloGeral = ciclo_vendas?.geral
+  const cicloOrigens = ciclo_vendas?.por_origem ?? []
+  const temDadosCiclo = (cicloGeral?.qtd_vendas ?? 0) > 0 && cicloOrigens.length > 0
+  const maxCicloOrigem =
+    cicloOrigens.length > 0 ? Math.max(...cicloOrigens.map((item) => item.ciclo_medio_dias)) : 0
 
   const ticketOrigensOrdenado = [...(ticket_medio_origens ?? [])].sort(
     (a, b) => b.ticket_medio - a.ticket_medio,
@@ -633,6 +649,227 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bloco Ciclo Médio de Vendas */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Hourglass className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Ciclo Médio de Vendas
+            </CardTitle>
+            <CardDescription>
+              Tempo transcorrido entre o primeiro contato e a data de fechamento da venda
+            </CardDescription>
+          </div>
+          {temDadosCiclo && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-1 rounded-md border border-border">
+              <span>Amostra analisada:</span>
+              <strong className="text-foreground font-semibold">
+                {cicloGeral?.qtd_vendas} vendas com data
+              </strong>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="pt-2">
+          {!temDadosCiclo ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Sem vendas com data registradas no período
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Mini-cards de destaque do ciclo geral */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-blue-900 dark:text-blue-300">
+                      Ciclo Médio Geral
+                    </span>
+                    <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-blue-950 dark:text-blue-100 mt-1">
+                    {formatDias(cicloGeral?.media_dias)}
+                  </div>
+                  <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 mt-0.5">
+                    Média de fechamento da empresa
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Mediana</span>
+                    <Timer className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-foreground mt-1">
+                    {formatDias(cicloGeral?.mediana_dias)}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    50% fecham até este prazo
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Mais Rápido / Mais Lento
+                    </span>
+                    <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="text-base font-extrabold text-foreground mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      {formatDias(cicloGeral?.min_dias)}
+                    </span>
+                    <span className="text-muted-foreground font-normal">/</span>
+                    <span className="text-rose-600 dark:text-rose-400">
+                      {formatDias(cicloGeral?.max_dias)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Mínimo e máximo observados
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Vendas Analisadas
+                    </span>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div className="text-2xl font-extrabold text-foreground mt-1">
+                    {cicloGeral?.qtd_vendas}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Vendas com data no período
+                  </p>
+                </div>
+              </div>
+
+              {/* Seção Ciclo por Origem */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Ciclo por Origem</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Ordenado do canal de venda mais rápida para a mais lenta
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    {cicloOrigens.length} {cicloOrigens.length === 1 ? 'origem' : 'origens'}
+                  </span>
+                </div>
+
+                <div className="grid lg:grid-cols-12 gap-6 items-start pt-1">
+                  {/* Barras horizontais por origem (mesmo padrão visual do Ticket Médio) */}
+                  <div className="lg:col-span-7 space-y-4">
+                    {cicloOrigens.map((item, idx) => {
+                      const color = getOriginColor(item.origem, idx)
+                      const percentWidth =
+                        maxCicloOrigem > 0
+                          ? Math.max(6, Math.round((item.ciclo_medio_dias / maxCicloOrigem) * 100))
+                          : 0
+
+                      return (
+                        <div key={item.origem} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs font-medium">
+                            <div className="flex items-center gap-2 truncate">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="font-semibold text-foreground truncate">
+                                {item.origem}
+                              </span>
+                              <span className="text-muted-foreground text-[11px] truncate">
+                                · {item.qtd_vendas} {item.qtd_vendas === 1 ? 'venda' : 'vendas'}
+                              </span>
+                            </div>
+                            <span className="font-bold text-foreground shrink-0 ml-2">
+                              {formatDias(item.ciclo_medio_dias)}
+                            </span>
+                          </div>
+                          <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500 ease-out"
+                              style={{
+                                width: `${percentWidth}%`,
+                                backgroundColor: color,
+                              }}
+                              title={`${item.origem} — ${formatDias(item.ciclo_medio_dias)} · ${item.qtd_vendas} vendas`}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Mini-tabela resumo ao lado */}
+                  <div className="lg:col-span-5 overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
+                        <tr>
+                          <th className="py-2.5 px-3 font-semibold">Origem</th>
+                          <th className="py-2.5 px-3 text-right font-semibold">Vendas</th>
+                          <th className="py-2.5 px-3 text-right font-semibold">Mín / Máx</th>
+                          <th className="py-2.5 px-3 text-right font-semibold">Ciclo Médio</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border bg-card">
+                        {cicloOrigens.map((item, idx) => (
+                          <tr key={item.origem} className="hover:bg-muted/30 transition-colors">
+                            <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
+                              <span
+                                className="w-2 h-2 rounded-full inline-block shrink-0"
+                                style={{ backgroundColor: getOriginColor(item.origem, idx) }}
+                              />
+                              <span className="truncate">{item.origem}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                              {item.qtd_vendas}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
+                              {item.ciclo_min_dias.toLocaleString('pt-BR', {
+                                maximumFractionDigits: 1,
+                              })}
+                              d /{' '}
+                              {item.ciclo_max_dias.toLocaleString('pt-BR', {
+                                maximumFractionDigits: 1,
+                              })}
+                              d
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                              {formatDias(item.ciclo_medio_dias)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="border-t border-border bg-muted/40 font-semibold text-foreground">
+                        <tr>
+                          <td className="py-2 px-3">Geral Empresa</td>
+                          <td className="py-2 px-3 text-right">{cicloGeral?.qtd_vendas ?? 0}</td>
+                          <td className="py-2 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
+                            {(cicloGeral?.min_dias ?? 0).toLocaleString('pt-BR', {
+                              maximumFractionDigits: 1,
+                            })}
+                            d /{' '}
+                            {(cicloGeral?.max_dias ?? 0).toLocaleString('pt-BR', {
+                              maximumFractionDigits: 1,
+                            })}
+                            d
+                          </td>
+                          <td className="py-2 px-3 text-right font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                            {formatDias(cicloGeral?.media_dias)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Bloco Ticket Médio por Origem */}
       <Card className="border-border shadow-sm">

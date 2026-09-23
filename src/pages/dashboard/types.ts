@@ -35,6 +35,27 @@ export interface OrigemTicket {
   ticket_medio: number
 }
 
+export interface CicloOrigem {
+  origem: string
+  qtd_vendas: number
+  ciclo_medio_dias: number
+  ciclo_min_dias: number
+  ciclo_max_dias: number
+}
+
+export interface CicloVendasGeral {
+  media_dias: number
+  mediana_dias: number
+  min_dias: number
+  max_dias: number
+  qtd_vendas: number
+}
+
+export interface CicloVendasMetrics {
+  geral: CicloVendasGeral
+  por_origem: CicloOrigem[]
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -45,6 +66,7 @@ export interface AtendimentosMetrics {
   status_atendimento: StatusAtendimentoItem[]
   origens: OrigemItem[]
   ticket_medio_origens?: OrigemTicket[]
+  ciclo_vendas?: CicloVendasMetrics
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem
