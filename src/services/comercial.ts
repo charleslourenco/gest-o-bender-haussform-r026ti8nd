@@ -146,7 +146,11 @@ export const fetchLeadById = async (id: string) => {
 export const fetchUsers = async () => {
   const { data, error } = await supabase.from('users').select('id, nome').eq('status', true)
   if (error) throw error
-  return data
+  return Array.isArray(data)
+    ? data
+        .filter((u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '')
+        .map((u) => ({ id: u.id.trim(), nome: (u.nome || u.id).trim() }))
+    : []
 }
 
 export const createLead = async (leadData: any) => {

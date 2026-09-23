@@ -225,14 +225,17 @@ export function leadBelongsToAba(
   }
 
   if (abaId === 'lead-orcamentos') {
+    const isCatOrcamento = cat.toLowerCase() === 'orçamento' || cat.toLowerCase() === 'orcamento'
+    // Se o status for 'Vendido', exige EXCLUSIVAMENTE categoria Orçamento
+    if (status === 'Vendido') {
+      return isCatOrcamento
+    }
     return (
-      cat.toLowerCase() === 'orçamento' ||
-      cat.toLowerCase() === 'orcamento' ||
+      isCatOrcamento ||
       status === 'Novo Orçamento' ||
       status === 'Em andamento' ||
       status === 'Orçamento Concluido' ||
       status === 'Orçamento Concluído' ||
-      status === 'Vendido' ||
       status === 'Encaminhado'
     )
   }

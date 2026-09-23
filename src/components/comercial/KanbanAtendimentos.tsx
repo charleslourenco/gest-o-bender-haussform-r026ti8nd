@@ -1099,7 +1099,9 @@ export function KanbanAtendimentos({
         >
           {Array.isArray(safeAba?.colunas) &&
             safeAba.colunas.map((coluna) => {
-              const colLeads = leadsByColumn.get(coluna) || []
+              const colLeads = Array.isArray(leadsByColumn.get(coluna))
+                ? (leadsByColumn.get(coluna) as Lead[]).filter(Boolean)
+                : []
 
               const isDropTarget = dragOverCol === coluna
 
