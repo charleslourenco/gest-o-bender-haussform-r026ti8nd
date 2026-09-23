@@ -28,6 +28,13 @@ export interface LeadsSemOrigemItem {
   convertidos: number
 }
 
+export interface OrigemTicket {
+  origem: string
+  qtd_vendas: number
+  valor_total: number
+  ticket_medio: number
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -37,6 +44,7 @@ export interface AtendimentosMetrics {
   vendas_total_para_cobertura?: number
   status_atendimento: StatusAtendimentoItem[]
   origens: OrigemItem[]
+  ticket_medio_origens?: OrigemTicket[]
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem

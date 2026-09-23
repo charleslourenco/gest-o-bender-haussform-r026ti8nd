@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   ClipboardList,
   Info,
+  DollarSign,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -49,6 +50,28 @@ const ORIGIN_COLORS = [
   '#64748b', // a definir slate
 ]
 
+const ORIGIN_COLOR_MAP: Record<string, string> = {
+  Instagram: '#e1306c',
+  Indicação: '#8b5cf6',
+  Recompra: '#0284c7',
+  Google: '#4285f4',
+  'Meta Ads': '#1877F2',
+  Corretor: '#f59e0b',
+  Porta: '#f97316',
+  Arquiteto: '#06b6d4',
+  'Bender Conecta': '#3b82f6',
+  'A definir': '#64748b',
+}
+
+function getOriginColor(originName: string, fallbackIdx = 0): string {
+  return ORIGIN_COLOR_MAP[originName] || ORIGIN_COLORS[fallbackIdx % ORIGIN_COLORS.length]
+}
+
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+})
+
 const STATUS_LABELS: Record<string, { label: string; badge: string }> = {
   em_atendimento: {
     label: 'Em Atendimento',
@@ -79,10 +102,21 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     vendas_total_para_cobertura,
     status_atendimento,
     origens,
+    ticket_medio_origens,
     evolucao_mensal,
     dias_semana,
     leads_sem_origem,
   } = data
+
+  const ticketOrigensOrdenado = [...(ticket_medio_origens ?? [])].sort(
+    (a, b) => b.ticket_medio - a.ticket_medio,
+  )
+  const maxTicketMedio =
+    ticketOrigensOrdenado.length > 0
+      ? Math.max(...ticketOrigensOrdenado.map((item) => item.ticket_medio))
+      : 0
+  const totalVendasTicket = ticketOrigensOrdenado.reduce((acc, cur) => acc + cur.qtd_vendas, 0)
+  const totalValorTicket = ticketOrigensOrdenado.reduce((acc, cur) => acc + cur.valor_total, 0)
 
   // Achar melhor origem por conversão com pelo menos 1 lead (exceto 'A definir' para destacar canal real)
   const origensComLeads = origens.filter((o) => o.total > 0)
@@ -496,11 +530,8 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                       outerRadius={75}
                       paddingAngle={2}
                     >
-                      {origensComLeads.map((_, index) => (
-                        <Cell
-                          key={`cell-pie-${index}`}
-                          fill={ORIGIN_COLORS[index % ORIGIN_COLORS.length]}
-                        />
+                      {origensComLeads.map((item, index) => (
+                        <Cell key={`cell-pie-${index}`} fill={getOriginColor(item.origem, index)} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -547,7 +578,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                         <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
                           <span
                             className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                            style={{ backgroundColor: ORIGIN_COLORS[idx % ORIGIN_COLORS.length] }}
+                            style={{ backgroundColor: getOriginColor(item.origem, idx) }}
                           />
                           <span className="flex items-center gap-1.5">
                             {item.origem}
@@ -602,6 +633,133 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bloco Ticket Médio por Origem */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Ticket Médio por Origem
+            </CardTitle>
+            <CardDescription>
+              Valor médio contratado por canal de captação de clientes vendidos
+            </CardDescription>
+          </div>
+          {ticketOrigensOrdenado.length > 0 && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-1 rounded-md border border-border">
+              <span>Total somado:</span>
+              <strong className="text-foreground font-semibold">
+                {currencyFormatter.format(totalValorTicket)}
+              </strong>
+              <span className="text-muted-foreground/60">•</span>
+              <strong className="text-foreground font-semibold">{totalVendasTicket} vendas</strong>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="pt-2">
+          {ticketOrigensOrdenado.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Sem vendas com valor registradas no período
+            </div>
+          ) : (
+            <div className="grid lg:grid-cols-12 gap-6 items-start">
+              {/* Barras horizontais por origem */}
+              <div className="lg:col-span-7 space-y-4">
+                {ticketOrigensOrdenado.map((item, idx) => {
+                  const color = getOriginColor(item.origem, idx)
+                  const percentWidth =
+                    maxTicketMedio > 0
+                      ? Math.max(6, Math.round((item.ticket_medio / maxTicketMedio) * 100))
+                      : 0
+
+                  return (
+                    <div key={item.origem} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="font-semibold text-foreground truncate">
+                            {item.origem}
+                          </span>
+                          <span className="text-muted-foreground text-[11px] truncate">
+                            · {item.qtd_vendas} {item.qtd_vendas === 1 ? 'venda' : 'vendas'}
+                          </span>
+                        </div>
+                        <span className="font-bold text-foreground shrink-0 ml-2">
+                          {currencyFormatter.format(item.ticket_medio)}
+                        </span>
+                      </div>
+                      <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${percentWidth}%`,
+                            backgroundColor: color,
+                          }}
+                          title={`${item.origem} — ${currencyFormatter.format(item.ticket_medio)} · ${item.qtd_vendas} vendas`}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Mini-tabela resumo ao lado */}
+              <div className="lg:col-span-5 overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
+                    <tr>
+                      <th className="py-2.5 px-3 font-semibold">Origem</th>
+                      <th className="py-2.5 px-3 text-right font-semibold">Vendas</th>
+                      <th className="py-2.5 px-3 text-right font-semibold">Valor Total</th>
+                      <th className="py-2.5 px-3 text-right font-semibold">Ticket Médio</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-card">
+                    {ticketOrigensOrdenado.map((item, idx) => (
+                      <tr key={item.origem} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: getOriginColor(item.origem, idx) }}
+                          />
+                          <span className="truncate">{item.origem}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.qtd_vendas}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
+                          {currencyFormatter.format(item.valor_total)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                          {currencyFormatter.format(item.ticket_medio)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-border bg-muted/40 font-semibold text-foreground">
+                    <tr>
+                      <td className="py-2 px-3">Total</td>
+                      <td className="py-2 px-3 text-right">{totalVendasTicket}</td>
+                      <td className="py-2 px-3 text-right font-medium">
+                        {currencyFormatter.format(totalValorTicket)}
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        {totalVendasTicket > 0
+                          ? currencyFormatter.format(totalValorTicket / totalVendasTicket)
+                          : currencyFormatter.format(0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
