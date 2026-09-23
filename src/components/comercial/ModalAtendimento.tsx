@@ -232,7 +232,7 @@ export function ModalAtendimento({
         items.push({
           id: `create-${lead.id}`,
           titulo: 'Lead Criado no Sistema',
-          descricao: `Lead registrado via ${lead.origem || 'WhatsApp'}${
+          descricao: `Lead registrado via ${lead.origem || 'A definir'}${
             lead.criado_por_nome ? ` por ${lead.criado_por_nome}` : ''
           }. Estágio inicial: "${lead.status || '-'}".`,
           data: lead.criado_em,

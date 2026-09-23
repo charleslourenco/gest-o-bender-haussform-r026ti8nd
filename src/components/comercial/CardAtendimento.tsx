@@ -223,36 +223,35 @@ function CardAtendimentoComponent({
     await onUpdateLead(lead.id, { consultor_id: val })
   }
 
-  const consultorRaw = lead?.consultor || (lead as any)?.users
+  const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = useMemo(() => {
     try {
       if (Array.isArray(consultorRaw)) {
         const first = consultorRaw[0]
-        if (typeof first === 'object' && first !== null && typeof first.nome === 'string') {
-          return first.nome
+        if (first && typeof first === 'object' && typeof first.nome === 'string') {
+          return first.nome.trim() || undefined
         }
-        if (typeof first === 'string') return first
-        return undefined
-      }
-      if (typeof consultorRaw === 'object' && consultorRaw !== null) {
-        if (typeof (consultorRaw as any)?.nome === 'string') {
-          return (consultorRaw as any).nome
+        if (typeof first === 'string' && first.trim()) return first.trim()
+      } else if (consultorRaw && typeof consultorRaw === 'object') {
+        if (typeof (consultorRaw as any).nome === 'string' && (consultorRaw as any).nome.trim()) {
+          return (consultorRaw as any).nome.trim()
         }
-        return undefined
+      } else if (typeof consultorRaw === 'string' && consultorRaw.trim()) {
+        return consultorRaw.trim()
       }
-      if (typeof lead?.consultor === 'string') {
-        return lead.consultor
-      }
+
       // Fallback: buscar na lista safeUsers pelo consultor_id
       if (lead?.consultor_id && Array.isArray(users)) {
-        const u = users.find((user) => user && user.id === lead.consultor_id)
-        if (typeof u?.nome === 'string') return u.nome
+        const u = users.find(
+          (user) => user && typeof user.id === 'string' && user.id === lead.consultor_id,
+        )
+        if (typeof u?.nome === 'string' && u.nome.trim()) return u.nome.trim()
       }
     } catch {
       return undefined
     }
     return undefined
-  }, [consultorRaw, lead?.consultor, lead?.consultor_id, users])
+  }, [consultorRaw, lead?.consultor_id, users])
 
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
@@ -272,7 +271,9 @@ function CardAtendimentoComponent({
 
   const safeUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
-    return users.filter((u) => u && typeof u.id === 'string' && u.id.trim() !== '')
+    return users.filter(
+      (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
+    )
   }, [users])
 
   // Cores de prioridade

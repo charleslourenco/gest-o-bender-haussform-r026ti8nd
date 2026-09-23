@@ -517,7 +517,7 @@ Deno.serve(async (req) => {
           nome: initialLeadName,
           telefone: phone,
           email: `${phone}@whatsapp.com`,
-          origem: 'WhatsApp',
+          origem: 'A definir',
           status: 'Novo contato',
           notas: '',
           atualizado_em: nowStr,

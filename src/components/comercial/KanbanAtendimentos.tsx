@@ -742,11 +742,13 @@ export function KanbanAtendimentos({
 
         // Filtro por Origem do Lead (incluindo 'Corretor' e demais origens)
         if (origemFilter !== 'all') {
-          const leadOrigemNorm = (l.origem || '').trim().toLowerCase()
+          const rawOrigem = typeof l.origem === 'string' ? l.origem.trim().toLowerCase() : ''
           if (origemFilter === 'sem_origem') {
-            if (leadOrigemNorm !== '' && leadOrigemNorm !== 'sem origem') return false
+            if (rawOrigem !== '' && rawOrigem !== 'sem origem' && rawOrigem !== 'a definir')
+              return false
           } else {
-            if (leadOrigemNorm !== origemFilter.trim().toLowerCase()) return false
+            const filterNorm = (origemFilter || '').trim().toLowerCase()
+            if (rawOrigem !== filterNorm) return false
           }
         }
 
@@ -777,34 +779,43 @@ export function KanbanAtendimentos({
   // Agrupamento memoizado dos leads por coluna para evitar .filter() a cada render/coluna
   const leadsByColumn = useMemo(() => {
     const map = new Map<string, Lead[]>()
-    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas : []
+    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas.filter(Boolean) : []
     colunas.forEach((c) => map.set(c, []))
 
+    const fallbackCol = colunas[0] || 'Novo contato'
+
     const getColForLead = (l: Lead): string => {
-      const fallbackCol = colunas[0] || 'Novo contato'
       if (!l || typeof l !== 'object') return fallbackCol
       const s = typeof l.status === 'string' ? l.status.trim() : ''
       if (!s) return fallbackCol
       const sLower = s.toLowerCase()
 
-      const exactMatch = colunas.find((c) => c && c.trim().toLowerCase() === sLower)
+      const exactMatch = colunas.find(
+        (c) => typeof c === 'string' && c.trim().toLowerCase() === sLower,
+      )
       if (exactMatch) return exactMatch
 
       // Na aba 01 (novo-contato / SDR), garantir mapeamentos específicos
       if (safeAba?.id === 'novo-contato') {
         if (sLower === 'novo lead' || sLower === 'novo' || sLower === 'novo contato') {
-          const novoCol = colunas.find((c) => c.toLowerCase() === 'novo contato')
+          const novoCol = colunas.find(
+            (c) => typeof c === 'string' && c.trim().toLowerCase() === 'novo contato',
+          )
           if (novoCol) return novoCol
         }
         if (sLower === 'encaminhado para' || sLower === 'despachados') {
-          const despachadosCol = colunas.find((c) => c.toLowerCase() === 'despachados')
+          const despachadosCol = colunas.find(
+            (c) => typeof c === 'string' && c.trim().toLowerCase() === 'despachados',
+          )
           if (despachadosCol) return despachadosCol
         }
       }
 
       // Equivalência para a coluna "Orçamento Concluido" na aba de Orçamentos
       if (safeAba?.id === 'lead-orcamentos') {
-        const orcamentoConcluidoCol = colunas.find((c) => c && c.toLowerCase().includes('concluid'))
+        const orcamentoConcluidoCol = colunas.find(
+          (c) => typeof c === 'string' && c.toLowerCase().includes('concluid'),
+        )
         if (
           orcamentoConcluidoCol &&
           (sLower === 'encaminhado' || sLower.includes('concluid') || sLower.includes('concluído'))
@@ -814,7 +825,9 @@ export function KanbanAtendimentos({
       }
 
       if (sLower.includes('encaminhado')) {
-        const encaminhadoCol = colunas.find((c) => c && c.toLowerCase().includes('encaminhado'))
+        const encaminhadoCol = colunas.find(
+          (c) => typeof c === 'string' && c.toLowerCase().includes('encaminhado'),
+        )
         if (encaminhadoCol) return encaminhadoCol
       }
 
@@ -829,37 +842,45 @@ export function KanbanAtendimentos({
         if (currentList) {
           currentList.push(l)
         } else {
+          // Se a coluna não existia previamente no map (caso improvável), cria a entrada
           map.set(col, [l])
         }
       })
     }
 
     return map
-  }, [tabLeads, safeAba.colunas])
+  }, [tabLeads, safeAba?.colunas, safeAba?.id])
 
   // Cálculo de pendências por coluna desta aba
   const pendenciasByColumn = useMemo(() => {
     const map = new Map<string, number>()
-    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas : []
+    const colunas = Array.isArray(safeAba?.colunas) ? safeAba.colunas.filter(Boolean) : []
     colunas.forEach((c) => map.set(c, 0))
 
     colunas.forEach((coluna) => {
-      const colLeads = leadsByColumn.get(coluna) || []
-      const pendentesCount = colLeads.filter(
-        (l) => l.status_atendimento === 'aguardando_resposta' && leadsWithClientMessage.has(l.id),
-      ).length
+      const colLeads = leadsByColumn?.get?.(coluna) || []
+      const pendentesCount = Array.isArray(colLeads)
+        ? colLeads.filter(
+            (l) =>
+              l &&
+              l.status_atendimento === 'aguardando_resposta' &&
+              leadsWithClientMessage?.has?.(l.id),
+          ).length
+        : 0
       map.set(coluna, pendentesCount)
     })
 
     return map
-  }, [safeAba.colunas, leadsByColumn, leadsWithClientMessage])
+  }, [safeAba?.colunas, leadsByColumn, leadsWithClientMessage])
 
   // Total de pendências na aba atual
   const totalPendenciasAba = useMemo(() => {
     let sum = 0
-    pendenciasByColumn.forEach((count) => {
-      sum += count
-    })
+    if (pendenciasByColumn && typeof pendenciasByColumn.forEach === 'function') {
+      pendenciasByColumn.forEach((count) => {
+        sum += typeof count === 'number' ? count : 0
+      })
+    }
     return sum
   }, [pendenciasByColumn])
 
@@ -941,13 +962,16 @@ export function KanbanAtendimentos({
         <SelectContent>
           <SelectItem value="all">Todos Responsáveis</SelectItem>
           <SelectItem value="unassigned">Não atribuído</SelectItem>
-          {users
-            .filter((u) => u && typeof u.id === 'string' && u.id.trim() !== '')
-            .map((u) => (
-              <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
-                {u.nome || u.id}
-              </SelectItem>
-            ))}
+          {Array.isArray(users) &&
+            users
+              .filter(
+                (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
+              )
+              .map((u) => (
+                <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
+                  {u.nome || u.id}
+                </SelectItem>
+              ))}
         </SelectContent>
       </Select>
 

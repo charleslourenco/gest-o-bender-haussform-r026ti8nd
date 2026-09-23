@@ -338,15 +338,14 @@ export function isOrigemCorretor(origem?: string | null): boolean {
 export const ORIGENS_LEAD = [
   'Instagram',
   'Google',
+  'Meta Ads',
   'Recompra',
   'Corretor',
   'Arquiteto',
   'Indicação',
   'Porta',
   'A definir',
-  'WhatsApp',
   'Bender Conecta',
-  'Assistência Técnica',
 ] as const
 
 export type OrigemLead = (typeof ORIGENS_LEAD)[number]
