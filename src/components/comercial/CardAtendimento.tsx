@@ -222,59 +222,47 @@ function CardAtendimentoComponent({
     await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
-  const handleToggleNecessidade = async (item: string) => {
-    // Usar o meta mais recente de metaRef e de lead.notas_pessoais para serialização imediata
-    const currentParsed = parseLeadMetadados((lead as any)?.notas_pessoais)
-    const baseMeta = { ...(metaRef.current || {}), ...(currentParsed.meta || {}) }
-    const currentList: string[] = Array.isArray(baseMeta.necessidades)
-      ? [...baseMeta.necessidades]
-      : []
-    const isFullHouseSelected = currentList.includes('Apartamento/Casa Completa')
-
-    if (isFullHouseSelected && item !== 'Apartamento/Casa Completa') {
-      return
-    }
-
-    let newList: string[]
-    if (item === 'Apartamento/Casa Completa') {
-      if (isFullHouseSelected) {
-        newList = []
+  const handleToggleNecessidade = async (opcao: string) => {
+    try {
+      const { notas: currentNotas, meta: currentMeta } = parseLeadMetadados(
+        (lead as any)?.notas_pessoais,
+      )
+      const currentList: string[] = Array.isArray(currentMeta.necessidades)
+        ? [...currentMeta.necessidades]
+        : []
+      let updatedList: string[]
+      if (opcao === 'Apartamento/Casa Completa') {
+        updatedList = currentList.includes('Apartamento/Casa Completa')
+          ? []
+          : ['Apartamento/Casa Completa']
       } else {
-        newList = ['Apartamento/Casa Completa']
+        if (currentList.includes('Apartamento/Casa Completa')) return // bloqueado
+        updatedList = currentList.includes(opcao)
+          ? currentList.filter((i) => i !== opcao)
+          : [...currentList, opcao]
       }
-    } else {
-      if (currentList.includes(item)) {
-        newList = currentList.filter((n) => n !== item)
-      } else {
-        newList = [...currentList, item]
-      }
+      const updatedMeta: LeadMetadados = { ...currentMeta, necessidades: updatedList }
+      metaRef.current = updatedMeta
+      const newNotasPessoais = stringifyLeadMetadados(currentNotas, updatedMeta)
+      await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    } catch (err) {
+      console.error('Erro ao atualizar necessidades:', err)
     }
-
-    const newMeta: LeadMetadados = {
-      ...baseMeta,
-      necessidades: newList,
-    }
-    metaRef.current = newMeta
-    const currentNotas = currentParsed.notas !== undefined ? currentParsed.notas : notas
-    const newNotasPessoais = stringifyLeadMetadados(currentNotas, newMeta)
-    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
-  const handleToggleObjetivo = async (item: string) => {
-    const currentParsed = parseLeadMetadados((lead as any)?.notas_pessoais)
-    const baseMeta = { ...(metaRef.current || {}), ...(currentParsed.meta || {}) }
-
-    // Clicar no já selecionado desmarca (limpa o campo)
-    const updatedObjetivo = baseMeta.objetivo_imovel === item ? undefined : item
-
-    const newMeta: LeadMetadados = {
-      ...baseMeta,
-      objetivo_imovel: updatedObjetivo,
+  const handleToggleObjetivo = async (opcao: string) => {
+    try {
+      const { notas: currentNotas, meta: currentMeta } = parseLeadMetadados(
+        (lead as any)?.notas_pessoais,
+      )
+      const newObjetivo = currentMeta.objetivo_imovel === opcao ? undefined : opcao
+      const updatedMeta: LeadMetadados = { ...currentMeta, objetivo_imovel: newObjetivo }
+      metaRef.current = updatedMeta
+      const newNotasPessoais = stringifyLeadMetadados(currentNotas, updatedMeta)
+      await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    } catch (err) {
+      console.error('Erro ao atualizar objetivo do imóvel:', err)
     }
-    metaRef.current = newMeta
-    const currentNotas = currentParsed.notas !== undefined ? currentParsed.notas : notas
-    const newNotasPessoais = stringifyLeadMetadados(currentNotas, newMeta)
-    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
   const handleResponsavelChange = async (userId: string) => {
@@ -832,7 +820,7 @@ function CardAtendimentoComponent({
           </div>
         </div>
       )}{' '}
-      {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) */}{' '}
+      {/* CAMPOS EXCLUSIVOS DA ABA 05 (Leads p/ Orçamentos) - Descrição, Prazo e Prioridade */}
       {currentAba?.isOrcamentos && (
         <div
           className={cn(
@@ -915,109 +903,6 @@ function CardAtendimentoComponent({
             )}
           </div>
 
-          {/* Seção Necessidade do Cliente */}
-          <div
-            className={cn(
-              'pt-2 border-t',
-              isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
-            )}
-          >
-            <span
-              className={cn(
-                'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
-                isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
-              )}
-            >
-              Necessidade do Cliente
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {(
-                [
-                  'Apartamento/Casa Completa',
-                  'Cozinha',
-                  'Dormitório',
-                  'Banheiro',
-                  'Living',
-                  'Área Gourmet',
-                ] as const
-              ).map((opcao) => {
-                const isCompletaSelected = Boolean(
-                  Array.isArray(meta?.necessidades) &&
-                  meta.necessidades.includes('Apartamento/Casa Completa'),
-                )
-                const isSelected = Boolean(
-                  Array.isArray(meta?.necessidades) && meta.necessidades.includes(opcao),
-                )
-                const isDisabled = opcao !== 'Apartamento/Casa Completa' && isCompletaSelected
-
-                return (
-                  <button
-                    key={opcao}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={() => handleToggleNecessidade(opcao)}
-                    className={cn(
-                      'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border text-left',
-                      isDisabled && 'opacity-40 cursor-not-allowed pointer-events-none',
-                      !isDisabled && 'cursor-pointer',
-                      isNovoContato
-                        ? isSelected
-                          ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
-                          : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
-                        : isSelected
-                          ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
-                          : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
-                    )}
-                  >
-                    {opcao}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Seção Objetivo do Imóvel */}
-          <div
-            className={cn(
-              'pt-2 border-t',
-              isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
-            )}
-          >
-            <span
-              className={cn(
-                'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
-                isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
-              )}
-            >
-              Objetivo do Imóvel
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {(['Locação', 'Moradia', 'Investimento'] as const).map((opcao) => {
-                const isSelected = meta?.objetivo_imovel === opcao
-
-                return (
-                  <button
-                    key={opcao}
-                    type="button"
-                    onClick={() => handleToggleObjetivo(opcao)}
-                    className={cn(
-                      'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border cursor-pointer text-left',
-                      isNovoContato
-                        ? isSelected
-                          ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
-                          : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
-                        : isSelected
-                          ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
-                          : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
-                    )}
-                  >
-                    {opcao}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* Prazo e Prioridade */}
           <div
             className={cn(
@@ -1025,7 +910,6 @@ function CardAtendimentoComponent({
               isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
             )}
           >
-            {' '}
             {/* Prazo */}
             <div>
               <span
@@ -1100,6 +984,114 @@ function CardAtendimentoComponent({
           </div>
         </div>
       )}
+      {/* SEÇÕES GLOBAIS: Necessidade do Cliente e Objetivo do Imóvel (em TODOS os cards de TODAS as abas) */}
+      <div
+        className={cn(
+          'p-2.5 rounded-lg border space-y-2 text-[13px]',
+          isNovoContato
+            ? 'bg-black/20 border-white/20 text-white'
+            : 'bg-[#F9FAFB] dark:bg-[#161B22] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#6B7280] dark:text-[#8B949E]',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Seção Necessidade do Cliente */}
+        <div>
+          <span
+            className={cn(
+              'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
+              isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+            )}
+          >
+            Necessidade do Cliente
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                'Apartamento/Casa Completa',
+                'Cozinha',
+                'Dormitório',
+                'Banheiro',
+                'Living',
+                'Área Gourmet',
+              ] as const
+            ).map((opcao) => {
+              const isCompletaSelected = Boolean(
+                Array.isArray(meta?.necessidades) &&
+                meta.necessidades.includes('Apartamento/Casa Completa'),
+              )
+              const isSelected = Boolean(
+                Array.isArray(meta?.necessidades) && meta.necessidades.includes(opcao),
+              )
+              const isDisabled = opcao !== 'Apartamento/Casa Completa' && isCompletaSelected
+
+              return (
+                <button
+                  key={opcao}
+                  type="button"
+                  disabled={isDisabled}
+                  onClick={() => handleToggleNecessidade(opcao)}
+                  className={cn(
+                    'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border text-left',
+                    isDisabled && 'opacity-40 cursor-not-allowed pointer-events-none',
+                    !isDisabled && 'cursor-pointer',
+                    isNovoContato
+                      ? isSelected
+                        ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
+                        : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
+                      : isSelected
+                        ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                        : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
+                  )}
+                >
+                  {opcao}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Seção Objetivo do Imóvel */}
+        <div
+          className={cn(
+            'pt-2 border-t',
+            isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
+          )}
+        >
+          <span
+            className={cn(
+              'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
+              isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+            )}
+          >
+            Objetivo do Imóvel
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {(['Locação', 'Moradia', 'Investimento'] as const).map((opcao) => {
+              const isSelected = meta?.objetivo_imovel === opcao
+
+              return (
+                <button
+                  key={opcao}
+                  type="button"
+                  onClick={() => handleToggleObjetivo(opcao)}
+                  className={cn(
+                    'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border cursor-pointer text-left',
+                    isNovoContato
+                      ? isSelected
+                        ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
+                        : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
+                      : isSelected
+                        ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                        : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
+                  )}
+                >
+                  {opcao}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
       {/* Seção inferior do Card: Responsável (Consultor) */}
       <div
         className={cn(
