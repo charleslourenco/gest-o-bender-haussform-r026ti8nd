@@ -11,8 +11,9 @@ import {
   RefreshCw,
   Loader2,
   Filter,
+  Trash2,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -31,6 +32,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercial/constants'
 
 // Origens válidas permitidas para atribuição (exclui 'A definir' para não manter o lead como pendente)
@@ -54,6 +66,8 @@ export default function LeadsSemOrigem() {
   const [leads, setLeads] = useState<LeadSemOrigem[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [leadToDelete, setLeadToDelete] = useState<LeadSemOrigem | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroAba, setFiltroAba] = useState<string>('todas')
 
@@ -113,6 +127,31 @@ export default function LeadsSemOrigem() {
       toast.error('Erro ao atualizar origem: ' + (err?.message || 'Falha ao salvar'))
     } finally {
       setSavingId(null)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!leadToDelete) return
+    const id = leadToDelete.id
+
+    setDeletingId(id)
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ excluido: true } as any)
+        .eq('id', id)
+
+      if (error) {
+        throw error
+      }
+
+      setLeads((prev) => prev.filter((item) => item.id !== id))
+      toast.success('Lead apagado')
+      setLeadToDelete(null)
+    } catch (err: any) {
+      toast.error('Erro ao apagar lead: ' + (err?.message || 'Falha ao salvar'))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -355,11 +394,11 @@ export default function LeadsSemOrigem() {
                           </Badge>
                         </TableCell>
 
-                        {/* Select para Atribuir Nova Origem */}
+                        {/* Select para Atribuir Nova Origem + Botão de Apagar Lead */}
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Select
-                              disabled={isSaving}
+                              disabled={isSaving || deletingId === lead.id}
                               onValueChange={(val) => handleOrigemChange(lead.id, lead.nome, val)}
                             >
                               <SelectTrigger className="h-8 text-xs w-[190px]">
@@ -376,6 +415,31 @@ export default function LeadsSemOrigem() {
                             {isSaving && (
                               <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
                             )}
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    type="button"
+                                    aria-label="Apagar lead"
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    disabled={deletingId === lead.id || isSaving}
+                                    onClick={() => setLeadToDelete(lead)}
+                                  >
+                                    {deletingId === lead.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Apagar lead</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -387,6 +451,51 @@ export default function LeadsSemOrigem() {
           )}
         </CardContent>
       </Card>
+
+      {/* AlertDialog de confirmação para apagar lead (soft delete) */}
+      <AlertDialog
+        open={!!leadToDelete}
+        onOpenChange={(open) => {
+          if (!open && !deletingId) {
+            setLeadToDelete(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar lead?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2 text-sm text-muted-foreground">
+              <span className="block font-medium text-foreground">
+                {leadToDelete?.nome || 'Lead sem nome'}
+              </span>
+              <span>
+                O lead será marcado como excluído e sairá desta fila e do kanban. Ele não será
+                apagado fisicamente do banco.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleConfirmDelete()
+              }}
+              disabled={!!deletingId}
+              className={buttonVariants({ variant: 'destructive' })}
+            >
+              {deletingId ? (
+                <span className="flex items-center gap-1.5">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Apagando...</span>
+                </span>
+              ) : (
+                'Apagar'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
