@@ -73,6 +73,34 @@ export interface MotivosPerdaMetrics {
   qtd_outro?: number
 }
 
+export interface StatusContagemItem {
+  status: string
+  qtd: number
+}
+
+export interface OrigemContagemItem {
+  origem: string
+  qtd: number
+}
+
+export interface NovoContatoMetrics {
+  total: number
+  criados_no_periodo: number
+  por_status: StatusContagemItem[]
+  por_origem: OrigemContagemItem[]
+  taxa_despacho: number
+}
+
+export interface OrcamentosMetrics {
+  total: number
+  por_status: StatusContagemItem[]
+  por_origem: OrigemContagemItem[]
+  convertidos: number
+  taxa_conversao: number
+  ticket_medio_orcamentos: number
+  ciclo_medio_dias: number | null
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -88,6 +116,8 @@ export interface AtendimentosMetrics {
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem
+  novo_contato?: NovoContatoMetrics
+  orcamentos?: OrcamentosMetrics
 }
 
 export interface RankingConsultorItem {
