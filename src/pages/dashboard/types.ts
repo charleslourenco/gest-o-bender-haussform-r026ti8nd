@@ -111,6 +111,19 @@ export interface OrcamentosMetrics {
   ciclo_medio_dias: number | null
 }
 
+export interface TempoColunaItem {
+  coluna: string
+  qtd_cards: number
+  tempo_medio_dias: number
+  tempo_max_dias: number
+}
+
+export interface TempoColunasMetrics {
+  novo_contato: TempoColunaItem[]
+  consultoria: TempoColunaItem[]
+  orcamentos: TempoColunaItem[]
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -129,6 +142,7 @@ export interface AtendimentosMetrics {
   novo_contato?: NovoContatoMetrics
   consultoria?: ConsultoriaMetrics
   orcamentos?: OrcamentosMetrics
+  tempo_colunas?: TempoColunasMetrics
 }
 
 export interface RankingConsultorItem {

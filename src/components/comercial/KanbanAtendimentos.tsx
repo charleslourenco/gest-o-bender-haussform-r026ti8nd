@@ -509,6 +509,28 @@ export function KanbanAtendimentos({
 
       await updateLead(id, finalPayload)
 
+      // Gravar histórico de movimentação de status de forma não-bloqueante (se falhar, ignorar silenciosamente)
+      if (updates.status && updates.status !== currentLead?.status) {
+        supabase
+          .from('leads_status_historico')
+          .insert({
+            lead_id: id,
+            status_anterior: currentLead?.status || null,
+            status_novo: updates.status,
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.warn(
+                '[leads_status_historico] Falha não-bloqueante ao registrar transição:',
+                error,
+              )
+            }
+          })
+          .catch((err) => {
+            console.warn('[leads_status_historico] Erro inesperado ao registrar transição:', err)
+          })
+      }
+
       // Se moveu para vendido, acionar modal de venda
       if (updates.status === 'Vendido') {
         const leadObj = leads.find((l) => l.id === id)

@@ -50,12 +50,14 @@ import {
   PieChart,
   Pie,
 } from 'recharts'
-import { cleanColumnTitle } from '@/components/comercial/constants'
+import { cleanColumnTitle, ATENDIMENTO_ABAS } from '@/components/comercial/constants'
 import type {
   AtendimentosMetrics,
   NovoContatoMetrics,
   OrcamentosMetrics,
   ConsultoriaMetrics,
+  TempoColunaItem,
+  TempoColunasMetrics,
 } from './types'
 
 const ORIGIN_COLORS = [
@@ -136,6 +138,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     novo_contato,
     consultoria,
     orcamentos,
+    tempo_colunas,
   } = data
 
   const formatDias = (dias: number | undefined | null) => {
@@ -1338,21 +1341,216 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
       )}
 
       {/* SUB-ABA 2: NOVO CONTATO */}
-      {activeSubTab === 'novo_contato' && <NovoContatoSubTab data={novo_contato} />}
+      {activeSubTab === 'novo_contato' && (
+        <NovoContatoSubTab data={novo_contato} tempoColunas={tempo_colunas?.novo_contato} />
+      )}
 
       {/* SUB-ABA 3: CONSULTORIA */}
-      {activeSubTab === 'consultoria' && <ConsultoriaSubTab data={consultoria} />}
+      {activeSubTab === 'consultoria' && (
+        <ConsultoriaSubTab data={consultoria} tempoColunas={tempo_colunas?.consultoria} />
+      )}
 
       {/* SUB-ABA 4: LEADS P/ ORÇAMENTO */}
-      {activeSubTab === 'orcamentos' && <OrcamentosSubTab data={orcamentos} />}
+      {activeSubTab === 'orcamentos' && (
+        <OrcamentosSubTab data={orcamentos} tempoColunas={tempo_colunas?.orcamentos} />
+      )}
     </div>
+  )
+}
+
+// -------------------------------------------------------------
+// Componente Reutilizável: Tempo dos Leads por Coluna
+// -------------------------------------------------------------
+interface BlocoTempoColunasProps {
+  abaId: string
+  items?: TempoColunaItem[]
+  descricao?: string
+}
+
+function BlocoTempoColunas({ abaId, items = [], descricao }: BlocoTempoColunasProps) {
+  const abaConfig = ATENDIMENTO_ABAS.find((a) => a.id === abaId)
+  const colunasConfig = abaConfig?.colunas ?? []
+
+  // Mapear itens por coluna original e por título limpo
+  const mapItens = new Map<string, TempoColunaItem>()
+  for (const it of items) {
+    if (!it || !it.coluna) continue
+    mapItens.set(it.coluna, it)
+    const limpo = cleanColumnTitle(it.coluna)
+    if (limpo && !mapItens.has(limpo)) {
+      mapItens.set(limpo, it)
+    }
+  }
+
+  // Montar lista respeitando a ordem do funil de ATENDIMENTO_ABAS
+  const seenOriginal = new Set<string>()
+  const colunasOrdenadas: {
+    rotulo: string
+    colunaReal: string
+    qtd: number
+    tempoMedio: number
+    tempoMax: number
+  }[] = []
+
+  for (const col of colunasConfig) {
+    const limpo = cleanColumnTitle(col)
+    // Tenta correspondência exata, depois limpa
+    const it = mapItens.get(col) ?? mapItens.get(limpo)
+    if (it) {
+      seenOriginal.add(it.coluna)
+    }
+    colunasOrdenadas.push({
+      rotulo: limpo || col,
+      colunaReal: it?.coluna || col,
+      qtd: it?.qtd_cards ?? 0,
+      tempoMedio: it?.tempo_medio_dias ?? 0,
+      tempoMax: it?.tempo_max_dias ?? 0,
+    })
+  }
+
+  // Incluir colunas que tenham cards no banco mas não constavam estritamente na lista (ex: status legados)
+  for (const it of items) {
+    if (!it || !it.coluna) continue
+    if (!seenOriginal.has(it.coluna)) {
+      colunasOrdenadas.push({
+        rotulo: cleanColumnTitle(it.coluna) || it.coluna,
+        colunaReal: it.coluna,
+        qtd: it.qtd_cards ?? 0,
+        tempoMedio: it.tempo_medio_dias ?? 0,
+        tempoMax: it.tempo_max_dias ?? 0,
+      })
+    }
+  }
+
+  const totalCards = colunasOrdenadas.reduce((acc, c) => acc + c.qtd, 0)
+  const maxTempoMedio =
+    colunasOrdenadas.length > 0 ? Math.max(...colunasOrdenadas.map((c) => c.tempoMedio)) : 0
+
+  const formatDiasNum = (dias: number) => {
+    return `${dias.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} dias`
+  }
+
+  // Cores contextuais: vermelho nas colunas com maior tempo médio relativo
+  const getBarColor = (tempoMedio: number) => {
+    if (tempoMedio <= 0 || maxTempoMedio <= 0) return '#94a3b8' // slate neutro
+    const ratio = tempoMedio / maxTempoMedio
+    if (ratio >= 0.75) return '#ef4444' // vermelho (maior tempo)
+    if (ratio >= 0.45) return '#f59e0b' // âmbar
+    if (ratio >= 0.2) return '#3b82f6' // azul
+    return '#10b981' // verde
+  }
+
+  return (
+    <Card className="border-border shadow-sm">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <Hourglass className="h-4 w-4 text-primary" />
+              Tempo dos Leads por Coluna
+            </CardTitle>
+            <CardDescription className="text-xs mt-0.5">
+              {descricao ||
+                'Permanência média dos leads HOJE em cada estágio da esteira (now − última movimentação)'}
+            </CardDescription>
+          </div>
+          <Badge
+            variant="outline"
+            className="text-xs font-semibold self-start sm:self-auto shrink-0"
+          >
+            {totalCards} {totalCards === 1 ? 'card ativo' : 'cards ativos'}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-1">
+        {totalCards === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-1.5">
+            <Clock className="h-5 w-5 text-muted-foreground/60" />
+            <span>Nenhum lead presente nesta esteira atualmente.</span>
+          </div>
+        ) : (
+          <div className="space-y-3.5">
+            {colunasOrdenadas.map((c) => {
+              const percentWidth =
+                maxTempoMedio > 0 && c.tempoMedio > 0
+                  ? Math.max(5, Math.round((c.tempoMedio / maxTempoMedio) * 100))
+                  : c.qtd > 0
+                    ? 3
+                    : 0
+              const barColor = getBarColor(c.tempoMedio)
+              const isPiorCaso = maxTempoMedio > 0 && c.tempoMedio === maxTempoMedio && c.qtd > 0
+
+              return (
+                <div key={c.colunaReal} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-foreground truncate">{c.rotulo}</span>
+                      {isPiorCaso && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[10px] py-0 px-1.5 font-bold uppercase tracking-wider shrink-0"
+                        >
+                          Maior tempo
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <span className="text-[11px] text-muted-foreground font-medium">
+                        {c.qtd} {c.qtd === 1 ? 'lead' : 'leads'}
+                      </span>
+                      <span className="font-extrabold text-foreground min-w-[70px] text-right">
+                        {formatDiasNum(c.tempoMedio)}
+                      </span>
+                      {c.tempoMax > 0 && (
+                        <TooltipProvider>
+                          <UITooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] py-0 px-1.5 text-muted-foreground hover:text-foreground cursor-help font-mono border-dashed"
+                              >
+                                máx: {formatDiasNum(c.tempoMax)}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Pior caso nesta coluna: lead há {formatDiasNum(c.tempoMax)} sem
+                              movimentação
+                            </TooltipContent>
+                          </UITooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
+                  </div>
+                  <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500 ease-out"
+                      style={{
+                        width: `${percentWidth}%`,
+                        backgroundColor: barColor,
+                      }}
+                      title={`${c.rotulo}: média de ${formatDiasNum(c.tempoMedio)} (${c.qtd} leads)`}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
 // -------------------------------------------------------------
 // Componente da Sub-aba Novo Contato (Aba 01 / SDR)
 // -------------------------------------------------------------
-function NovoContatoSubTab({ data }: { data?: NovoContatoMetrics }) {
+function NovoContatoSubTab({
+  data,
+  tempoColunas,
+}: {
+  data?: NovoContatoMetrics
+  tempoColunas?: TempoColunaItem[]
+}) {
   const total = data?.total ?? 0
   const criadosNoPeriodo = data?.criados_no_periodo ?? 0
   const porStatusRaw = data?.por_status ?? []
@@ -1645,6 +1843,13 @@ function NovoContatoSubTab({ data }: { data?: NovoContatoMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bloco Tempo dos Leads por Coluna */}
+      <BlocoTempoColunas
+        abaId="novo-contato"
+        items={tempoColunas}
+        descricao="Permanência média dos leads HOJE em cada coluna da esteira SDR (ordem do funil)"
+      />
     </div>
   )
 }
@@ -1652,7 +1857,13 @@ function NovoContatoSubTab({ data }: { data?: NovoContatoMetrics }) {
 // -------------------------------------------------------------
 // Componente da Sub-aba Consultoria (Aba 02 / Comercial)
 // -------------------------------------------------------------
-function ConsultoriaSubTab({ data }: { data?: ConsultoriaMetrics }) {
+function ConsultoriaSubTab({
+  data,
+  tempoColunas,
+}: {
+  data?: ConsultoriaMetrics
+  tempoColunas?: TempoColunaItem[]
+}) {
   const total = data?.total ?? 0
   const vendidos = data?.vendidos ?? 0
   const taxaConversao = data?.taxa_conversao ?? 0
@@ -1961,6 +2172,13 @@ function ConsultoriaSubTab({ data }: { data?: ConsultoriaMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bloco Tempo dos Leads por Coluna */}
+      <BlocoTempoColunas
+        abaId="lead-consultoria"
+        items={tempoColunas}
+        descricao="Permanência média dos leads HOJE em cada coluna da esteira de Consultoria (ordem do funil)"
+      />
     </div>
   )
 }
@@ -1968,7 +2186,13 @@ function ConsultoriaSubTab({ data }: { data?: ConsultoriaMetrics }) {
 // -------------------------------------------------------------
 // Componente da Sub-aba Leads p/ Orçamento (Aba 05)
 // -------------------------------------------------------------
-function OrcamentosSubTab({ data }: { data?: OrcamentosMetrics }) {
+function OrcamentosSubTab({
+  data,
+  tempoColunas,
+}: {
+  data?: OrcamentosMetrics
+  tempoColunas?: TempoColunaItem[]
+}) {
   const total = data?.total ?? 0
   const convertidos = data?.convertidos ?? 0
   const taxaConversao = data?.taxa_conversao ?? 0
@@ -2268,6 +2492,13 @@ function OrcamentosSubTab({ data }: { data?: OrcamentosMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Bloco Tempo dos Leads por Coluna */}
+      <BlocoTempoColunas
+        abaId="lead-orcamentos"
+        items={tempoColunas}
+        descricao="Permanência média dos leads HOJE em cada coluna da esteira de Orçamentos (ordem do funil)"
+      />
     </div>
   )
 }
