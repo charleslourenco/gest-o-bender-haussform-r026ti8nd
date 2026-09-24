@@ -12,6 +12,9 @@ import {
   ShoppingBag,
   AlertCircle,
   HelpCircle,
+  Percent,
+  Clock,
+  UserCheck,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -20,12 +23,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
-import type { ClientesMetrics, RankingConsultorItem } from './types'
+import type { ClientesMetrics, RankingConsultorItem, ConsultorDesempenho } from './types'
 
 type SortMode = 'valor' | 'ticket' | 'quantidade'
+type DesempenhoSortMode = 'conversao' | 'ciclo' | 'leads' | 'vendidos'
 
 export function ClientesTab({ data }: { data: ClientesMetrics }) {
   const [sortMode, setSortMode] = useState<SortMode>('valor')
+  const [desempenhoSort, setDesempenhoSort] = useState<DesempenhoSortMode>('conversao')
 
   const {
     novos_clientes,
@@ -39,6 +44,7 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
     total_formularios_vendidos,
     maior_ticket_percentual,
     ranking_consultores,
+    por_consultor = [],
   } = data
 
   // Mediana e indicadores de distorção
@@ -79,6 +85,47 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
 
   // Total de vendas fechadas somadas no ranking
   const totalContratos = ranking_consultores.reduce((acc, cur) => acc + cur.vendas, 0)
+
+  // Consultores para o bloco de Desempenho (Taxa de Conversão & Ciclo Médio)
+  const sortedDesempenho = useMemo(() => {
+    const list = [...por_consultor]
+    if (desempenhoSort === 'conversao') {
+      return list.sort((a, b) => {
+        if (b.taxa_conversao !== a.taxa_conversao) {
+          return b.taxa_conversao - a.taxa_conversao
+        }
+        return b.vendidos - a.vendidos
+      })
+    }
+    if (desempenhoSort === 'ciclo') {
+      return list.sort((a, b) => {
+        // ciclo menor é mais ágil, mas nulos ficam no final
+        if (a.ciclo_medio_dias === null && b.ciclo_medio_dias === null) return 0
+        if (a.ciclo_medio_dias === null) return 1
+        if (b.ciclo_medio_dias === null) return -1
+        return a.ciclo_medio_dias - b.ciclo_medio_dias
+      })
+    }
+    if (desempenhoSort === 'leads') {
+      return list.sort((a, b) => b.total_leads - a.total_leads)
+    }
+    if (desempenhoSort === 'vendidos') {
+      return list.sort((a, b) => b.vendidos - a.vendidos)
+    }
+    return list
+  }, [por_consultor, desempenhoSort])
+
+  // Identificar melhor taxa de conversão entre quem teve pelo menos 1 venda
+  const melhorConversaoVal = useMemo(() => {
+    const comVendas = por_consultor.filter((c) => c.vendidos > 0)
+    if (comVendas.length === 0) return 0
+    return Math.max(...comVendas.map((c) => c.taxa_conversao))
+  }, [por_consultor])
+
+  const totalLeadsPeriodo = por_consultor.reduce((acc, c) => acc + c.total_leads, 0)
+  const totalVendidosPeriodo = por_consultor.reduce((acc, c) => acc + c.vendidos, 0)
+  const taxaGeralPeriodo =
+    totalLeadsPeriodo > 0 ? ((totalVendidosPeriodo / totalLeadsPeriodo) * 100).toFixed(1) : '0.0'
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -429,6 +476,198 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                         </td>
                         <td className="py-2.5 px-3 text-center font-bold text-foreground">
                           {share}%
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Seção Nova: Desempenho por Consultor (Taxa de Conversão e Ciclo Médio) */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              Desempenho por Consultor: Taxa de Conversão & Ciclo Médio
+            </CardTitle>
+            <CardDescription>
+              Acompanhamento de eficiência comercial: volume de leads designados, vendas, taxa de
+              conversão e velocidade de fechamento em dias
+            </CardDescription>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-lg border border-border">
+              <Button
+                size="sm"
+                variant={desempenhoSort === 'conversao' ? 'default' : 'ghost'}
+                className="h-8 text-xs font-medium gap-1 px-3"
+                onClick={() => setDesempenhoSort('conversao')}
+              >
+                <Percent className="h-3.5 w-3.5" />
+                Por Conversão
+              </Button>
+              <Button
+                size="sm"
+                variant={desempenhoSort === 'ciclo' ? 'default' : 'ghost'}
+                className="h-8 text-xs font-medium gap-1 px-3"
+                onClick={() => setDesempenhoSort('ciclo')}
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Por Ciclo
+              </Button>
+              <Button
+                size="sm"
+                variant={desempenhoSort === 'leads' ? 'default' : 'ghost'}
+                className="h-8 text-xs font-medium gap-1 px-3"
+                onClick={() => setDesempenhoSort('leads')}
+              >
+                <Users className="h-3.5 w-3.5" />
+                Por Leads
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Mini-Cards de Resumo de Conversão e Ciclo no Período */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="p-3.5 rounded-lg border border-border bg-muted/20 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase">
+                  Leads Atribuídos
+                </p>
+                <p className="text-xl font-bold text-foreground mt-0.5">{totalLeadsPeriodo}</p>
+                <p className="text-[10px] text-muted-foreground">distribuídos entre consultores</p>
+              </div>
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Users className="h-4 w-4" />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg border border-border bg-muted/20 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase">
+                  Total de Vendas
+                </p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {totalVendidosPeriodo}
+                </p>
+                <p className="text-[10px] text-muted-foreground">leads convertidos no período</p>
+              </div>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <ShoppingBag className="h-4 w-4" />
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg border border-border bg-muted/20 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase">
+                  Conversão Geral
+                </p>
+                <p className="text-xl font-bold text-foreground mt-0.5">{taxaGeralPeriodo}%</p>
+                <p className="text-[10px] text-muted-foreground">média da equipe no período</p>
+              </div>
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Percent className="h-4 w-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Tabela de Desempenho por Consultor */}
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-muted/60 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
+                <tr>
+                  <th className="py-2.5 px-3 text-center w-12">#</th>
+                  <th className="py-2.5 px-3">Consultor</th>
+                  <th className="py-2.5 px-3 text-right">Nº de Leads</th>
+                  <th className="py-2.5 px-3 text-right">Vendidos</th>
+                  <th className="py-2.5 px-3 text-right">Taxa de Conversão</th>
+                  <th className="py-2.5 px-3 text-right">Ciclo Médio</th>
+                  <th className="py-2.5 px-3 text-right">Valor Total</th>
+                  <th className="py-2.5 px-3 text-right">Ticket Médio</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-card">
+                {sortedDesempenho.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                      Nenhum consultor com leads no período
+                    </td>
+                  </tr>
+                ) : (
+                  sortedDesempenho.map((item, idx) => {
+                    const isTopConversion =
+                      item.vendidos > 0 &&
+                      melhorConversaoVal > 0 &&
+                      item.taxa_conversao === melhorConversaoVal
+
+                    return (
+                      <tr key={item.consultor} className="hover:bg-muted/40 transition-colors">
+                        <td className="py-2.5 px-3 text-center font-medium text-muted-foreground">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-foreground">
+                          <div className="flex items-center gap-2">
+                            <span>{item.consultor}</span>
+                            {isTopConversion && (
+                              <Badge
+                                variant="outline"
+                                className="border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] py-0 px-1.5 h-4 font-semibold"
+                              >
+                                Melhor conversão
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.total_leads}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                          {item.vendidos}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-bold text-foreground">
+                          <span
+                            className={
+                              item.taxa_conversao >= 30
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : item.taxa_conversao > 0
+                                  ? 'text-foreground'
+                                  : 'text-muted-foreground'
+                            }
+                          >
+                            {item.taxa_conversao.toLocaleString('pt-BR', {
+                              minimumFractionDigits: 1,
+                              maximumFractionDigits: 1,
+                            })}
+                            %
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.ciclo_medio_dias !== null && item.ciclo_medio_dias !== undefined ? (
+                            <span className="inline-flex items-center gap-1 justify-end">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              {item.ciclo_medio_dias.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1,
+                              })}{' '}
+                              dias
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.valor_total > 0 ? formatCurrencyFull(item.valor_total) : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.ticket_medio > 0 ? formatCurrencyFull(item.ticket_medio) : '—'}
                         </td>
                       </tr>
                     )

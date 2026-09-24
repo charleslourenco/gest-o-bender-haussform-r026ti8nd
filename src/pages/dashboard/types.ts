@@ -155,6 +155,16 @@ export interface RankingConsultorItem {
   maior_ticket: number
 }
 
+export interface ConsultorDesempenho {
+  consultor: string
+  total_leads: number
+  vendidos: number
+  taxa_conversao: number
+  ciclo_medio_dias: number | null
+  valor_total: number
+  ticket_medio: number
+}
+
 export interface ClientesMetrics {
   novos_clientes: number
   valor_vendido: number
@@ -167,6 +177,7 @@ export interface ClientesMetrics {
   total_formularios_vendidos?: number
   maior_ticket_percentual?: number
   ranking_consultores: RankingConsultorItem[]
+  por_consultor?: ConsultorDesempenho[]
 }
 
 export interface FaseAmbienteItem {
