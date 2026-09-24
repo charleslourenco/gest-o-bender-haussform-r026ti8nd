@@ -88,6 +88,10 @@ function CardAtendimentoComponent({
     [(lead as any)?.notas_pessoais],
   )
 
+  // Ref sempre atualizada do meta para evitar race conditions em cliques rápidos
+  const metaRef = useRef(meta)
+  metaRef.current = meta
+
   // Estados locais para edição inline
   const [isEditingNome, setIsEditingNome] = useState(false)
   const [nomeValue, setNomeValue] = useState(lead?.nome || '')
@@ -216,6 +220,56 @@ function CardAtendimentoComponent({
       prazo,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+  }
+
+  const handleToggleNecessidade = async (item: string) => {
+    // Usar o meta mais recente de metaRef ou re-parsear de lead.notas_pessoais para serialização imediata
+    const currentParsed = parseLeadMetadados((lead as any)?.notas_pessoais)
+    const baseMeta = { ...(metaRef.current || {}), ...(currentParsed.meta || {}) }
+    const currentList: string[] = Array.isArray(baseMeta.necessidades) ? baseMeta.necessidades : []
+
+    let updatedList: string[]
+    if (item === 'Apartamento/Casa Completa') {
+      if (currentList.includes(item)) {
+        // Desmarcar
+        updatedList = currentList.filter((n) => n !== item)
+      } else {
+        // Marcar: passa a ser a única marcada
+        updatedList = [item]
+      }
+    } else {
+      // Se "Apartamento/Casa Completa" estiver marcada, itens normais estão bloqueados
+      if (currentList.includes('Apartamento/Casa Completa')) return
+      if (currentList.includes(item)) {
+        updatedList = currentList.filter((n) => n !== item)
+      } else {
+        updatedList = [...currentList, item]
+      }
+    }
+
+    const newMeta: LeadMetadados = {
+      ...baseMeta,
+      necessidades: updatedList,
+    }
+    metaRef.current = newMeta
+    const newNotasPessoais = stringifyLeadMetadados(currentParsed.notas || notas, newMeta)
+    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+  }
+
+  const handleToggleObjetivo = async (item: string) => {
+    const currentParsed = parseLeadMetadados((lead as any)?.notas_pessoais)
+    const baseMeta = { ...(metaRef.current || {}), ...(currentParsed.meta || {}) }
+
+    // Clicar no já selecionado desmarca (limpa o campo)
+    const updatedObjetivo = baseMeta.objetivo_imovel === item ? undefined : item
+
+    const newMeta: LeadMetadados = {
+      ...baseMeta,
+      objetivo_imovel: updatedObjetivo,
+    }
+    metaRef.current = newMeta
+    const newNotasPessoais = stringifyLeadMetadados(currentParsed.notas || notas, newMeta)
     await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
@@ -857,6 +911,109 @@ function CardAtendimentoComponent({
             )}
           </div>
 
+          {/* Seção Necessidade do Cliente */}
+          <div
+            className={cn(
+              'pt-2 border-t',
+              isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
+            )}
+          >
+            <span
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
+                isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+              )}
+            >
+              Necessidade do Cliente
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  'Apartamento/Casa Completa',
+                  'Cozinha',
+                  'Dormitório',
+                  'Banheiro',
+                  'Living',
+                  'Área Gourmet',
+                ] as const
+              ).map((opcao) => {
+                const isCompletaSelected = Boolean(
+                  Array.isArray(meta?.necessidades) &&
+                  meta.necessidades.includes('Apartamento/Casa Completa'),
+                )
+                const isSelected = Boolean(
+                  Array.isArray(meta?.necessidades) && meta.necessidades.includes(opcao),
+                )
+                const isDisabled = opcao !== 'Apartamento/Casa Completa' && isCompletaSelected
+
+                return (
+                  <button
+                    key={opcao}
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={() => handleToggleNecessidade(opcao)}
+                    className={cn(
+                      'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border text-left',
+                      isDisabled && 'opacity-40 cursor-not-allowed pointer-events-none',
+                      !isDisabled && 'cursor-pointer',
+                      isNovoContato
+                        ? isSelected
+                          ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
+                          : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
+                        : isSelected
+                          ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                          : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
+                    )}
+                  >
+                    {opcao}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Seção Objetivo do Imóvel */}
+          <div
+            className={cn(
+              'pt-2 border-t',
+              isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
+            )}
+          >
+            <span
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-wider block mb-1.5',
+                isNovoContato ? 'text-white/90' : 'text-[#6B7280] dark:text-[#8B949E]',
+              )}
+            >
+              Objetivo do Imóvel
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {(['Locação', 'Moradia', 'Investimento'] as const).map((opcao) => {
+                const isSelected = meta?.objetivo_imovel === opcao
+
+                return (
+                  <button
+                    key={opcao}
+                    type="button"
+                    onClick={() => handleToggleObjetivo(opcao)}
+                    className={cn(
+                      'text-[11px] px-2 py-0.5 rounded font-medium transition-colors border cursor-pointer text-left',
+                      isNovoContato
+                        ? isSelected
+                          ? 'bg-white text-[#F97316] border-white font-semibold shadow-xs'
+                          : 'bg-black/20 text-white/90 border-white/30 hover:bg-black/30'
+                        : isSelected
+                          ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                          : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] text-[#374151] dark:text-[#D1D5DB] border-[#D1D5DB] dark:border-[#3A3A3A] hover:bg-[#F3F4F6] dark:hover:bg-[#2A2A2A]',
+                    )}
+                  >
+                    {opcao}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Prazo e Prioridade */}
           <div
             className={cn(
@@ -864,6 +1021,7 @@ function CardAtendimentoComponent({
               isNovoContato ? 'border-white/20' : 'border-[#E5E7EB] dark:border-[#3A3A3A]',
             )}
           >
+            {' '}
             {/* Prazo */}
             <div>
               <span
@@ -899,7 +1057,6 @@ function CardAtendimentoComponent({
                 />
               </div>
             </div>
-
             {/* Prioridade */}
             <div>
               <span

@@ -403,6 +403,8 @@ export interface LeadMetadados {
   exclusoes?: AbaAcaoRegistro[]
   arquivamentos?: AbaAcaoRegistro[]
   montador_ids?: string[]
+  necessidades?: string[]
+  objetivo_imovel?: string
   [key: string]: any
 }
 
