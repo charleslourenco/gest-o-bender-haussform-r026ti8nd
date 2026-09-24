@@ -1382,8 +1382,8 @@ function BlocoTempoColunas({ abaId, items = [], descricao }: BlocoTempoColunasPr
     }
   }
 
-  // Montar lista respeitando a ordem do funil de ATENDIMENTO_ABAS
-  const seenOriginal = new Set<string>()
+  // Montar lista respeitando estritamente a ordem do funil oficial de ATENDIMENTO_ABAS
+  // Nenhuma coluna fora da lista oficial pode ser exibida
   const colunasOrdenadas: {
     rotulo: string
     colunaReal: string
@@ -1396,9 +1396,6 @@ function BlocoTempoColunas({ abaId, items = [], descricao }: BlocoTempoColunasPr
     const limpo = cleanColumnTitle(col)
     // Tenta correspondência exata, depois limpa
     const it = mapItens.get(col) ?? mapItens.get(limpo)
-    if (it) {
-      seenOriginal.add(it.coluna)
-    }
     colunasOrdenadas.push({
       rotulo: limpo || col,
       colunaReal: it?.coluna || col,
@@ -1406,20 +1403,6 @@ function BlocoTempoColunas({ abaId, items = [], descricao }: BlocoTempoColunasPr
       tempoMedio: it?.tempo_medio_dias ?? 0,
       tempoMax: it?.tempo_max_dias ?? 0,
     })
-  }
-
-  // Incluir colunas que tenham cards no banco mas não constavam estritamente na lista (ex: status legados)
-  for (const it of items) {
-    if (!it || !it.coluna) continue
-    if (!seenOriginal.has(it.coluna)) {
-      colunasOrdenadas.push({
-        rotulo: cleanColumnTitle(it.coluna) || it.coluna,
-        colunaReal: it.coluna,
-        qtd: it.qtd_cards ?? 0,
-        tempoMedio: it.tempo_medio_dias ?? 0,
-        tempoMax: it.tempo_max_dias ?? 0,
-      })
-    }
   }
 
   const totalCards = colunasOrdenadas.reduce((acc, c) => acc + c.qtd, 0)

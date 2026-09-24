@@ -2106,21 +2106,21 @@ export type Database = {
       }
       leads_status_historico: {
         Row: {
-          criado_em: string
+          criado_em: string | null
           id: string
           lead_id: string
           status_anterior: string | null
           status_novo: string
         }
         Insert: {
-          criado_em?: string
+          criado_em?: string | null
           id?: string
           lead_id: string
           status_anterior?: string | null
           status_novo: string
         }
         Update: {
-          criado_em?: string
+          criado_em?: string | null
           id?: string
           lead_id?: string
           status_anterior?: string | null
