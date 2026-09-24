@@ -251,41 +251,9 @@ export const PcpOrdemProducaoModal: React.FC<PcpOrdemProducaoModalProps> = ({
     }
   }, [open, isSubcard, card?.id])
 
-  if (!card) return null
-
-  // Identificação do Cliente
-  const clienteNome =
-    card.cliente?.nome ||
-    card.formulario?.cliente?.nome ||
-    card.formulario?.nome_cliente ||
-    'Cliente não informado'
-
-  // Empreendimento / Endereço da obra
-  const empreendimento =
-    (card.formulario as any)?.obra_bairro || (card.formulario as any)?.obra_municipio
-      ? [(card.formulario as any)?.obra_bairro, (card.formulario as any)?.obra_municipio]
-          .filter(Boolean)
-          .join(' - ')
-      : card.cliente?.endereco_obra || card.cliente?.cidade || 'Não informado'
-
-  // Data de Início Programada na Fábrica (Semana ISO + Dia)
-  const semanaFabrica = card.semana_planejada_producao || 'Não agendada'
-  const dataFabricaDia = card.data_planejada_producao
-    ? safeFormatDatePtBr(card.data_planejada_producao)
-    : 'Dia a definir'
-  const programacaoFabricaDisplay = `${semanaFabrica} | ${dataFabricaDia}`
-
-  // Data Prometida de Montagem na Obra
-  const dataPrometidaMontagem =
-    card.data_prometida_montagem ||
-    (card.formulario as any)?.datas?.data_entrega_maxima ||
-    (card.formulario as any)?.datas?.data_entrega_minima ||
-    (card.formulario as any)?.data_prevista_entrega ||
-    card.data_obra_montagem
-  const dataMontagemDisplay = safeFormatDatePtBr(dataPrometidaMontagem)
-
   // Itens que farão parte da OP de acordo com o modo escolhido
   const ambientesParaOP: AmbienteItemFicha[] = useMemo(() => {
+    if (!card) return []
     const list: AmbienteItemFicha[] = []
 
     // Caso 1: OP Individual de um Subcard direto
@@ -426,25 +394,9 @@ export const PcpOrdemProducaoModal: React.FC<PcpOrdemProducaoModalProps> = ({
     return ambientesParaOP.reduce((acc, it) => acc + (it.valor || 0), 0)
   }, [ambientesParaOP])
 
-  // Código de exibição no cabeçalho
-  const codigoExibicao =
-    modoEmissao === 'individual' && ambientesParaOP.length === 1
-      ? ambientesParaOP[0].codigoRastreio
-      : card.codigo_rastreio || 'OP-CONSOLIDADA'
-
-  // Título do Ambiente / Projeto
-  const ambienteTituloDisplay =
-    modoEmissao === 'individual' && ambientesParaOP.length === 1
-      ? ambientesParaOP[0].nomeAmbiente.toUpperCase()
-      : `CONSOLIDADO: ${card.nome_produto.toUpperCase()} (${ambientesParaOP.length} AMBIENTE${ambientesParaOP.length > 1 ? 'S' : ''})`
-
-  // Disparo de impressão limpa
-  const handlePrint = () => {
-    window.print()
-  }
-
   // Lista de opções para seleção de ambiente individual (quando for card pai)
   const opcoesAmbientesPai = useMemo(() => {
+    if (!card) return []
     if (subcardsDoPai.length > 0) {
       return subcardsDoPai.map((s) => ({
         id: s.id,
@@ -461,7 +413,57 @@ export const PcpOrdemProducaoModal: React.FC<PcpOrdemProducaoModalProps> = ({
       }))
     }
     return []
-  }, [subcardsDoPai, card.formulario?.produtos_servicos])
+  }, [subcardsDoPai, card])
+
+  if (!card) return null
+
+  // Identificação do Cliente
+  const clienteNome =
+    card.cliente?.nome ||
+    card.formulario?.cliente?.nome ||
+    card.formulario?.nome_cliente ||
+    'Cliente não informado'
+
+  // Empreendimento / Endereço da obra
+  const empreendimento =
+    (card.formulario as any)?.obra_bairro || (card.formulario as any)?.obra_municipio
+      ? [(card.formulario as any)?.obra_bairro, (card.formulario as any)?.obra_municipio]
+          .filter(Boolean)
+          .join(' - ')
+      : card.cliente?.endereco_obra || card.cliente?.cidade || 'Não informado'
+
+  // Data de Início Programada na Fábrica (Semana ISO + Dia)
+  const semanaFabrica = card.semana_planejada_producao || 'Não agendada'
+  const dataFabricaDia = card.data_planejada_producao
+    ? safeFormatDatePtBr(card.data_planejada_producao)
+    : 'Dia a definir'
+  const programacaoFabricaDisplay = `${semanaFabrica} | ${dataFabricaDia}`
+
+  // Data Prometida de Montagem na Obra
+  const dataPrometidaMontagem =
+    card.data_prometida_montagem ||
+    (card.formulario as any)?.datas?.data_entrega_maxima ||
+    (card.formulario as any)?.datas?.data_entrega_minima ||
+    (card.formulario as any)?.data_prevista_entrega ||
+    card.data_obra_montagem
+  const dataMontagemDisplay = safeFormatDatePtBr(dataPrometidaMontagem)
+
+  // Código de exibição no cabeçalho
+  const codigoExibicao =
+    modoEmissao === 'individual' && ambientesParaOP.length === 1
+      ? ambientesParaOP[0].codigoRastreio
+      : card.codigo_rastreio || 'OP-CONSOLIDADA'
+
+  // Título do Ambiente / Projeto
+  const ambienteTituloDisplay =
+    modoEmissao === 'individual' && ambientesParaOP.length === 1
+      ? ambientesParaOP[0].nomeAmbiente.toUpperCase()
+      : `CONSOLIDADO: ${card.nome_produto.toUpperCase()} (${ambientesParaOP.length} AMBIENTE${ambientesParaOP.length > 1 ? 'S' : ''})`
+
+  // Disparo de impressão limpa
+  const handlePrint = () => {
+    window.print()
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
