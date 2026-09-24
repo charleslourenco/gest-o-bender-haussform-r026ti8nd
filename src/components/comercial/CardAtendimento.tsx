@@ -101,7 +101,6 @@ function CardAtendimentoComponent({
 
   const [isEditingDescricao, setIsEditingDescricao] = useState(false)
   const [descricaoValue, setDescricaoValue] = useState(meta?.descricao_projeto || '')
-
   const [elapsed, setElapsed] = useState('')
   const [pendingElapsed, setPendingElapsed] = useState('')
 
@@ -224,36 +223,40 @@ function CardAtendimentoComponent({
   }
 
   const handleToggleNecessidade = async (item: string) => {
-    // Usar o meta mais recente de metaRef ou re-parsear de lead.notas_pessoais para serialização imediata
+    // Usar o meta mais recente de metaRef e de lead.notas_pessoais para serialização imediata
     const currentParsed = parseLeadMetadados((lead as any)?.notas_pessoais)
     const baseMeta = { ...(metaRef.current || {}), ...(currentParsed.meta || {}) }
-    const currentList: string[] = Array.isArray(baseMeta.necessidades) ? baseMeta.necessidades : []
+    const currentList: string[] = Array.isArray(baseMeta.necessidades)
+      ? [...baseMeta.necessidades]
+      : []
+    const isFullHouseSelected = currentList.includes('Apartamento/Casa Completa')
 
-    let updatedList: string[]
+    if (isFullHouseSelected && item !== 'Apartamento/Casa Completa') {
+      return
+    }
+
+    let newList: string[]
     if (item === 'Apartamento/Casa Completa') {
-      if (currentList.includes(item)) {
-        // Desmarcar
-        updatedList = currentList.filter((n) => n !== item)
+      if (isFullHouseSelected) {
+        newList = []
       } else {
-        // Marcar: passa a ser a única marcada
-        updatedList = [item]
+        newList = ['Apartamento/Casa Completa']
       }
     } else {
-      // Se "Apartamento/Casa Completa" estiver marcada, itens normais estão bloqueados
-      if (currentList.includes('Apartamento/Casa Completa')) return
       if (currentList.includes(item)) {
-        updatedList = currentList.filter((n) => n !== item)
+        newList = currentList.filter((n) => n !== item)
       } else {
-        updatedList = [...currentList, item]
+        newList = [...currentList, item]
       }
     }
 
     const newMeta: LeadMetadados = {
       ...baseMeta,
-      necessidades: updatedList,
+      necessidades: newList,
     }
     metaRef.current = newMeta
-    const newNotasPessoais = stringifyLeadMetadados(currentParsed.notas || notas, newMeta)
+    const currentNotas = currentParsed.notas !== undefined ? currentParsed.notas : notas
+    const newNotasPessoais = stringifyLeadMetadados(currentNotas, newMeta)
     await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
@@ -269,7 +272,8 @@ function CardAtendimentoComponent({
       objetivo_imovel: updatedObjetivo,
     }
     metaRef.current = newMeta
-    const newNotasPessoais = stringifyLeadMetadados(currentParsed.notas || notas, newMeta)
+    const currentNotas = currentParsed.notas !== undefined ? currentParsed.notas : notas
+    const newNotasPessoais = stringifyLeadMetadados(currentNotas, newMeta)
     await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
   }
 
