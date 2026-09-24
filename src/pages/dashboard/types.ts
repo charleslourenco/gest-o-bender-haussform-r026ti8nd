@@ -91,6 +91,16 @@ export interface NovoContatoMetrics {
   taxa_despacho: number
 }
 
+export interface ConsultoriaMetrics {
+  total: number
+  por_status: StatusContagemItem[]
+  por_origem: OrigemContagemItem[]
+  vendidos: number
+  taxa_conversao: number
+  ticket_medio_consultoria: number
+  ciclo_medio_dias: number | null
+}
+
 export interface OrcamentosMetrics {
   total: number
   por_status: StatusContagemItem[]
@@ -117,6 +127,7 @@ export interface AtendimentosMetrics {
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem
   novo_contato?: NovoContatoMetrics
+  consultoria?: ConsultoriaMetrics
   orcamentos?: OrcamentosMetrics
 }
 

@@ -29,6 +29,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Calculator,
+  Briefcase,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -50,7 +51,12 @@ import {
   Pie,
 } from 'recharts'
 import { cleanColumnTitle } from '@/components/comercial/constants'
-import type { AtendimentosMetrics, NovoContatoMetrics, OrcamentosMetrics } from './types'
+import type {
+  AtendimentosMetrics,
+  NovoContatoMetrics,
+  OrcamentosMetrics,
+  ConsultoriaMetrics,
+} from './types'
 
 const ORIGIN_COLORS = [
   '#e1306c', // instagram pink
@@ -108,9 +114,9 @@ const STATUS_LABELS: Record<string, { label: string; badge: string }> = {
 }
 
 export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
-  const [activeSubTab, setActiveSubTab] = useState<'visao_geral' | 'novo_contato' | 'orcamentos'>(
-    'visao_geral',
-  )
+  const [activeSubTab, setActiveSubTab] = useState<
+    'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos'
+  >('visao_geral')
 
   const {
     total_leads,
@@ -128,6 +134,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     dias_semana,
     leads_sem_origem,
     novo_contato,
+    consultoria,
     orcamentos,
   } = data
 
@@ -189,11 +196,11 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
         <Tabs
           value={activeSubTab}
           onValueChange={(val) =>
-            setActiveSubTab(val as 'visao_geral' | 'novo_contato' | 'orcamentos')
+            setActiveSubTab(val as 'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos')
           }
           className="w-full sm:w-auto"
         >
-          <TabsList className="bg-muted p-1 rounded-lg border border-border h-10 w-full sm:w-auto grid grid-cols-3 sm:flex">
+          <TabsList className="bg-muted p-1 rounded-lg border border-border h-10 w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 sm:flex">
             <TabsTrigger
               value="visao_geral"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3.5"
@@ -207,6 +214,13 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
             >
               <MessageSquare className="w-3.5 h-3.5" />
               Novo Contato
+            </TabsTrigger>
+            <TabsTrigger
+              value="consultoria"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3.5"
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              Consultoria
             </TabsTrigger>
             <TabsTrigger
               value="orcamentos"
@@ -224,6 +238,9 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
           )}
           {activeSubTab === 'novo_contato' && (
             <span className="font-medium">Esteira completa SDR (Aba 01) · Todas as origens</span>
+          )}
+          {activeSubTab === 'consultoria' && (
+            <span className="font-medium">Esteira de Consultoria (Aba 02) · Todas as origens</span>
           )}
           {activeSubTab === 'orcamentos' && (
             <span className="font-medium">Esteira de Orçamentos (Aba 05) · Todas as origens</span>
@@ -1323,7 +1340,10 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
       {/* SUB-ABA 2: NOVO CONTATO */}
       {activeSubTab === 'novo_contato' && <NovoContatoSubTab data={novo_contato} />}
 
-      {/* SUB-ABA 3: LEADS P/ ORÇAMENTO */}
+      {/* SUB-ABA 3: CONSULTORIA */}
+      {activeSubTab === 'consultoria' && <ConsultoriaSubTab data={consultoria} />}
+
+      {/* SUB-ABA 4: LEADS P/ ORÇAMENTO */}
       {activeSubTab === 'orcamentos' && <OrcamentosSubTab data={orcamentos} />}
     </div>
   )
@@ -1571,6 +1591,322 @@ function NovoContatoSubTab({ data }: { data?: NovoContatoMetrics }) {
             </CardTitle>
             <CardDescription>
               Canais declarados de todos os leads da esteira (inclui WhatsApp e A definir)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {porOrigem.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-10 text-center">
+                Sem origens registradas no período
+              </p>
+            ) : (
+              <div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-1">
+                {porOrigem.map((item, idx) => {
+                  const color = getOriginColor(item.origem, idx)
+                  const percentWidth =
+                    maxQtdOrigem > 0 ? Math.max(6, Math.round((item.qtd / maxQtdOrigem) * 100)) : 0
+                  const pctTotal = total > 0 ? Math.round((item.qtd / total) * 100) : 0
+
+                  return (
+                    <div key={item.origem} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-medium">
+                        <div className="flex items-center gap-2 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="font-semibold text-foreground truncate">
+                            {item.origem}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          <span className="text-[11px] text-muted-foreground font-normal">
+                            {pctTotal}%
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {item.qtd} {item.qtd === 1 ? 'lead' : 'leads'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-2.5 w-full bg-muted/60 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${percentWidth}%`,
+                            backgroundColor: color,
+                          }}
+                          title={`${item.origem} — ${item.qtd} leads (${pctTotal}%)`}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------
+// Componente da Sub-aba Consultoria (Aba 02 / Comercial)
+// -------------------------------------------------------------
+function ConsultoriaSubTab({ data }: { data?: ConsultoriaMetrics }) {
+  const total = data?.total ?? 0
+  const vendidos = data?.vendidos ?? 0
+  const taxaConversao = data?.taxa_conversao ?? 0
+  const ticketMedio = data?.ticket_medio_consultoria ?? 0
+  const cicloMedio = data?.ciclo_medio_dias
+  const porStatusRaw = data?.por_status ?? []
+  const porOrigem = data?.por_origem ?? []
+
+  // Limpar e consolidar status
+  const statusMap = new Map<string, number>()
+  for (const item of porStatusRaw) {
+    const cleanTitle = cleanColumnTitle(item.status) || 'Consultoria Inicial'
+    statusMap.set(cleanTitle, (statusMap.get(cleanTitle) ?? 0) + item.qtd)
+  }
+
+  // Ordenar conforme as colunas padrão da aba 02
+  const colunasOrdemPadrao = [
+    'Consultoria Inicial',
+    'Projeto',
+    'Apresentação',
+    'Negociação',
+    'Stand By',
+    'Vendido',
+    'Perdido',
+    'Aguardando Consultor',
+    'Ação Gerente',
+    'Designar Consultor',
+  ]
+
+  const statusList: { status: string; qtd: number }[] = []
+  for (const col of colunasOrdemPadrao) {
+    if (statusMap.has(col)) {
+      statusList.push({ status: col, qtd: statusMap.get(col)! })
+      statusMap.delete(col)
+    }
+  }
+  const restantes = Array.from(statusMap.entries()).map(([status, qtd]) => ({ status, qtd }))
+  restantes.sort((a, b) => b.qtd - a.qtd)
+  statusList.push(...restantes)
+
+  const maxQtdOrigem = porOrigem.length > 0 ? Math.max(...porOrigem.map((o) => o.qtd)) : 0
+
+  if (total === 0) {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Card className="border-border shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Total de Leads
+              </CardTitle>
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <Users className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-extrabold text-foreground">0</div>
+              <p className="text-xs text-muted-foreground mt-1">Nenhum lead no período</p>
+            </CardContent>
+          </Card>
+        </div>
+        <Card className="border-border shadow-sm p-12 text-center text-sm text-muted-foreground">
+          Nenhum lead encontrado na esteira Lead p/ Consultoria para o período selecionado.
+        </Card>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* 5 Cards Resumo */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">
+              Total de Leads
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Users className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-extrabold text-foreground">{total}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Leads no funil consultivo (Aba 02)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">Vendidos</CardTitle>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Target className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-extrabold text-foreground">{vendidos}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Fechamentos da Consultoria
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">
+              Taxa de Conversão
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-extrabold text-foreground">
+              {taxaConversao.toLocaleString('pt-BR', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}
+              %
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Vendidos ÷ total da esteira
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">
+              Ticket Médio
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <DollarSign className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground truncate">
+              {currencyFormatter.format(ticketMedio || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Média dos fechamentos com valor
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground">
+              Ciclo Médio
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Hourglass className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-extrabold text-foreground">
+              {cicloMedio !== null && cicloMedio !== undefined && !isNaN(cicloMedio)
+                ? `${cicloMedio.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} dias`
+                : '—'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
+              Do contato à venda concluída
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráfico de Barras por Status / Coluna + Bloco de Origens */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Distribuição por Status */}
+        <Card className="lg:col-span-7 border-border shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              Distribuição por Coluna / Estágio
+            </CardTitle>
+            <CardDescription>
+              Volume de contatos em cada estágio do funil consultivo
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full pt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusList} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                  <XAxis
+                    dataKey="status"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    tick={{ fontSize: 11, fill: 'currentColor' }}
+                    className="text-muted-foreground"
+                    height={45}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: 'currentColor' }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const item = payload[0].payload as { status: string; qtd: number }
+                        const pct = total > 0 ? ((item.qtd / total) * 100).toFixed(1) : '0'
+                        return (
+                          <div className="bg-popover border border-border p-2.5 rounded-lg shadow-md text-xs space-y-1">
+                            <p className="font-bold text-foreground">{item.status}</p>
+                            <p className="text-blue-600 dark:text-blue-400">
+                              Quantidade: <strong>{item.qtd} leads</strong>
+                            </p>
+                            <p className="text-muted-foreground">
+                              Participação: <strong>{pct}%</strong>
+                            </p>
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Bar dataKey="qtd" name="Leads" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                    {statusList.map((entry, index) => (
+                      <Cell
+                        key={`cell-cons-status-${index}`}
+                        fill={
+                          entry.status === 'Vendido'
+                            ? '#10b981'
+                            : entry.status === 'Perdido'
+                              ? '#f43f5e'
+                              : entry.status === 'Negociação' || entry.status === 'Apresentação'
+                                ? '#8b5cf6'
+                                : '#3b82f6'
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bloco Origens (Barras Horizontais, sem Exclusão de Origem) */}
+        <Card className="lg:col-span-5 border-border shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <PieIcon className="h-4 w-4 text-primary" />
+              Origens de Entrada
+            </CardTitle>
+            <CardDescription>
+              Canais declarados de todos os leads da consultoria (todas as origens)
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
