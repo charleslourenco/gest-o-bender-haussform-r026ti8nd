@@ -19,6 +19,9 @@ import {
   Zap,
   Timer,
   CheckCircle2,
+  XCircle,
+  Layers,
+  HelpCircle,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -108,6 +111,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     origens,
     ticket_medio_origens,
     ciclo_vendas,
+    motivos_perda,
     evolucao_mensal,
     dias_semana,
     leads_sem_origem,
@@ -133,6 +137,18 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
       : 0
   const totalVendasTicket = ticketOrigensOrdenado.reduce((acc, cur) => acc + cur.qtd_vendas, 0)
   const totalValorTicket = ticketOrigensOrdenado.reduce((acc, cur) => acc + cur.valor_total, 0)
+
+  // Bloco Motivos de Perda
+  const perdasPorMotivo = motivos_perda?.por_motivo ?? []
+  const perdasPorEtapa = motivos_perda?.por_etapa ?? []
+  const totalPerdas = motivos_perda?.total_perdas ?? 0
+  const qtdOutro = motivos_perda?.qtd_outro ?? 0
+  const temDadosPerda = totalPerdas > 0 && (perdasPorMotivo.length > 0 || perdasPorEtapa.length > 0)
+
+  const maxQtdMotivo =
+    perdasPorMotivo.length > 0 ? Math.max(...perdasPorMotivo.map((m) => m.qtd_perdas)) : 0
+  const maxQtdEtapa =
+    perdasPorEtapa.length > 0 ? Math.max(...perdasPorEtapa.map((e) => e.qtd_perdas)) : 0
 
   // Achar melhor origem por conversão com pelo menos 1 lead (exceto 'A definir' para destacar canal real)
   const origensComLeads = origens.filter((o) => o.total > 0)
@@ -992,6 +1008,225 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                     </tr>
                   </tfoot>
                 </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Bloco Motivos de Perda */}
+      <Card className="border-border shadow-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              Motivos de Perda
+            </CardTitle>
+            <CardDescription>
+              Ranking de motivos e análise das etapas comerciais onde as oportunidades mais morrem
+            </CardDescription>
+          </div>
+          {temDadosPerda && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-1 rounded-md border border-border">
+              <span>Total de perdas registradas:</span>
+              <strong className="text-foreground font-semibold">
+                {totalPerdas} {totalPerdas === 1 ? 'perda' : 'perdas'}
+              </strong>
+              {qtdOutro > 0 && (
+                <>
+                  <span className="text-muted-foreground/60">•</span>
+                  <span className="text-muted-foreground">
+                    {qtdOutro} {qtdOutro === 1 ? 'outro' : 'outros'}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="pt-2">
+          {!temDadosPerda ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Nenhuma perda registrada no período
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Grid 2 colunas: Ranking de Motivos (esquerda) e Onde as Vendas Morrem (direita) */}
+              <div className="grid lg:grid-cols-2 gap-8 items-start">
+                {/* Lado esquerdo: Ranking de Motivos */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <XCircle className="h-4 w-4 text-rose-500" />
+                        Ranking de Motivos
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Por que os clientes não fecharam conosco
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[11px] font-semibold">
+                      {perdasPorMotivo.length} {perdasPorMotivo.length === 1 ? 'motivo' : 'motivos'}
+                    </Badge>
+                  </div>
+
+                  {perdasPorMotivo.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">
+                      Sem motivos detalhados no período
+                    </p>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {perdasPorMotivo.map((item) => {
+                        const isOutro = item.motivo.toLowerCase() === 'outro'
+                        const pctRelativo =
+                          maxQtdMotivo > 0
+                            ? Math.max(6, Math.round((item.qtd_perdas / maxQtdMotivo) * 100))
+                            : 0
+                        const pctTotal =
+                          totalPerdas > 0 ? Math.round((item.qtd_perdas / totalPerdas) * 100) : 0
+
+                        return (
+                          <div key={item.motivo} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium">
+                              <div className="flex items-center gap-2 truncate">
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${
+                                    isOutro ? 'bg-slate-400' : 'bg-rose-500'
+                                  }`}
+                                />
+                                <span
+                                  className={`font-semibold truncate ${
+                                    isOutro ? 'text-muted-foreground' : 'text-foreground'
+                                  }`}
+                                >
+                                  {item.motivo}
+                                </span>
+                                {isOutro && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] py-0 px-1 text-muted-foreground border-border"
+                                  >
+                                    Motivo aberto
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <span className="text-[11px] text-muted-foreground font-normal">
+                                  {pctTotal}%
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {item.qtd_perdas} {item.qtd_perdas === 1 ? 'perda' : 'perdas'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                                  isOutro ? 'bg-slate-400/80' : 'bg-rose-500'
+                                }`}
+                                style={{ width: `${pctRelativo}%` }}
+                                title={`${item.motivo} — ${item.qtd_perdas} perdas (${pctTotal}% do total)`}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Lado direito: Onde as vendas morrem (Etapa da perda) */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-amber-500" />
+                        Onde as vendas morrem
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Fase do funil em que o lead estava ao ser perdido
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-[11px] font-semibold">
+                      {perdasPorEtapa.length} {perdasPorEtapa.length === 1 ? 'etapa' : 'etapas'}
+                    </Badge>
+                  </div>
+
+                  {perdasPorEtapa.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center">
+                      Nenhuma etapa registrada para as perdas do período
+                    </p>
+                  ) : (
+                    <div className="space-y-3.5">
+                      {perdasPorEtapa.map((item, idx) => {
+                        const pctRelativo =
+                          maxQtdEtapa > 0
+                            ? Math.max(6, Math.round((item.qtd_perdas / maxQtdEtapa) * 100))
+                            : 0
+                        const pctTotal =
+                          totalPerdas > 0 ? Math.round((item.qtd_perdas / totalPerdas) * 100) : 0
+                        // Destaque para a etapa mais crítica (primeira da lista)
+                        const isGargalo = idx === 0
+
+                        return (
+                          <div key={item.etapa} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs font-medium">
+                              <div className="flex items-center gap-2 truncate">
+                                <span
+                                  className={`w-2.5 h-2.5 rounded-full inline-block shrink-0 ${
+                                    isGargalo ? 'bg-amber-500' : 'bg-blue-500'
+                                  }`}
+                                />
+                                <span className="font-semibold text-foreground truncate">
+                                  {item.etapa}
+                                </span>
+                                {isGargalo && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] py-0 px-1 border-amber-300 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50"
+                                  >
+                                    Mais fatal
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <span className="text-[11px] text-muted-foreground font-normal">
+                                  {pctTotal}%
+                                </span>
+                                <span className="font-bold text-foreground">
+                                  {item.qtd_perdas} {item.qtd_perdas === 1 ? 'perda' : 'perdas'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="h-3 w-full bg-muted/60 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ease-out ${
+                                  isGargalo ? 'bg-amber-500' : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${pctRelativo}%` }}
+                                title={`${item.etapa} — ${item.qtd_perdas} perdas (${pctTotal}% do total)`}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Rodapé informativo discreto */}
+              <div className="pt-3 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5" />
+                  <span>
+                    Contabiliza todos os leads com motivo registrado nas abas comerciais no período
+                    selecionado.
+                  </span>
+                </div>
+                <div className="font-semibold text-foreground shrink-0">
+                  Total de {totalPerdas}{' '}
+                  {totalPerdas === 1 ? 'perda analisada' : 'perdas analisadas'}
+                </div>
               </div>
             </div>
           )}

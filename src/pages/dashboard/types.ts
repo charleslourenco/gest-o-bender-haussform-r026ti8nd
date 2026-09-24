@@ -56,6 +56,23 @@ export interface CicloVendasMetrics {
   por_origem: CicloOrigem[]
 }
 
+export interface MotivoPerdaRanking {
+  motivo: string
+  qtd_perdas: number
+}
+
+export interface EtapaPerdaRanking {
+  etapa: string
+  qtd_perdas: number
+}
+
+export interface MotivosPerdaMetrics {
+  total_perdas: number
+  por_motivo: MotivoPerdaRanking[]
+  por_etapa: EtapaPerdaRanking[]
+  qtd_outro?: number
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -67,6 +84,7 @@ export interface AtendimentosMetrics {
   origens: OrigemItem[]
   ticket_medio_origens?: OrigemTicket[]
   ciclo_vendas?: CicloVendasMetrics
+  motivos_perda?: MotivosPerdaMetrics
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem

@@ -2031,9 +2031,11 @@ export type Database = {
           criado_por_nome: string | null
           data_venda: string | null
           email: string | null
+          etapa_perda: string | null
           excluido: boolean
           id: string
           kanban_ativo: boolean
+          motivo_perda: string | null
           nome: string
           notas: string | null
           notas_pessoais: string | null
@@ -2053,9 +2055,11 @@ export type Database = {
           criado_por_nome?: string | null
           data_venda?: string | null
           email?: string | null
+          etapa_perda?: string | null
           excluido?: boolean
           id?: string
           kanban_ativo?: boolean
+          motivo_perda?: string | null
           nome: string
           notas?: string | null
           notas_pessoais?: string | null
@@ -2075,9 +2079,11 @@ export type Database = {
           criado_por_nome?: string | null
           data_venda?: string | null
           email?: string | null
+          etapa_perda?: string | null
           excluido?: boolean
           id?: string
           kanban_ativo?: boolean
+          motivo_perda?: string | null
           nome?: string
           notas?: string | null
           notas_pessoais?: string | null
