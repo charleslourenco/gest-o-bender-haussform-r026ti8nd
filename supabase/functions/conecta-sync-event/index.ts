@@ -11,7 +11,6 @@ import { corsHeaders } from '../_shared/cors.ts'
  * - Somente leads de origem 'Corretor'
  * - Mapa de Fases (Gestor ↔ Conecta):
  *     Novo Contato        <-> Recebido
- *     Despachados         <-> Em contato
  *     Consultoria Inicial <-> Visita agendada
  *     Projeto             <-> Projeto
  *     Negociação          <-> Orçamento Enviado
@@ -39,7 +38,7 @@ const GESTOR_TO_CONECTA_MAP: Record<string, { faseConecta: string; tipoEvento: s
   'novo contato': { faseConecta: 'Recebido', tipoEvento: 'fase_alterada' },
   novo: { faseConecta: 'Recebido', tipoEvento: 'fase_alterada' },
   'novo lead': { faseConecta: 'Recebido', tipoEvento: 'fase_alterada' },
-  despachados: { faseConecta: 'Em contato', tipoEvento: 'fase_alterada' },
+  despachados: { faseConecta: 'Recebido', tipoEvento: 'fase_alterada' },
   'consultoria inicial': { faseConecta: 'Visita agendada', tipoEvento: 'fase_alterada' },
   projeto: { faseConecta: 'Projeto', tipoEvento: 'fase_alterada' },
   apresentação: { faseConecta: 'Projeto', tipoEvento: 'fase_alterada' },

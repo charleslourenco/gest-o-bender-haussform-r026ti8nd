@@ -86,6 +86,7 @@ export interface OrigemContagemItem {
 export interface NovoContatoMetrics {
   total: number
   criados_no_periodo: number
+  despachados_real?: number
   por_status: StatusContagemItem[]
   por_origem: OrigemContagemItem[]
   taxa_despacho: number

@@ -432,17 +432,6 @@ function CardAtendimentoComponent({
           </span>
         </div>
       )}
-      {/* Badge de destino para cards na fila temporária "Despachados" */}
-      {destinoDespachado && (leadStatus === 'Despachados' || leadStatus === 'Encaminhado Para') && (
-        <div className="flex items-center gap-1 -mt-0.5">
-          <Badge
-            variant="secondary"
-            className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-semibold"
-          >
-            → {destinoDespachado}
-          </Badge>
-        </div>
-      )}
       {/* Header do Card: Nome inline + Badge de Novas Mensagens + Ícone 💬 + Botões de Ação */}
       <div className="flex items-start justify-between gap-1.5">
         <div className="flex-1 min-w-0">

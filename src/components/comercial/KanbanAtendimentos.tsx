@@ -919,10 +919,10 @@ export function KanbanAtendimentos({
           if (novoCol) return novoCol
         }
         if (sLower === 'encaminhado para' || sLower === 'despachados') {
-          const despachadosCol = colunas.find(
-            (c) => typeof c === 'string' && c.trim().toLowerCase() === 'despachados',
+          const novoCol = colunas.find(
+            (c) => typeof c === 'string' && c.trim().toLowerCase() === 'novo contato',
           )
-          if (despachadosCol) return despachadosCol
+          if (novoCol) return novoCol
         }
       }
 

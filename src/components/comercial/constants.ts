@@ -18,7 +18,6 @@ export const ATENDIMENTO_ABAS: AtendimentoAbaConfig[] = [
     descricao: 'Novas conversas que chegam pelo WhatsApp',
     colunas: [
       'Novo contato',
-      'Despachados',
       'SDR: Em contato',
       'SDR: Follow up 1',
       'SDR: Follow up 2',

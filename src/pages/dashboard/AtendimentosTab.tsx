@@ -1601,11 +1601,8 @@ function NovoContatoSubTab({
   const porOrigem = data?.por_origem ?? []
   const taxaDespacho = data?.taxa_despacho ?? 0
 
-  // Identificar quantidade despachados
-  const despachadosItem = porStatusRaw.find(
-    (s) => cleanColumnTitle(s.status).toLowerCase() === 'despachados',
-  )
-  const totalDespachados = despachadosItem?.qtd ?? 0
+  // Quantidade de despachos reais (enviados para Consultoria ou Orçamentos)
+  const totalDespachados = data?.despachados_real ?? 0
 
   // Limpar títulos de status e consolidar
   const statusMap = new Map<string, number>()
@@ -1614,10 +1611,9 @@ function NovoContatoSubTab({
     statusMap.set(cleanTitle, (statusMap.get(cleanTitle) ?? 0) + item.qtd)
   }
 
-  // Ordenar conforme as 9 colunas padrão da aba 01 quando presentes
+  // Ordenar conforme as 8 colunas oficiais da aba 01 quando presentes
   const colunasOrdemPadrao = [
     'Novo contato',
-    'Despachados',
     'Em contato',
     'Follow up 1',
     'Follow up 2',
@@ -1720,7 +1716,7 @@ function NovoContatoSubTab({
           <CardContent>
             <div className="text-3xl font-extrabold text-foreground">{totalDespachados}</div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Encaminhados para atendimento consultivo
+              Despachados p/ Consultoria ou Orçamentos
             </p>
           </CardContent>
         </Card>
@@ -1743,7 +1739,7 @@ function NovoContatoSubTab({
               %
             </div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Proporção despachada ÷ total
+              Despacho real ÷ total Novo Contato
             </p>
           </CardContent>
         </Card>
@@ -1809,11 +1805,9 @@ function NovoContatoSubTab({
                       <Cell
                         key={`cell-nc-status-${index}`}
                         fill={
-                          entry.status === 'Despachados'
-                            ? '#10b981'
-                            : entry.status === 'Perdido' || entry.status === 'Não é lead'
-                              ? '#f43f5e'
-                              : '#3b82f6'
+                          entry.status === 'Perdido' || entry.status === 'Não é lead'
+                            ? '#f43f5e'
+                            : '#3b82f6'
                         }
                       />
                     ))}
