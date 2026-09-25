@@ -139,6 +139,7 @@ export interface AtendimentosMetrics {
   evolucao_mensal: EvolucaoMensalItem[]
   dias_semana: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem
+  leads_sem_consultor_consultoria?: LeadsSemOrigemItem
   novo_contato?: NovoContatoMetrics
   consultoria?: ConsultoriaMetrics
   orcamentos?: OrcamentosMetrics
