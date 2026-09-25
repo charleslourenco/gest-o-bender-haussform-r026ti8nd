@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import {
@@ -77,9 +77,11 @@ export default function LeadsSemOrigem() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<LeadComercialItem | null>(null)
+  const [searchParams] = useSearchParams()
+  const initialFila = searchParams.get('fila') === 'sem_consultor' ? 'sem_consultor' : 'sem_origem'
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroAba, setFiltroAba] = useState<string>('todas')
-  const [activeFila, setActiveFila] = useState<FilaView>('sem_origem')
+  const [activeFila, setActiveFila] = useState<FilaView>(initialFila)
 
   // Usuários para atribuição de consultores e ModalAtendimento
   const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])

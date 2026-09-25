@@ -135,6 +135,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     evolucao_mensal,
     dias_semana,
     leads_sem_origem,
+    leads_sem_consultor_consultoria,
     novo_contato,
     consultoria,
     orcamentos,
@@ -187,6 +188,15 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
   const taxaSemOrigem =
     totalSemOrigem > 0 ? Number(((convertidosSemOrigem / totalSemOrigem) * 100).toFixed(1)) : 0
   const temSemOrigem = totalSemOrigem > 0
+
+  // Dados para o Alerta de Leads Sem Consultor (Consultoria)
+  const totalSemConsultor = leads_sem_consultor_consultoria?.total ?? 0
+  const convertidosSemConsultor = leads_sem_consultor_consultoria?.convertidos ?? 0
+  const taxaSemConsultor =
+    totalSemConsultor > 0
+      ? Number(((convertidosSemConsultor / totalSemConsultor) * 100).toFixed(1))
+      : 0
+  const temSemConsultor = totalSemConsultor > 0
 
   // Cobertura de data_venda (Item 5)
   const qtdVendasData = vendas_com_data_qtd ?? 0
@@ -254,50 +264,101 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
       {/* SUB-ABA 1: VISÃO GERAL (CONTEÚDO EXISTENTE INTOCADO) */}
       {activeSubTab === 'visao_geral' && (
         <div className="space-y-6">
-          {temSemOrigem && (
-            <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0 shadow-sm mt-0.5 sm:mt-0">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs uppercase font-extrabold text-amber-800 dark:text-amber-300 tracking-wider">
-                      Atenção: Origem Não Registrada
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="border-amber-400 text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[10px] py-0 px-2 font-bold"
-                    >
-                      {taxaSemOrigem}% de conversão
-                    </Badge>
+          {(temSemOrigem || temSemConsultor) && (
+            <div className="space-y-3">
+              {temSemOrigem && (
+                <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0 shadow-sm mt-0.5 sm:mt-0">
+                      <AlertTriangle className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs uppercase font-extrabold text-amber-800 dark:text-amber-300 tracking-wider">
+                          Atenção: Origem Não Registrada
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="border-amber-400 text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[10px] py-0 px-2 font-bold"
+                        >
+                          {taxaSemOrigem}% de conversão
+                        </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 mt-1 font-medium">
+                        Existem{' '}
+                        <strong className="font-extrabold text-amber-950 dark:text-amber-100">
+                          {totalSemOrigem} leads comerciais
+                        </strong>{' '}
+                        com origem não preenchida ou pendente ({convertidosSemOrigem} deles já
+                        viraram vendas). Para manter as métricas de captação precisas, atribua a
+                        origem correta para esses contatos.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 mt-1 font-medium">
-                    Existem{' '}
-                    <strong className="font-extrabold text-amber-950 dark:text-amber-100">
-                      {totalSemOrigem} leads comerciais
-                    </strong>{' '}
-                    com origem não preenchida ou pendente ({convertidosSemOrigem} deles já viraram
-                    vendas). Para manter as métricas de captação precisas, atribua a origem correta
-                    para esses contatos.
-                  </p>
+                  <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0 justify-between sm:justify-end">
+                    <div className="text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold text-center whitespace-nowrap">
+                      {convertidosSemOrigem}/{totalSemOrigem} fechados
+                    </div>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-600 dark:hover:bg-amber-500 font-semibold gap-1.5 shadow-sm text-xs whitespace-nowrap"
+                    >
+                      <Link to="/leads-sem-origem?fila=sem_origem">
+                        <ClipboardList className="h-4 w-4" />
+                        Ver e corrigir leads sem origem
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0 justify-between sm:justify-end">
-                <div className="text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold text-center whitespace-nowrap">
-                  {convertidosSemOrigem}/{totalSemOrigem} fechados
+              )}
+
+              {temSemConsultor && (
+                <div className="p-4 rounded-xl border border-amber-300/80 bg-amber-50/90 dark:border-amber-900/60 dark:bg-amber-950/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-500 text-white shrink-0 shadow-sm mt-0.5 sm:mt-0">
+                      <AlertTriangle className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs uppercase font-extrabold text-amber-800 dark:text-amber-300 tracking-wider">
+                          Atenção: Sem Consultor — Consultoria ({totalSemConsultor})
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="border-amber-400 text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[10px] py-0 px-2 font-bold"
+                        >
+                          {taxaSemConsultor}% de conversão
+                        </Badge>
+                      </div>
+                      <p className="text-xs sm:text-sm text-amber-900 dark:text-amber-200 mt-1 font-medium">
+                        Existem{' '}
+                        <strong className="font-extrabold text-amber-950 dark:text-amber-100">
+                          {totalSemConsultor} leads do funil de Consultoria
+                        </strong>{' '}
+                        sem consultor responsável atribuído ({convertidosSemConsultor} deles já
+                        viraram vendas). Atribua um consultor para garantir o andamento e o
+                        acompanhamento das negociações.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-stretch md:self-auto shrink-0 justify-between sm:justify-end">
+                    <div className="text-xs text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-900/50 px-3 py-1.5 rounded-md border border-amber-200 dark:border-amber-800 font-semibold text-center whitespace-nowrap">
+                      {convertidosSemConsultor}/{totalSemConsultor} fechados
+                    </div>
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-600 dark:hover:bg-amber-500 font-semibold gap-1.5 shadow-sm text-xs whitespace-nowrap"
+                    >
+                      <Link to="/leads-sem-origem?fila=sem_consultor">
+                        <ClipboardList className="h-4 w-4" />
+                        Ver e corrigir sem consultor
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  asChild
-                  size="sm"
-                  className="bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-600 dark:hover:bg-amber-500 font-semibold gap-1.5 shadow-sm text-xs whitespace-nowrap"
-                >
-                  <Link to="/leads-sem-origem">
-                    <ClipboardList className="h-4 w-4" />
-                    Ver e corrigir leads sem origem
-                  </Link>
-                </Button>
-              </div>
+              )}
             </div>
           )}
 
