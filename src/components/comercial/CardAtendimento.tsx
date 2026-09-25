@@ -309,13 +309,6 @@ function CardAtendimentoComponent({
   const isNovoContato =
     safeCurrentAbaId === 'novo-contato' && !isEncaminhado && !leadStatus.startsWith('SDR:')
 
-  // Destino quando o card está na coluna Despachados
-  const destinoDespachado = useMemo(() => {
-    if (!meta?.encaminhado_para_aba) return null
-    const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === meta.encaminhado_para_aba)
-    return targetAba?.titulo || meta.encaminhado_para_aba
-  }, [meta?.encaminhado_para_aba])
-
   const safeUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
     return users.filter(
