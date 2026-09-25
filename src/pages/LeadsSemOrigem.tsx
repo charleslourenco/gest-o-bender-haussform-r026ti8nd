@@ -12,6 +12,8 @@ import {
   Loader2,
   Filter,
   Trash2,
+  Eye,
+  UserCheck,
 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -44,42 +46,74 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercial/constants'
+import { fetchUsers, normalizeLead } from '@/services/comercial'
+import { subscribeSharedTable } from '@/lib/comercial-realtime'
+import ModalAtendimento from '@/components/comercial/ModalAtendimento'
 
 // Origens válidas permitidas para atribuição (exclui 'A definir' para não manter o lead como pendente)
 const ORIGENS_DISPONIVEIS: OrigemLead[] = ORIGENS_LEAD.filter(
   (o) => o !== 'A definir',
 ) as OrigemLead[]
 
-interface LeadSemOrigem {
+interface LeadComercialItem {
   id: string
   nome: string
   telefone: string | null
   origem: string | null
   status: string | null
   categoria: string | null
+  consultor_id: string | null
   kanban_ativo: boolean | null
   notas_pessoais: unknown
   criado_em: string
+  [key: string]: any
 }
 
+type FilaView = 'sem_origem' | 'sem_consultor'
+
 export default function LeadsSemOrigem() {
-  const [leads, setLeads] = useState<LeadSemOrigem[]>([])
+  const [todosComerciais, setTodosComerciais] = useState<LeadComercialItem[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [leadToDelete, setLeadToDelete] = useState<LeadSemOrigem | null>(null)
+  const [leadToDelete, setLeadToDelete] = useState<LeadComercialItem | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroAba, setFiltroAba] = useState<string>('todas')
+  const [activeFila, setActiveFila] = useState<FilaView>('sem_origem')
 
-  const fetchLeads = useCallback(async () => {
-    setLoading(true)
+  // Usuários para atribuição de consultores e ModalAtendimento
+  const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+
+  // Estado para o ModalAtendimento
+  const [selectedLeadModal, setSelectedLeadModal] = useState<any | null>(null)
+  const [loadingModalLeadId, setLoadingModalLeadId] = useState<string | null>(null)
+
+  // Carregar usuários
+  useEffect(() => {
+    let isMounted = true
+    fetchUsers()
+      .then((data) => {
+        if (isMounted) {
+          setUsers(Array.isArray(data) ? data.filter(Boolean) : [])
+        }
+      })
+      .catch((err) => {
+        console.warn('Erro ao carregar usuários:', err)
+        if (isMounted) setUsers([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Buscar todos os leads categoria Comercial não excluídos
+  const fetchLeads = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      // Buscar leads categoria Comercial não excluídos
-      // Filtrando os que têm origem nula, vazia, 'whatsapp', 'a definir' ou 'sem origem'
       const { data, error } = await supabase
         .from('leads')
         .select(
-          'id, nome, telefone, origem, status, categoria, kanban_ativo, notas_pessoais, criado_em',
+          'id, nome, telefone, origem, status, categoria, consultor_id, kanban_ativo, notas_pessoais, criado_em',
         )
         .or('excluido.is.null,excluido.eq.false')
         .order('criado_em', { ascending: false })
@@ -90,17 +124,16 @@ export default function LeadsSemOrigem() {
 
       const lista = (data || []).filter((lead: any) => {
         const cat = (lead.categoria || 'Comercial').trim()
-        if (cat !== 'Comercial') return false
-
-        const orig = (lead.origem || '').trim().toLowerCase()
-        return !orig || orig === 'whatsapp' || orig === 'a definir' || orig === 'sem origem'
+        return cat === 'Comercial'
       })
 
-      setLeads(lista)
+      setTodosComerciais(lista)
     } catch (err: any) {
-      toast.error('Erro ao carregar leads sem origem: ' + (err?.message || 'Falha na conexão'))
+      if (!silent) {
+        toast.error('Erro ao carregar leads: ' + (err?.message || 'Falha na conexão'))
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -108,6 +141,107 @@ export default function LeadsSemOrigem() {
     fetchLeads()
   }, [fetchLeads])
 
+  // Assinatura realtime na tabela leads
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+    try {
+      unsubscribe = subscribeSharedTable('leads', '*', (payload: any) => {
+        try {
+          const eventType = payload.eventType
+          const newLead = payload.new
+
+          if ((eventType === 'INSERT' || eventType === 'UPDATE') && newLead) {
+            // Verificar se o lead entrou na aba 'Lead p/ Consultoria' sem consultor
+            const isNaoExcluido = newLead.excluido === false || newLead.excluido === null
+            const isComercial = (newLead.categoria || 'Comercial').trim() === 'Comercial'
+            const consultorVazio =
+              !newLead.consultor_id || String(newLead.consultor_id).trim() === ''
+
+            if (isNaoExcluido && isComercial && consultorVazio) {
+              const abaConfig = getLeadAba(newLead)
+              if (
+                abaConfig?.id === 'lead-consultoria' ||
+                abaConfig?.titulo === 'Lead p/ Consultoria'
+              ) {
+                const leadNome = newLead.nome || 'Sem nome'
+                toast.warning(`Lead ${leadNome} entrou em Leads p/ Consultoria sem consultor`, {
+                  duration: 8000,
+                  action: {
+                    label: 'Atribuir agora',
+                    onClick: () => {
+                      setActiveFila('sem_consultor')
+                    },
+                  },
+                })
+              }
+            }
+          }
+
+          // Atualizar lista silenciosamente em qualquer alteração relevante
+          fetchLeads(true)
+        } catch (innerErr) {
+          console.warn('Erro ao processar evento realtime de leads:', innerErr)
+        }
+      })
+    } catch (err) {
+      console.warn('Falha silenciosa ao inicializar realtime de leads:', err)
+    }
+
+    return () => {
+      if (unsubscribe) {
+        try {
+          unsubscribe()
+        } catch (unsubErr) {
+          console.warn('Erro ao desinscrever realtime de leads:', unsubErr)
+        }
+      }
+    }
+  }, [fetchLeads])
+
+  // Abrir o card do lead com busca completa
+  const handleOpenLeadCard = async (leadId: string) => {
+    setLoadingModalLeadId(leadId)
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', leadId)
+        .maybeSingle()
+
+      if (error) {
+        throw error
+      }
+
+      if (data) {
+        setSelectedLeadModal(normalizeLead(data))
+      } else {
+        toast.error('Lead não encontrado')
+      }
+    } catch (err: any) {
+      toast.error('Erro ao abrir lead: ' + (err?.message || 'Falha ao buscar dados'))
+    } finally {
+      setLoadingModalLeadId(null)
+    }
+  }
+
+  // Atualização disparada pelo ModalAtendimento
+  const handleModalUpdateLead = async (leadId: string, updates: any) => {
+    try {
+      const { error } = await supabase.from('leads').update(updates).eq('id', leadId)
+      if (error) throw error
+
+      setSelectedLeadModal((prev: any) =>
+        prev && prev.id === leadId ? { ...prev, ...updates } : prev,
+      )
+      // Re-fetch silencioso da lista local
+      fetchLeads(true)
+    } catch (err: any) {
+      console.warn('Erro ao atualizar lead do modal:', err)
+      toast.error('Erro ao salvar dados do lead')
+    }
+  }
+
+  // Atribuir origem (fila 1: Sem origem)
   const handleOrigemChange = async (leadId: string, leadNome: string, novaOrigem: string) => {
     if (!novaOrigem || novaOrigem === 'A definir') return
 
@@ -121,10 +255,61 @@ export default function LeadsSemOrigem() {
 
       toast.success(`Origem do lead "${leadNome || 'Sem nome'}" atualizada para ${novaOrigem}!`)
 
-      // Remoção reativa da linha após salvar a origem válida
-      setLeads((prev) => prev.filter((item) => item.id !== leadId))
+      // Atualizar lista local
+      setTodosComerciais((prev) =>
+        prev.map((item) => (item.id === leadId ? { ...item, origem: novaOrigem } : item)),
+      )
     } catch (err: any) {
       toast.error('Erro ao atualizar origem: ' + (err?.message || 'Falha ao salvar'))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  // Atribuir consultor (disponível em ambas as visões)
+  const handleConsultorChange = async (
+    leadId: string,
+    leadNome: string,
+    novoConsultorId: string,
+  ) => {
+    const finalConsultorId = novoConsultorId === 'unassigned' ? null : novoConsultorId
+    const consultorObj = users.find((u) => u.id === finalConsultorId)
+    const consultorNome = consultorObj?.nome || 'Sem consultor'
+
+    setSavingId(leadId)
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ consultor_id: finalConsultorId })
+        .eq('id', leadId)
+
+      if (error) {
+        throw error
+      }
+
+      if (finalConsultorId) {
+        toast.success(`Consultor atribuído a ${leadNome || 'Sem nome'}: ${consultorNome}`)
+      } else {
+        toast.success(`Consultor removido de ${leadNome || 'Sem nome'}`)
+      }
+
+      // Atualizar estado local
+      setTodosComerciais((prev) =>
+        prev.map((item) =>
+          item.id === leadId ? { ...item, consultor_id: finalConsultorId } : item,
+        ),
+      )
+
+      // Se estamos na visão 'sem_consultor' e um consultor foi atribuído, remover imediatamente a linha da lista local com toast
+      if (activeFila === 'sem_consultor' && finalConsultorId) {
+        setTodosComerciais((prev) =>
+          prev.map((item) =>
+            item.id === leadId ? { ...item, consultor_id: finalConsultorId } : item,
+          ),
+        )
+      }
+    } catch (err: any) {
+      toast.error('Erro ao atribuir consultor: ' + (err?.message || 'Falha ao salvar'))
     } finally {
       setSavingId(null)
     }
@@ -145,7 +330,7 @@ export default function LeadsSemOrigem() {
         throw error
       }
 
-      setLeads((prev) => prev.filter((item) => item.id !== id))
+      setTodosComerciais((prev) => prev.filter((item) => item.id !== id))
       toast.success('Lead apagado')
       setLeadToDelete(null)
     } catch (err: any) {
@@ -155,29 +340,51 @@ export default function LeadsSemOrigem() {
     }
   }
 
-  // Obter aba de cada lead via getLeadAba
+  // Leads com configuração de aba calculada via getLeadAba
   const leadsComAba = useMemo(() => {
-    return leads.map((l) => ({
+    return todosComerciais.map((l) => ({
       ...l,
       abaConfig: getLeadAba(l),
     }))
-  }, [leads])
+  }, [todosComerciais])
 
-  // Lista de abas presentes para o filtro
+  // Fila 1: Sem origem (leads com origem nula, vazia, 'whatsapp', 'a definir' ou 'sem origem')
+  const leadsSemOrigem = useMemo(() => {
+    return leadsComAba.filter((lead) => {
+      const orig = (lead.origem || '').trim().toLowerCase()
+      return !orig || orig === 'whatsapp' || orig === 'a definir' || orig === 'sem origem'
+    })
+  }, [leadsComAba])
+
+  // Fila 2: Sem consultor — Consultoria (aba 'Lead p/ Consultoria' e consultor_id vazio)
+  const leadsSemConsultor = useMemo(() => {
+    return leadsComAba.filter((lead) => {
+      const semConsultor = !lead.consultor_id || String(lead.consultor_id).trim() === ''
+      const isConsultoria =
+        lead.abaConfig?.id === 'lead-consultoria' ||
+        lead.abaConfig?.titulo === 'Lead p/ Consultoria'
+      return semConsultor && isConsultoria
+    })
+  }, [leadsComAba])
+
+  // Lista da fila ativa
+  const listaAtiva = activeFila === 'sem_origem' ? leadsSemOrigem : leadsSemConsultor
+
+  // Lista de abas presentes na fila ativa para o filtro
   const abasDisponiveis = useMemo(() => {
     const mapa = new Map<string, string>()
-    leadsComAba.forEach((l) => {
+    listaAtiva.forEach((l) => {
       if (l.abaConfig) {
         mapa.set(l.abaConfig.id, `${l.abaConfig.numero} - ${l.abaConfig.titulo}`)
       }
     })
     return Array.from(mapa.entries()).map(([id, label]) => ({ id, label }))
-  }, [leadsComAba])
+  }, [listaAtiva])
 
-  // Filtragem local por texto e aba
+  // Filtragem local por texto e aba sobre a lista ativa
   const leadsFiltrados = useMemo(() => {
-    return leadsComAba.filter((lead) => {
-      if (filtroAba !== 'todas' && lead.abaConfig.id !== filtroAba) {
+    return listaAtiva.filter((lead) => {
+      if (filtroAba !== 'todas' && lead.abaConfig?.id !== filtroAba) {
         return false
       }
 
@@ -193,7 +400,7 @@ export default function LeadsSemOrigem() {
 
       return matchNome || matchTelefone || matchStatus || matchOrigem
     })
-  }, [leadsComAba, searchTerm, filtroAba])
+  }, [listaAtiva, searchTerm, filtroAba])
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6 animate-in fade-in duration-300">
@@ -208,17 +415,16 @@ export default function LeadsSemOrigem() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <span>Leads sem Origem</span>
+              <span>Pendências Comerciais</span>
               <Badge
                 variant="outline"
                 className="border-amber-400 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40"
               >
-                {leads.length} pendentes
+                {leadsSemOrigem.length + leadsSemConsultor.length} pendências
               </Badge>
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Defina a origem dos contatos comerciais para manter as métricas de captação e
-              conversão precisas.
+              Atribua origem aos leads e designe consultores para contatos no funil de Consultoria.
             </p>
           </div>
         </div>
@@ -226,7 +432,7 @@ export default function LeadsSemOrigem() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchLeads}
+          onClick={() => fetchLeads(false)}
           disabled={loading}
           className="gap-1.5 self-start sm:self-auto"
         >
@@ -243,20 +449,82 @@ export default function LeadsSemOrigem() {
           </div>
           <div className="text-xs sm:text-sm space-y-1">
             <p className="font-semibold text-amber-950 dark:text-amber-200">
-              Passivo de Origem de Captação
+              {activeFila === 'sem_origem'
+                ? 'Passivo de Origem de Captação'
+                : 'Fila de Consultoria sem Consultor'}
             </p>
             <p className="text-amber-900 dark:text-amber-300">
-              Esta lista reúne todos os contatos da categoria Comercial cuja origem está nula,
-              vazia, &quot;WhatsApp&quot;, &quot;A definir&quot; ou &quot;sem origem&quot;. Ao
-              selecionar a origem definitiva, o registro é salvo imediatamente e removido desta
-              fila.
+              {activeFila === 'sem_origem'
+                ? 'Esta lista reúne todos os contatos da categoria Comercial cuja origem está pendente. Ao selecionar a origem, o registro é salvo imediatamente e removido desta fila. Atribuir consultor aqui não remove o lead da pendência de origem.'
+                : 'Esta lista reúne todos os leads que estão no funil de Consultoria sem um consultor atribuído. Ao selecionar o consultor, o card é atualizado e sai imediatamente desta fila.'}
             </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Barra de Filtros e Busca */}
+      {/* Card da Tabela com Abas-Pílula no Topo */}
       <Card className="border-border shadow-sm">
+        {/* Abas-Pílula no Topo do Card */}
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-lg border border-border w-fit">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFila('sem_origem')
+                setFiltroAba('todas')
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 ${
+                activeFila === 'sem_origem'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <span>Sem origem</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeFila === 'sem_origem'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {leadsSemOrigem.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveFila('sem_consultor')
+                setFiltroAba('todas')
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 ${
+                activeFila === 'sem_consultor'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              <span>Sem consultor — Consultoria</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeFila === 'sem_consultor'
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {leadsSemConsultor.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            {activeFila === 'sem_origem' ? (
+              <span>Exibindo leads comerciais pendentes de origem</span>
+            ) : (
+              <span>Exibindo leads em Consultoria aguardando atribuição de consultor</span>
+            )}
+          </div>
+        </div>
+
+        {/* Barra de Filtros e Busca */}
         <CardHeader className="pb-3 pt-4 px-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
@@ -276,9 +544,9 @@ export default function LeadsSemOrigem() {
                   <SelectValue placeholder="Filtrar por Aba" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todas">Todas as abas ({leads.length})</SelectItem>
+                  <SelectItem value="todas">Todas as abas ({listaAtiva.length})</SelectItem>
                   {abasDisponiveis.map((aba) => {
-                    const count = leadsComAba.filter((l) => l.abaConfig.id === aba.id).length
+                    const count = listaAtiva.filter((l) => l.abaConfig?.id === aba.id).length
                     return (
                       <SelectItem key={aba.id} value={aba.id}>
                         {aba.label} ({count})
@@ -295,7 +563,7 @@ export default function LeadsSemOrigem() {
           {loading ? (
             <div className="py-16 text-center space-y-3">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-              <p className="text-sm text-muted-foreground">Carregando contatos pendentes...</p>
+              <p className="text-sm text-muted-foreground">Carregando contatos...</p>
             </div>
           ) : leadsFiltrados.length === 0 ? (
             <div className="py-16 text-center space-y-3 px-4">
@@ -305,12 +573,16 @@ export default function LeadsSemOrigem() {
               <h3 className="text-base font-semibold text-foreground">
                 {searchTerm || filtroAba !== 'todas'
                   ? 'Nenhum lead encontrado para estes filtros'
-                  : 'Nenhum lead comercial sem origem pendente!'}
+                  : activeFila === 'sem_origem'
+                    ? 'Nenhum lead comercial sem origem pendente!'
+                    : 'Nenhum lead em Consultoria sem consultor!'}
               </h3>
               <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
                 {searchTerm || filtroAba !== 'todas'
                   ? 'Tente ajustar os termos de busca ou remover o filtro por aba.'
-                  : 'Todos os contatos comerciais estão com a origem oficial devidamente registrada.'}
+                  : activeFila === 'sem_origem'
+                    ? 'Todos os contatos comerciais estão com a origem devidamente registrada.'
+                    : 'Todos os leads do funil de Consultoria já possuem consultor atribuído.'}
               </p>
             </div>
           ) : (
@@ -319,26 +591,52 @@ export default function LeadsSemOrigem() {
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="w-[280px]">Contato / Nome</TableHead>
-                    <TableHead className="w-[180px]">Telefone</TableHead>
-                    <TableHead className="w-[220px]">Aba / Status Atual</TableHead>
-                    <TableHead className="w-[160px]">Origem Atual</TableHead>
-                    <TableHead className="w-[240px]">Atribuir Nova Origem</TableHead>
+                    <TableHead className="w-[160px]">Telefone</TableHead>
+                    <TableHead className="w-[200px]">Aba / Status Atual</TableHead>
+                    <TableHead className="w-[150px]">Origem</TableHead>
+                    <TableHead className="w-[200px]">Consultor</TableHead>
+                    <TableHead className="w-[220px]">
+                      {activeFila === 'sem_origem' ? 'Atribuir Nova Origem' : 'Ações'}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {leadsFiltrados.map((lead) => {
                     const isSaving = savingId === lead.id
                     const origemAtualDisplay = (lead.origem || '').trim() || 'Vazio / Não informada'
+                    const isLoadingModal = loadingModalLeadId === lead.id
 
                     return (
                       <TableRow key={lead.id} className="hover:bg-muted/30">
-                        {/* Nome do Lead */}
+                        {/* Nome do Lead Clicável para abrir o Card do Lead */}
                         <TableCell className="font-semibold text-foreground">
                           <div className="space-y-0.5">
-                            <span className="block text-sm">
-                              {lead.nome || 'Sem nome registrado'}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-mono">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    disabled={isLoadingModal}
+                                    onClick={() => handleOpenLeadCard(lead.id)}
+                                    className="text-left group inline-flex items-center gap-1.5 hover:text-primary transition-colors focus:outline-none focus:underline"
+                                  >
+                                    <span className="text-sm font-semibold group-hover:underline">
+                                      {lead.nome || 'Sem nome registrado'}
+                                    </span>
+                                    {isLoadingModal ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                                    ) : (
+                                      <Eye className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p>Ver card do lead</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <span className="block text-[10px] text-muted-foreground font-mono">
                               ID: {lead.id.slice(0, 8)}...
                             </span>
                           </div>
@@ -369,11 +667,11 @@ export default function LeadsSemOrigem() {
                                 variant="secondary"
                                 className="text-[10px] py-0 px-1.5 font-medium"
                               >
-                                {lead.abaConfig.numero} - {lead.abaConfig.titulo}
+                                {lead.abaConfig?.numero} - {lead.abaConfig?.titulo}
                               </Badge>
                             </div>
                             <div
-                              className="text-xs text-muted-foreground truncate max-w-[200px]"
+                              className="text-xs text-muted-foreground truncate max-w-[190px]"
                               title={lead.status || ''}
                             >
                               Status:{' '}
@@ -394,26 +692,63 @@ export default function LeadsSemOrigem() {
                           </Badge>
                         </TableCell>
 
-                        {/* Select para Atribuir Nova Origem + Botão de Apagar Lead */}
+                        {/* Coluna Consultor: Select para atribuir consultor */}
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Select
                               disabled={isSaving || deletingId === lead.id}
-                              onValueChange={(val) => handleOrigemChange(lead.id, lead.nome, val)}
+                              value={lead.consultor_id || 'unassigned'}
+                              onValueChange={(val) =>
+                                handleConsultorChange(lead.id, lead.nome, val)
+                              }
                             >
-                              <SelectTrigger className="h-8 text-xs w-[190px]">
-                                <SelectValue placeholder="Selecione a origem..." />
+                              <SelectTrigger className="h-8 text-xs w-[170px]">
+                                <SelectValue placeholder="Sem consultor..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {ORIGENS_DISPONIVEIS.map((origem) => (
-                                  <SelectItem key={origem} value={origem} className="text-xs">
-                                    {origem}
+                                <SelectItem
+                                  value="unassigned"
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  Sem consultor...
+                                </SelectItem>
+                                {users.map((u) => (
+                                  <SelectItem key={u.id} value={u.id} className="text-xs">
+                                    {u.nome}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                             {isSaving && (
-                              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Ação: Atribuir Nova Origem (na fila de origem) ou Botão de Excluir */}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {activeFila === 'sem_origem' ? (
+                              <Select
+                                disabled={isSaving || deletingId === lead.id}
+                                onValueChange={(val) => handleOrigemChange(lead.id, lead.nome, val)}
+                              >
+                                <SelectTrigger className="h-8 text-xs w-[170px]">
+                                  <SelectValue placeholder="Atribuir origem..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {ORIGENS_DISPONIVEIS.map((origem) => (
+                                    <SelectItem key={origem} value={origem} className="text-xs">
+                                      {origem}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <UserCheck className="h-3.5 w-3.5 text-primary" />
+                                <span>Atribua acima</span>
+                              </div>
                             )}
 
                             <TooltipProvider>
@@ -424,7 +759,7 @@ export default function LeadsSemOrigem() {
                                     size="sm"
                                     type="button"
                                     aria-label="Apagar lead"
-                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                                     disabled={deletingId === lead.id || isSaving}
                                     onClick={() => setLeadToDelete(lead)}
                                   >
