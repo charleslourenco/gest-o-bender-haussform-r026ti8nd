@@ -29,6 +29,7 @@ import {
   Info,
 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DREProjetoSimplificado } from './DREProjetoSimplificado'
 
 export type RegimeType = 'caixa' | 'competencia'
 
@@ -791,6 +792,9 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
 
   return (
     <div className="space-y-6">
+      {/* Bloco DRE Simplificado por Projeto no Topo */}
+      <DREProjetoSimplificado />
+
       {/* Header com Controles de Regime e Seleção de Mês */}
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-4">

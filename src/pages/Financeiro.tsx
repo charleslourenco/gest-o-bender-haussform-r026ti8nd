@@ -292,7 +292,7 @@ export default function Financeiro() {
 
         <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
           <TabsContent value="dashboard" className="m-0 border-none outline-none">
-            <ErrorBoundary>
+            <ErrorBoundary source="FinanceiroDashboard">
               <FinanceiroDashboard
                 transactions={filteredTransactions as Transaction[]}
                 contasBancarias={contasBancarias}
@@ -300,22 +300,22 @@ export default function Financeiro() {
             </ErrorBoundary>
           </TabsContent>
           <TabsContent value="movimentacoes" className="m-0 border-none outline-none">
-            <ErrorBoundary>
+            <ErrorBoundary source="FinanceiroMovimentacoes">
               <FinanceiroMovimentacoes transactions={filteredTransactions} onRefresh={fetchData} />
             </ErrorBoundary>
           </TabsContent>
           <TabsContent value="a_classificar" className="m-0 border-none outline-none">
-            <ErrorBoundary>
+            <ErrorBoundary source="NotasAClassificarTab">
               <NotasAClassificarTab transactions={filteredTransactions} onRefresh={fetchData} />
             </ErrorBoundary>
           </TabsContent>
           <TabsContent value="dre" className="m-0 border-none outline-none">
-            <ErrorBoundary>
+            <ErrorBoundary source="FinanceiroDRE">
               <FinanceiroDRE transactions={filteredTransactions as Transaction[]} />
             </ErrorBoundary>
           </TabsContent>
           <TabsContent value="contas" className="m-0 border-none outline-none">
-            <ErrorBoundary>
+            <ErrorBoundary source="ContasBancariasTab">
               <ContasBancariasTab />
             </ErrorBoundary>
           </TabsContent>
