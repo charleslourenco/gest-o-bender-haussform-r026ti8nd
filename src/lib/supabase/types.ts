@@ -1263,10 +1263,13 @@ export type Database = {
           cliente_id: string | null
           cliente_nome: string
           criado_em: string
+          destino: string | null
           id: string
           item_id: string
           quantidade: number
           status: string
+          valor_total_congelado: number | null
+          valor_unitario_congelado: number | null
         }
         Insert: {
           baixado_em?: string | null
@@ -1274,10 +1277,13 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome: string
           criado_em?: string
+          destino?: string | null
           id?: string
           item_id: string
           quantidade: number
           status?: string
+          valor_total_congelado?: number | null
+          valor_unitario_congelado?: number | null
         }
         Update: {
           baixado_em?: string | null
@@ -1285,10 +1291,13 @@ export type Database = {
           cliente_id?: string | null
           cliente_nome?: string
           criado_em?: string
+          destino?: string | null
           id?: string
           item_id?: string
           quantidade?: number
           status?: string
+          valor_total_congelado?: number | null
+          valor_unitario_congelado?: number | null
         }
         Relationships: [
           {

@@ -504,14 +504,14 @@ export function EditarContaDialog({
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
                   <SelectItem value="none">Nenhum projeto vinculado (Geral / Fábrica)</SelectItem>
-                  {projetos
+                  {projetosList
                     .filter((p) => p && p.id && String(p.id).trim() !== '')
                     .map((p) => (
                       <SelectItem key={p.id} value={String(p.id)}>
                         {p.label || 'Projeto'}
                       </SelectItem>
                     ))}
-                </SelectContent>{' '}
+                </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
                 {tipo === 'pagar'

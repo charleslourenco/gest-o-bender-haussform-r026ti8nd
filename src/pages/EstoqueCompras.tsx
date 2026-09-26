@@ -9,6 +9,7 @@ import { ItensCliente } from '@/components/estoque/ItensCliente'
 import { CaixasVirtuais } from '@/components/estoque/CaixasVirtuais'
 import { GestaoSobras } from '@/components/estoque/GestaoSobras'
 import { ListasMateriais } from '@/components/estoque/ListasMateriais'
+import { RelatorioConsumoInterno } from '@/components/estoque/RelatorioConsumoInterno'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
@@ -147,6 +148,12 @@ export default function EstoqueCompras() {
               >
                 Sobras
               </TabsTrigger>
+              <TabsTrigger
+                value="consumo-interno"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
+              >
+                Consumo Interno
+              </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
@@ -211,6 +218,12 @@ export default function EstoqueCompras() {
             className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
           >
             <GestaoSobras />
+          </TabsContent>
+          <TabsContent
+            value="consumo-interno"
+            className="m-0 border-none outline-none h-full overflow-y-auto pb-20"
+          >
+            <RelatorioConsumoInterno />
           </TabsContent>
         </div>
       </Tabs>

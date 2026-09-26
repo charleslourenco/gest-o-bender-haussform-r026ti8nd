@@ -349,13 +349,17 @@ export function DREProjetoSimplificado() {
 
   const totalEstoqueReservado = useMemo(() => {
     return compras
-      .filter((c) => c.origem === 'estoque_alocacao' && c.status.toLowerCase() === 'reservado')
+      .filter(
+        (c) => c.origem === 'estoque_alocacao' && (c.status || '').toLowerCase() === 'reservado',
+      )
       .reduce((acc, c) => acc + (Number(c.valor) || 0), 0)
   }, [compras])
 
   const totalEstoqueBaixado = useMemo(() => {
     return compras
-      .filter((c) => c.origem === 'estoque_alocacao' && c.status.toLowerCase() === 'baixado')
+      .filter(
+        (c) => c.origem === 'estoque_alocacao' && (c.status || '').toLowerCase() === 'baixado',
+      )
       .reduce((acc, c) => acc + (Number(c.valor) || 0), 0)
   }, [compras])
 
@@ -638,8 +642,8 @@ export function DREProjetoSimplificado() {
                           <TableCell className="whitespace-nowrap capitalize">
                             <span
                               className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                item.status.toLowerCase() === 'pago' ||
-                                item.status.toLowerCase() === 'baixado'
+                                (item.status || '').toLowerCase() === 'pago' ||
+                                (item.status || '').toLowerCase() === 'baixado'
                                   ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
                                   : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
                               }`}

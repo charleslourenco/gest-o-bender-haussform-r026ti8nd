@@ -85,6 +85,9 @@ export default function BaixaAlocacao() {
         status: 'baixado',
         baixado_em: nowIso,
       }
+      if (!alocacao.destino) {
+        updatePayload.destino = 'cliente'
+      }
       if (
         alocacao.valor_unitario_congelado === null ||
         alocacao.valor_unitario_congelado === undefined

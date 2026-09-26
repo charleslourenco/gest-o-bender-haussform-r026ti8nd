@@ -63,24 +63,33 @@ export default function Financeiro() {
 
       const parseJoinName = (target: any): string | null => {
         if (!target) return null
-        if (Array.isArray(target)) {
-          const first = target[0]
-          return first && typeof first === 'object' && typeof first.nome === 'string'
-            ? first.nome
-            : null
-        }
-        if (typeof target === 'object' && typeof target.nome === 'string') {
-          return target.nome
+        const item = Array.isArray(target) ? target[0] : target
+        if (item && typeof item === 'object') {
+          if (typeof item.nome === 'string' && item.nome.trim()) {
+            return item.nome.trim()
+          }
+          if (typeof item.nome_cliente === 'string' && item.nome_cliente.trim()) {
+            return item.nome_cliente.trim()
+          }
+          if (typeof item.nome_fantasia === 'string' && item.nome_fantasia.trim()) {
+            return item.nome_fantasia.trim()
+          }
         }
         return null
       }
 
+      const unwrapFirst = (target: any): any => {
+        if (!target) return null
+        return Array.isArray(target) ? target[0] || null : target
+      }
+
       const recebimentos = (receberRes.data || []).map((r: any) => {
-        const fc = Array.isArray(r?.formulario_comercial)
-          ? r.formulario_comercial[0]
-          : r?.formulario_comercial
+        const fc = unwrapFirst(r?.formulario_comercial)
+        const cli = unwrapFirst(r?.cliente)
         const rawCliName =
-          parseJoinName(r?.cliente) || fc?.nome_cliente || 'Cliente não identificado'
+          parseJoinName(cli) ||
+          (fc && typeof fc === 'object' ? fc.nome_cliente || fc.nome_fantasia : null) ||
+          'Cliente não identificado'
         const cliName =
           typeof rawCliName === 'string' && rawCliName.trim()
             ? rawCliName.trim()
@@ -129,10 +138,12 @@ export default function Financeiro() {
       })
 
       const pagamentos = (pagarRes.data || []).map((p: any) => {
-        const fc = Array.isArray(p?.formulario_comercial)
-          ? p.formulario_comercial[0]
-          : p?.formulario_comercial
-        const rawCliName = parseJoinName(p?.cliente) || fc?.nome_cliente || null
+        const fc = unwrapFirst(p?.formulario_comercial)
+        const cli = unwrapFirst(p?.cliente)
+        const rawCliName =
+          parseJoinName(cli) ||
+          (fc && typeof fc === 'object' ? fc.nome_cliente || fc.nome_fantasia : null) ||
+          null
         const cliName =
           typeof rawCliName === 'string' && rawCliName.trim() ? rawCliName.trim() : null
 
@@ -284,7 +295,7 @@ export default function Financeiro() {
                     {aClassificarCount}
                   </span>
                 )}
-              </TabsTrigger>{' '}
+              </TabsTrigger>
               <TabsTrigger
                 value="dre"
                 className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"

@@ -59,10 +59,37 @@ export function GerarEtiquetaModal({
   const availableQuantity = item.quantidade - totalAllocated
   const isOverAllocated = quantidade > availableQuantity
   const isConsumoInterno = destino === 'consumo_interno'
-  const isValid =
-    (isConsumoInterno || clienteNome.trim().length > 0) && quantidade > 0 && !isOverAllocated
+  const isClienteDestino = destino === 'cliente'
+  const hasCliente = clienteNome.trim().length > 0 || selectedClienteId !== 'none'
+  const hasValidDestino = isConsumoInterno || (isClienteDestino && hasCliente)
+  const isValid = hasValidDestino && quantidade > 0 && !isOverAllocated
 
   const handleAllocate = async () => {
+    if (!hasValidDestino) {
+      toast({
+        title: 'Destino obrigatório',
+        description:
+          'Selecione um cliente para o material ou marque "Consumo interno (uso da fábrica)" antes de prosseguir.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (quantidade <= 0) {
+      toast({
+        title: 'Quantidade inválida',
+        description: 'Informe uma quantidade maior que zero.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (isOverAllocated) {
+      toast({
+        title: 'Quantidade indisponível',
+        description: `Quantidade superior ao disponível (${availableQuantity} ${item.unidade || 'un'}).`,
+        variant: 'destructive',
+      })
+      return
+    }
     if (!isValid) return
     setIsSubmitting(true)
     try {
@@ -250,6 +277,12 @@ export function GerarEtiquetaModal({
                   if (match) setSelectedClienteId(match.id)
                 }}
               />
+              {!isConsumoInterno && !hasCliente && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  Informe o nome do cliente ou selecione um cliente cadastrado abaixo para liberar a
+                  geração.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
