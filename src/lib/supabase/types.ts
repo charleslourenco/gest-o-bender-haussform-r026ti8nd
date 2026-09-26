@@ -1260,6 +1260,7 @@ export type Database = {
         Row: {
           baixado_em: string | null
           baixado_por: string | null
+          cliente_id: string | null
           cliente_nome: string
           criado_em: string
           id: string
@@ -1270,6 +1271,7 @@ export type Database = {
         Insert: {
           baixado_em?: string | null
           baixado_por?: string | null
+          cliente_id?: string | null
           cliente_nome: string
           criado_em?: string
           id?: string
@@ -1280,6 +1282,7 @@ export type Database = {
         Update: {
           baixado_em?: string | null
           baixado_por?: string | null
+          cliente_id?: string | null
           cliente_nome?: string
           criado_em?: string
           id?: string
@@ -1288,6 +1291,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: 'estoque_alocacoes_cliente_id_fkey'
+            columns: ['cliente_id']
+            isOneToOne: false
+            referencedRelation: 'clientes'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'estoque_alocacoes_item_id_fkey'
             columns: ['item_id']

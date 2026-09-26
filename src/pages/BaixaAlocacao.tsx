@@ -9,6 +9,10 @@ interface AlocacaoData {
   id: string
   item_id: string
   cliente_nome: string
+  cliente_id?: string | null
+  destino?: 'cliente' | 'consumo_interno' | null
+  valor_unitario_congelado?: number | null
+  valor_total_congelado?: number | null
   quantidade: number
   criado_em: string
   status: string | null
@@ -24,6 +28,7 @@ interface AlocacaoData {
     comprimento_m: number | null
     unidade: string
     quantidade: number
+    valor_unitario?: number | null
   } | null
 }
 
@@ -66,10 +71,33 @@ export default function BaixaAlocacao() {
 
     try {
       const nowIso = new Date().toISOString()
+      const unitVal =
+        alocacao.valor_unitario_congelado !== null &&
+        alocacao.valor_unitario_congelado !== undefined
+          ? Number(alocacao.valor_unitario_congelado)
+          : Number(alocacao.item?.valor_unitario ?? 0)
+      const totalVal =
+        alocacao.valor_total_congelado !== null && alocacao.valor_total_congelado !== undefined
+          ? Number(alocacao.valor_total_congelado)
+          : Math.round(Number(alocacao.quantidade || 0) * unitVal * 100) / 100
+
+      const updatePayload: Record<string, any> = {
+        status: 'baixado',
+        baixado_em: nowIso,
+      }
+      if (
+        alocacao.valor_unitario_congelado === null ||
+        alocacao.valor_unitario_congelado === undefined
+      ) {
+        updatePayload.valor_unitario_congelado = unitVal
+      }
+      if (alocacao.valor_total_congelado === null || alocacao.valor_total_congelado === undefined) {
+        updatePayload.valor_total_congelado = totalVal
+      }
 
       const { error: updateErr } = await supabase
         .from('estoque_alocacoes')
-        .update({ status: 'baixado', baixado_em: nowIso })
+        .update(updatePayload)
         .eq('id', alocacao.id)
 
       if (updateErr) throw updateErr
@@ -196,9 +224,13 @@ export default function BaixaAlocacao() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-1">
-                  Cliente
+                  {alocacao.destino === 'consumo_interno' ? 'Destino' : 'Cliente'}
                 </p>
-                <p className="font-medium text-gray-800">{alocacao.cliente_nome || '-'}</p>
+                <p className="font-medium text-gray-800">
+                  {alocacao.destino === 'consumo_interno'
+                    ? 'Consumo Interno (uso da fábrica)'
+                    : alocacao.cliente_nome || '-'}
+                </p>
               </div>
             </div>
 

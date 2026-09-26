@@ -56,7 +56,7 @@ interface ItemCompra {
 export function DREProjetoSimplificado() {
   const [projetos, setProjetos] = useState<ProjetoOption[]>([])
   const [loadingProjetos, setLoadingProjetos] = useState(true)
-  const [selectedProjetoId, setSelectedProjetoId] = useState<string>('')
+  const [selectedProjetoId, setSelectedProjetoId] = useState<string>('none')
 
   // Dados do projeto selecionado
   const [loadingDetalhes, setLoadingDetalhes] = useState(false)
@@ -173,7 +173,7 @@ export function DREProjetoSimplificado() {
   )
 
   useEffect(() => {
-    if (!selectedProjetoId || !selectedProjeto) {
+    if (!selectedProjetoId || selectedProjetoId === 'none' || !selectedProjeto) {
       setCompras([])
       setValorVendaCalculado(0)
       return
@@ -249,11 +249,13 @@ export function DREProjetoSimplificado() {
         }
 
         // (c) Buscar estoque_alocacoes casadas
-        // Regra estrutural: preferir cliente_id quando projeto e alocação tiverem, com fallback para cliente_nome (trim/lowercase)
+        // Regra estrutural: buscar colunas novas (valor_unitario_congelado, valor_total_congelado, destino)
+        // Ignorar destino = 'consumo_interno'
+        // Usar valor_total_congelado com fallback quantidade × item.valor_unitario
         const { data: alocData, error: alocErr } = await supabase
           .from('estoque_alocacoes')
           .select(
-            'id, quantidade, status, cliente_nome, cliente_id, criado_em, baixado_em, item:estoque_itens(id, nome, valor_unitario, fornecedor)',
+            'id, quantidade, status, cliente_nome, cliente_id, destino, valor_unitario_congelado, valor_total_congelado, criado_em, baixado_em, item:estoque_itens(id, nome, valor_unitario, fornecedor)',
           )
 
         if (alocErr) {
@@ -265,6 +267,11 @@ export function DREProjetoSimplificado() {
           const targetNorm = (clienteNome || '').trim().toLowerCase()
 
           alocData.forEach((aloc: any) => {
+            // Ignorar alocações com destino='consumo_interno' no custo do projeto
+            if (aloc.destino === 'consumo_interno') {
+              return
+            }
+
             // 1. Preferir casamento por cliente_id se ambos tiverem
             let match = false
             if (clienteId && aloc.cliente_id) {
@@ -279,8 +286,17 @@ export function DREProjetoSimplificado() {
 
             const item = aloc.item || {}
             const qtd = Number(aloc.quantidade) || 0
-            const unit = Number(item.valor_unitario) || 0
-            const totalCusto = qtd * unit
+            const unitItem = Number(item.valor_unitario) || 0
+            const unit =
+              aloc.valor_unitario_congelado !== null && aloc.valor_unitario_congelado !== undefined
+                ? Number(aloc.valor_unitario_congelado)
+                : unitItem
+
+            // Usar Number(aloc.valor_total_congelado) com fallback quantidade × estoque_itens.valor_unitario
+            const totalCusto =
+              aloc.valor_total_congelado !== null && aloc.valor_total_congelado !== undefined
+                ? Number(aloc.valor_total_congelado)
+                : qtd * unitItem
 
             if (totalCusto <= 0 && qtd <= 0) return
 
@@ -447,13 +463,15 @@ export function DREProjetoSimplificado() {
               Nenhum projeto comercial não arquivado com valor de venda encontrado.
             </div>
           ) : (
-            <Select value={selectedProjetoId} onValueChange={setSelectedProjetoId}>
+            <Select value={selectedProjetoId || undefined} onValueChange={setSelectedProjetoId}>
               <SelectTrigger className="w-full bg-background border-border text-sm font-medium">
                 <SelectValue placeholder="Selecione um projeto..." />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
                 {projetos
-                  .filter((p) => p && p.formularioId && String(p.formularioId).trim() !== '')
+                  .filter((p) =>
+                    Boolean(p && p.formularioId && String(p.formularioId).trim() !== ''),
+                  )
                   .map((p) => (
                     <SelectItem
                       key={p.formularioId}

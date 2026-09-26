@@ -36,12 +36,14 @@ export function GerarEtiquetaModal({
     Array<{ id: string; nome: string }>
   >([])
   const [selectedClienteId, setSelectedClienteId] = useState<string>('none')
+  const [destino, setDestino] = useState<'cliente' | 'consumo_interno'>('cliente')
 
   useEffect(() => {
     if (isOpen) {
       setClienteNome('')
       setQuantidade(1)
       setSelectedClienteId('none')
+      setDestino('cliente')
       supabase
         .from('clientes')
         .select('id, nome')
@@ -56,28 +58,43 @@ export function GerarEtiquetaModal({
 
   const availableQuantity = item.quantidade - totalAllocated
   const isOverAllocated = quantidade > availableQuantity
-  const isValid = clienteNome.trim().length > 0 && quantidade > 0 && !isOverAllocated
+  const isConsumoInterno = destino === 'consumo_interno'
+  const isValid =
+    (isConsumoInterno || clienteNome.trim().length > 0) && quantidade > 0 && !isOverAllocated
 
   const handleAllocate = async () => {
     if (!isValid) return
     setIsSubmitting(true)
     try {
-      // Cria N alocações individuais (cada uma com quantidade: 1) para que
-      // cada etiqueta tenha seu próprio QR Code e a baixa seja por unidade.
-      // Se selecionou cliente da lista ou bate com nome digitado, define cliente_id
-      let matchedClienteId: string | null = selectedClienteId !== 'none' ? selectedClienteId : null
-      if (!matchedClienteId && clienteNome) {
-        const found = clientesDisponiveis.find(
-          (c) => c.nome.trim().toLowerCase() === clienteNome.trim().toLowerCase(),
-        )
-        if (found) matchedClienteId = found.id
+      const valorUnitario = Number(item.valor_unitario) || 0
+      const valorTotalUnitario = Math.round(valorUnitario * 1 * 100) / 100
+
+      let finalClienteNome = clienteNome
+      let matchedClienteId: string | null = null
+
+      if (isConsumoInterno) {
+        finalClienteNome = 'Consumo Interno'
+        matchedClienteId = null
+      } else {
+        matchedClienteId = selectedClienteId !== 'none' ? selectedClienteId : null
+        if (!matchedClienteId && clienteNome) {
+          const found = clientesDisponiveis.find(
+            (c) => c.nome.trim().toLowerCase() === clienteNome.trim().toLowerCase(),
+          )
+          if (found) matchedClienteId = found.id
+        }
       }
 
+      // Cria N alocações individuais (cada uma com quantidade: 1) para que
+      // cada etiqueta tenha seu próprio QR Code e a baixa seja por unidade.
       const rows = Array.from({ length: quantidade }, () => ({
         item_id: item.id,
-        cliente_nome: clienteNome,
+        cliente_nome: finalClienteNome,
         cliente_id: matchedClienteId,
         quantidade: 1,
+        destino,
+        valor_unitario_congelado: valorUnitario,
+        valor_total_congelado: valorTotalUnitario,
       }))
 
       const { data, error } = await supabase
@@ -173,13 +190,59 @@ export function GerarEtiquetaModal({
               </div>
             </div>
 
-            <div className="space-y-2 pt-2">
-              <Label htmlFor="clienteNome">Nome do Cliente *</Label>
+            {/* Toggle Destino: Cliente / Projeto vs Consumo Interno */}
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
+                Destino do Material
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={destino === 'cliente' ? 'default' : 'outline'}
+                  size="sm"
+                  className={
+                    destino === 'cliente' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''
+                  }
+                  onClick={() => setDestino('cliente')}
+                >
+                  Cliente / Projeto
+                </Button>
+                <Button
+                  type="button"
+                  variant={destino === 'consumo_interno' ? 'default' : 'outline'}
+                  size="sm"
+                  className={
+                    destino === 'consumo_interno'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : ''
+                  }
+                  onClick={() => {
+                    setDestino('consumo_interno')
+                    setClienteNome('Consumo Interno')
+                    setSelectedClienteId('none')
+                  }}
+                >
+                  Consumo interno (uso da fábrica)
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {isConsumoInterno
+                  ? 'Use quando o material não se destina a um cliente — não entra no DRE de projeto'
+                  : 'O material será vinculado a um cliente/projeto e somará no DRE do projeto correspondente.'}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <Label htmlFor="clienteNome">
+                {isConsumoInterno ? 'Destino' : 'Nome do Cliente *'}
+              </Label>
               <Input
                 id="clienteNome"
-                placeholder="Ex: João da Silva / Projeto X"
-                value={clienteNome}
+                placeholder={isConsumoInterno ? 'Consumo Interno' : 'Ex: João da Silva / Projeto X'}
+                value={isConsumoInterno ? 'Consumo Interno' : clienteNome}
+                disabled={isConsumoInterno}
                 onChange={(e) => {
+                  if (isConsumoInterno) return
                   setClienteNome(e.target.value)
                   const match = clientesDisponiveis.find(
                     (c) => c.nome.trim().toLowerCase() === e.target.value.trim().toLowerCase(),
@@ -195,7 +258,9 @@ export function GerarEtiquetaModal({
               </Label>
               <Select
                 value={selectedClienteId}
+                disabled={isConsumoInterno}
                 onValueChange={(val) => {
+                  if (isConsumoInterno) return
                   setSelectedClienteId(val)
                   if (val !== 'none') {
                     const sel = clientesDisponiveis.find((c) => c.id === val)
@@ -206,17 +271,24 @@ export function GerarEtiquetaModal({
                 }}
               >
                 <SelectTrigger id="clienteSelect" className="h-9 text-xs">
-                  <SelectValue placeholder="Selecione um cliente (opcional)..." />
+                  <SelectValue
+                    placeholder={
+                      isConsumoInterno
+                        ? 'Desabilitado para consumo interno'
+                        : 'Selecione um cliente (opcional)...'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
                   <SelectItem value="none">Nenhum vínculo direto</SelectItem>
-                  {clientesDisponiveis
-                    .filter((c) => c && c.id && String(c.id).trim() !== '')
-                    .map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.nome || 'Cliente sem nome'}
-                      </SelectItem>
-                    ))}
+                  {!isConsumoInterno &&
+                    clientesDisponiveis
+                      .filter((c) => c && c.id && String(c.id).trim() !== '')
+                      .map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.nome || 'Cliente sem nome'}
+                        </SelectItem>
+                      ))}
                 </SelectContent>
               </Select>
             </div>
@@ -256,7 +328,8 @@ export function GerarEtiquetaModal({
                   {item.nome}
                 </h1>
                 <p className="text-[10px] m-0 mb-0.5 truncate leading-tight w-full">
-                  <strong>Cliente:</strong> {clienteNome || 'Nome do Cliente'}
+                  <strong>{isConsumoInterno ? 'Destino:' : 'Cliente:'}</strong>{' '}
+                  {isConsumoInterno ? 'Consumo Interno' : clienteNome || 'Nome do Cliente'}
                 </p>
                 {item.marca && (
                   <p className="text-[10px] m-0 mb-0.5 truncate leading-tight w-full">

@@ -328,14 +328,16 @@ export default function Financeiro() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 mb-4 w-full">
-          <div className="[&_button]:!bg-red-600 [&_button]:!text-white [&_button:hover]:!bg-red-700 transition-colors rounded-md shadow-sm">
-            <NovaContaPagarDialog onRefresh={fetchData} />
+        <ErrorBoundary source="FinanceiroDialogs">
+          <div className="flex flex-wrap items-center justify-end gap-3 mb-4 w-full">
+            <div className="[&_button]:!bg-red-600 [&_button]:!text-white [&_button:hover]:!bg-red-700 transition-colors rounded-md shadow-sm">
+              <NovaContaPagarDialog onRefresh={fetchData} />
+            </div>
+            <div className="[&_button]:!bg-emerald-600 [&_button]:!text-white [&_button:hover]:!bg-emerald-700 transition-colors rounded-md shadow-sm">
+              <NovaContaReceberDialog onRefresh={fetchData} />
+            </div>
           </div>
-          <div className="[&_button]:!bg-emerald-600 [&_button]:!text-white [&_button:hover]:!bg-emerald-700 transition-colors rounded-md shadow-sm">
-            <NovaContaReceberDialog onRefresh={fetchData} />
-          </div>
-        </div>
+        </ErrorBoundary>
 
         <div className="flex-1 overflow-y-auto pb-20 min-h-0 w-full">
           <TabsContent value="dashboard" className="m-0 border-none outline-none">

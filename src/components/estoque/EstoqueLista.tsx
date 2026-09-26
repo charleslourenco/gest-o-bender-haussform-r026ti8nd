@@ -577,7 +577,13 @@ export function EstoqueLista() {
       const itemAllocations = allocations.filter((a) => a.item_id === item.id)
       const alocacoesStr =
         itemAllocations.length > 0
-          ? itemAllocations.map((a) => `${a.cliente_nome} (${a.quantidade})`).join(', ')
+          ? itemAllocations
+              .map((a) =>
+                a.destino === 'consumo_interno'
+                  ? `Consumo Interno (${a.quantidade})`
+                  : `${a.cliente_nome} (${a.quantidade})`,
+              )
+              .join(', ')
           : '-'
 
       return [
