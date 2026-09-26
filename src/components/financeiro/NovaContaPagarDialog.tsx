@@ -84,7 +84,8 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
           if (data) {
             const list = data.map((item: any) => {
               const cli = item.nome_cliente || item.nome_fantasia || 'Cliente'
-              const label = `${cli} (Projeto #${item.id.substring(0, 8).toUpperCase()})`
+              const sId = String(item.id || '')
+              const label = `${cli} (Projeto #${sId.substring(0, 8).toUpperCase()})`
               return {
                 id: item.id,
                 clienteId: item.cliente_id || null,

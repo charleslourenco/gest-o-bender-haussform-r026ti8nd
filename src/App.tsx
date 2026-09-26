@@ -145,7 +145,7 @@ const App = () => (
                 <Route
                   path="/financeiro"
                   element={
-                    <ErrorBoundary>
+                    <ErrorBoundary source="Financeiro Page Root">
                       <Financeiro />
                     </ErrorBoundary>
                   }

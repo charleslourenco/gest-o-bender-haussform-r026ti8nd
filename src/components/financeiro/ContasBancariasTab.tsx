@@ -20,7 +20,8 @@ const formatCurrency = (val: number) =>
 function formatSafeDate(d: string | null | undefined): string {
   if (!d) return '—'
   try {
-    return format(parseISO(d), 'dd/MM/yyyy')
+    const parsed = parseISO(d)
+    return isNaN(parsed.getTime()) ? String(d).substring(0, 10) : format(parsed, 'dd/MM/yyyy')
   } catch {
     return String(d).substring(0, 10)
   }

@@ -49,13 +49,25 @@ export default function Financeiro() {
       if (receberRes.error) throw receberRes.error
       if (pagarRes.error && pagarRes.error.code !== '42P01') throw pagarRes.error
 
+      const parseSafeTime = (dateStr: string | null | undefined): number => {
+        if (!dateStr || typeof dateStr !== 'string') return 0
+        const t = new Date(dateStr).getTime()
+        return isNaN(t) ? 0 : t
+      }
+
+      const safeIdShort = (id: any): string => {
+        if (!id) return ''
+        const s = String(id)
+        return s.length >= 8 ? s.substring(0, 8).toUpperCase() : s.toUpperCase()
+      }
+
       const recebimentos = (receberRes.data || []).map((r: any) => {
-        const fc = Array.isArray(r.formulario_comercial)
+        const fc = Array.isArray(r?.formulario_comercial)
           ? r.formulario_comercial[0]
-          : r.formulario_comercial
-        const cliName = Array.isArray(r.cliente)
+          : r?.formulario_comercial
+        const cliName = Array.isArray(r?.cliente)
           ? r.cliente[0]?.nome
-          : r.cliente?.nome || fc?.nome_cliente || 'Cliente não identificado'
+          : r?.cliente?.nome || fc?.nome_cliente || 'Cliente não identificado'
 
         // Extrair nome ou identificador do projeto do formulário comercial
         let projNome = 'Projeto sem vínculo'
@@ -65,43 +77,43 @@ export default function Financeiro() {
           } else if (fc.nome_cliente) {
             projNome = `Projeto ${fc.nome_cliente}`
           } else if (fc.id) {
-            projNome = `Projeto #${fc.id.substring(0, 8).toUpperCase()}`
+            projNome = `Projeto #${safeIdShort(fc.id)}`
           }
         }
 
         return {
-          id: r.id,
+          id: r?.id || crypto.randomUUID(),
           type: 'receita' as const,
-          description: r.descricao || `Referente à parcela ${r.numero_parcela || ''}`,
-          category: r.categoria || 'Venda de Projetos',
-          amount: Number(r.valor) || 0,
-          dueDate: r.data_vencimento || null,
-          paidDate: r.data_pagamento || null,
-          status: r.status_pagamento || 'aguardando',
+          description: r?.descricao || `Referente à parcela ${r?.numero_parcela || ''}`,
+          category: r?.categoria || 'Venda de Projetos',
+          amount: Number(r?.valor) || 0,
+          dueDate: r?.data_vencimento || null,
+          paidDate: r?.data_pagamento || null,
+          status: r?.status_pagamento || 'aguardando',
           source: r,
-          createdAt: r.criado_em || '',
+          createdAt: r?.criado_em || '',
           entityName: cliName,
           clienteNome: cliName,
           projetoNome: projNome,
-          formulario_comercial_id: r.formulario_comercial_id || null,
-          meioPagamento: r.meio_pagamento || null,
-          antecipado: r.antecipado || false,
-          comprovanteUrl: r.comprovante_url || null,
-          grupoId: r.grupo_id || null,
-          observacoes: r.observacoes || null,
-          contaBancariaId: r.conta_bancaria_id || null,
-          natureza: r.natureza || 'receita',
-          categoria_id: r.categoria_id || null,
+          formulario_comercial_id: r?.formulario_comercial_id || null,
+          meioPagamento: r?.meio_pagamento || null,
+          antecipado: r?.antecipado || false,
+          comprovanteUrl: r?.comprovante_url || null,
+          grupoId: r?.grupo_id || null,
+          observacoes: r?.observacoes || null,
+          contaBancariaId: r?.conta_bancaria_id || null,
+          natureza: r?.natureza || 'receita',
+          categoria_id: r?.categoria_id || null,
         }
       })
 
       const pagamentos = (pagarRes.data || []).map((p: any) => {
-        const fc = Array.isArray(p.formulario_comercial)
+        const fc = Array.isArray(p?.formulario_comercial)
           ? p.formulario_comercial[0]
-          : p.formulario_comercial
-        const cliName = Array.isArray(p.cliente)
+          : p?.formulario_comercial
+        const cliName = Array.isArray(p?.cliente)
           ? p.cliente[0]?.nome
-          : p.cliente?.nome || fc?.nome_cliente || null
+          : p?.cliente?.nome || fc?.nome_cliente || null
 
         let projNome: string | null = null
         if (fc) {
@@ -110,50 +122,42 @@ export default function Financeiro() {
           } else if (fc.nome_cliente) {
             projNome = `Projeto ${fc.nome_cliente}`
           } else if (fc.id) {
-            projNome = `Projeto #${String(fc.id).substring(0, 8).toUpperCase()}`
+            projNome = `Projeto #${safeIdShort(fc.id)}`
           }
         }
 
         return {
-          id: p.id,
+          id: p?.id || crypto.randomUUID(),
           type: 'despesa' as const,
-          description: p.descricao || 'Despesa',
-          category: p.categoria || 'Geral',
-          amount: Number(p.valor) || 0,
-          dueDate: p.data_vencimento || null,
-          paidDate: p.data_pagamento || null,
-          status: p.status_pagamento || 'aguardando',
+          description: p?.descricao || 'Despesa',
+          category: p?.categoria || 'Geral',
+          amount: Number(p?.valor) || 0,
+          dueDate: p?.data_vencimento || null,
+          paidDate: p?.data_pagamento || null,
+          status: p?.status_pagamento || 'aguardando',
           source: p,
-          createdAt: p.criado_em || '',
-          entityName: p.fornecedor || 'Fornecedor',
+          createdAt: p?.criado_em || '',
+          entityName: p?.fornecedor || 'Fornecedor',
           clienteNome: cliName,
           projetoNome: projNome,
-          cliente_id: p.cliente_id || null,
-          formulario_comercial_id: p.formulario_comercial_id || null,
-          meioPagamento: p.meio_pagamento || null,
-          antecipado: p.antecipado || false,
-          comprovanteUrl: p.comprovante_url || null,
-          notaFiscalId: p.nota_fiscal_id || null,
-          grupoId: p.grupo_id || null,
-          observacoes: p.observacoes || null,
-          contaBancariaId: p.conta_bancaria_id || null,
-          natureza: p.natureza || null,
-          categoria_id: p.categoria_id || null,
+          cliente_id: p?.cliente_id || null,
+          formulario_comercial_id: p?.formulario_comercial_id || null,
+          meioPagamento: p?.meio_pagamento || null,
+          antecipado: p?.antecipado || false,
+          comprovanteUrl: p?.comprovante_url || null,
+          notaFiscalId: p?.nota_fiscal_id || null,
+          grupoId: p?.grupo_id || null,
+          observacoes: p?.observacoes || null,
+          contaBancariaId: p?.conta_bancaria_id || null,
+          natureza: p?.natureza || null,
+          categoria_id: p?.categoria_id || null,
         }
       })
 
       setTransactions(
         [...recebimentos, ...pagamentos].sort((a, b) => {
-          const aTime = a.dueDate
-            ? new Date(a.dueDate).getTime()
-            : a.createdAt
-              ? new Date(a.createdAt).getTime()
-              : 0
-          const bTime = b.dueDate
-            ? new Date(b.dueDate).getTime()
-            : b.createdAt
-              ? new Date(b.createdAt).getTime()
-              : 0
+          const aTime = a.dueDate ? parseSafeTime(a.dueDate) : parseSafeTime(a.createdAt)
+          const bTime = b.dueDate ? parseSafeTime(b.dueDate) : parseSafeTime(b.createdAt)
           return bTime - aTime
         }),
       )
@@ -173,25 +177,30 @@ export default function Financeiro() {
   }, [fetchData])
 
   const aClassificarCount = useMemo(() => {
-    return transactions.filter((t) => (t.status || '').toLowerCase() === 'a_classificar').length
+    if (!Array.isArray(transactions)) return 0
+    return transactions.filter((t) => (t?.status || '').toLowerCase() === 'a_classificar').length
   }, [transactions])
 
   const filteredTransactions = useMemo(() => {
+    if (!Array.isArray(transactions)) return []
     return transactions.filter((t) => {
+      if (!t) return false
       const effectiveDate = t.dueDate || t.createdAt || ''
       if (startDate && effectiveDate < startDate) return false
       if (endDate && effectiveDate > endDate) return false
 
       if (globalSearch) {
-        const term = globalSearch.toLowerCase()
-        const matches =
-          t.description?.toLowerCase().includes(term) ||
-          t.entityName?.toLowerCase().includes(term) ||
-          t.category?.toLowerCase().includes(term) ||
-          t.status?.toLowerCase().includes(term) ||
-          t.amount.toString().includes(term)
+        const term = globalSearch.toLowerCase().trim()
+        if (!term) return true
+        const descMatch = (t.description || '').toLowerCase().includes(term)
+        const entityMatch = (t.entityName || '').toLowerCase().includes(term)
+        const catMatch = (t.category || '').toLowerCase().includes(term)
+        const statusMatch = (t.status || '').toLowerCase().includes(term)
+        const amountMatch = String(t.amount ?? '').includes(term)
 
-        if (!matches) return false
+        if (!descMatch && !entityMatch && !catMatch && !statusMatch && !amountMatch) {
+          return false
+        }
       }
 
       return true
@@ -233,11 +242,11 @@ export default function Financeiro() {
               >
                 Notas a Classificar
                 {aClassificarCount > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[11px] font-semibold bg-orange-500 text-white">
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500 text-white">
                     {aClassificarCount}
                   </span>
                 )}
-              </TabsTrigger>
+              </TabsTrigger>{' '}
               <TabsTrigger
                 value="dre"
                 className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
