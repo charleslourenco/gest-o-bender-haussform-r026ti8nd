@@ -32,11 +32,23 @@ export function GerarEtiquetaModal({
   const [clienteNome, setClienteNome] = useState('')
   const [quantidade, setQuantidade] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [clientesDisponiveis, setClientesDisponiveis] = useState<
+    Array<{ id: string; nome: string }>
+  >([])
+  const [selectedClienteId, setSelectedClienteId] = useState<string>('none')
 
   useEffect(() => {
     if (isOpen) {
       setClienteNome('')
       setQuantidade(1)
+      setSelectedClienteId('none')
+      supabase
+        .from('clientes')
+        .select('id, nome')
+        .order('nome')
+        .then(({ data }) => {
+          if (data) setClientesDisponiveis(data.filter((c: any) => c && c.id))
+        })
     }
   }, [isOpen])
 
@@ -52,9 +64,19 @@ export function GerarEtiquetaModal({
     try {
       // Cria N alocações individuais (cada uma com quantidade: 1) para que
       // cada etiqueta tenha seu próprio QR Code e a baixa seja por unidade.
+      // Se selecionou cliente da lista ou bate com nome digitado, define cliente_id
+      let matchedClienteId: string | null = selectedClienteId !== 'none' ? selectedClienteId : null
+      if (!matchedClienteId && clienteNome) {
+        const found = clientesDisponiveis.find(
+          (c) => c.nome.trim().toLowerCase() === clienteNome.trim().toLowerCase(),
+        )
+        if (found) matchedClienteId = found.id
+      }
+
       const rows = Array.from({ length: quantidade }, () => ({
         item_id: item.id,
         cliente_nome: clienteNome,
+        cliente_id: matchedClienteId,
         quantidade: 1,
       }))
 
@@ -157,8 +179,46 @@ export function GerarEtiquetaModal({
                 id="clienteNome"
                 placeholder="Ex: João da Silva / Projeto X"
                 value={clienteNome}
-                onChange={(e) => setClienteNome(e.target.value)}
+                onChange={(e) => {
+                  setClienteNome(e.target.value)
+                  const match = clientesDisponiveis.find(
+                    (c) => c.nome.trim().toLowerCase() === e.target.value.trim().toLowerCase(),
+                  )
+                  if (match) setSelectedClienteId(match.id)
+                }}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="clienteSelect" className="text-xs text-muted-foreground">
+                Vincular a Cliente Cadastrado (Opcional)
+              </Label>
+              <Select
+                value={selectedClienteId}
+                onValueChange={(val) => {
+                  setSelectedClienteId(val)
+                  if (val !== 'none') {
+                    const sel = clientesDisponiveis.find((c) => c.id === val)
+                    if (sel && (!clienteNome || clienteNome.trim() === '')) {
+                      setClienteNome(sel.nome)
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger id="clienteSelect" className="h-9 text-xs">
+                  <SelectValue placeholder="Selecione um cliente (opcional)..." />
+                </SelectTrigger>
+                <SelectContent className="max-h-56">
+                  <SelectItem value="none">Nenhum vínculo direto</SelectItem>
+                  {clientesDisponiveis
+                    .filter((c) => c && c.id && String(c.id).trim() !== '')
+                    .map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.nome || 'Cliente sem nome'}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

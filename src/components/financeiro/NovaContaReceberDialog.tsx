@@ -144,13 +144,15 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um cliente" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-56">
                 <SelectItem value="none">Nenhum</SelectItem>
-                {clientes.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
+                {clientes
+                  .filter((c) => c && c.id && String(c.id).trim() !== '')
+                  .map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nome || 'Cliente sem nome'}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -224,13 +226,15 @@ export function NovaContaReceberDialog({ onRefresh }: { onRefresh?: () => void }
               <SelectTrigger>
                 <SelectValue placeholder="Selecione uma conta (opcional)" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="max-h-56">
                 <SelectItem value="none">Nenhuma</SelectItem>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome_exibicao}
-                  </SelectItem>
-                ))}
+                {contas
+                  .filter((c) => c && c.id && String(c.id).trim() !== '')
+                  .map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nome_exibicao || 'Conta Bancária'}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

@@ -428,14 +428,16 @@ export function EditarContaDialog({
                     <SelectTrigger id="edit-entidade">
                       <SelectValue placeholder="Selecione um cliente" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {clientes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                    <SelectContent className="max-h-56">
+                      <SelectItem value="none">Nenhum cliente selecionado</SelectItem>
+                      {clientes
+                        .filter((c) => c && c.id && String(c.id).trim() !== '')
+                        .map((c) => (
+                          <SelectItem key={c.id} value={String(c.nome || c.id)}>
+                            {c.nome || 'Cliente sem nome'}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>{' '}
                   </Select>
                 )}
               </div>
@@ -501,15 +503,15 @@ export function EditarContaDialog({
                   <SelectValue placeholder="Selecione o projeto comercial..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-56">
-                  <SelectItem value="none">
-                    Nenhum projeto vinculado (Geral / Sem projeto)
-                  </SelectItem>
-                  {projetosList.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectItem value="none">Nenhum projeto vinculado (Geral / Fábrica)</SelectItem>
+                  {projetos
+                    .filter((p) => p && p.id && String(p.id).trim() !== '')
+                    .map((p) => (
+                      <SelectItem key={p.id} value={String(p.id)}>
+                        {p.label || 'Projeto'}
+                      </SelectItem>
+                    ))}
+                </SelectContent>{' '}
               </Select>
               <p className="text-[11px] text-muted-foreground">
                 {tipo === 'pagar'
@@ -600,14 +602,16 @@ export function EditarContaDialog({
                     <SelectTrigger id="edit-conta-bancaria">
                       <SelectValue placeholder="Selecione a conta" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-56">
                       <SelectItem value="none">Selecione uma conta...</SelectItem>
-                      {contasBancarias.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.nome_exibicao}
-                          {c.banco ? ` — ${c.banco}` : ''}
-                        </SelectItem>
-                      ))}
+                      {contasBancarias
+                        .filter((c) => c && c.id && String(c.id).trim() !== '')
+                        .map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.nome_exibicao || 'Conta Bancária'}
+                            {c.banco ? ` — ${c.banco}` : ''}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

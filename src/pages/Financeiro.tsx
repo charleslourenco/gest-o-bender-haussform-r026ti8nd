@@ -61,49 +61,70 @@ export default function Financeiro() {
         return s.length >= 8 ? s.substring(0, 8).toUpperCase() : s.toUpperCase()
       }
 
+      const parseJoinName = (target: any): string | null => {
+        if (!target) return null
+        if (Array.isArray(target)) {
+          const first = target[0]
+          return first && typeof first === 'object' && typeof first.nome === 'string'
+            ? first.nome
+            : null
+        }
+        if (typeof target === 'object' && typeof target.nome === 'string') {
+          return target.nome
+        }
+        return null
+      }
+
       const recebimentos = (receberRes.data || []).map((r: any) => {
         const fc = Array.isArray(r?.formulario_comercial)
           ? r.formulario_comercial[0]
           : r?.formulario_comercial
-        const cliName = Array.isArray(r?.cliente)
-          ? r.cliente[0]?.nome
-          : r?.cliente?.nome || fc?.nome_cliente || 'Cliente não identificado'
+        const rawCliName =
+          parseJoinName(r?.cliente) || fc?.nome_cliente || 'Cliente não identificado'
+        const cliName =
+          typeof rawCliName === 'string' && rawCliName.trim()
+            ? rawCliName.trim()
+            : 'Cliente não identificado'
 
         // Extrair nome ou identificador do projeto do formulário comercial
         let projNome = 'Projeto sem vínculo'
-        if (fc) {
-          if (fc.nome_fantasia) {
-            projNome = fc.nome_fantasia
-          } else if (fc.nome_cliente) {
-            projNome = `Projeto ${fc.nome_cliente}`
+        if (fc && typeof fc === 'object') {
+          if (typeof fc.nome_fantasia === 'string' && fc.nome_fantasia.trim()) {
+            projNome = fc.nome_fantasia.trim()
+          } else if (typeof fc.nome_cliente === 'string' && fc.nome_cliente.trim()) {
+            projNome = `Projeto ${fc.nome_cliente.trim()}`
           } else if (fc.id) {
             projNome = `Projeto #${safeIdShort(fc.id)}`
           }
         }
 
         return {
-          id: r?.id || crypto.randomUUID(),
+          id: r?.id ? String(r.id) : crypto.randomUUID(),
           type: 'receita' as const,
-          description: r?.descricao || `Referente à parcela ${r?.numero_parcela || ''}`,
-          category: r?.categoria || 'Venda de Projetos',
+          description:
+            (r?.descricao && String(r.descricao)) ||
+            `Referente à parcela ${r?.numero_parcela ? String(r.numero_parcela) : ''}`,
+          category: (r?.categoria && String(r.categoria)) || 'Venda de Projetos',
           amount: Number(r?.valor) || 0,
-          dueDate: r?.data_vencimento || null,
-          paidDate: r?.data_pagamento || null,
-          status: r?.status_pagamento || 'aguardando',
+          dueDate: r?.data_vencimento ? String(r.data_vencimento) : null,
+          paidDate: r?.data_pagamento ? String(r.data_pagamento) : null,
+          status: (r?.status_pagamento && String(r.status_pagamento)) || 'aguardando',
           source: r,
-          createdAt: r?.criado_em || '',
+          createdAt: (r?.criado_em && String(r.criado_em)) || '',
           entityName: cliName,
           clienteNome: cliName,
           projetoNome: projNome,
-          formulario_comercial_id: r?.formulario_comercial_id || null,
-          meioPagamento: r?.meio_pagamento || null,
-          antecipado: r?.antecipado || false,
-          comprovanteUrl: r?.comprovante_url || null,
-          grupoId: r?.grupo_id || null,
-          observacoes: r?.observacoes || null,
-          contaBancariaId: r?.conta_bancaria_id || null,
-          natureza: r?.natureza || 'receita',
-          categoria_id: r?.categoria_id || null,
+          formulario_comercial_id: r?.formulario_comercial_id
+            ? String(r.formulario_comercial_id)
+            : null,
+          meioPagamento: r?.meio_pagamento ? String(r.meio_pagamento) : null,
+          antecipado: Boolean(r?.antecipado),
+          comprovanteUrl: r?.comprovante_url ? String(r.comprovante_url) : null,
+          grupoId: r?.grupo_id ? String(r.grupo_id) : null,
+          observacoes: r?.observacoes ? String(r.observacoes) : null,
+          contaBancariaId: r?.conta_bancaria_id ? String(r.conta_bancaria_id) : null,
+          natureza: (r?.natureza && String(r.natureza)) || 'receita',
+          categoria_id: r?.categoria_id ? String(r.categoria_id) : null,
         }
       })
 
@@ -111,46 +132,48 @@ export default function Financeiro() {
         const fc = Array.isArray(p?.formulario_comercial)
           ? p.formulario_comercial[0]
           : p?.formulario_comercial
-        const cliName = Array.isArray(p?.cliente)
-          ? p.cliente[0]?.nome
-          : p?.cliente?.nome || fc?.nome_cliente || null
+        const rawCliName = parseJoinName(p?.cliente) || fc?.nome_cliente || null
+        const cliName =
+          typeof rawCliName === 'string' && rawCliName.trim() ? rawCliName.trim() : null
 
         let projNome: string | null = null
-        if (fc) {
-          if (fc.nome_fantasia) {
-            projNome = fc.nome_fantasia
-          } else if (fc.nome_cliente) {
-            projNome = `Projeto ${fc.nome_cliente}`
+        if (fc && typeof fc === 'object') {
+          if (typeof fc.nome_fantasia === 'string' && fc.nome_fantasia.trim()) {
+            projNome = fc.nome_fantasia.trim()
+          } else if (typeof fc.nome_cliente === 'string' && fc.nome_cliente.trim()) {
+            projNome = `Projeto ${fc.nome_cliente.trim()}`
           } else if (fc.id) {
             projNome = `Projeto #${safeIdShort(fc.id)}`
           }
         }
 
         return {
-          id: p?.id || crypto.randomUUID(),
+          id: p?.id ? String(p.id) : crypto.randomUUID(),
           type: 'despesa' as const,
-          description: p?.descricao || 'Despesa',
-          category: p?.categoria || 'Geral',
+          description: (p?.descricao && String(p.descricao)) || 'Despesa',
+          category: (p?.categoria && String(p.categoria)) || 'Geral',
           amount: Number(p?.valor) || 0,
-          dueDate: p?.data_vencimento || null,
-          paidDate: p?.data_pagamento || null,
-          status: p?.status_pagamento || 'aguardando',
+          dueDate: p?.data_vencimento ? String(p.data_vencimento) : null,
+          paidDate: p?.data_pagamento ? String(p.data_pagamento) : null,
+          status: (p?.status_pagamento && String(p.status_pagamento)) || 'aguardando',
           source: p,
-          createdAt: p?.criado_em || '',
-          entityName: p?.fornecedor || 'Fornecedor',
+          createdAt: (p?.criado_em && String(p.criado_em)) || '',
+          entityName: (p?.fornecedor && String(p.fornecedor)) || 'Fornecedor',
           clienteNome: cliName,
           projetoNome: projNome,
-          cliente_id: p?.cliente_id || null,
-          formulario_comercial_id: p?.formulario_comercial_id || null,
-          meioPagamento: p?.meio_pagamento || null,
-          antecipado: p?.antecipado || false,
-          comprovanteUrl: p?.comprovante_url || null,
-          notaFiscalId: p?.nota_fiscal_id || null,
-          grupoId: p?.grupo_id || null,
-          observacoes: p?.observacoes || null,
-          contaBancariaId: p?.conta_bancaria_id || null,
-          natureza: p?.natureza || null,
-          categoria_id: p?.categoria_id || null,
+          cliente_id: p?.cliente_id ? String(p.cliente_id) : null,
+          formulario_comercial_id: p?.formulario_comercial_id
+            ? String(p.formulario_comercial_id)
+            : null,
+          meioPagamento: p?.meio_pagamento ? String(p.meio_pagamento) : null,
+          antecipado: Boolean(p?.antecipado),
+          comprovanteUrl: p?.comprovante_url ? String(p.comprovante_url) : null,
+          notaFiscalId: p?.nota_fiscal_id ? String(p.nota_fiscal_id) : null,
+          grupoId: p?.grupo_id ? String(p.grupo_id) : null,
+          observacoes: p?.observacoes ? String(p.observacoes) : null,
+          contaBancariaId: p?.conta_bancaria_id ? String(p.conta_bancaria_id) : null,
+          natureza: (p?.natureza && String(p.natureza)) || null,
+          categoria_id: p?.categoria_id ? String(p.categoria_id) : null,
         }
       })
 
@@ -178,24 +201,39 @@ export default function Financeiro() {
 
   const aClassificarCount = useMemo(() => {
     if (!Array.isArray(transactions)) return 0
-    return transactions.filter((t) => (t?.status || '').toLowerCase() === 'a_classificar').length
+    return transactions.filter(
+      (t) => (typeof t?.status === 'string' ? t.status.toLowerCase() : '') === 'a_classificar',
+    ).length
   }, [transactions])
 
   const filteredTransactions = useMemo(() => {
     if (!Array.isArray(transactions)) return []
     return transactions.filter((t) => {
       if (!t) return false
-      const effectiveDate = t.dueDate || t.createdAt || ''
-      if (startDate && effectiveDate < startDate) return false
-      if (endDate && effectiveDate > endDate) return false
+      const effectiveDate =
+        typeof t.dueDate === 'string'
+          ? t.dueDate
+          : typeof t.createdAt === 'string'
+            ? t.createdAt
+            : ''
+      if (startDate && effectiveDate && effectiveDate < startDate) return false
+      if (endDate && effectiveDate && effectiveDate > endDate) return false
 
       if (globalSearch) {
         const term = globalSearch.toLowerCase().trim()
         if (!term) return true
-        const descMatch = (t.description || '').toLowerCase().includes(term)
-        const entityMatch = (t.entityName || '').toLowerCase().includes(term)
-        const catMatch = (t.category || '').toLowerCase().includes(term)
-        const statusMatch = (t.status || '').toLowerCase().includes(term)
+        const descMatch = (
+          typeof t.description === 'string' ? t.description.toLowerCase() : ''
+        ).includes(term)
+        const entityMatch = (
+          typeof t.entityName === 'string' ? t.entityName.toLowerCase() : ''
+        ).includes(term)
+        const catMatch = (typeof t.category === 'string' ? t.category.toLowerCase() : '').includes(
+          term,
+        )
+        const statusMatch = (typeof t.status === 'string' ? t.status.toLowerCase() : '').includes(
+          term,
+        )
         const amountMatch = String(t.amount ?? '').includes(term)
 
         if (!descMatch && !entityMatch && !catMatch && !statusMatch && !amountMatch) {

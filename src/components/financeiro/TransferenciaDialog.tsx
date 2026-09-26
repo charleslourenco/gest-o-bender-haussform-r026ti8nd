@@ -106,11 +106,13 @@ export function TransferenciaDialog({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome_exibicao}
-                  </SelectItem>
-                ))}
+                {contas
+                  .filter((c) => c && c.id && String(c.id).trim() !== '')
+                  .map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nome_exibicao || 'Conta Bancária'}
+                    </SelectItem>
+                  ))}{' '}
               </SelectContent>
             </Select>
           </div>
@@ -121,11 +123,13 @@ export function TransferenciaDialog({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent>
-                {contas.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome_exibicao}
-                  </SelectItem>
-                ))}
+                {contas
+                  .filter((c) => c && c.id && String(c.id).trim() !== '')
+                  .map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.nome_exibicao || 'Conta Bancária'}
+                    </SelectItem>
+                  ))}{' '}
               </SelectContent>
             </Select>
           </div>

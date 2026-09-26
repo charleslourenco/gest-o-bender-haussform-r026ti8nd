@@ -356,11 +356,13 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
-                  {contas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome_exibicao}
-                    </SelectItem>
-                  ))}
+                  {contas
+                    .filter((c) => c && c.id && String(c.id).trim() !== '')
+                    .map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.nome_exibicao || 'Conta Bancária'}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -380,11 +382,13 @@ export function NovaContaPagarDialog({ onRefresh }: { onRefresh?: () => void }) 
               </SelectTrigger>
               <SelectContent className="max-h-56">
                 <SelectItem value="none">Nenhum projeto vinculado (Geral / Fábrica)</SelectItem>
-                {projetos.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.label}
-                  </SelectItem>
-                ))}
+                {projetos
+                  .filter((p) => p && p.id && String(p.id).trim() !== '')
+                  .map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.label || 'Projeto'}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <p className="text-[11px] text-muted-foreground">

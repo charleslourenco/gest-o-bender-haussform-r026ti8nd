@@ -177,7 +177,8 @@ function formatCurrency(val: number): string {
 }
 
 function formatPercent(val: number): string {
-  const num = Number(val) || 0
+  const num = Number(val)
+  if (isNaN(num) || !isFinite(num)) return '+0.0%'
   return `${num >= 0 ? '+' : ''}${num.toFixed(1)}%`
 }
 
@@ -603,7 +604,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
         ) : (
           <ArrowDownRight className="w-3.5 h-3.5 mr-0.5 shrink-0" />
         )}
-        {Math.abs(v.percent).toFixed(1)}%
+        {safeToFixed(Math.abs(v.percent), 1)}%
       </span>
     )
   }
@@ -1902,7 +1903,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                     {formatPercentBase(totalDRE.lucroBruto, totalDRE.receitaBruta)}
                   </TableCell>
                   <TableCell className="text-right font-bold text-blue-700 dark:text-blue-400">
-                    {totalDRE.margemBruta.toFixed(1)}%
+                    {safeToFixed(totalDRE.margemBruta, 1)}%
                   </TableCell>
                 </TableRow>
 
@@ -1930,7 +1931,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                     {formatPercentBase(totalDRE.ebitda, totalDRE.receitaBruta)}
                   </TableCell>
                   <TableCell className="text-right font-bold text-purple-700 dark:text-purple-400">
-                    {totalDRE.margemEbitda.toFixed(1)}%
+                    {safeToFixed(totalDRE.margemEbitda, 1)}%
                   </TableCell>
                 </TableRow>
 
@@ -1980,7 +1981,7 @@ export function FinanceiroDRE({ transactions }: { transactions: Transaction[] })
                         : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
-                    {totalDRE.margemLiquida.toFixed(1)}%
+                    {safeToFixed(totalDRE.margemLiquida, 1)}%
                   </TableCell>
                 </TableRow>
               </TableBody>

@@ -104,32 +104,34 @@ export function PlanoContasSelect({
         <SelectItem value="none">
           <span className="text-muted-foreground italic">Nenhuma categoria vinculada</span>
         </SelectItem>
-        {items.map((item) => {
-          const nat = item.natureza as NaturezaPlanoContas
-          const color = NATUREZA_COLORS[nat]
-          const label = NATUREZA_LABELS[nat] || item.natureza
+        {items
+          .filter((item) => item && item.id && String(item.id).trim() !== '')
+          .map((item) => {
+            const nat = item.natureza as NaturezaPlanoContas
+            const color = NATUREZA_COLORS[nat]
+            const label = NATUREZA_LABELS[nat] || item.natureza
 
-          return (
-            <SelectItem key={item.id} value={item.id} className="py-2">
-              <div className="flex items-center justify-between gap-3 w-full">
-                <div className="flex items-center gap-2 truncate">
-                  {item.codigo && (
-                    <span className="font-mono text-xs text-muted-foreground font-semibold">
-                      {item.codigo}
-                    </span>
-                  )}
-                  <span className="font-medium text-sm truncate">{item.nome}</span>
+            return (
+              <SelectItem key={item.id} value={String(item.id)} className="py-2">
+                <div className="flex items-center justify-between gap-3 w-full">
+                  <div className="flex items-center gap-2 truncate">
+                    {item.codigo && (
+                      <span className="font-mono text-xs text-muted-foreground font-semibold">
+                        {item.codigo}
+                      </span>
+                    )}
+                    <span className="font-medium text-sm truncate">{item.nome}</span>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-1.5 py-0 font-normal shrink-0 ${color?.badge || ''}`}
+                  >
+                    {label}
+                  </Badge>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] px-1.5 py-0 font-normal shrink-0 ${color?.badge || ''}`}
-                >
-                  {label}
-                </Badge>
-              </div>
-            </SelectItem>
-          )
-        })}
+              </SelectItem>
+            )
+          })}
       </SelectContent>
     </Select>
   )
