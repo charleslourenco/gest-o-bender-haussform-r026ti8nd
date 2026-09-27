@@ -327,7 +327,7 @@ export function EstoqueLista() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja apagar este item do inventário?')) return
+    if (!window.confirm('Tem certeza que deseja apagar este item do estoque?')) return
     await supabase.from('estoque_itens').delete().eq('id', id)
     fetchItems()
     toast({ title: 'Item apagado' })
@@ -415,7 +415,7 @@ export function EstoqueLista() {
       toast({
         title: saved.isNew ? 'Item Cadastrado' : 'Estoque Atualizado',
         description: saved.isNew
-          ? 'O item foi adicionado ao inventário.'
+          ? 'O item foi adicionado ao estoque.'
           : 'O item já existia e sua quantidade foi somada.',
       })
 
@@ -607,8 +607,7 @@ export function EstoqueLista() {
     const link = document.createElement('a')
 
     const dateStr = new Date().toISOString().split('T')[0]
-    link.href = url
-    link.download = `inventario_exportado_${dateStr}.csv`
+    link.download = `estoque_exportado_${dateStr}.csv`
 
     document.body.appendChild(link)
     link.click()

@@ -119,7 +119,7 @@ export default function EstoqueCompras() {
                 value="estoque"
                 className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
-                Inventário
+                Itens em Estoque
               </TabsTrigger>
               <TabsTrigger
                 value="listas-materiais"

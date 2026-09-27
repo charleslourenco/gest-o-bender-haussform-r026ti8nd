@@ -320,7 +320,7 @@ export function ConciliacaoListas() {
                 </h4>
                 <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
                   Envie a lista de materiais em PDF. A Zenaide lerá todos os itens e fará a
-                  conciliação cruzando os dados com o inventário atual, apontando exatamente o que
+                  conciliação cruzando os dados com o estoque atual, apontando exatamente o que
                   precisa ser comprado.
                 </p>
               </div>

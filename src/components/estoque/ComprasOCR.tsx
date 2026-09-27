@@ -434,7 +434,7 @@ export function ComprasOCR() {
               </h4>
               <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
                 O sistema lê notas fiscais via XML (precisão 100% direta) ou via IA inteligente para
-                fotos e PDFs. Cruza itens com o inventário e permite editar qualquer dado antes de
+                fotos e PDFs. Cruza itens com o estoque e permite editar qualquer dado antes de
                 salvar. O arquivo original é armazenado com segurança para auditoria.
               </p>
             </div>
