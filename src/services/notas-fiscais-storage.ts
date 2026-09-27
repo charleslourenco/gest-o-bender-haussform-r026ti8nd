@@ -1,12 +1,28 @@
 import { supabase } from '@/lib/supabase/client'
 
 const BUCKET_NAME = 'notas-fiscais'
-const ACCEPTED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
+const ACCEPTED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/jpg',
+  'text/xml',
+  'application/xml',
+]
 const MAX_FILE_SIZE = 25 * 1024 * 1024
 
+export function isXmlInvoiceFile(file: File): boolean {
+  if (!file) return false
+  const name = (file.name || '').toLowerCase()
+  return name.endsWith('.xml') || file.type === 'text/xml' || file.type === 'application/xml'
+}
+
 export function validateInvoiceFile(file: File): string | null {
-  if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
-    return 'Formato inválido. Apenas PDF, JPG e PNG são aceitos.'
+  const isXml = isXmlInvoiceFile(file)
+  const isAcceptedMime = ACCEPTED_MIME_TYPES.includes(file.type) || isXml
+
+  if (!isAcceptedMime) {
+    return 'Formato inválido. Apenas PDF, JPG, PNG e XML (.xml) são aceitos.'
   }
   if (file.size > MAX_FILE_SIZE) {
     return 'O arquivo deve ter no máximo 25MB.'
@@ -26,10 +42,13 @@ export async function uploadInvoiceFile(
   const fileName = `${crypto.randomUUID()}_${file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9._-]/g, '')}`
   const filePath = `invoices/${fileName}`
 
+  const contentType =
+    file.type || (file.name.toLowerCase().endsWith('.xml') ? 'application/xml' : undefined)
+
   const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, {
     cacheControl: '3600',
     upsert: false,
-    contentType: file.type,
+    contentType,
   })
 
   if (error) {

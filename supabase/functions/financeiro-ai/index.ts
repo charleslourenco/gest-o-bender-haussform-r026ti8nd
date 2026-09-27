@@ -80,13 +80,24 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'ocr_compras') {
-      const { imageBase64, isPdf } = payload
-      let pdfText = ''
+      const { imageBase64, isPdf, images, rawText } = payload
+      let pdfText = typeof rawText === 'string' ? rawText.trim().substring(0, 15000) : ''
       let isScannedPdf = false
 
-      if (isPdf) {
+      // Suporte a múltiplas imagens (ex: páginas de PDF convertidas para imagem) ou imagem única
+      const imageList: string[] = []
+      if (Array.isArray(images) && images.length > 0) {
+        for (const img of images) {
+          if (typeof img === 'string' && img.trim()) imageList.push(img.trim())
+        }
+      } else if (typeof imageBase64 === 'string' && imageBase64.trim() && !isPdf) {
+        imageList.push(imageBase64.trim())
+      }
+
+      // Se for PDF e NÃO recebemos imagens pré-convertidas para visão, tentamos extrair texto
+      if (isPdf && imageList.length === 0) {
         try {
-          const base64Data = imageBase64.split(',')[1] || imageBase64
+          const base64Data = (imageBase64 || '').split(',')[1] || imageBase64 || ''
           const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
           const data = await pdf(buffer)
           pdfText = data.text.trim().substring(0, 15000)
@@ -99,23 +110,31 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (isScannedPdf) {
+      if (isScannedPdf && imageList.length === 0) {
         throw new Error(
-          'O PDF parece ser escaneado (sem texto legível). Por favor, tire um print/foto da nota e faça o upload como imagem (JPG/PNG).',
+          'O PDF parece ser escaneado (sem texto legível) e não pôde ser convertido para imagem. Por favor, tire um print/foto da nota e faça o upload como imagem (JPG/PNG).',
         )
       }
 
       const userContent: any[] = [
         {
           type: 'text',
-          text: 'Extraia os dados deste documento (Nota Fiscal, Romaneio ou Pedido).',
+          text: 'Extraia os dados deste documento (Nota Fiscal, Romaneio ou Pedido). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados e os valores totais.',
         },
       ]
 
-      if (isPdf && pdfText) {
+      if (imageList.length > 0) {
+        // Envia as imagens diretamente para a visão do GPT-4o
+        for (const img of imageList) {
+          userContent.push({
+            type: 'image_url',
+            image_url: {
+              url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`,
+            },
+          })
+        }
+      } else if (pdfText) {
         userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
-      } else if (!isPdf) {
-        userContent.push({ type: 'image_url', image_url: { url: imageBase64 } })
       }
 
       const systemContent = `Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor", "cnpj_fornecedor", "valor", "data_emissao", "numero_nota", e "itens".

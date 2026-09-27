@@ -31,8 +31,11 @@ import {
   uploadInvoiceFile,
   attachInvoiceFile,
   validateInvoiceFile,
+  isXmlInvoiceFile,
 } from '@/services/notas-fiscais-storage'
 import { openStorageFileInNewTab } from '@/lib/file-viewer'
+import { parseNFeXml } from '@/lib/nfe-xml-parser'
+import { convertPdfToImages } from '@/lib/pdf-to-images'
 
 export function ComprasOCR() {
   const [isDragging, setIsDragging] = useState(false)
@@ -184,138 +187,192 @@ export function ComprasOCR() {
       }
       const arquivoUrl = uploadResult.path
 
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const base64Data = reader.result as string
-        const isPdf = file.type === 'application/pdf'
+      const isXml = isXmlInvoiceFile(file)
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
+      let extractedData: any = null
+
+      if (isXml) {
+        // FLUXO DETERMINÍSTICO (Sem IA): XML da NF-e
         toast({
-          title: 'Zenaide: Processando Documento...',
-          description: 'A IA está lendo a nota fiscal e normalizando os itens.',
+          title: 'Processando XML da NF-e...',
+          description: 'Lendo dados estruturados da SEFAZ com precisão direta.',
         })
 
+        const xmlText = await file.text()
+        extractedData = parseNFeXml(xmlText)
+      } else {
+        // FLUXO DE IMAGEM / PDF COM VISÃO DO GPT-4O
+        let payload: any = null
+
+        if (isPdf) {
+          toast({
+            title: 'Zenaide: Lendo Nota Fiscal em PDF...',
+            description: 'Renderizando layout do DANFE para análise visual de alta precisão.',
+          })
+
+          try {
+            // Conversão PDF -> Imagens das páginas para visão do GPT-4o
+            const pageImages = await convertPdfToImages(file, {
+              maxPages: 3,
+              maxDimension: 1600,
+              quality: 0.85,
+            })
+            payload = { images: pageImages, isPdf: true }
+          } catch (pdfConvErr) {
+            console.warn(
+              'Conversão PDF->imagem falhou no cliente, acionando fallback de texto/servidor:',
+              pdfConvErr,
+            )
+            // FALLBACK TRANSPARENTE: envia base64 do PDF original para extração no backend
+            const base64Data = await new Promise<string>((resolve, reject) => {
+              const r = new FileReader()
+              r.onloadend = () => resolve(r.result as string)
+              r.onerror = reject
+              r.readAsDataURL(file)
+            })
+            payload = { imageBase64: base64Data, isPdf: true }
+          }
+        } else {
+          // Imagem direta (JPG/PNG)
+          toast({
+            title: 'Zenaide: Processando Documento...',
+            description: 'A IA está lendo a nota fiscal e normalizando os itens.',
+          })
+
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            const r = new FileReader()
+            r.onloadend = () => resolve(r.result as string)
+            r.onerror = reject
+            r.readAsDataURL(file)
+          })
+          payload = { imageBase64: base64Data, isPdf: false }
+        }
+
         const response = await supabase.functions.invoke('financeiro-ai', {
-          body: { action: 'ocr_compras', payload: { imageBase64: base64Data, isPdf } },
+          body: { action: 'ocr_compras', payload },
         })
 
         if (response.error) {
           throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
         }
 
-        let extractedData = response.data
+        extractedData = response.data
         if (typeof extractedData === 'string') {
           if (extractedData === '[object Object]') {
             throw new Error('Falha ao interpretar dados do OCR (recebido object).')
           }
           try {
             extractedData = JSON.parse(extractedData)
-          } catch (e) {
+          } catch {
             throw new Error('Falha ao interpretar dados do OCR.')
           }
         }
+      }
 
-        if (extractedData?.numero_nota) {
-          const { data: existente } = await supabase
-            .from('notas_fiscais')
-            .select('id')
-            .eq('numero_nota', extractedData.numero_nota)
-            .maybeSingle()
-          if (existente) {
-            toast({
-              title: 'Documento Duplicado',
-              description: `A nota ${extractedData.numero_nota} já foi processada.`,
-              variant: 'destructive',
-            })
-            setIsProcessing(false)
-            return
-          }
+      // Verificação de duplicação por número da nota
+      if (extractedData?.numero_nota) {
+        const { data: existente } = await supabase
+          .from('notas_fiscais')
+          .select('id')
+          .eq('numero_nota', extractedData.numero_nota)
+          .maybeSingle()
+        if (existente) {
+          toast({
+            title: 'Documento Duplicado',
+            description: `A nota ${extractedData.numero_nota} já foi processada.`,
+            variant: 'destructive',
+          })
+          setIsProcessing(false)
+          return
         }
+      }
 
-        const hasItens =
-          extractedData?.itens &&
-          Array.isArray(extractedData.itens) &&
-          extractedData.itens.length > 0
+      const hasItens =
+        extractedData?.itens && Array.isArray(extractedData.itens) && extractedData.itens.length > 0
 
-        const { data: allItems } = await supabase
-          .from('estoque_itens')
-          .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
-        const existingItems = allItems || []
+      const { data: allItems } = await supabase
+        .from('estoque_itens')
+        .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
+      const existingItems = allItems || []
 
-        let matchedItems: MatchedItem[] = []
-        let inventoryInserted = 0
+      let matchedItems: MatchedItem[] = []
+      let inventoryInserted = 0
 
-        if (hasItens) {
-          matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+      if (hasItens) {
+        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
 
-          const {
-            data: { user: currentUser },
-          } = await supabase.auth.getUser()
+        const {
+          data: { user: currentUser },
+        } = await supabase.auth.getUser()
 
-          for (const item of matchedItems) {
-            if (
-              (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
-              item.item_id
-            ) {
-              const existing = existingItems.find((i) => i.id === item.item_id)
-              if (existing) {
-                await supabase
-                  .from('estoque_itens')
-                  .update({
-                    quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                    valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
-                    fornecedor: extractedData?.fornecedor || 'Desconhecido',
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq('id', existing.id)
-                existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
-                inventoryInserted++
-
-                await supabase.from('estoque_movimentacoes').insert({
-                  item_id: existing.id,
-                  tipo: 'entrada',
-                  quantidade: Number(item.quantidade),
+        for (const item of matchedItems) {
+          if (
+            (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
+            item.item_id
+          ) {
+            const existing = existingItems.find((i) => i.id === item.item_id)
+            if (existing) {
+              await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Number(existing.quantidade) + Number(item.quantidade),
+                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  fornecedor: extractedData?.fornecedor || 'Desconhecido',
+                  atualizado_em: new Date().toISOString(),
                 })
-              }
+                .eq('id', existing.id)
+              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
+              inventoryInserted++
+
+              await supabase.from('estoque_movimentacoes').insert({
+                item_id: existing.id,
+                tipo: 'entrada',
+                quantidade: Number(item.quantidade),
+              })
             }
           }
-
-          await persistAutoMatchedAliases(matchedItems, currentUser?.id)
-        }
-        const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
-        const notaStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
-
-        const { error: dbError } = await supabase.from('notas_fiscais').insert({
-          fornecedor: extractedData?.fornecedor || 'Desconhecido',
-          valor_total: extractedData?.valor || 0,
-          data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
-          dados_ocr: { ...extractedData, itens: matchedItems },
-          status_reconciliacao: notaStatus,
-          numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
-          arquivo_url: arquivoUrl,
-        })
-
-        if (dbError) throw dbError
-
-        if (pendingCount > 0) {
-          toast({
-            title: 'Documento Processado — Revisão Necessária',
-            description: `${inventoryInserted} itens alocados. ${pendingCount} item(ns) precisam de verificação manual. Arquivo armazenado com segurança.`,
-            variant: 'default',
-          })
-        } else {
-          toast({
-            title: 'Documento Processado e Estoque Atualizado!',
-            description: `Nº: ${extractedData?.numero_nota || '-'} | Fornecedor: ${extractedData?.fornecedor || '-'} | Total: R$ ${extractedData?.valor || 0}. Arquivo armazenado.`,
-          })
         }
 
-        fetchNotas()
+        await persistAutoMatchedAliases(matchedItems, currentUser?.id)
       }
-      reader.readAsDataURL(file)
+      const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
+      const notaStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
+
+      const { error: dbError } = await supabase.from('notas_fiscais').insert({
+        fornecedor: extractedData?.fornecedor || 'Desconhecido',
+        valor_total: extractedData?.valor || 0,
+        data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
+        dados_ocr: { ...extractedData, itens: matchedItems },
+        status_reconciliacao: notaStatus,
+        numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
+        arquivo_url: arquivoUrl,
+      })
+
+      if (dbError) throw dbError
+
+      if (pendingCount > 0) {
+        toast({
+          title: isXml
+            ? 'XML da NF-e Processado — Revisão Necessária'
+            : 'Documento Processado — Revisão Necessária',
+          description: `${inventoryInserted} itens alocados. ${pendingCount} item(ns) precisam de verificação manual. Arquivo armazenado com segurança.`,
+          variant: 'default',
+        })
+      } else {
+        toast({
+          title: isXml
+            ? 'XML da NF-e Importado com Sucesso!'
+            : 'Documento Processado e Estoque Atualizado!',
+          description: `Nº: ${extractedData?.numero_nota || '-'} | Fornecedor: ${extractedData?.fornecedor || '-'} | Total: R$ ${extractedData?.valor || 0}. Arquivo armazenado.`,
+        })
+      }
+
+      fetchNotas()
     } catch (error: any) {
       toast({
-        title: 'Erro na leitura OCR',
-        description: error.message || 'Falha ao conectar com o serviço de OCR.',
+        title: 'Erro no processamento da nota',
+        description: error.message || 'Falha ao processar o arquivo da nota fiscal.',
         variant: 'destructive',
       })
     } finally {
@@ -369,7 +426,7 @@ export function ComprasOCR() {
                     Upload de Nota Fiscal / Fatura
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
-                    Arraste o PDF ou Imagem (JPG/PNG)
+                    Arraste o PDF, Imagem (JPG/PNG) ou XML da NF-e
                   </p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
@@ -381,9 +438,9 @@ export function ComprasOCR() {
                     type="file"
                     ref={fileInputRef}
                     className="hidden"
-                    accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf"
+                    accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf,.xml,text/xml,application/xml"
                     onChange={(e) => {
-                      if (e.target.files) handleProcessFile(e.target.files[0])
+                      if (e.target.files && e.target.files[0]) handleProcessFile(e.target.files[0])
                       if (fileInputRef.current) fileInputRef.current.value = ''
                     }}
                   />
@@ -600,7 +657,7 @@ export function ComprasOCR() {
         type="file"
         ref={attachInputRef}
         className="hidden"
-        accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf"
+        accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf,.xml,text/xml,application/xml"
         onChange={handleAttachFile}
       />
     </div>
