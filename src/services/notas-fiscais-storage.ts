@@ -127,3 +127,68 @@ export async function attachInvoiceFile(
 
   return { path, error: null }
 }
+
+export interface PrepareInvoiceForOcrResult {
+  isXml: boolean
+  isPdf: boolean
+  xmlContent?: string
+  images?: string[]
+  imageBase64?: string
+  conversionFallback?: boolean
+}
+
+/**
+ * Prepara o arquivo de nota fiscal para extração (XML parsing ou Visão GPT-4o).
+ * No caso de PDF: converte as páginas em imagens JPEG via `convertPdfToImages`
+ * para alimentar a visão do GPT-4o. Se a conversão falhar (ex: CDN bloqueada ou
+ * erro de renderização), faz fallback transparente lendo o PDF em base64
+ * para o pipeline tradicional de texto do backend.
+ */
+export async function prepareInvoiceForOcr(
+  file: File,
+  convertPdfFn?: typeof import('@/lib/pdf-to-images').convertPdfToImages,
+): Promise<PrepareInvoiceForOcrResult> {
+  const isXml = isXmlInvoiceFile(file)
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+  if (isXml) {
+    const xmlContent = await file.text()
+    return { isXml: true, isPdf: false, xmlContent }
+  }
+
+  if (isPdf) {
+    try {
+      const convertFn = convertPdfFn || (await import('@/lib/pdf-to-images')).convertPdfToImages
+      const images = await convertFn(file, {
+        maxPages: 3,
+        maxDimension: 1600,
+        quality: 0.85,
+      })
+      if (images && images.length > 0) {
+        return { isXml: false, isPdf: true, images }
+      }
+      throw new Error('Nenhuma imagem gerada do PDF.')
+    } catch (convErr) {
+      console.warn(
+        'Conversão de PDF para imagem falhou no cliente. Acionando fallback base64:',
+        convErr,
+      )
+      const imageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      return { isXml: false, isPdf: true, imageBase64, conversionFallback: true }
+    }
+  }
+
+  // Imagem comum (JPG, PNG)
+  const imageBase64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+  return { isXml: false, isPdf: false, imageBase64 }
+}

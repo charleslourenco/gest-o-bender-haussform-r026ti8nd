@@ -31,7 +31,7 @@ import {
   uploadInvoiceFile,
   attachInvoiceFile,
   validateInvoiceFile,
-  isXmlInvoiceFile,
+  prepareInvoiceForOcr,
 } from '@/services/notas-fiscais-storage'
 import { openStorageFileInNewTab } from '@/lib/file-viewer'
 import { parseNFeXml } from '@/lib/nfe-xml-parser'
@@ -187,51 +187,37 @@ export function ComprasOCR() {
       }
       const arquivoUrl = uploadResult.path
 
-      const isXml = isXmlInvoiceFile(file)
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+      // Preparação unificada de arquivo via helper de serviço (PDF->Visão com fallback, XML, ou JPG/PNG)
+      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
+      const isXml = prepared.isXml
 
       let extractedData: any = null
 
       if (isXml) {
-        // FLUXO DETERMINÍSTICO (Sem IA): XML da NF-e
+        // TAREFA B: FLUXO DETERMINÍSTICO (Sem IA): XML da NF-e
         toast({
           title: 'Processando XML da NF-e...',
           description: 'Lendo dados estruturados da SEFAZ com precisão direta.',
         })
 
-        const xmlText = await file.text()
-        extractedData = parseNFeXml(xmlText)
+        extractedData = parseNFeXml(prepared.xmlContent || '')
       } else {
-        // FLUXO DE IMAGEM / PDF COM VISÃO DO GPT-4O
+        // TAREFA A: FLUXO DE IMAGEM / PDF COM VISÃO DO GPT-4O
         let payload: any = null
 
-        if (isPdf) {
-          toast({
-            title: 'Zenaide: Lendo Nota Fiscal em PDF...',
-            description: 'Renderizando layout do DANFE para análise visual de alta precisão.',
-          })
-
-          try {
-            // Conversão PDF -> Imagens das páginas para visão do GPT-4o
-            const pageImages = await convertPdfToImages(file, {
-              maxPages: 3,
-              maxDimension: 1600,
-              quality: 0.85,
+        if (prepared.isPdf) {
+          if (prepared.images && prepared.images.length > 0) {
+            toast({
+              title: 'Zenaide: Lendo Nota Fiscal em PDF...',
+              description: 'Renderizando layout visual do DANFE para visão de alta precisão.',
             })
-            payload = { images: pageImages, isPdf: true }
-          } catch (pdfConvErr) {
-            console.warn(
-              'Conversão PDF->imagem falhou no cliente, acionando fallback de texto/servidor:',
-              pdfConvErr,
-            )
-            // FALLBACK TRANSPARENTE: envia base64 do PDF original para extração no backend
-            const base64Data = await new Promise<string>((resolve, reject) => {
-              const r = new FileReader()
-              r.onloadend = () => resolve(r.result as string)
-              r.onerror = reject
-              r.readAsDataURL(file)
+            payload = { images: prepared.images, isPdf: true }
+          } else {
+            toast({
+              title: 'Zenaide: Lendo Nota Fiscal...',
+              description: 'Processando documento via inteligência artificial.',
             })
-            payload = { imageBase64: base64Data, isPdf: true }
+            payload = { imageBase64: prepared.imageBase64, isPdf: true }
           }
         } else {
           // Imagem direta (JPG/PNG)
@@ -239,14 +225,7 @@ export function ComprasOCR() {
             title: 'Zenaide: Processando Documento...',
             description: 'A IA está lendo a nota fiscal e normalizando os itens.',
           })
-
-          const base64Data = await new Promise<string>((resolve, reject) => {
-            const r = new FileReader()
-            r.onloadend = () => resolve(r.result as string)
-            r.onerror = reject
-            r.readAsDataURL(file)
-          })
-          payload = { imageBase64: base64Data, isPdf: false }
+          payload = { imageBase64: prepared.imageBase64, isPdf: false }
         }
 
         const response = await supabase.functions.invoke('financeiro-ai', {
