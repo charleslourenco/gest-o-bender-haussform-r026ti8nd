@@ -396,16 +396,18 @@ export function ComprasOCR() {
               {isProcessing ? (
                 <div className="flex flex-col items-center">
                   <Loader2 className="h-10 w-10 text-steel-blue animate-spin mb-4" />
-                  <p className="text-sm font-medium">Extraindo e normalizando dados (OCR)...</p>
+                  <p className="text-sm font-medium">
+                    Lendo e normalizando dados da nota fiscal...
+                  </p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
                   <UploadCloud className="h-10 w-10 text-gray-400 dark:text-slate-500 mb-4" />
                   <h3 className="font-semibold mb-1 dark:text-slate-200">
-                    Upload de Nota Fiscal / Fatura
+                    Importar Nota Fiscal (XML, PDF ou Foto)
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
-                    Arraste o PDF, Imagem (JPG/PNG) ou XML da NF-e
+                    Arraste o XML da NF-e, PDF ou Foto (JPG/PNG)
                   </p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
@@ -428,12 +430,12 @@ export function ComprasOCR() {
             </div>
             <div className="mt-6 bg-blue-50/50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-100 dark:border-blue-900/50">
               <h4 className="text-sm font-semibold flex items-center gap-2 mb-2 text-blue-800 dark:text-blue-300">
-                <AlertCircle className="w-4 h-4" /> Inteligência da Zenaide
+                <AlertCircle className="w-4 h-4" /> Leitor de Notas Fiscais
               </h4>
               <p className="text-xs text-blue-700/80 dark:text-blue-200/80 leading-relaxed">
-                A IA extrai dados da NF, normaliza atributos técnicos e cruza com o inventário.
-                Itens ambíguos ficam em "Verificar" para confirmação manual — evitando cadastros
-                duplicados. O arquivo original é armazenado com segurança para auditoria.
+                O sistema lê notas fiscais via XML (precisão 100% direta) ou via IA inteligente para
+                fotos e PDFs. Cruza itens com o inventário e permite editar qualquer dado antes de
+                salvar. O arquivo original é armazenado com segurança para auditoria.
               </p>
             </div>
           </CardContent>

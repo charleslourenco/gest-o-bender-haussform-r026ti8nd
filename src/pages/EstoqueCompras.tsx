@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PackageSearch } from 'lucide-react'
+import { PackageSearch, Info, X } from 'lucide-react'
 import { EstoqueOverview } from '@/components/estoque/EstoqueOverview'
 import { EstoqueLista } from '@/components/estoque/EstoqueLista'
 import { ComprasOCR } from '@/components/estoque/ComprasOCR'
@@ -16,6 +16,14 @@ import { supabase } from '@/lib/supabase/client'
 export default function EstoqueCompras() {
   const [unreadListas, setUnreadListas] = useState(0)
   const [pendingSolicitacoes, setPendingSolicitacoes] = useState(0)
+  const [bannerDismissedSession, setBannerDismissedSession] = useState(false)
+  const [bannerDismissedPermanent, setBannerDismissedPermanent] = useState(() => {
+    try {
+      return localStorage.getItem('bender_aviso_leitor_notas_dismissed') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -128,7 +136,7 @@ export default function EstoqueCompras() {
                 value="documentos"
                 className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white/60"
               >
-                Documentos & OCR
+                Leitor de Notas
               </TabsTrigger>
               <TabsTrigger
                 value="itens-cliente"
@@ -188,9 +196,51 @@ export default function EstoqueCompras() {
             value="documentos"
             className="m-0 border-none outline-none h-full overflow-y-auto pb-20 space-y-8"
           >
+            {!bannerDismissedPermanent && !bannerDismissedSession && (
+              <div
+                role="status"
+                className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg p-4 flex items-start gap-3 shadow-xs text-blue-900 dark:text-blue-100 animate-in fade-in duration-200"
+              >
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="flex-1 text-sm leading-relaxed">
+                  <p>
+                    Sistema atualizado! Agora você pode subir o XML da nota fiscal, que garante 100%
+                    de precisão na leitura. Também melhoramos a leitura de fotos e PDFs (inclusive
+                    escaneados) e agora é possível editar cada item da nota caso não tenha sido lido
+                    corretamente.
+                  </p>
+                  <div className="mt-2 flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          localStorage.setItem('bender_aviso_leitor_notas_dismissed', 'true')
+                        } catch (e) {
+                          console.error(e)
+                        }
+                        setBannerDismissedPermanent(true)
+                      }}
+                      className="text-xs font-semibold text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline cursor-pointer"
+                    >
+                      Não mostrar novamente
+                    </button>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBannerDismissedSession(true)}
+                  aria-label="Fechar aviso"
+                  title="Fechar"
+                  className="text-blue-500 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 p-1 rounded-md transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             <section>
               <h2 className="text-xl font-bold text-midnight-navy dark:text-slate-100 mb-4">
-                Entrada de Mercadorias (NF/OCR)
+                Entrada de Mercadorias (Leitor de Notas Fiscais)
               </h2>
               <ComprasOCR />
             </section>

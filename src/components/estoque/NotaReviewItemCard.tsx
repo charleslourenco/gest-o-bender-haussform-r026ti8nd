@@ -2,12 +2,20 @@ import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, Check, Search, Percent, PlusCircle } from 'lucide-react'
+import { Loader2, Check, Search, Percent, PlusCircle, Trash2, Pencil } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { saveAlias } from '@/services/estoque-aliases'
 import { MatchedItem } from '@/services/estoque-matching'
+import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { UnifiedItemModal } from './UnifiedItemModal'
 
 interface NotaReviewItemCardProps {
@@ -17,6 +25,8 @@ interface NotaReviewItemCardProps {
   notaFornecedor: string
   estoqueItems: any[]
   onResolved: () => void
+  onItemChange?: (idx: number, updated: Partial<MatchedItem>) => void
+  onItemDelete?: (idx: number) => void
 }
 
 export function NotaReviewItemCard({
@@ -26,6 +36,8 @@ export function NotaReviewItemCard({
   notaFornecedor,
   estoqueItems,
   onResolved,
+  onItemChange,
+  onItemDelete,
 }: NotaReviewItemCardProps) {
   const { toast } = useToast()
   const [search, setSearch] = useState('')
@@ -33,6 +45,7 @@ export function NotaReviewItemCard({
   const [lembrar, setLembrar] = useState(true)
   const [selectedItemId, setSelectedItemId] = useState('')
   const [showRegister, setShowRegister] = useState(false)
+  const [isEditingInline, setIsEditingInline] = useState(false)
 
   const filteredEstoque = useMemo(() => {
     if (!search.trim()) return estoqueItems
@@ -117,42 +130,183 @@ export function NotaReviewItemCard({
     }
   }
 
+  const currentTotal =
+    item.preco_total !== undefined
+      ? item.preco_total
+      : Math.round(Number(item.quantidade || 0) * Number(item.preco_unitario || 0) * 100) / 100
+
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border dark:border-slate-800">
-      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-md p-2 mb-3">
-        <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-0.5">
-          Texto lido pela OCR
-        </p>
-        <p className="text-sm text-blue-900 dark:text-blue-200 font-mono break-words">
-          {item.produto}
-        </p>
+    <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border dark:border-slate-800 space-y-3">
+      {/* Top Header com Descrição, Badges e Botões de Ação rápida */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 rounded-md p-2 mb-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                Descrição do Item
+              </p>
+              {onItemChange && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingInline(!isEditingInline)}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                >
+                  <Pencil className="w-3 h-3" />
+                  {isEditingInline ? 'Ocultar Edição' : 'Editar Item'}
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-blue-900 dark:text-blue-200 font-medium break-words mt-0.5">
+              {item.produto || '(Sem descrição)'}
+            </p>
+          </div>
+        </div>
+
+        {onItemDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onItemDelete(realIdx)}
+            title="Excluir item da nota"
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 h-8 w-8 p-0 shrink-0"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-1.5">
+      {/* Formulário de edição inline dos campos do item */}
+      {(isEditingInline || onItemChange) && (
+        <div className="bg-slate-50 dark:bg-slate-800/40 p-3 rounded-md border border-slate-200 dark:border-slate-700 space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Descrição / Produto *
+              </label>
+              <Input
+                value={item.produto}
+                onChange={(e) => onItemChange?.(realIdx, { produto: e.target.value })}
+                className="h-8 text-xs bg-white dark:bg-slate-900"
+                placeholder="Descrição do item na nota"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Categoria
+              </label>
+              <Select
+                value={item.categoria || ''}
+                onValueChange={(val) => onItemChange?.(realIdx, { categoria: val })}
+              >
+                <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-900">
+                  <SelectValue placeholder="Selecione categoria" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {CATEGORIAS_ESTOQUE.map((cat) => (
+                    <SelectItem key={cat} value={cat} className="text-xs">
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Quantidade (&gt;0) *
+              </label>
+              <Input
+                type="number"
+                min="0.001"
+                step="any"
+                value={item.quantidade}
+                onChange={(e) => {
+                  const qtd = parseFloat(e.target.value) || 0
+                  const pu = Number(item.preco_unitario) || 0
+                  onItemChange?.(realIdx, {
+                    quantidade: qtd,
+                    preco_total: Math.round(qtd * pu * 100) / 100,
+                  })
+                }}
+                className="h-8 text-xs bg-white dark:bg-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Unidade
+              </label>
+              <Input
+                value={item.unidade || ''}
+                onChange={(e) => onItemChange?.(realIdx, { unidade: e.target.value })}
+                placeholder="un, m², rolo..."
+                className="h-8 text-xs bg-white dark:bg-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Preço Unitário (R$)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={item.preco_unitario}
+                onChange={(e) => {
+                  const pu = parseFloat(e.target.value) || 0
+                  const qtd = Number(item.quantidade) || 0
+                  onItemChange?.(realIdx, {
+                    preco_unitario: pu,
+                    preco_total: Math.round(qtd * pu * 100) / 100,
+                  })
+                }}
+                className="h-8 text-xs bg-white dark:bg-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Total do Item (R$)
+              </label>
+              <div className="h-8 px-2 flex items-center font-bold text-xs bg-white dark:bg-slate-900 border rounded-md text-emerald-700 dark:text-emerald-400">
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                  currentTotal,
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {item.score !== undefined && item.score > 0 && (
             <Badge variant="outline" className="text-[10px] flex items-center gap-0.5">
               <Percent className="w-2.5 h-2.5" />
               {item.score}%
             </Badge>
           )}
-          <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800">
+          <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800 text-[10px]">
             Verificar
           </Badge>
+          {item.categoria && (
+            <Badge variant="secondary" className="text-[10px]">
+              {item.categoria}
+            </Badge>
+          )}
+          {item.unidade && (
+            <Badge variant="outline" className="text-[10px]">
+              {item.unidade}
+            </Badge>
+          )}
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3">
-        <span>
-          Qtd: <strong>{item.quantidade}</strong>
-        </span>
-        {item.metadados_normalizados?.espessura_mm && (
-          <span>Esp: {item.metadados_normalizados.espessura_mm}mm</span>
-        )}
-        {item.metadados_normalizados?.cor && <span>Cor: {item.metadados_normalizados.cor}</span>}
-        {item.metadados_normalizados?.marca && (
-          <span>Marca: {item.metadados_normalizados.marca}</span>
-        )}
+        <div className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
+          Total:{' '}
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+            currentTotal,
+          )}
+        </div>
       </div>
 
       <div className="relative mb-2">

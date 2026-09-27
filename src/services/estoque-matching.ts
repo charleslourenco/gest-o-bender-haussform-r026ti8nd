@@ -8,10 +8,13 @@ export interface MatchedItem {
   produto: string
   quantidade: number
   preco_unitario: number
+  preco_total?: number
+  unidade?: string
+  categoria?: string
   metadados_normalizados: any
   status: 'matched' | 'pendente_revisao'
   item_id: string | null
-  source: 'alias' | 'exact' | 'none'
+  source: 'alias' | 'exact' | 'none' | 'manual'
   confianca: 'ALTA' | 'MEDIA' | 'BAIXA'
   score: number
 }
@@ -147,11 +150,20 @@ export async function matchInvoiceItems(
     const meta = normalizedResults[idx] || {}
     const qtd = Number(item.quantidade) || 1
     const precoUnitario = Number(item.preco_unitario) || 0
+    const precoTotal =
+      item.preco_total !== undefined
+        ? Number(item.preco_total)
+        : Math.round(qtd * precoUnitario * 100) / 100
+    const unidade = item.unidade || meta?.unidade || 'un'
+    const categoria = item.categoria || meta?.categoria || ''
 
     const base = {
       produto: nome,
       quantidade: qtd,
       preco_unitario: precoUnitario,
+      preco_total: precoTotal,
+      unidade,
+      categoria,
       metadados_normalizados: meta,
     }
 
