@@ -19,7 +19,7 @@ import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { UnifiedItemModal } from './UnifiedItemModal'
 
 interface NotaReviewItemCardProps {
-  item: MatchedItem
+  item: MatchedItem & { _draftId?: string }
   realIdx: number
   notaId: string
   notaFornecedor: string
@@ -96,16 +96,28 @@ export function NotaReviewItemCard({
         await saveAlias(item.produto, selectedItemId, userData.user?.id)
       }
 
-      const { data: notaData } = await supabase
+      const { data: notaData, error: fetchNotaErr } = await supabase
         .from('notas_fiscais')
         .select('dados_ocr')
         .eq('id', notaId)
         .single()
+
+      if (fetchNotaErr) throw fetchNotaErr
+
       if (notaData?.dados_ocr) {
         const itens = [...(notaData.dados_ocr.itens || [])]
-        if (realIdx >= 0 && realIdx < itens.length) {
-          itens[realIdx] = {
-            ...itens[realIdx],
+        // Localizar o item alvo por _draftId se disponível, senão por realIdx
+        let targetIndex = -1
+        if (item._draftId) {
+          targetIndex = itens.findIndex((it: any) => it._draftId === item._draftId)
+        }
+        if (targetIndex === -1 && realIdx >= 0 && realIdx < itens.length) {
+          targetIndex = realIdx
+        }
+
+        if (targetIndex >= 0 && targetIndex < itens.length) {
+          itens[targetIndex] = {
+            ...itens[targetIndex],
             status: 'matched',
             item_id: selectedItemId,
             source: 'manual',
@@ -115,12 +127,13 @@ export function NotaReviewItemCard({
           (i: MatchedItem) => i.status === 'pendente_revisao',
         ).length
         const novoStatus = stillPending === 0 ? 'conciliado' : 'pendente_revisao'
-        await supabase
+        const { error: updateNotaErr } = await supabase
           .from('notas_fiscais')
           .update({ dados_ocr: { ...notaData.dados_ocr, itens }, status_reconciliacao: novoStatus })
           .eq('id', notaId)
-      }
 
+        if (updateNotaErr) throw updateNotaErr
+      }
       toast({ title: 'Item associado!', description: 'Estoque atualizado com sucesso.' })
       onResolved()
     } catch (e: any) {

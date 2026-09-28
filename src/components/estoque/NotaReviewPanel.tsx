@@ -36,7 +36,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
   const { toast } = useToast()
   const [estoqueItems, setEstoqueItems] = useState<any[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
-  const [draftItens, setDraftItens] = useState<MatchedItem[]>([])
+  const [draftItens, setDraftItens] = useState<(MatchedItem & { _draftId: string })[]>([])
   const [isSavingDraft, setIsSavingDraft] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [editingMatchedIdx, setEditingMatchedIdx] = useState<number | null>(null)
@@ -53,13 +53,21 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
     if (data) setEstoqueItems(data)
   }
 
-  const parseItensToDraft = (rawItens: any[]): MatchedItem[] => {
+  const generateItemId = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID()
+    }
+    return `item-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+  }
+
+  const parseItensToDraft = (rawItens: any[]): (MatchedItem & { _draftId: string })[] => {
     return (rawItens || []).map((item) => {
       const qtd = Number(item.quantidade) || 1
       const pu = Number(item.preco_unitario) || 0
       const pt =
         item.preco_total !== undefined ? Number(item.preco_total) : Math.round(qtd * pu * 100) / 100
       return {
+        _draftId: item._draftId || item.id || generateItemId(),
         produto: item.produto || item.nome || '',
         quantidade: qtd,
         preco_unitario: pu,
@@ -127,7 +135,8 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
   }
 
   const handleAddNewBlankItem = () => {
-    const newItem: MatchedItem = {
+    const newItem: MatchedItem & { _draftId: string } = {
+      _draftId: generateItemId(),
       produto: '',
       quantidade: 1,
       preco_unitario: 0,
@@ -158,7 +167,16 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
   }
 
   const handleConfirmAndSave = async () => {
-    // Validações
+    // Validações explícitas com toast visível
+    if (!draftItens || draftItens.length === 0) {
+      toast({
+        title: 'Nenhum item na nota',
+        description: 'Adicione pelo menos um item antes de salvar a revisão.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     for (let i = 0; i < draftItens.length; i++) {
       const it = draftItens[i]
       if (!it.produto || !it.produto.trim()) {
@@ -169,17 +187,19 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         })
         return
       }
-      if (Number(it.quantidade) <= 0) {
+      const qtd = Number(it.quantidade)
+      if (isNaN(qtd) || qtd <= 0) {
         toast({
-          title: `Item "${it.produto}" inválido`,
-          description: 'A quantidade precisa ser maior que zero (> 0).',
+          title: `Item "${it.produto || `#${i + 1}`}" inválido`,
+          description: 'A quantidade precisa ser um número maior que zero (> 0).',
           variant: 'destructive',
         })
         return
       }
-      if (Number(it.preco_unitario) < 0) {
+      const pu = Number(it.preco_unitario)
+      if (isNaN(pu) || pu < 0) {
         toast({
-          title: `Item "${it.produto}" com preço inválido`,
+          title: `Item "${it.produto || `#${i + 1}`}" com preço inválido`,
           description: 'O preço unitário não pode ser negativo.',
           variant: 'destructive',
         })
@@ -189,11 +209,49 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
     setIsSavingDraft(true)
     try {
-      const pendingCount = draftItens.filter((i) => i.status === 'pendente_revisao').length
+      // 1. Buscar a versão mais recente da nota para evitar sobrescrita concorrente
+      const { data: latestNota, error: fetchErr } = await supabase
+        .from('notas_fiscais')
+        .select('dados_ocr, valor_total')
+        .eq('id', nota.id)
+        .single()
+
+      if (fetchErr) {
+        throw new Error(`Falha ao verificar nota no servidor: ${fetchErr.message}`)
+      }
+
+      // Mesclar preservando associações efetuadas por ações pontuais em NotaReviewItemCard
+      const remoteItens: any[] = latestNota?.dados_ocr?.itens || []
+      const mergedItens = draftItens.map((dItem, idx) => {
+        // Encontrar item remoto correspondente pelo _draftId, pelo item_id ou pelo índice
+        const remoteMatch =
+          remoteItens.find((r) => r._draftId && r._draftId === dItem._draftId) ||
+          (dItem.item_id ? remoteItens.find((r) => r.item_id === dItem.item_id) : null) ||
+          remoteItens[idx]
+
+        // Se o item remoto já foi conciliado/matched no backend e o draft local ainda estava pendente sem nova vinculação
+        if (
+          remoteMatch &&
+          remoteMatch.status === 'matched' &&
+          remoteMatch.item_id &&
+          dItem.status === 'pendente_revisao' &&
+          !dItem.item_id
+        ) {
+          return {
+            ...dItem,
+            status: 'matched' as const,
+            item_id: remoteMatch.item_id,
+            source: remoteMatch.source || 'manual',
+          }
+        }
+        return dItem
+      })
+
+      const pendingCount = mergedItens.filter((i) => i.status === 'pendente_revisao').length
       const novoStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
       const updatedDadosOcr = {
-        ...(nota.dados_ocr || {}),
-        itens: draftItens,
+        ...(latestNota?.dados_ocr || nota.dados_ocr || {}),
+        itens: mergedItens,
         valor: recalculatedTotal,
       }
 
@@ -209,15 +267,16 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       if (error) throw error
 
       toast({
-        title: 'Revisão da nota fiscal salva com sucesso!',
-        description: `Total atualizado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalculatedTotal)} com ${draftItens.length} itens.`,
+        title: 'Revisão gravada com sucesso!',
+        description: `Total atualizado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalculatedTotal)} com ${mergedItens.length} itens.`,
       })
+      setDraftItens(mergedItens)
       setHasChanges(false)
       onResolved()
     } catch (e: any) {
       toast({
         title: 'Erro ao salvar alterações da nota',
-        description: e.message,
+        description: e.message || 'Ocorreu uma falha inesperada ao tentar gravar a revisão.',
         variant: 'destructive',
       })
     } finally {
@@ -369,7 +428,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
             return (
               <div
-                key={`matched-${idx}`}
+                key={item._draftId || `matched-${idx}`}
                 className="bg-white dark:bg-slate-900 rounded-md p-3 border dark:border-slate-800 space-y-2"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -532,7 +591,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
           </div>
           {pendingEntries.map(({ item, idx }) => (
             <NotaReviewItemCard
-              key={`${idx}-${item.produto}`}
+              key={item._draftId || `pending-${idx}`}
               item={item}
               realIdx={idx}
               notaId={nota.id}
