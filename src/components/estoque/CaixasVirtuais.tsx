@@ -73,7 +73,7 @@ export function CaixasVirtuais() {
   const [clientes, setClientes] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState<'abertas' | 'entregues'>('abertas')
 
-  // Controle de caixas expandidas (abertas no clique)
+  // Controle de caixas expandidas (abertas no clique) — permite abrir/fechar caixas na aba Abertas
   const [expandedCaixas, setExpandedCaixas] = useState<Record<string, boolean>>({})
 
   // Modais
