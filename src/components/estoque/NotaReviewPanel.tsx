@@ -75,7 +75,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         unidade: item.unidade || 'un',
         categoria: item.categoria || '',
         metadados_normalizados: item.metadados_normalizados || {},
-        status: item.status || 'pendente_revisao',
+        status: item.item_id ? item.status || 'matched' : 'pendente_revisao',
         item_id: item.item_id || null,
         source: item.source || 'none',
         confianca: item.confianca || 'BAIXA',
@@ -106,32 +106,55 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
   const totalDivergence = Math.abs(recalculatedTotal - originalTotal) > 0.01
 
-  // Manipulação de itens no rascunho local
-  const handleItemChange = (idx: number, updated: Partial<MatchedItem>) => {
+  // Manipulação de itens no rascunho local por _draftId ou índice
+  const handleItemChange = (target: number | string, updated: Partial<MatchedItem>) => {
     setDraftItens((prev) => {
+      const idx = typeof target === 'string' ? prev.findIndex((i) => i._draftId === target) : target
+      if (idx < 0 || idx >= prev.length) return prev
       const next = [...prev]
-      if (idx >= 0 && idx < next.length) {
-        const item = { ...next[idx], ...updated }
-        if (updated.quantidade !== undefined || updated.preco_unitario !== undefined) {
-          const q = Number(item.quantidade) || 0
-          const pu = Number(item.preco_unitario) || 0
-          item.preco_total = Math.round(q * pu * 100) / 100
-        }
-        next[idx] = item
+      const item = { ...next[idx], ...updated }
+      if (updated.quantidade !== undefined || updated.preco_unitario !== undefined) {
+        const q = Number(item.quantidade) || 0
+        const pu = Number(item.preco_unitario) || 0
+        item.preco_total = Math.round(q * pu * 100) / 100
       }
+      next[idx] = item
       return next
     })
     setHasChanges(true)
   }
 
-  const handleItemDelete = (idx: number) => {
+  const handleItemDelete = (target: number | string) => {
     if (!window.confirm('Deseja remover este item da revisão da nota fiscal?')) return
-    setDraftItens((prev) => prev.filter((_, i) => i !== idx))
+    setDraftItens((prev) => {
+      const idx = typeof target === 'string' ? prev.findIndex((i) => i._draftId === target) : target
+      if (idx >= 0 && editingMatchedIdx === idx) {
+        setEditingMatchedIdx(null)
+      }
+      return prev.filter((_, i) => i !== idx)
+    })
     setHasChanges(true)
-    if (editingMatchedIdx === idx) {
-      setEditingMatchedIdx(null)
-    }
     toast({ title: 'Item removido do rascunho' })
+  }
+
+  const handleReopenMatch = (target: number | string) => {
+    setDraftItens((prev) => {
+      const idx = typeof target === 'string' ? prev.findIndex((i) => i._draftId === target) : target
+      if (idx < 0 || idx >= prev.length) return prev
+      const next = [...prev]
+      next[idx] = {
+        ...next[idx],
+        status: 'pendente_revisao',
+        item_id: null,
+      }
+      return next
+    })
+    setHasChanges(true)
+    setEditingMatchedIdx(null)
+    toast({
+      title: 'Item retornado para revisão',
+      description: 'Agora você pode pesquisar e associar a outro item do estoque.',
+    })
   }
 
   const handleAddNewBlankItem = () => {
@@ -425,6 +448,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 : Math.round(
                     Number(item.quantidade || 0) * Number(item.preco_unitario || 0) * 100,
                   ) / 100
+            const linkedEstoque = item.item_id
+              ? estoqueItems.find((e) => e.id === item.item_id)
+              : null
 
             return (
               <div
@@ -449,10 +475,19 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                       {formatBRL(currentItemTotal)}
                     </span>
                     <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleReopenMatch(item._draftId || idx)}
+                      title="Alterar vínculo no estoque"
+                      className="h-7 text-xs px-2 text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-950/40"
+                    >
+                      Alterar vínculo
+                    </Button>
+                    <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setEditingMatchedIdx(isEditing ? null : idx)}
-                      title="Editar item"
+                      title="Editar dados do item"
                       className="h-7 w-7 p-0 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
                     >
                       <Pencil className="w-3.5 h-3.5" />
@@ -460,7 +495,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleItemDelete(idx)}
+                      onClick={() => handleItemDelete(item._draftId || idx)}
                       title="Excluir item da nota"
                       className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40"
                     >
@@ -472,6 +507,11 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 {/* Linha de resumo compacta quando não está em edição */}
                 {!isEditing ? (
                   <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                    {linkedEstoque && (
+                      <span className="text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                        Vínculo: <strong>{linkedEstoque.nome}</strong>
+                      </span>
+                    )}
                     <span>
                       Qtd: <strong>{item.quantidade}</strong> {item.unidade || 'un'}
                     </span>
@@ -495,7 +535,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                         </label>
                         <Input
                           value={item.produto}
-                          onChange={(e) => handleItemChange(idx, { produto: e.target.value })}
+                          onChange={(e) =>
+                            handleItemChange(item._draftId || idx, { produto: e.target.value })
+                          }
                           className="h-8 text-xs bg-white dark:bg-slate-900"
                         />
                       </div>
@@ -505,7 +547,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                         </label>
                         <Select
                           value={item.categoria || ''}
-                          onValueChange={(val) => handleItemChange(idx, { categoria: val })}
+                          onValueChange={(val) =>
+                            handleItemChange(item._draftId || idx, { categoria: val })
+                          }
                         >
                           <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-900">
                             <SelectValue placeholder="Selecione categoria" />
@@ -533,7 +577,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                           value={item.quantidade}
                           onChange={(e) => {
                             const qtd = parseFloat(e.target.value) || 0
-                            handleItemChange(idx, { quantidade: qtd })
+                            handleItemChange(item._draftId || idx, { quantidade: qtd })
                           }}
                           className="h-8 text-xs bg-white dark:bg-slate-900"
                         />
@@ -544,7 +588,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                         </label>
                         <Input
                           value={item.unidade || ''}
-                          onChange={(e) => handleItemChange(idx, { unidade: e.target.value })}
+                          onChange={(e) =>
+                            handleItemChange(item._draftId || idx, { unidade: e.target.value })
+                          }
                           placeholder="un, m², rolo..."
                           className="h-8 text-xs bg-white dark:bg-slate-900"
                         />
@@ -560,7 +606,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                           value={item.preco_unitario}
                           onChange={(e) => {
                             const pu = parseFloat(e.target.value) || 0
-                            handleItemChange(idx, { preco_unitario: pu })
+                            handleItemChange(item._draftId || idx, { preco_unitario: pu })
                           }}
                           className="h-8 text-xs bg-white dark:bg-slate-900"
                         />

@@ -229,14 +229,14 @@ export function GerarEtiquetaModal({
               <Label className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
                 Destino do Material
               </Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant={destino === 'cliente' ? 'default' : 'outline'}
                   size="sm"
-                  className={
+                  className={`h-auto min-h-[38px] py-2 px-3 whitespace-normal text-xs leading-snug text-center ${
                     destino === 'cliente' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''
-                  }
+                  }`}
                   onClick={() => setDestino('cliente')}
                 >
                   Cliente / Projeto
@@ -245,11 +245,11 @@ export function GerarEtiquetaModal({
                   type="button"
                   variant={destino === 'consumo_interno' ? 'default' : 'outline'}
                   size="sm"
-                  className={
+                  className={`h-auto min-h-[38px] py-2 px-3 whitespace-normal text-xs leading-snug text-center ${
                     destino === 'consumo_interno'
                       ? 'bg-amber-600 hover:bg-amber-700 text-white'
                       : ''
-                  }
+                  }`}
                   onClick={() => {
                     setDestino('consumo_interno')
                     setClienteNome('Consumo Interno')

@@ -25,8 +25,8 @@ interface NotaReviewItemCardProps {
   notaFornecedor: string
   estoqueItems: any[]
   onResolved: () => void
-  onItemChange?: (idx: number, updated: Partial<MatchedItem>) => void
-  onItemDelete?: (idx: number) => void
+  onItemChange?: (idx: number | string, updated: Partial<MatchedItem>) => void
+  onItemDelete?: (idx: number | string) => void
 }
 
 export function NotaReviewItemCard({
@@ -111,6 +111,13 @@ export function NotaReviewItemCard({
         if (item._draftId) {
           targetIndex = itens.findIndex((it: any) => it._draftId === item._draftId)
         }
+        if (targetIndex === -1 && item.produto) {
+          targetIndex = itens.findIndex(
+            (it: any) =>
+              (it.produto || it.nome) === item.produto &&
+              (!it.item_id || it.status === 'pendente_revisao'),
+          )
+        }
         if (targetIndex === -1 && realIdx >= 0 && realIdx < itens.length) {
           targetIndex = realIdx
         }
@@ -118,6 +125,7 @@ export function NotaReviewItemCard({
         if (targetIndex >= 0 && targetIndex < itens.length) {
           itens[targetIndex] = {
             ...itens[targetIndex],
+            _draftId: itens[targetIndex]._draftId || item._draftId,
             status: 'matched',
             item_id: selectedItemId,
             source: 'manual',
@@ -180,7 +188,7 @@ export function NotaReviewItemCard({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => onItemDelete(realIdx)}
+            onClick={() => onItemDelete(item._draftId || realIdx)}
             title="Excluir item da nota"
             className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 h-8 w-8 p-0 shrink-0"
           >
@@ -199,7 +207,9 @@ export function NotaReviewItemCard({
               </label>
               <Input
                 value={item.produto}
-                onChange={(e) => onItemChange?.(realIdx, { produto: e.target.value })}
+                onChange={(e) =>
+                  onItemChange?.(item._draftId || realIdx, { produto: e.target.value })
+                }
                 className="h-8 text-xs bg-white dark:bg-slate-900"
                 placeholder="Descrição do item na nota"
               />
@@ -210,7 +220,9 @@ export function NotaReviewItemCard({
               </label>
               <Select
                 value={item.categoria || ''}
-                onValueChange={(val) => onItemChange?.(realIdx, { categoria: val })}
+                onValueChange={(val) =>
+                  onItemChange?.(item._draftId || realIdx, { categoria: val })
+                }
               >
                 <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-900">
                   <SelectValue placeholder="Selecione categoria" />
@@ -239,7 +251,7 @@ export function NotaReviewItemCard({
                 onChange={(e) => {
                   const qtd = parseFloat(e.target.value) || 0
                   const pu = Number(item.preco_unitario) || 0
-                  onItemChange?.(realIdx, {
+                  onItemChange?.(item._draftId || realIdx, {
                     quantidade: qtd,
                     preco_total: Math.round(qtd * pu * 100) / 100,
                   })
@@ -253,7 +265,9 @@ export function NotaReviewItemCard({
               </label>
               <Input
                 value={item.unidade || ''}
-                onChange={(e) => onItemChange?.(realIdx, { unidade: e.target.value })}
+                onChange={(e) =>
+                  onItemChange?.(item._draftId || realIdx, { unidade: e.target.value })
+                }
                 placeholder="un, m², rolo..."
                 className="h-8 text-xs bg-white dark:bg-slate-900"
               />
@@ -270,7 +284,7 @@ export function NotaReviewItemCard({
                 onChange={(e) => {
                   const pu = parseFloat(e.target.value) || 0
                   const qtd = Number(item.quantidade) || 0
-                  onItemChange?.(realIdx, {
+                  onItemChange?.(item._draftId || realIdx, {
                     preco_unitario: pu,
                     preco_total: Math.round(qtd * pu * 100) / 100,
                   })
