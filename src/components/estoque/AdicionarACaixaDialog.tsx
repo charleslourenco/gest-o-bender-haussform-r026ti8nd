@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select'
 import { Package, AlertTriangle, Loader2, Info, Plus, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { CaixaPapelaoAbertaSvg } from '@/components/estoque/CaixaPapelaoIcons'
 import { useToast } from '@/hooks/use-toast'
 
 export interface AdicionarACaixaDialogProps {
@@ -328,7 +329,7 @@ export function AdicionarACaixaDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-midnight-navy dark:text-slate-100">
-            <span className="text-xl">📦</span>
+            <CaixaPapelaoAbertaSvg size={22} className="shrink-0" />
             Adicionar à Caixa (Separação)
           </DialogTitle>
           <DialogDescription>
@@ -402,7 +403,9 @@ export function AdicionarACaixaDialog({
               /* AVISO CLARO CONFORME ESPECIFICAÇÃO: Nenhuma caixa em separação + Criar caixa agora */
               <div className="rounded-xl border border-amber-300 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/40 p-4 space-y-3">
                 <div className="flex items-start gap-2.5">
-                  <div className="text-2xl shrink-0">📦</div>
+                  <div className="shrink-0 p-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/60 border border-amber-300 dark:border-amber-800">
+                    <CaixaPapelaoAbertaSvg size={26} className="shrink-0" />
+                  </div>
                   <div>
                     <p className="font-bold text-sm text-amber-900 dark:text-amber-200">
                       Nenhuma caixa em separação
@@ -503,7 +506,7 @@ export function AdicionarACaixaDialog({
                       <SelectItem key={caixa.id} value={caixa.id} className="text-xs">
                         <div className="flex flex-col py-0.5 text-left">
                           <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                            <span className="text-sm">📦</span> {clienteNome}
+                            <CaixaPapelaoAbertaSvg size={16} className="shrink-0" /> {clienteNome}
                           </span>
                           <span className="text-[11px] text-muted-foreground ml-5">
                             Caixa: {caixa.nome}

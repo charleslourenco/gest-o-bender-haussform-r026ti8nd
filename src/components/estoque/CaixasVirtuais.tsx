@@ -39,6 +39,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { Badge } from '@/components/ui/badge'
 import { ItemSearchModal, type InventoryItem } from '@/components/estoque/ItemSearchModal'
+import {
+  CaixaPapelaoAbertaSvg,
+  CaixaPapelaoLacradaSvg,
+} from '@/components/estoque/CaixaPapelaoIcons'
 
 interface CaixaItemData {
   id: string
@@ -293,7 +297,8 @@ export function CaixasVirtuais() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-midnight-navy dark:text-slate-100 flex items-center gap-2">
-            <span>📦</span> Caixas Virtuais (Separação)
+            <CaixaPapelaoAbertaSvg size={28} className="shrink-0 drop-shadow-xs" /> Caixas Virtuais
+            (Separação)
           </h2>
           <p className="text-gray-500 dark:text-slate-400 text-sm">
             Separe os materiais para cada cliente e execute a baixa ao fechar e entregar.
@@ -317,7 +322,7 @@ export function CaixasVirtuais() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border pb-2">
           <TabsList className="bg-muted p-1">
             <TabsTrigger value="abertas" className="flex items-center gap-2 text-xs sm:text-sm">
-              <span className="text-base">📦</span>
+              <CaixaPapelaoAbertaSvg size={18} className="shrink-0" />
               <span>Abertas (Em Separação)</span>
               <Badge
                 variant="secondary"
@@ -354,8 +359,10 @@ export function CaixasVirtuais() {
         {/* SUB-ABA 1: CAIXAS ABERTAS (EM SEPARAÇÃO) */}
         <TabsContent value="abertas" className="m-0 space-y-4">
           {caixasAbertas.length === 0 ? (
-            <div className="py-16 text-center text-gray-500 dark:text-slate-400 border-2 border-dashed border-border dark:border-slate-800 rounded-2xl bg-card/40 p-8">
-              <div className="text-5xl mb-3">📦</div>
+            <div className="py-16 text-center text-gray-500 dark:text-slate-400 border-2 border-dashed border-border dark:border-slate-800 rounded-2xl bg-card/40 p-8 flex flex-col items-center">
+              <div className="mb-3 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-900/40 shadow-xs inline-flex items-center justify-center">
+                <CaixaPapelaoAbertaSvg size={64} className="drop-shadow-sm" />
+              </div>
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
                 Nenhuma caixa em separação no momento
               </h3>
@@ -390,7 +397,7 @@ export function CaixasVirtuais() {
                         : 'border-slate-200 hover:border-amber-300 dark:border-slate-800 dark:hover:border-amber-700 bg-card'
                     }`}
                   >
-                    {/* Header estilo Caixa Aberta: Emoji 📦 em destaque + Nome do Cliente na frente + Identificação */}
+                    {/* Header estilo Caixa Aberta: Ícone de caixa de papelão aberta em destaque + Nome do Cliente na frente + Identificação */}
                     <div
                       role="button"
                       tabIndex={0}
@@ -406,11 +413,12 @@ export function CaixasVirtuais() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 min-w-0">
-                          {/* Ícone de caixa aberta com visual destacado */}
-                          <div className="relative shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100 border border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 text-2xl shadow-inner">
-                            <span className="transform hover:scale-110 transition-transform">
-                              📦
-                            </span>
+                          {/* Ícone de caixa aberta com visual destacado em âmbar */}
+                          <div className="relative shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100/90 border border-amber-300/90 dark:bg-amber-950/60 dark:border-amber-800 shadow-inner group">
+                            <CaixaPapelaoAbertaSvg
+                              size={32}
+                              className="transform group-hover:scale-105 transition-transform drop-shadow-xs"
+                            />
                             <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
                           </div>
 
@@ -622,10 +630,13 @@ export function CaixasVirtuais() {
                   >
                     <CardHeader className="p-3.5 pb-2 bg-emerald-50/40 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40">
                       <div className="flex items-start justify-between gap-2">
-                        {/* Ícone de caixa FECHADA pequeno */}
+                        {/* Ícone de caixa FECHADA pequeno em verde */}
                         <div className="flex items-start gap-2.5 min-w-0">
-                          <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-sm shadow-xs">
-                            <span title="Caixa Fechada e Entregue">📦🔒</span>
+                          <div
+                            className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100/90 dark:bg-emerald-950/70 border border-emerald-300/80 dark:border-emerald-800 shadow-xs"
+                            title="Caixa Fechada e Entregue"
+                          >
+                            <CaixaPapelaoLacradaSvg size={22} className="drop-shadow-2xs" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -724,7 +735,8 @@ export function CaixasVirtuais() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span>📦</span> Nova Caixa Virtual
+              <CaixaPapelaoAbertaSvg size={22} className="shrink-0" />
+              <span>Nova Caixa Virtual</span>
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
