@@ -801,7 +801,10 @@ export function EstoqueLista() {
                 const fornecedorText = item.fornecedor || '-'
 
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow
+                    key={item.id}
+                    className="relative z-0 border-b border-border/60 hover:z-10 transition-all duration-200 ease-out hover:-translate-y-[2px] hover:bg-card/90 hover:backdrop-blur-md hover:border-primary/40 hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.12),0_4px_8px_-2px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.08)] group rounded-md"
+                  >
                     {mergeMode && (
                       <TableCell className="text-center align-top pt-3 px-2">
                         <div className="flex flex-col items-center gap-1.5">
@@ -825,7 +828,7 @@ export function EstoqueLista() {
                         </div>
                       </TableCell>
                     )}
-                    <TableCell className="font-medium align-top px-2 w-[260px] min-w-[260px]">
+                    <TableCell className="font-medium align-top px-2 w-[260px] min-w-[260px] group-hover:text-primary transition-colors duration-200">
                       <div
                         className="leading-snug"
                         style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
@@ -876,7 +879,7 @@ export function EstoqueLista() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="px-2 min-w-[120px] max-w-[140px]">
+                    <TableCell className="px-2 min-w-[120px] max-w-[140px] text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span
@@ -891,7 +894,7 @@ export function EstoqueLista() {
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
-                    <TableCell className="text-right px-2">
+                    <TableCell className="text-right px-2 transition-colors duration-200">
                       <span className={qtdColor}>{item.quantidade}</span>{' '}
                       <span className="text-xs text-gray-400 dark:text-slate-500">
                         {item.unidade}
@@ -899,10 +902,10 @@ export function EstoqueLista() {
                     </TableCell>
                     <TableCell className="text-right px-2">
                       <div className="flex flex-col items-end leading-tight">
-                        <span className="text-sm text-gray-700 dark:text-slate-300">
+                        <span className="text-sm text-gray-700 dark:text-slate-300 group-hover:text-foreground transition-colors duration-200">
                           Unit: {formatCurrency(item.valor_unitario)}
                         </span>
-                        <span className="text-xs text-gray-400 dark:text-slate-500">
+                        <span className="text-xs text-gray-400 dark:text-slate-500 group-hover:text-muted-foreground transition-colors duration-200">
                           Total: {formatCurrency(item.quantidade * item.valor_unitario)}
                         </span>
                       </div>
@@ -914,7 +917,7 @@ export function EstoqueLista() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                              className="h-8 w-8 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800 group-hover:text-foreground transition-colors duration-200"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
