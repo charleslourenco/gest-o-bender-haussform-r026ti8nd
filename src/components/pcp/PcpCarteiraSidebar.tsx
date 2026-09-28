@@ -572,14 +572,14 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           className="flex-1 w-full flex flex-col items-center justify-center gap-3 hover:bg-muted/40 transition-colors py-2"
           title={`Abrir Carteira (${totalPendentesCount} itens pendentes)`}
         >
-          <div className="p-1.5 rounded-md bg-primary/10 text-primary relative">
+          <div className="p-1.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 relative">
             <Briefcase className="w-3.5 h-3.5" />
             {totalPendentesCount > 0 && (
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
             )}
           </div>
           <span
-            className="text-[10px] font-bold text-muted-foreground group-hover:text-foreground tracking-wider uppercase whitespace-nowrap"
+            className="text-[10px] font-bold text-muted-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 tracking-wider uppercase whitespace-nowrap transition-colors"
             style={{ writingMode: 'vertical-rl' }}
           >
             📥 PARA AGENDAR ({totalPendentesCount})
@@ -627,7 +627,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       <div className="p-3 border-b border-border space-y-2.5 shrink-0 bg-card">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <Briefcase className="w-4 h-4" />
             </div>
             <div>
@@ -765,8 +765,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                 key={item.id}
                 className={cn(
                   'rounded-lg border border-border bg-card overflow-hidden shadow-2xs transition-all',
-                  'hover:border-primary/50 group/parent',
-                  isExpanded && 'ring-1 ring-primary/20',
+                  'hover:border-amber-500/50 group/parent',
+                  isExpanded && 'ring-1 ring-amber-500/20',
                 )}
               >
                 {/* NÍVEL 1: CARD PAI (PROJETO DO CLIENTE - REAL OU VIRTUAL) */}
@@ -777,8 +777,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                     if (item.parent) onCardClick(item.parent)
                   }}
                   className={cn(
-                    'p-2.5 bg-card hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing select-none',
-                    'border-l-4 border-l-primary',
+                    'p-2.5 bg-amber-50/40 dark:bg-amber-950/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing select-none',
+                    'border-l-4 border-l-amber-500',
                   )}
                   style={item.cor_vinculo ? { borderLeftColor: item.cor_vinculo } : undefined}
                 >
@@ -786,11 +786,11 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                           Projeto
                         </span>
                         {item.codigo_rastreio && (
-                          <span className="font-mono text-[9px] bg-primary/10 text-primary px-1 rounded font-medium">
+                          <span className="font-mono text-[9px] bg-amber-500/15 text-amber-700 dark:text-amber-400 px-1 rounded font-medium">
                             {item.codigo_rastreio}
                           </span>
                         )}
@@ -811,7 +811,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                       </div>
 
                       <h3
-                        className="text-xs font-bold text-foreground truncate leading-tight group-hover/parent:text-primary transition-colors mt-0.5 uppercase"
+                        className="text-xs font-bold text-foreground truncate leading-tight group-hover/parent:text-amber-600 dark:group-hover/parent:text-amber-400 transition-colors mt-0.5 uppercase"
                         title={item.clientName}
                       >
                         {item.clientName}
@@ -888,7 +888,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         onClick={(e) => toggleParentExpand(item.id, e)}
                         className={cn(
                           'p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shrink-0',
-                          isExpanded && 'bg-muted text-primary',
+                          isExpanded && 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
                         )}
                         title={
                           isExpanded
@@ -899,7 +899,9 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                         <ChevronDown
                           className={cn(
                             'w-4 h-4 transition-transform duration-200',
-                            isExpanded ? 'rotate-180 text-primary' : 'rotate-0',
+                            isExpanded
+                              ? 'rotate-180 text-amber-600 dark:text-amber-400'
+                              : 'rotate-0',
                           )}
                         />
                       </button>
@@ -926,7 +928,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
                           className={cn(
                             'text-[9px] px-1.5 py-0 h-4 font-semibold transition-colors',
                             isExpanded
-                              ? 'bg-primary/10 text-primary border-primary/20'
+                              ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800'
                               : 'bg-muted text-muted-foreground',
                           )}
                         >
