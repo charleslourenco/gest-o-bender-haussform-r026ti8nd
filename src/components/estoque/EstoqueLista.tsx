@@ -191,6 +191,8 @@ import { GerarEtiquetaModal } from './GerarEtiquetaModal'
 import { EditItemModal } from './EditItemModal'
 import { MergeItemsModal } from './MergeItemsModal'
 import { DesalocarModal } from './DesalocarModal'
+import { AdicionarACaixaDialog } from './AdicionarACaixaDialog'
+import { Package } from 'lucide-react'
 import { saveManualEstoqueItem, normalizeItemInBackground } from '@/services/unified-item'
 
 function CategoryBadge({ category, onEdit }: { category: string; onEdit: (val: string) => void }) {
@@ -241,6 +243,7 @@ export function EstoqueLista() {
   const [itemToAllocate, setItemToAllocate] = useState<any>(null)
   const [itemToEdit, setItemToEdit] = useState<any>(null)
   const [itemToDesalocar, setItemToDesalocar] = useState<any>(null)
+  const [itemToAddToCaixa, setItemToAddToCaixa] = useState<any>(null)
   const [mergeMode, setMergeMode] = useState(false)
   const [masterId, setMasterId] = useState<string | null>(null)
   const [duplicateIds, setDuplicateIds] = useState<string[]>([])
@@ -920,6 +923,9 @@ export function EstoqueLista() {
                             <DropdownMenuItem onClick={() => setItemToEdit(item)}>
                               <Pencil className="w-4 h-4 mr-2" /> Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setItemToAddToCaixa(item)}>
+                              <Package className="w-4 h-4 mr-2" /> Adicionar à Caixa
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setItemToAllocate(item)}>
                               <Tags className="w-4 h-4 mr-2" /> Alocar e Gerar Etiqueta
                             </DropdownMenuItem>
@@ -1136,6 +1142,15 @@ export function EstoqueLista() {
           onClose={() => setItemToDesalocar(null)}
           item={itemToDesalocar}
           onDone={fetchItems}
+        />
+      )}
+
+      {itemToAddToCaixa && (
+        <AdicionarACaixaDialog
+          isOpen={!!itemToAddToCaixa}
+          onClose={() => setItemToAddToCaixa(null)}
+          item={itemToAddToCaixa}
+          onSuccess={fetchItems}
         />
       )}
 
