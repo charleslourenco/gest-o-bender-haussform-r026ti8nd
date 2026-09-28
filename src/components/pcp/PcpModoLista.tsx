@@ -227,53 +227,299 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
     }
   }
 
-  // Alteração inline de semana (dropdown direto na linha)
-  const handleInlineSemanaChange = async (card: PcpCardItem, novaSemana: string) => {
-    const val = novaSemana === 'none' ? null : novaSemana
-    const prev = card.semana_planejada_producao
-    if (val === prev) return
+  // Opções de dias da semana (1: Segunda a 6: Sábado)
+  const DIAS_SEMANA_OPCOES = [
+    { num: 1, label: 'Segunda-feira', sigla: 'Seg' },
+    { num: 2, label: 'Terça-feira', sigla: 'Ter' },
+    { num: 3, label: 'Quarta-feira', sigla: 'Qua' },
+    { num: 4, label: 'Quinta-feira', sigla: 'Qui' },
+    { num: 5, label: 'Sexta-feira', sigla: 'Sex' },
+    { num: 6, label: 'Sábado', sigla: 'Sáb' },
+  ]
+
+  // Helper para obter o dia da semana a partir de uma data (YYYY-MM-DD)
+  const getDiaSemanaFromDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return 'none'
+    const clean = dateStr.slice(0, 10)
+    const d = new Date(`${clean}T12:00:00`)
+    if (isNaN(d.getTime())) return 'none'
+    const day = d.getDay() // 0 = Domingo, 1 = Segunda, ..., 6 = Sábado
+    return String(day === 0 ? 7 : day)
+  }
+
+  // Helper para calcular a data ISO YYYY-MM-DD a partir de semana ISO (ex: S40) e dia da semana (1-6)
+  const calcularDataPorSemanaEDia = (
+    semanaLabel: string,
+    diaNum: number,
+    ano: number = currentYear,
+  ): string | null => {
+    const wNum = parseWeekNumber(semanaLabel)
+    if (!wNum) return null
+    // Obter data da segunda-feira da semana ISO
+    // Regra ISO: 4 de janeiro é semana 1
+    const jan4 = new Date(Date.UTC(ano, 0, 4))
+    const dayOfWeek = jan4.getUTCDay() || 7
+    const mondayFirstWeek = new Date(jan4.getTime() - (dayOfWeek - 1) * 86400000)
+    const targetMonday = new Date(mondayFirstWeek.getTime() + (wNum - 1) * 7 * 86400000)
+
+    // Somar os dias: diaNum 1 = Segunda (+0 dias), 2 = Terça (+1), etc.
+    const targetDate = new Date(targetMonday.getTime() + (diaNum - 1) * 86400000)
+    const yyyy = targetDate.getUTCFullYear()
+    const mm = String(targetDate.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(targetDate.getUTCDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  // Validação de regras e bloqueios de sequência:
+  // Produção sem Análise definida -> toast
+  // Montagem sem Produção -> toast
+  // Cronologia: Produção não pode ser anterior à Análise; Montagem não pode ser anterior à Produção
+  const validarSequenciaAgendamento = (
+    faseAlvo: PcpLinhaOperacao,
+    semanaAlvo: string | null,
+    dataAlvo: string | null,
+    cardAtual: PcpCardItem,
+  ): boolean => {
+    if (!semanaAlvo && !dataAlvo) return true // Remoção é permitida
+
+    if (faseAlvo === 'producao') {
+      const temAnalise = Boolean(
+        (cardAtual.semana_planejada_analise && cardAtual.semana_planejada_analise.trim() !== '') ||
+        (cardAtual.data_planejada_analise && cardAtual.data_planejada_analise.trim() !== ''),
+      )
+      if (!temAnalise) {
+        toast.error('Defina primeiro a data da Análise Técnica antes de agendar a Produção.')
+        return false
+      }
+
+      // Validar cronologia se houver datas completas ou semanas
+      if (dataAlvo && cardAtual.data_planejada_analise) {
+        if (dataAlvo < cardAtual.data_planejada_analise) {
+          toast.error('A data da Produção não pode ser anterior à data da Análise Técnica.')
+          return false
+        }
+      } else if (semanaAlvo && cardAtual.semana_planejada_analise) {
+        const wProd = parseWeekNumber(semanaAlvo)
+        const wAna = parseWeekNumber(cardAtual.semana_planejada_analise)
+        if (wProd && wAna && wProd < wAna) {
+          toast.error('A semana da Produção não pode ser anterior à semana da Análise Técnica.')
+          return false
+        }
+      }
+    }
+
+    if (faseAlvo === 'montagem') {
+      const temProducao = Boolean(
+        (cardAtual.semana_planejada_producao &&
+          cardAtual.semana_planejada_producao.trim() !== '') ||
+        (cardAtual.data_planejada_producao && cardAtual.data_planejada_producao.trim() !== ''),
+      )
+      if (!temProducao) {
+        toast.error('Defina primeiro a data da Produção antes de agendar a Montagem.')
+        return false
+      }
+
+      if (dataAlvo && cardAtual.data_planejada_producao) {
+        if (dataAlvo < cardAtual.data_planejada_producao) {
+          toast.error('A data da Montagem não pode ser anterior à data da Produção.')
+          return false
+        }
+      } else if (semanaAlvo && cardAtual.semana_planejada_producao) {
+        const wMont = parseWeekNumber(semanaAlvo)
+        const wProd = parseWeekNumber(cardAtual.semana_planejada_producao)
+        if (wMont && wProd && wMont < wProd) {
+          toast.error('A semana da Montagem não pode ser anterior à semana da Produção.')
+          return false
+        }
+      }
+    }
+
+    return true
+  }
+
+  // Alteração inline de semana e dia para qualquer linha operacional
+  const handleTriadeChange = async (
+    card: PcpCardItem,
+    fase: PcpLinhaOperacao,
+    tipo: 'semana' | 'dia',
+    valor: string,
+  ) => {
+    let novaSemana =
+      fase === 'analise'
+        ? card.semana_planejada_analise
+        : fase === 'producao'
+          ? card.semana_planejada_producao
+          : card.semana_planejada_montagem
+
+    let novaData =
+      fase === 'analise'
+        ? card.data_planejada_analise
+        : fase === 'producao'
+          ? card.data_planejada_producao
+          : card.data_planejada_montagem
+
+    const diaAtualNum = getDiaSemanaFromDate(novaData)
+
+    if (tipo === 'semana') {
+      novaSemana = valor === 'none' ? null : valor
+      if (novaSemana && diaAtualNum !== 'none') {
+        novaData = calcularDataPorSemanaEDia(novaSemana, Number(diaAtualNum))
+      } else if (!novaSemana) {
+        novaData = null
+      }
+    } else if (tipo === 'dia') {
+      if (valor === 'none') {
+        novaData = null
+      } else if (novaSemana) {
+        novaData = calcularDataPorSemanaEDia(novaSemana, Number(valor))
+      } else {
+        toast.error('Defina primeiro a Semana ISO antes de selecionar o dia.')
+        return
+      }
+    }
+
+    // Validar regras de precedência
+    if (!validarSequenciaAgendamento(fase, novaSemana, novaData, card)) {
+      return
+    }
 
     // Atualização otimista
+    const colSemana =
+      fase === 'analise'
+        ? 'semana_planejada_analise'
+        : fase === 'producao'
+          ? 'semana_planejada_producao'
+          : 'semana_planejada_montagem'
+    const colData =
+      fase === 'analise'
+        ? 'data_planejada_analise'
+        : fase === 'producao'
+          ? 'data_planejada_producao'
+          : 'data_planejada_montagem'
+
     setCards((prevList) =>
-      prevList.map((c) => (c.id === card.id ? { ...c, semana_planejada_producao: val } : c)),
+      prevList.map((c) =>
+        c.id === card.id ? { ...c, [colSemana]: novaSemana, [colData]: novaData } : c,
+      ),
     )
 
     try {
+      const { updateCardDataPlanejada } = await import('@/services/pcp-planejamento')
       await updateCardSemanaPlanejada(
         card.id,
-        'producao',
-        val,
-        prev,
-        `Alterado via dropdown no Modo Lista (${val || 'Removido'})`,
+        fase,
+        novaSemana,
+        card[colSemana],
+        `Atualizado tríade ${fase} via Modo Lista`,
       )
-      toast.success(`Semana de produção atualizada para ${val || 'Não agendado'}!`)
+      if (novaData !== card[colData]) {
+        await updateCardDataPlanejada(
+          card.id,
+          fase,
+          novaData,
+          card[colData] || null,
+          `Atualizado data ${fase} via Modo Lista`,
+        )
+      }
+      toast.success(
+        `Agenda de ${fase === 'analise' ? 'Análise' : fase === 'producao' ? 'Produção' : 'Montagem'} atualizada!`,
+      )
     } catch (err: any) {
-      toast.error('Erro ao atualizar semana: ' + (err.message || 'Erro'))
+      toast.error('Erro ao atualizar agenda: ' + (err.message || 'Erro'))
       loadCards(true)
     }
   }
 
-  // Alteração inline de mês (dropdown direto na linha)
-  const handleInlineMesChange = async (card: PcpCardItem, novoMes: string) => {
-    const val = novoMes === 'none' ? null : novoMes
-    const prev = card.mes_planejado_producao
-    if (val === prev) return
+  // Ação "Aplicar para todos os ambientes do contrato"
+  const handleAplicarParaTodos = async (sourceCard: PcpCardItem) => {
+    // Achar todos os cards com o mesmo contrato (formulario_comercial_id) ou card_pai_id
+    const formId = sourceCard.formulario_comercial_id
+    const paiId = sourceCard.card_pai_id || sourceCard.id
 
+    const targetCards = cards.filter((c) => {
+      if (formId && c.formulario_comercial_id === formId) return true
+      if (c.card_pai_id === paiId || c.id === paiId) return true
+      return false
+    })
+
+    if (targetCards.length <= 1) {
+      toast.info('Não há outros ambientes neste contrato para replicar.')
+      return
+    }
+
+    const cardIds = targetCards.map((c) => c.id)
+
+    // Atualização otimista
     setCards((prevList) =>
-      prevList.map((c) => (c.id === card.id ? { ...c, mes_planejado_producao: val } : c)),
+      prevList.map((c) => {
+        if (!cardIds.includes(c.id)) return c
+        return {
+          ...c,
+          semana_planejada_analise: sourceCard.semana_planejada_analise,
+          data_planejada_analise: sourceCard.data_planejada_analise,
+          semana_planejada_producao: sourceCard.semana_planejada_producao,
+          data_planejada_producao: sourceCard.data_planejada_producao,
+          semana_planejada_montagem: sourceCard.semana_planejada_montagem,
+          data_planejada_montagem: sourceCard.data_planejada_montagem,
+        }
+      }),
     )
 
     try {
-      await updateCardMesPlanejado(
-        card.id,
-        'producao',
-        val,
-        prev,
-        `Alterado via dropdown no Modo Lista (${val || 'Removido'})`,
+      const { updateMultipleCardsSemanaPlanejada, updateMultipleCardsDataPlanejada } =
+        await import('@/services/pcp-planejamento')
+
+      // 1. Análise
+      await updateMultipleCardsSemanaPlanejada(
+        cardIds,
+        'analise',
+        sourceCard.semana_planejada_analise,
+        'Replicado para todos os ambientes do contrato',
       )
-      toast.success(`Mês de produção atualizado para ${val || 'Não agendado'}!`)
+      if (sourceCard.data_planejada_analise) {
+        await updateMultipleCardsDataPlanejada(
+          cardIds,
+          'analise',
+          sourceCard.data_planejada_analise,
+          'Replicado data de análise para todos do contrato',
+        )
+      }
+
+      // 2. Produção
+      await updateMultipleCardsSemanaPlanejada(
+        cardIds,
+        'producao',
+        sourceCard.semana_planejada_producao,
+        'Replicado para todos os ambientes do contrato',
+      )
+      if (sourceCard.data_planejada_producao) {
+        await updateMultipleCardsDataPlanejada(
+          cardIds,
+          'producao',
+          sourceCard.data_planejada_producao,
+          'Replicado data de produção para todos do contrato',
+        )
+      }
+
+      // 3. Montagem
+      await updateMultipleCardsSemanaPlanejada(
+        cardIds,
+        'montagem',
+        sourceCard.semana_planejada_montagem,
+        'Replicado para todos os ambientes do contrato',
+      )
+      if (sourceCard.data_planejada_montagem) {
+        await updateMultipleCardsDataPlanejada(
+          cardIds,
+          'montagem',
+          sourceCard.data_planejada_montagem,
+          'Replicado data de montagem para todos do contrato',
+        )
+      }
+
+      toast.success(`Tríade de datas replicada para ${targetCards.length} ambientes do contrato!`)
     } catch (err: any) {
-      toast.error('Erro ao atualizar mês: ' + (err.message || 'Erro'))
+      toast.error('Erro ao replicar datas do contrato: ' + (err.message || 'Erro'))
       loadCards(true)
     }
   }
@@ -506,11 +752,8 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                 Status Real no Kanban {renderSortIndicator('status')}
               </TableHead>
 
-              <TableHead
-                onClick={() => handleSort('periodo')}
-                className="cursor-pointer select-none font-bold text-xs text-foreground min-w-[210px]"
-              >
-                Mês / Semana Planejada {renderSortIndicator('periodo')}
+              <TableHead className="select-none font-bold text-xs text-foreground min-w-[460px]">
+                Tríade de Agendamento (📐 Análise | 🏭 Produção | 🔧 Montagem)
               </TableHead>
 
               <TableHead
@@ -633,51 +876,155 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                       </Badge>
                     </TableCell>
 
-                    {/* [ Mês / Semana Planejada ] (Menu dropdown na própria linha) */}
+                    {/* [ Tríade de Agendamento: Análise, Produção, Montagem + Aplicar para todos ] */}
                     <TableCell className="text-xs">
-                      <div className="flex items-center gap-1.5">
-                        {/* Dropdown Mês */}
-                        <div className="w-24">
-                          <Select
-                            value={card.mes_planejado_producao || 'none'}
-                            onValueChange={(val) => handleInlineMesChange(card, val)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* 1. Análise Técnica */}
+                        <div className="flex items-center gap-1 p-1 rounded bg-muted/40 border border-border/60">
+                          <span
+                            className="text-[10px] font-bold text-primary"
+                            title="Análise Técnica"
                           >
-                            <SelectTrigger className="h-7 text-[11px] bg-background">
-                              <SelectValue placeholder="Mês" />
+                            📐
+                          </span>
+                          <Select
+                            value={card.semana_planejada_analise || 'none'}
+                            onValueChange={(val) =>
+                              handleTriadeChange(card, 'analise', 'semana', val)
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[64px] bg-background px-1">
+                              <SelectValue placeholder="Sxx" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">-- Mês --</SelectItem>
-                              {MESES_OPCOES.map((m) => {
-                                const key = `${currentYear}-${m.key}`
-                                return (
-                                  <SelectItem key={key} value={key}>
-                                    {(m.label || '').slice(0, 3)}
-                                  </SelectItem>
-                                )
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Dropdown Semana */}
-                        <div className="w-24">
-                          <Select
-                            value={card.semana_planejada_producao || 'none'}
-                            onValueChange={(val) => handleInlineSemanaChange(card, val)}
-                          >
-                            <SelectTrigger className="h-7 text-[11px] bg-background">
-                              <SelectValue placeholder="Semana" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">-- Sem --</SelectItem>
+                              <SelectItem value="none">--</SelectItem>
                               {availableWeeks.map((w) => (
-                                <SelectItem key={w.key} value={w.label}>
+                                <SelectItem key={w.key} value={w.label} className="text-xs">
                                   {w.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          <Select
+                            value={getDiaSemanaFromDate(card.data_planejada_analise)}
+                            onValueChange={(val) => handleTriadeChange(card, 'analise', 'dia', val)}
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[58px] bg-background px-1">
+                              <SelectValue placeholder="Dia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              {DIAS_SEMANA_OPCOES.map((d) => (
+                                <SelectItem key={d.num} value={String(d.num)} className="text-xs">
+                                  {d.sigla}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
+
+                        {/* 2. Produção */}
+                        <div className="flex items-center gap-1 p-1 rounded bg-muted/40 border border-border/60">
+                          <span
+                            className="text-[10px] font-bold text-amber-600 dark:text-amber-400"
+                            title="Produção Fabril"
+                          >
+                            🏭
+                          </span>
+                          <Select
+                            value={card.semana_planejada_producao || 'none'}
+                            onValueChange={(val) =>
+                              handleTriadeChange(card, 'producao', 'semana', val)
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[64px] bg-background px-1">
+                              <SelectValue placeholder="Sxx" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              {availableWeeks.map((w) => (
+                                <SelectItem key={w.key} value={w.label} className="text-xs">
+                                  {w.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={getDiaSemanaFromDate(card.data_planejada_producao)}
+                            onValueChange={(val) =>
+                              handleTriadeChange(card, 'producao', 'dia', val)
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[58px] bg-background px-1">
+                              <SelectValue placeholder="Dia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              {DIAS_SEMANA_OPCOES.map((d) => (
+                                <SelectItem key={d.num} value={String(d.num)} className="text-xs">
+                                  {d.sigla}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* 3. Montagem */}
+                        <div className="flex items-center gap-1 p-1 rounded bg-muted/40 border border-border/60">
+                          <span
+                            className="text-[10px] font-bold text-purple-600 dark:text-purple-400"
+                            title="Montagem"
+                          >
+                            🔧
+                          </span>
+                          <Select
+                            value={card.semana_planejada_montagem || 'none'}
+                            onValueChange={(val) =>
+                              handleTriadeChange(card, 'montagem', 'semana', val)
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[64px] bg-background px-1">
+                              <SelectValue placeholder="Sxx" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              {availableWeeks.map((w) => (
+                                <SelectItem key={w.key} value={w.label} className="text-xs">
+                                  {w.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={getDiaSemanaFromDate(card.data_planejada_montagem)}
+                            onValueChange={(val) =>
+                              handleTriadeChange(card, 'montagem', 'dia', val)
+                            }
+                          >
+                            <SelectTrigger className="h-6 text-[10px] w-[58px] bg-background px-1">
+                              <SelectValue placeholder="Dia" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">--</SelectItem>
+                              {DIAS_SEMANA_OPCOES.map((d) => (
+                                <SelectItem key={d.num} value={String(d.num)} className="text-xs">
+                                  {d.sigla}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Botão "Aplicar para todos" do contrato */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAplicarParaTodos(card)}
+                          className="h-6 px-1.5 text-[10px] text-muted-foreground hover:text-primary font-medium border border-dashed border-border hover:border-primary shrink-0"
+                          title="Replicar esta tríade de datas para todos os ambientes deste contrato"
+                        >
+                          Aplicar p/ todos
+                        </Button>
                       </div>
                     </TableCell>
 

@@ -62,16 +62,35 @@ export const PcpCard: React.FC<PcpCardProps> = ({
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  // Texto da pílula:
-  // Subcard: [ Cliente — Ambiente — R$ Valor ] (ex.: 'Ló Portela — Cozinha — R$ 18.000,00')
-  // Pai com subcards: [ Cliente — Projeto/Ambiente — R$ Valor (+3 ambientes) ]
-  // Pai sem subcards: [ Cliente — Ambiente — R$ Valor ]
   if (!card) return null
 
   const ambienteNome = card?.nome_produto || 'Ambiente'
   const valorFormatado = formatBRL(card?.valor_total || 0)
   const tagAmbientes = !isSubcard && subcardsCount > 0 ? ` (+${subcardsCount} amb.)` : ''
-  const fullText = `${clientName} — ${ambienteNome} — ${valorFormatado}${tagAmbientes}`
+
+  const formatDiaSemanaSigla = (dateStr?: string | null): string => {
+    if (!dateStr) return ''
+    const clean = dateStr.slice(0, 10)
+    const d = new Date(`${clean}T12:00:00`)
+    if (isNaN(d.getTime())) return ''
+    const siglas = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    return siglas[d.getDay()] || ''
+  }
+
+  const diaAna = formatDiaSemanaSigla(card?.data_planejada_analise)
+  const semAna = card?.semana_planejada_analise || ''
+  const chipAna = semAna ? `📐 ${semAna}${diaAna ? `·${diaAna}` : ''}` : '📐 —'
+
+  const diaProd = formatDiaSemanaSigla(card?.data_planejada_producao)
+  const semProd = card?.semana_planejada_producao || ''
+  const chipProd = semProd ? `🏭 ${semProd}${diaProd ? `·${diaProd}` : ''}` : '🏭 —'
+
+  const diaMont = formatDiaSemanaSigla(card?.data_planejada_montagem)
+  const semMont = card?.semana_planejada_montagem || ''
+  const chipMont = semMont ? `🔧 ${semMont}${diaMont ? `·${diaMont}` : ''}` : '🔧 —'
+
+  const triadeStr = `${chipAna} | ${chipProd} | ${chipMont}`
+  const fullText = `${clientName} / ${ambienteNome} — ${valorFormatado} [${triadeStr}]`
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -82,7 +101,7 @@ export const PcpCard: React.FC<PcpCardProps> = ({
             onDragStart={handleDragStart}
             onClick={onClick}
             className={cn(
-              'h-[26px] max-h-[26px] px-2 rounded-full border flex items-center justify-between gap-1 text-[11px] font-medium transition-all select-none cursor-grab active:cursor-grabbing w-full overflow-hidden shadow-2xs',
+              'px-2 py-1 rounded-md border flex flex-col gap-0.5 text-[11px] font-medium transition-all select-none cursor-grab active:cursor-grabbing w-full overflow-hidden shadow-2xs',
               isDragging && 'opacity-40 scale-95 border-dashed border-primary',
               isSubcard
                 ? 'bg-primary/10 border-primary/30 text-primary-foreground/90 hover:bg-primary/20 hover:border-primary/50'
@@ -97,20 +116,31 @@ export const PcpCard: React.FC<PcpCardProps> = ({
                 : undefined
             }
           >
-            <span className="truncate leading-none flex-1 text-left">
-              <strong className="font-semibold text-foreground">{clientName}</strong>
-              <span className="text-muted-foreground mx-1">•</span>
-              <span className="text-foreground/90">{ambienteNome}</span>
-              <span className="text-muted-foreground mx-1">•</span>
-              <strong className="text-primary font-bold">{valorFormatado}</strong>
-              {tagAmbientes && (
-                <span className="text-[10px] text-muted-foreground ml-1 font-normal">
-                  {tagAmbientes}
-                </span>
-              )}
-            </span>
+            {/* Linha 1: Nome Cliente / Ambiente + Valor */}
+            <div className="flex items-center justify-between gap-1 w-full leading-tight">
+              <span className="truncate flex-1 text-left">
+                <strong className="font-bold text-foreground">{clientName}</strong>
+                <span className="text-muted-foreground mx-0.5">/</span>
+                <span className="text-foreground/90 font-medium">{ambienteNome}</span>
+                {tagAmbientes && (
+                  <span className="text-[9px] text-muted-foreground ml-1 font-normal">
+                    {tagAmbientes}
+                  </span>
+                )}
+              </span>
 
-            <GripVertical className="w-2.5 h-2.5 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 hover:text-foreground" />
+              <GripVertical className="w-2.5 h-2.5 text-muted-foreground/40 shrink-0 opacity-0 group-hover:opacity-100 hover:text-foreground" />
+            </div>
+
+            {/* Linha 2: Mini-badge compacto com a tríade 📐 Sxx·dia | 🏭 Sxx·dia | 🔧 Sxx·dia */}
+            <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-border/30 text-[9px] font-mono">
+              <span className="text-muted-foreground truncate" title={triadeStr}>
+                {triadeStr}
+              </span>
+              <strong className="text-primary font-bold text-[10px] shrink-0 font-sans">
+                {valorFormatado}
+              </strong>
+            </div>
           </div>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs max-w-sm">

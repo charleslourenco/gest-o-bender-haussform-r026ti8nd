@@ -12,6 +12,7 @@ import {
 import { UserCircle2, Trash2, Archive, Plus, Layers } from 'lucide-react'
 import { getCorVinculoForCard } from '@/lib/subcards-utils'
 import { getBadgeProgramacaoSemana } from '@/lib/pcp-capacity'
+import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -162,9 +163,44 @@ export function AnaliseKanbanCard({
   const cardCorVinculo =
     card?.cor_vinculo || (subcards.length > 0 ? getCorVinculoForCard(card.id) : null)
 
-  // Spec Etapa 4: Sinal PROGRAMADO Sxx
-  const badgeProgramacao = getBadgeProgramacaoSemana(
-    card?.semana_planejada_producao || card?.formulario?.semana_planejada_producao,
+  // Badge compacto no card pai: 📐 {semana_analise}·{dia_analise} | 🏭 {semana_producao} | 🔧 {semana_montagem}
+  // Cards filhos (fases da análise) SEM a tag de agenda.
+  const isCardPai = !card?.card_pai_id
+
+  const formatDiaSemanaSigla = (dateStr?: string | null): string => {
+    if (!dateStr) return ''
+    const clean = dateStr.slice(0, 10)
+    const d = new Date(`${clean}T12:00:00`)
+    if (isNaN(d.getTime())) return ''
+    const siglas = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    return siglas[d.getDay()] || ''
+  }
+
+  const diaAnaliseSigla = formatDiaSemanaSigla(card?.data_planejada_analise)
+  const semAnalise = card?.semana_planejada_analise || ''
+  const parteAnalise = semAnalise
+    ? `📐 ${semAnalise}${diaAnaliseSigla ? `·${diaAnaliseSigla}` : ''}`
+    : '📐 —'
+
+  const semProducao = card?.semana_planejada_producao || ''
+  const diaProducaoSigla = formatDiaSemanaSigla(card?.data_planejada_producao)
+  const parteProducao = semProducao
+    ? `🏭 ${semProducao}${diaProducaoSigla ? `·${diaProducaoSigla}` : ''}`
+    : '🏭 —'
+
+  const semMontagem = card?.semana_planejada_montagem || ''
+  const diaMontagemSigla = formatDiaSemanaSigla(card?.data_planejada_montagem)
+  const parteMontagem = semMontagem
+    ? `🔧 ${semMontagem}${diaMontagemSigla ? `·${diaMontagemSigla}` : ''}`
+    : '🔧 —'
+
+  const temAlgumaData = Boolean(
+    card?.semana_planejada_analise ||
+    card?.data_planejada_analise ||
+    card?.semana_planejada_producao ||
+    card?.data_planejada_producao ||
+    card?.semana_planejada_montagem ||
+    card?.data_planejada_montagem,
   )
 
   return (
@@ -183,18 +219,20 @@ export function AnaliseKanbanCard({
           : undefined
       }
     >
-      {badgeProgramacao && (
+      {/* Badge compacto de agenda no card pai */}
+      {isCardPai && temAlgumaData && (
         <div className="flex items-center mb-0.5">
-          <span
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none ${
-              badgeProgramacao.isCurrent
-                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-400/50'
-                : 'bg-muted text-muted-foreground border-border'
-            }`}
-            title={badgeProgramacao.label}
+          <Badge
+            variant="outline"
+            className="text-[10px] font-mono font-medium px-1.5 py-0.5 border-border bg-muted/60 text-foreground flex items-center gap-1.5"
+            title="Tríade de datas da Carteira PCP"
           >
-            {badgeProgramacao.label}
-          </span>
+            <span>{parteAnalise}</span>
+            <span className="text-muted-foreground/60">|</span>
+            <span>{parteProducao}</span>
+            <span className="text-muted-foreground/60">|</span>
+            <span>{parteMontagem}</span>
+          </Badge>
         </div>
       )}
 

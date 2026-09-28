@@ -101,8 +101,57 @@ export function KanbanCard({
   const semanaEfetiva = card?.semana_planejada_producao || card?.card_pai?.semana_planejada_producao
   const badgeProgramacao = getBadgeProgramacaoSemana(semanaEfetiva)
 
-  // Spec Etapa 4: Trava de Portão de Prontidão na /producao
+  // Status de conclusão das fases precedentes
   const statusAnaliseEfetivo = card?.status_analise || card?.card_pai?.status_analise
+  const statusProducaoEfetivo = card?.status_producao || card?.card_pai?.status_producao
+
+  // Análise Técnica concluída se estiver em 'concluido' ou fases posteriores
+  const analiseConcluida = Boolean(
+    statusAnaliseEfetivo === 'concluido' ||
+    statusAnaliseEfetivo === 'aguardando_plano_corte' ||
+    statusAnaliseEfetivo === 'router' ||
+    statusAnaliseEfetivo === 'coladeira' ||
+    statusAnaliseEfetivo === 'bancada' ||
+    statusAnaliseEfetivo === 'embalagem' ||
+    statusAnaliseEfetivo === 'expedicao',
+  )
+
+  // Produção concluída se status_producao for 'expedicao' ou 'concluido'
+  const producaoConcluida = Boolean(
+    statusProducaoEfetivo === 'expedicao' || statusProducaoEfetivo === 'concluido',
+  )
+
+  // Badge da tríade de agenda
+  const formatDiaSemanaSigla = (dateStr?: string | null): string => {
+    if (!dateStr) return ''
+    const clean = dateStr.slice(0, 10)
+    const d = new Date(`${clean}T12:00:00`)
+    if (isNaN(d.getTime())) return ''
+    const siglas = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    return siglas[d.getDay()] || ''
+  }
+
+  const semAna = card?.semana_planejada_analise || card?.card_pai?.semana_planejada_analise
+  const diaAna = formatDiaSemanaSigla(
+    card?.data_planejada_analise || card?.card_pai?.data_planejada_analise,
+  )
+  const chipAna = semAna ? `📐 ${semAna}${diaAna ? `·${diaAna}` : ''}` : null
+
+  const semProd = card?.semana_planejada_producao || card?.card_pai?.semana_planejada_producao
+  const diaProd = formatDiaSemanaSigla(
+    card?.data_planejada_producao || card?.card_pai?.data_planejada_producao,
+  )
+  const chipProd = semProd ? `🏭 ${semProd}${diaProd ? `·${diaProd}` : ''}` : null
+
+  const semMont = card?.semana_planejada_montagem || card?.card_pai?.semana_planejada_montagem
+  const diaMont = formatDiaSemanaSigla(
+    card?.data_planejada_montagem || card?.card_pai?.data_planejada_montagem,
+  )
+  const chipMont = semMont ? `🔧 ${semMont}${diaMont ? `·${diaMont}` : ''}` : null
+
+  const temAlgumaData = Boolean(chipAna || chipProd || chipMont)
+
+  // Spec Etapa 4: Trava de Portão de Prontidão na /producao
   const portaoProntidao = isProducao
     ? avaliarPortaoProntidaoProducao(semanaEfetiva, statusAnaliseEfetivo)
     : 'normal'
@@ -140,6 +189,49 @@ export function KanbanCard({
         >
           <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600" />
           <span className="truncate">✅ LIBERADO PARA CORTE</span>
+        </div>
+      )}
+
+      {/* Alerta de Análise Técnica Pendente na Produção */}
+      {isProducao && !analiseConcluida && (
+        <div
+          className="flex items-center gap-1 text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800"
+          title="Análise Técnica ainda não foi concluída para este item"
+        >
+          <AlertTriangle className="w-3 h-3 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="truncate">⚠️ Análise Técnica Pendente</span>
+        </div>
+      )}
+
+      {/* Alerta de Produção Pendente na Montagem */}
+      {isMontagem && !producaoConcluida && (
+        <div
+          className="flex items-center gap-1 text-[9px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800"
+          title="Produção fabril ainda não foi concluída para este item"
+        >
+          <AlertTriangle className="w-3 h-3 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span className="truncate">⚠️ Produção Pendente</span>
+        </div>
+      )}
+
+      {/* Chip compacto de agenda */}
+      {temAlgumaData && (
+        <div className="flex items-center gap-1 flex-wrap text-[9px] font-mono text-muted-foreground">
+          {chipAna && (
+            <span className="bg-muted/70 px-1 py-0.5 rounded border border-border/60">
+              {chipAna}
+            </span>
+          )}
+          {chipProd && (
+            <span className="bg-muted/70 px-1 py-0.5 rounded border border-border/60">
+              {chipProd}
+            </span>
+          )}
+          {chipMont && (
+            <span className="bg-muted/70 px-1 py-0.5 rounded border border-border/60">
+              {chipMont}
+            </span>
+          )}
         </div>
       )}
 

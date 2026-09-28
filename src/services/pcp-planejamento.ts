@@ -149,6 +149,53 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
     const analistaSource = item?.analista
     const analista = Array.isArray(analistaSource) ? analistaSource[0] : analistaSource
 
+    let valorTotal = Number(item.valor_total) || 0
+    let valorUnitario = Number(item.valor_unitario) || 0
+    let descontoPercentual = Number(item.desconto_percentual) || 0
+    const qtd = Number(item.qtd) || 1
+
+    // Se o valor_total estiver zerado, tentar extrair do jsonb produtos_servicos do formulario_comercial
+    if (valorTotal === 0 && formulario?.produtos_servicos) {
+      const produtosServicosRaw = formulario.produtos_servicos
+      let listaItens: any[] = []
+      if (Array.isArray(produtosServicosRaw)) {
+        listaItens = produtosServicosRaw
+      } else if (typeof produtosServicosRaw === 'string') {
+        try {
+          listaItens = JSON.parse(produtosServicosRaw)
+        } catch {
+          listaItens = []
+        }
+      }
+
+      if (listaItens.length > 0) {
+        const nomeNorm = String(item.nome_produto || '')
+          .trim()
+          .toLowerCase()
+        const matched = listaItens.find((it: any) => {
+          if (!it || !it.nome) return false
+          const itNomeNorm = String(it.nome).trim().toLowerCase()
+          return (
+            itNomeNorm === nomeNorm ||
+            (nomeNorm.length >= 4 && itNomeNorm.includes(nomeNorm)) ||
+            (itNomeNorm.length >= 4 && nomeNorm.includes(itNomeNorm))
+          )
+        })
+
+        if (matched) {
+          const uVal = Number(matched.valor_unitario) || 0
+          const descVal = Number(matched.desconto_percentual ?? matched.desconto) || 0
+          const itemQtd = Number(matched.qtd) || qtd
+          const calcTotal = uVal * (1 - descVal / 100) * itemQtd
+          if (calcTotal > 0) {
+            valorTotal = Math.round(calcTotal * 100) / 100
+            valorUnitario = uVal
+            descontoPercentual = descVal
+          }
+        }
+      }
+    }
+
     return {
       ...item,
       cliente: cliente || null,
@@ -164,10 +211,10 @@ export async function fetchPcpCards(): Promise<PcpCardItem[]> {
       data_limite_analise: item.data_limite_analise || null,
       data_obra_montagem: item.data_obra_montagem || null,
       data_prometida_montagem: item.data_prometida_montagem || null,
-      valor_total: Number(item.valor_total) || 0,
-      valor_unitario: Number(item.valor_unitario) || 0,
-      desconto_percentual: Number(item.desconto_percentual) || 0,
-      qtd: Number(item.qtd) || 1,
+      valor_total: valorTotal,
+      valor_unitario: valorUnitario,
+      desconto_percentual: descontoPercentual,
+      qtd: qtd,
       visivel_pcp: item.visivel_pcp !== false,
       status_pcp: item.status_pcp || 'planejamento',
       subcards: [],

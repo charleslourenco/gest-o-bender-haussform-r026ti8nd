@@ -173,6 +173,7 @@ export const PcpGradeIndustrial: React.FC = () => {
   // Agrupamento de cards por Dia exato (YYYY-MM-DD) ou por Semana
   // Se o card tem data_planejada_producao, aloca no dia exato.
   // Se tem apenas semana_planejada_producao (mas sem data), colocamos no primeiro dia útil da semana (Segunda-feira) como fallback.
+  // Também suporta cards agendados na Análise ou Montagem na respectiva data caso a visualização seja por dia.
   const getCardsForDia = useCallback(
     (dia: DiaSemanaIndustrial, week: IsoWeekRange): PcpCardItem[] => {
       if (!cards || cards.length === 0) return []
@@ -183,13 +184,13 @@ export const PcpGradeIndustrial: React.FC = () => {
         if (c.arquivado_producao || c.excluido_producao) return false
         if (!matchesSearch(c)) return false
 
-        // 1. Se tem data exata igual ao dia
+        // 1. Se tem data exata igual ao dia na produção
         if (c.data_planejada_producao && typeof c.data_planejada_producao === 'string') {
           const cardDateStr = c.data_planejada_producao.slice(0, 10)
           return cardDateStr === dia.dateStr
         }
 
-        // 2. Se não tem data exata mas a semana bate com a semana atual e é Segunda-feira (dia 0)
+        // 2. Se não tem data exata de produção mas a semana de produção bate com a semana atual e é Segunda-feira (dia 0)
         if (matchWeek(c.semana_planejada_producao, week) && dia.dayIndex === 0) {
           return true
         }
