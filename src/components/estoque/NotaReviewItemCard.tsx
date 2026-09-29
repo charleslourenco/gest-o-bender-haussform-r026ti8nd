@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { saveAlias } from '@/services/estoque-aliases'
 import { MatchedItem } from '@/services/estoque-matching'
+import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { UnifiedItemModal } from './UnifiedItemModal'
 
@@ -69,14 +70,51 @@ export function NotaReviewItemCard({
     }
     setResolving(true)
     try {
-      const { data: estItem } = await supabase
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      // Verificar se o item já estava conciliado anteriormente com outro item_id (para devolver a quantidade anterior)
+      const oldItemId = item.item_id
+      const oldQty = Number(item.quantidade) || 0
+      if (oldItemId && oldItemId !== selectedItemId) {
+        const { data: oldEstItem } = await supabase
+          .from('estoque_itens')
+          .select('id, quantidade')
+          .eq('id', oldItemId)
+          .single()
+
+        if (oldEstItem) {
+          const { error: revErr } = await supabase
+            .from('estoque_itens')
+            .update({
+              quantidade: Math.max(0, Number(oldEstItem.quantidade) - oldQty),
+              atualizado_em: new Date().toISOString(),
+            })
+            .eq('id', oldItemId)
+
+          if (revErr) {
+            console.error('Erro ao reverter estoque do item antigo:', revErr.message)
+          } else {
+            await supabase.from('estoque_movimentacoes').insert({
+              item_id: oldItemId,
+              nota_fiscal_id: notaId,
+              tipo: 'saida',
+              quantidade: oldQty,
+              usuario_id: currentUser?.id || null,
+            })
+          }
+        }
+      }
+
+      const { data: estItem, error: estFetchErr } = await supabase
         .from('estoque_itens')
         .select('id, nome, quantidade')
         .eq('id', selectedItemId)
         .single()
-      if (!estItem) throw new Error('Item não encontrado')
+      if (estFetchErr || !estItem) throw new Error('Item não encontrado no estoque')
 
-      await supabase
+      const { error: updateEstErr } = await supabase
         .from('estoque_itens')
         .update({
           quantidade: Number(estItem.quantidade) + Number(item.quantidade),
@@ -84,11 +122,14 @@ export function NotaReviewItemCard({
         })
         .eq('id', selectedItemId)
 
+      if (updateEstErr) throw updateEstErr
+
       await supabase.from('estoque_movimentacoes').insert({
         item_id: selectedItemId,
         nota_fiscal_id: notaId,
         tipo: 'entrada',
         quantidade: Number(item.quantidade),
+        usuario_id: currentUser?.id || null,
       })
 
       if (lembrar) {
@@ -141,6 +182,9 @@ export function NotaReviewItemCard({
           .eq('id', notaId)
 
         if (updateNotaErr) throw updateNotaErr
+
+        // Sincronizar itens_nota_fiscal
+        await syncItensNotaFiscal(notaId, itens)
       }
       toast({ title: 'Item associado!', description: 'Estoque atualizado com sucesso.' })
       onResolved()

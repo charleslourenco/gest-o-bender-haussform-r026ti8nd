@@ -89,13 +89,95 @@ export async function saveUnifiedItem(
       itemId = inserted.id
     }
 
-    await supabase.from('estoque_movimentacoes').insert({
-      item_id: itemId,
-      nota_fiscal_id: notaId,
-      tipo: 'entrada',
-      quantidade: Number(data.quantidade),
-      usuario_id: userId || null,
-    })
+    // Se estivesse editando um item da revisão que já tinha vínculo prévio, estornar o vínculo antigo
+    const { data: currentNota } = await supabase
+      .from('notas_fiscais')
+      .select('dados_ocr')
+      .eq('id', notaId)
+      .maybeSingle()
+
+    if (mode === 'edit' && realIdx !== undefined && currentNota?.dados_ocr?.itens) {
+      const oldItem = currentNota.dados_ocr.itens[realIdx]
+      if (oldItem && oldItem.status === 'matched' && oldItem.item_id) {
+        const oldQty = Number(oldItem.quantidade) || 0
+        if (oldItem.item_id === itemId) {
+          // Mesmo item: a quantidade antiga já tinha sido adicionada ao estoque anteriormente,
+          // e o trecho anterior adicionou `data.quantidade` inteira novamente!
+          // Logo precisamos abater `oldQty` para evitar soma duplicada.
+          const { data: currEst } = await supabase
+            .from('estoque_itens')
+            .select('quantidade')
+            .eq('id', itemId)
+            .single()
+          if (currEst) {
+            await supabase
+              .from('estoque_itens')
+              .update({
+                quantidade: Math.max(0, Number(currEst.quantidade) - oldQty),
+                atualizado_em: new Date().toISOString(),
+              })
+              .eq('id', itemId)
+          }
+          if (oldQty !== Number(data.quantidade)) {
+            await supabase.from('estoque_movimentacoes').insert({
+              item_id: itemId,
+              nota_fiscal_id: notaId,
+              tipo: oldQty < Number(data.quantidade) ? 'entrada' : 'saida',
+              quantidade: Math.abs(Number(data.quantidade) - oldQty),
+              usuario_id: userId || null,
+            })
+          }
+        } else {
+          // Troca de item: devolver oldQty do oldItem.item_id
+          const { data: oldEstItem } = await supabase
+            .from('estoque_itens')
+            .select('quantidade')
+            .eq('id', oldItem.item_id)
+            .single()
+          if (oldEstItem) {
+            await supabase
+              .from('estoque_itens')
+              .update({
+                quantidade: Math.max(0, Number(oldEstItem.quantidade) - oldQty),
+                atualizado_em: new Date().toISOString(),
+              })
+              .eq('id', oldItem.item_id)
+
+            await supabase.from('estoque_movimentacoes').insert({
+              item_id: oldItem.item_id,
+              nota_fiscal_id: notaId,
+              tipo: 'saida',
+              quantidade: oldQty,
+              usuario_id: userId || null,
+            })
+          }
+
+          await supabase.from('estoque_movimentacoes').insert({
+            item_id: itemId,
+            nota_fiscal_id: notaId,
+            tipo: 'entrada',
+            quantidade: Number(data.quantidade),
+            usuario_id: userId || null,
+          })
+        }
+      } else {
+        await supabase.from('estoque_movimentacoes').insert({
+          item_id: itemId,
+          nota_fiscal_id: notaId,
+          tipo: 'entrada',
+          quantidade: Number(data.quantidade),
+          usuario_id: userId || null,
+        })
+      }
+    } else {
+      await supabase.from('estoque_movimentacoes').insert({
+        item_id: itemId,
+        nota_fiscal_id: notaId,
+        tipo: 'entrada',
+        quantidade: Number(data.quantidade),
+        usuario_id: userId || null,
+      })
+    }
 
     const { data: existingItemNF } = await supabase
       .from('itens_nota_fiscal')

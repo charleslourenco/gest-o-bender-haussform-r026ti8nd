@@ -23,6 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { MatchedItem } from '@/services/estoque-matching'
+import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
 import { UnifiedItemModal } from './UnifiedItemModal'
@@ -134,7 +135,10 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       return prev.filter((_, i) => i !== idx)
     })
     setHasChanges(true)
-    toast({ title: 'Item removido do rascunho' })
+    toast({
+      title: 'Item removido do rascunho',
+      description: 'Clique em "Confirmar e Gravar Revisão" para estornar o estoque e salvar.',
+    })
   }
 
   const handleReopenMatch = (target: number | string) => {
@@ -153,7 +157,8 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
     setEditingMatchedIdx(null)
     toast({
       title: 'Item retornado para revisão',
-      description: 'Agora você pode pesquisar e associar a outro item do estoque.',
+      description:
+        'Agora você pode pesquisar e associar a outro item do estoque. Ao confirmar, o estoque antigo será devolvido.',
     })
   }
 
@@ -243,38 +248,189 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         throw new Error(`Falha ao verificar nota no servidor: ${fetchErr.message}`)
       }
 
-      // Mesclar preservando associações efetuadas por ações pontuais em NotaReviewItemCard
-      const remoteItens: any[] = latestNota?.dados_ocr?.itens || []
-      const mergedItens = draftItens.map((dItem, idx) => {
-        // Encontrar item remoto correspondente pelo _draftId, pelo item_id ou pelo índice
-        const remoteMatch =
-          remoteItens.find((r) => r._draftId && r._draftId === dItem._draftId) ||
-          (dItem.item_id ? remoteItens.find((r) => r.item_id === dItem.item_id) : null) ||
-          remoteItens[idx]
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
 
-        // Se o item remoto já foi conciliado/matched no backend e o draft local ainda estava pendente sem nova vinculação
-        if (
-          remoteMatch &&
-          remoteMatch.status === 'matched' &&
-          remoteMatch.item_id &&
-          dItem.status === 'pendente_revisao' &&
-          !dItem.item_id
-        ) {
-          return {
-            ...dItem,
-            status: 'matched' as const,
-            item_id: remoteMatch.item_id,
-            source: remoteMatch.source || 'manual',
+      const remoteItens: any[] = latestNota?.dados_ocr?.itens || []
+
+      // (1) ROLLBACK E COERÊNCIA DE ESTOQUE:
+      // A. Itens que existiam como matched no remote e foram EXCLUÍDOS ou alterados para sem vínculo
+      // B. Itens matched cuja QUANTIDADE foi alterada
+      // C. Itens que tiveram o VÍNCULO (item_id) alterado
+
+      // Processar cada item do remote para verificar exclusões ou desvinculações
+      for (const rItem of remoteItens) {
+        if (rItem.status === 'matched' && rItem.item_id) {
+          const rQty = Number(rItem.quantidade) || 0
+          // Procurar no draftItens
+          const draftMatch = draftItens.find(
+            (d) =>
+              (rItem._draftId && d._draftId === rItem._draftId) ||
+              (d.item_id === rItem.item_id && d.produto === rItem.produto),
+          )
+
+          if (!draftMatch) {
+            // ITEM EXCLUÍDO DA NOTA: Devolver quantidade ao estoque
+            const { data: estItem } = await supabase
+              .from('estoque_itens')
+              .select('quantidade')
+              .eq('id', rItem.item_id)
+              .single()
+
+            if (estItem) {
+              await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Math.max(0, Number(estItem.quantidade) - rQty),
+                  atualizado_em: new Date().toISOString(),
+                })
+                .eq('id', rItem.item_id)
+
+              await supabase.from('estoque_movimentacoes').insert({
+                item_id: rItem.item_id,
+                nota_fiscal_id: nota.id,
+                tipo: 'saida',
+                quantidade: rQty,
+                usuario_id: currentUser?.id || null,
+              })
+            }
+          } else if (draftMatch.status !== 'matched' || !draftMatch.item_id) {
+            // ITEM TEVE VÍNCULO REMOVIDO / RETORNADO PARA REVISÃO: Devolver quantidade do antigo
+            const { data: estItem } = await supabase
+              .from('estoque_itens')
+              .select('quantidade')
+              .eq('id', rItem.item_id)
+              .single()
+
+            if (estItem) {
+              await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Math.max(0, Number(estItem.quantidade) - rQty),
+                  atualizado_em: new Date().toISOString(),
+                })
+                .eq('id', rItem.item_id)
+
+              await supabase.from('estoque_movimentacoes').insert({
+                item_id: rItem.item_id,
+                nota_fiscal_id: nota.id,
+                tipo: 'saida',
+                quantidade: rQty,
+                usuario_id: currentUser?.id || null,
+              })
+            }
           }
         }
-        return dItem
-      })
+      }
 
-      const pendingCount = mergedItens.filter((i) => i.status === 'pendente_revisao').length
-      const novoStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
+      // Processar cada item do draftItens para ajustes de quantidade e novos vínculos
+      const finalItens = [...draftItens]
+      for (let i = 0; i < finalItens.length; i++) {
+        const dItem = finalItens[i]
+        const remoteMatch =
+          remoteItens.find((r) => r._draftId && r._draftId === dItem._draftId) ||
+          (dItem.item_id ? remoteItens.find((r) => r.item_id === dItem.item_id) : null)
+
+        if (dItem.status === 'matched' && dItem.item_id) {
+          const newQty = Number(dItem.quantidade) || 0
+
+          if (remoteMatch && remoteMatch.status === 'matched' && remoteMatch.item_id) {
+            const oldQty = Number(remoteMatch.quantidade) || 0
+            const oldItemId = remoteMatch.item_id
+
+            if (oldItemId === dItem.item_id) {
+              // Mesmo item: verificar diferença de quantidade
+              const diff = newQty - oldQty
+              if (Math.abs(diff) > 0.0001) {
+                const { data: estItem } = await supabase
+                  .from('estoque_itens')
+                  .select('quantidade')
+                  .eq('id', dItem.item_id)
+                  .single()
+
+                if (estItem) {
+                  const updatedQty = Math.max(0, Number(estItem.quantidade) + diff)
+                  await supabase
+                    .from('estoque_itens')
+                    .update({
+                      quantidade: updatedQty,
+                      atualizado_em: new Date().toISOString(),
+                    })
+                    .eq('id', dItem.item_id)
+
+                  await supabase.from('estoque_movimentacoes').insert({
+                    item_id: dItem.item_id,
+                    nota_fiscal_id: nota.id,
+                    tipo: diff > 0 ? 'entrada' : 'saida',
+                    quantidade: Math.abs(diff),
+                    usuario_id: currentUser?.id || null,
+                  })
+                }
+              }
+            } else {
+              // O vínculo mudou de um item antigo para um novo:
+              // Devolver a quantidade antiga do oldItemId
+              const { data: oldEstItem } = await supabase
+                .from('estoque_itens')
+                .select('quantidade')
+                .eq('id', oldItemId)
+                .single()
+
+              if (oldEstItem) {
+                await supabase
+                  .from('estoque_itens')
+                  .update({
+                    quantidade: Math.max(0, Number(oldEstItem.quantidade) - oldQty),
+                    atualizado_em: new Date().toISOString(),
+                  })
+                  .eq('id', oldItemId)
+
+                await supabase.from('estoque_movimentacoes').insert({
+                  item_id: oldItemId,
+                  nota_fiscal_id: nota.id,
+                  tipo: 'saida',
+                  quantidade: oldQty,
+                  usuario_id: currentUser?.id || null,
+                })
+              }
+
+              // Somar a nova quantidade no novo item
+              const { data: newEstItem } = await supabase
+                .from('estoque_itens')
+                .select('quantidade')
+                .eq('id', dItem.item_id)
+                .single()
+
+              if (newEstItem) {
+                await supabase
+                  .from('estoque_itens')
+                  .update({
+                    quantidade: Number(newEstItem.quantidade) + newQty,
+                    atualizado_em: new Date().toISOString(),
+                  })
+                  .eq('id', dItem.item_id)
+
+                await supabase.from('estoque_movimentacoes').insert({
+                  item_id: dItem.item_id,
+                  nota_fiscal_id: nota.id,
+                  tipo: 'entrada',
+                  quantidade: newQty,
+                  usuario_id: currentUser?.id || null,
+                })
+              }
+            }
+          }
+        }
+      }
+
+      const pendingCount = finalItens.filter((i) => i.status === 'pendente_revisao').length
+      const novoStatus =
+        finalItens.length === 0 ? 'pendente' : pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
+
       const updatedDadosOcr = {
         ...(latestNota?.dados_ocr || nota.dados_ocr || {}),
-        itens: mergedItens,
+        itens: finalItens,
         valor: recalculatedTotal,
       }
 
@@ -288,6 +444,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         .eq('id', nota.id)
 
       if (error) throw error
+
+      // Sincronizar tabela itens_nota_fiscal
+      await syncItensNotaFiscal(nota.id, finalItens)
 
       toast({
         title: 'Revisão gravada com sucesso!',

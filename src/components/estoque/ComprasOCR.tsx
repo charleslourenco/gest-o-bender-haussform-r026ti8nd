@@ -16,6 +16,8 @@ import {
   Pencil,
   Check,
   X,
+  RefreshCw,
+  FileQuestion,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
@@ -26,6 +28,7 @@ import {
   persistAutoMatchedAliases,
   MatchedItem,
 } from '@/services/estoque-matching'
+import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { NotaReviewPanel } from './NotaReviewPanel'
 import {
   uploadInvoiceFile,
@@ -47,8 +50,11 @@ export function ComprasOCR() {
   const [editingNotaId, setEditingNotaId] = useState<string | null>(null)
   const [editFornecedorValue, setEditFornecedorValue] = useState('')
   const [savingFornecedor, setSavingFornecedor] = useState(false)
+  const [reprocessingNotaId, setReprocessingNotaId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachInputRef = useRef<HTMLInputElement>(null)
+  const reprocessFileInputRef = useRef<HTMLInputElement>(null)
+  const [reprocessTargetNota, setReprocessTargetNota] = useState<any | null>(null)
   const { toast } = useToast()
   const [isAdmin, setIsAdmin] = useState(false)
 
@@ -275,24 +281,46 @@ export function ComprasOCR() {
         .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
       const existingItems = allItems || []
 
+      // 1. Criar a nota_fiscal primeiro para obter seu ID (necessário para FK de estoque_movimentacoes e itens_nota_fiscal)
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      const { data: insertedNota, error: notaInsertErr } = await supabase
+        .from('notas_fiscais')
+        .insert({
+          fornecedor: extractedData?.fornecedor || 'Desconhecido',
+          valor_total: extractedData?.valor || 0,
+          data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
+          dados_ocr: { ...extractedData, itens: [] },
+          status_reconciliacao: 'pendente_revisao',
+          numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
+          arquivo_url: arquivoUrl,
+        })
+        .select('id')
+        .single()
+
+      if (notaInsertErr || !insertedNota) {
+        throw new Error(notaInsertErr?.message || 'Falha ao registrar nota fiscal no banco.')
+      }
+
+      const notaId = insertedNota.id
       let matchedItems: MatchedItem[] = []
       let inventoryInserted = 0
 
       if (hasItens) {
         matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
 
-        const {
-          data: { user: currentUser },
-        } = await supabase.auth.getUser()
-
-        for (const item of matchedItems) {
-          if (
+        for (let i = 0; i < matchedItems.length; i++) {
+          const item = matchedItems[i]
+          const isEligible =
             (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
-            item.item_id
-          ) {
-            const existing = existingItems.find((i) => i.id === item.item_id)
+            !!item.item_id
+
+          if (isEligible && item.item_id) {
+            const existing = existingItems.find((it) => it.id === item.item_id)
             if (existing) {
-              await supabase
+              const { error: updateItemErr } = await supabase
                 .from('estoque_itens')
                 .update({
                   quantidade: Number(existing.quantidade) + Number(item.quantidade),
@@ -301,34 +329,91 @@ export function ComprasOCR() {
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existing.id)
-              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
-              inventoryInserted++
 
-              await supabase.from('estoque_movimentacoes').insert({
+              if (updateItemErr) {
+                console.error(
+                  `Erro ao atualizar estoque para o item ${item.produto}:`,
+                  updateItemErr.message,
+                )
+                // Se a atualização falhou, item NÃO pode ficar como matched
+                matchedItems[i] = {
+                  ...item,
+                  status: 'pendente_revisao',
+                }
+                continue
+              }
+
+              // Inserir movimentação com nota_fiscal_id e usuario_id
+              const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
                 item_id: existing.id,
                 tipo: 'entrada',
                 quantidade: Number(item.quantidade),
+                nota_fiscal_id: notaId,
+                usuario_id: currentUser?.id || null,
               })
+
+              if (movErr) {
+                console.error(
+                  `Erro ao registrar movimentação de estoque para ${item.produto}:`,
+                  movErr.message,
+                )
+                // Rollback da quantidade de estoque somada
+                await supabase
+                  .from('estoque_itens')
+                  .update({
+                    quantidade: Number(existing.quantidade),
+                    atualizado_em: new Date().toISOString(),
+                  })
+                  .eq('id', existing.id)
+
+                matchedItems[i] = {
+                  ...item,
+                  status: 'pendente_revisao',
+                }
+                continue
+              }
+
+              // Sucesso no estoque e movimentação
+              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
+              inventoryInserted++
+            } else {
+              matchedItems[i] = {
+                ...item,
+                status: 'pendente_revisao',
+              }
             }
           }
         }
 
         await persistAutoMatchedAliases(matchedItems, currentUser?.id)
       }
+
       const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
-      const notaStatus = pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
+      // Se não há itens lidos, não pode ser conciliado (deve ir como pendente ou pendente_revisao)
+      const notaStatus =
+        !hasItens || matchedItems.length === 0
+          ? 'pendente'
+          : pendingCount > 0
+            ? 'pendente_revisao'
+            : 'conciliado'
 
-      const { error: dbError } = await supabase.from('notas_fiscais').insert({
-        fornecedor: extractedData?.fornecedor || 'Desconhecido',
-        valor_total: extractedData?.valor || 0,
-        data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
-        dados_ocr: { ...extractedData, itens: matchedItems },
-        status_reconciliacao: notaStatus,
-        numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
-        arquivo_url: arquivoUrl,
-      })
+      // Atualizar dados_ocr e status da nota criada
+      const { error: updateNotaErr } = await supabase
+        .from('notas_fiscais')
+        .update({
+          dados_ocr: { ...extractedData, itens: matchedItems },
+          status_reconciliacao: notaStatus,
+        })
+        .eq('id', notaId)
 
-      if (dbError) throw dbError
+      if (updateNotaErr) {
+        console.error('Erro ao atualizar status final da nota:', updateNotaErr.message)
+      }
+
+      // Correção (4): Gravar itens na tabela itens_nota_fiscal
+      if (matchedItems.length > 0) {
+        await syncItensNotaFiscal(notaId, matchedItems)
+      }
 
       if (pendingCount > 0) {
         toast({
@@ -373,6 +458,362 @@ export function ComprasOCR() {
   const getPendingCount = (nota: any): number => {
     const itens = nota.dados_ocr?.itens || []
     return itens.filter((i: MatchedItem) => i.status === 'pendente_revisao').length
+  }
+
+  const handleReprocessExisting = async (nota: any) => {
+    if (!nota.arquivo_url) {
+      // Sem arquivo anexado: abre o file picker para selecionar o arquivo e reprocessar direto nesta nota
+      setReprocessTargetNota(nota)
+      reprocessFileInputRef.current?.click()
+      return
+    }
+
+    setReprocessingNotaId(nota.id)
+    toast({
+      title: 'Reprocessando arquivo anexado...',
+      description: 'Baixando documento e executando leitura novamente.',
+    })
+
+    try {
+      // 1. Baixar o arquivo do Supabase Storage
+      const { data: fileBlob, error: downloadErr } = await supabase.storage
+        .from('comprovantes')
+        .download(nota.arquivo_url)
+
+      if (downloadErr || !fileBlob) {
+        throw new Error(
+          downloadErr?.message || 'Não foi possível baixar o arquivo do armazenamento.',
+        )
+      }
+
+      const fileName = nota.arquivo_url.split('/').pop() || 'nota.pdf'
+      const file = new File([fileBlob], fileName, { type: fileBlob.type })
+
+      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
+      const isXml = prepared.isXml
+
+      let extractedData: any = null
+
+      if (isXml) {
+        extractedData = parseNFeXml(prepared.xmlContent || '')
+      } else {
+        let payload: any = null
+        if (prepared.isPdf) {
+          if (prepared.images && prepared.images.length > 0) {
+            payload = { images: prepared.images, isPdf: true }
+          } else {
+            payload = { imageBase64: prepared.imageBase64, isPdf: true }
+          }
+        } else {
+          payload = { imageBase64: prepared.imageBase64, isPdf: false }
+        }
+
+        const response = await supabase.functions.invoke('financeiro-ai', {
+          body: { action: 'ocr_compras', payload },
+        })
+
+        if (response.error) {
+          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
+        }
+
+        extractedData = response.data
+        if (typeof extractedData === 'string') {
+          try {
+            extractedData = JSON.parse(extractedData)
+          } catch {
+            throw new Error('Falha ao interpretar dados do OCR.')
+          }
+        }
+      }
+
+      const hasItens =
+        extractedData?.itens && Array.isArray(extractedData.itens) && extractedData.itens.length > 0
+
+      const { data: allItems } = await supabase
+        .from('estoque_itens')
+        .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
+      const existingItems = allItems || []
+
+      let matchedItems: MatchedItem[] = []
+      let inventoryInserted = 0
+
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      if (hasItens) {
+        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+
+        for (let i = 0; i < matchedItems.length; i++) {
+          const item = matchedItems[i]
+          const isEligible =
+            (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
+            !!item.item_id
+
+          if (isEligible && item.item_id) {
+            const existing = existingItems.find((it) => it.id === item.item_id)
+            if (existing) {
+              const { error: updateItemErr } = await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Number(existing.quantidade) + Number(item.quantidade),
+                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  fornecedor: extractedData?.fornecedor || nota.fornecedor || 'Desconhecido',
+                  atualizado_em: new Date().toISOString(),
+                })
+                .eq('id', existing.id)
+
+              if (updateItemErr) {
+                matchedItems[i] = { ...item, status: 'pendente_revisao' }
+                continue
+              }
+
+              const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
+                item_id: existing.id,
+                tipo: 'entrada',
+                quantidade: Number(item.quantidade),
+                nota_fiscal_id: nota.id,
+                usuario_id: currentUser?.id || null,
+              })
+
+              if (movErr) {
+                await supabase
+                  .from('estoque_itens')
+                  .update({
+                    quantidade: Number(existing.quantidade),
+                    atualizado_em: new Date().toISOString(),
+                  })
+                  .eq('id', existing.id)
+                matchedItems[i] = { ...item, status: 'pendente_revisao' }
+                continue
+              }
+
+              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
+              inventoryInserted++
+            } else {
+              matchedItems[i] = { ...item, status: 'pendente_revisao' }
+            }
+          }
+        }
+
+        await persistAutoMatchedAliases(matchedItems, currentUser?.id)
+      }
+
+      const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
+      const notaStatus =
+        !hasItens || matchedItems.length === 0
+          ? 'pendente'
+          : pendingCount > 0
+            ? 'pendente_revisao'
+            : 'conciliado'
+
+      const { error: updateNotaErr } = await supabase
+        .from('notas_fiscais')
+        .update({
+          fornecedor: extractedData?.fornecedor || nota.fornecedor,
+          valor_total: extractedData?.valor || nota.valor_total,
+          data_emissao: extractedData?.data_emissao || nota.data_emissao,
+          dados_ocr: { ...extractedData, itens: matchedItems },
+          status_reconciliacao: notaStatus,
+        })
+        .eq('id', nota.id)
+
+      if (updateNotaErr) throw updateNotaErr
+
+      if (matchedItems.length > 0) {
+        await syncItensNotaFiscal(nota.id, matchedItems)
+      }
+
+      toast({
+        title: 'Nota reprocessada!',
+        description: `${matchedItems.length} itens lidos, ${inventoryInserted} alocados.`,
+      })
+      fetchNotas()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao reprocessar nota',
+        description: err?.message || 'Falha na leitura.',
+        variant: 'destructive',
+      })
+    } finally {
+      setReprocessingNotaId(null)
+    }
+  }
+
+  const handleReprocessFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    const target = reprocessTargetNota
+    setReprocessTargetNota(null)
+    if (reprocessFileInputRef.current) reprocessFileInputRef.current.value = ''
+    if (!file || !target) return
+
+    const validationError = validateInvoiceFile(file)
+    if (validationError) {
+      toast({ title: 'Arquivo inválido', description: validationError, variant: 'destructive' })
+      return
+    }
+
+    setReprocessingNotaId(target.id)
+    toast({
+      title: 'Enviando e processando arquivo...',
+      description: 'Anexando arquivo e realizando leitura da nota.',
+    })
+
+    try {
+      const { path, error: attachErr } = await attachInvoiceFile(target.id, file)
+      if (attachErr || !path) {
+        throw new Error(attachErr || 'Falha ao anexar arquivo.')
+      }
+
+      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
+      const isXml = prepared.isXml
+
+      let extractedData: any = null
+
+      if (isXml) {
+        extractedData = parseNFeXml(prepared.xmlContent || '')
+      } else {
+        let payload: any = null
+        if (prepared.isPdf) {
+          if (prepared.images && prepared.images.length > 0) {
+            payload = { images: prepared.images, isPdf: true }
+          } else {
+            payload = { imageBase64: prepared.imageBase64, isPdf: true }
+          }
+        } else {
+          payload = { imageBase64: prepared.imageBase64, isPdf: false }
+        }
+
+        const response = await supabase.functions.invoke('financeiro-ai', {
+          body: { action: 'ocr_compras', payload },
+        })
+
+        if (response.error) {
+          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
+        }
+
+        extractedData = response.data
+        if (typeof extractedData === 'string') {
+          try {
+            extractedData = JSON.parse(extractedData)
+          } catch {
+            throw new Error('Falha ao interpretar dados do OCR.')
+          }
+        }
+      }
+
+      const hasItens =
+        extractedData?.itens && Array.isArray(extractedData.itens) && extractedData.itens.length > 0
+
+      const { data: allItems } = await supabase
+        .from('estoque_itens')
+        .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
+      const existingItems = allItems || []
+
+      let matchedItems: MatchedItem[] = []
+      let inventoryInserted = 0
+
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+
+      if (hasItens) {
+        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+
+        for (let i = 0; i < matchedItems.length; i++) {
+          const item = matchedItems[i]
+          const isEligible =
+            (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
+            !!item.item_id
+
+          if (isEligible && item.item_id) {
+            const existing = existingItems.find((it) => it.id === item.item_id)
+            if (existing) {
+              const { error: updateItemErr } = await supabase
+                .from('estoque_itens')
+                .update({
+                  quantidade: Number(existing.quantidade) + Number(item.quantidade),
+                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  fornecedor: extractedData?.fornecedor || target.fornecedor || 'Desconhecido',
+                  atualizado_em: new Date().toISOString(),
+                })
+                .eq('id', existing.id)
+
+              if (updateItemErr) {
+                matchedItems[i] = { ...item, status: 'pendente_revisao' }
+                continue
+              }
+
+              const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
+                item_id: existing.id,
+                tipo: 'entrada',
+                quantidade: Number(item.quantidade),
+                nota_fiscal_id: target.id,
+                usuario_id: currentUser?.id || null,
+              })
+
+              if (movErr) {
+                await supabase
+                  .from('estoque_itens')
+                  .update({
+                    quantidade: Number(existing.quantidade),
+                    atualizado_em: new Date().toISOString(),
+                  })
+                  .eq('id', existing.id)
+                matchedItems[i] = { ...item, status: 'pendente_revisao' }
+                continue
+              }
+
+              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
+              inventoryInserted++
+            } else {
+              matchedItems[i] = { ...item, status: 'pendente_revisao' }
+            }
+          }
+        }
+
+        await persistAutoMatchedAliases(matchedItems, currentUser?.id)
+      }
+
+      const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
+      const notaStatus =
+        !hasItens || matchedItems.length === 0
+          ? 'pendente'
+          : pendingCount > 0
+            ? 'pendente_revisao'
+            : 'conciliado'
+
+      const { error: updateNotaErr } = await supabase
+        .from('notas_fiscais')
+        .update({
+          fornecedor: extractedData?.fornecedor || target.fornecedor,
+          valor_total: extractedData?.valor || target.valor_total,
+          data_emissao: extractedData?.data_emissao || target.data_emissao,
+          dados_ocr: { ...extractedData, itens: matchedItems },
+          status_reconciliacao: notaStatus,
+        })
+        .eq('id', target.id)
+
+      if (updateNotaErr) throw updateNotaErr
+
+      if (matchedItems.length > 0) {
+        await syncItensNotaFiscal(target.id, matchedItems)
+      }
+
+      toast({
+        title: 'Arquivo processado!',
+        description: `${matchedItems.length} itens lidos e vinculados.`,
+      })
+      fetchNotas()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao processar arquivo',
+        description: err?.message || 'Falha na leitura.',
+        variant: 'destructive',
+      })
+    } finally {
+      setReprocessingNotaId(null)
+    }
   }
 
   return (
@@ -457,9 +898,14 @@ export function ComprasOCR() {
               ) : (
                 notas.map((nota) => {
                   const pendingCount = getPendingCount(nota)
+                  const totalItensLidos = (nota.dados_ocr?.itens || []).length
+                  const isSemItens =
+                    nota.status_reconciliacao === 'pendente' && totalItensLidos === 0
                   const isPending =
-                    nota.status_reconciliacao === 'pendente_revisao' || pendingCount > 0
+                    !isSemItens &&
+                    (nota.status_reconciliacao === 'pendente_revisao' || pendingCount > 0)
                   const isExpanded = expandedNota === nota.id
+                  const isReprocessing = reprocessingNotaId === nota.id
                   return (
                     <div key={nota.id} className="border border-border rounded-lg overflow-hidden">
                       <div
@@ -467,7 +913,11 @@ export function ComprasOCR() {
                         onClick={() => setExpandedNota(isExpanded ? null : nota.id)}
                       >
                         <div className="flex items-center gap-4">
-                          {isPending ? (
+                          {isSemItens ? (
+                            <div className="bg-rose-100 dark:bg-rose-950 p-2 rounded-full">
+                              <FileQuestion className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                            </div>
+                          ) : isPending ? (
                             <div className="bg-amber-100 dark:bg-amber-950 p-2 rounded-full">
                               <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                             </div>
@@ -534,11 +984,15 @@ export function ComprasOCR() {
                                   </Button>
                                 </div>
                               )}
-                              {isPending && (
+                              {isSemItens ? (
+                                <Badge className="bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-400 dark:border-rose-800 text-[10px]">
+                                  Sem itens lidos (0)
+                                </Badge>
+                              ) : isPending ? (
                                 <Badge className="bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800 text-[10px]">
                                   Verificar ({pendingCount})
                                 </Badge>
-                              )}
+                              ) : null}
                               {nota.arquivo_url && (
                                 <Badge className="bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800 text-[10px]">
                                   <Paperclip className="w-2.5 h-2.5 mr-0.5" /> Arquivo
@@ -559,14 +1013,47 @@ export function ComprasOCR() {
                             <Badge
                               variant="outline"
                               className={
-                                isPending
-                                  ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900'
-                                  : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900'
+                                isSemItens
+                                  ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950 dark:text-rose-400 dark:border-rose-900'
+                                  : isPending
+                                    ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900'
+                                    : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900'
                               }
                             >
-                              {isPending ? 'Revisão Pendente' : 'Processado / Validado'}
+                              {isSemItens
+                                ? 'Sem itens lidos / Reprocessar'
+                                : isPending
+                                  ? 'Revisão Pendente'
+                                  : 'Processado / Validado'}
                             </Badge>
                           </div>
+                          {/* Botão de Reprocessar (especialmente útil para notas sem itens ou que precisam de releitura) */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isReprocessing}
+                            className={`h-8 text-xs gap-1 ${
+                              isSemItens
+                                ? 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                                : 'text-slate-600 dark:text-slate-300'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleReprocessExisting(nota)
+                            }}
+                            title={
+                              nota.arquivo_url
+                                ? 'Reprocessar arquivo da nota'
+                                : 'Anexar e reprocessar arquivo desta nota'
+                            }
+                          >
+                            {isReprocessing ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden sm:inline">Reprocessar</span>
+                          </Button>{' '}
                           {nota.arquivo_url ? (
                             <Button
                               variant="ghost"
@@ -640,6 +1127,13 @@ export function ComprasOCR() {
         className="hidden"
         accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf,.xml,text/xml,application/xml"
         onChange={handleAttachFile}
+      />
+      <input
+        type="file"
+        ref={reprocessFileInputRef}
+        className="hidden"
+        accept=".pdf,image/png,image/jpeg,image/jpg,application/pdf,.xml,text/xml,application/xml"
+        onChange={handleReprocessFileSelected}
       />
     </div>
   )
