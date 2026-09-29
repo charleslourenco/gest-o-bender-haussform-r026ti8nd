@@ -4,6 +4,7 @@ import { ListaCLT } from './gestao-pessoas/ListaCLT'
 import { ListaPJ } from './gestao-pessoas/ListaPJ'
 import { ListaFornecedores } from './gestao-pessoas/ListaFornecedores'
 import { ListaConsultores } from './gestao-pessoas/ListaConsultores'
+import { ListaExColaboradores } from './gestao-pessoas/ListaExColaboradores'
 import { useParams } from 'react-router-dom'
 import { PastaCLT } from './gestao-pessoas/PastaCLT'
 import { PastaPJ } from './gestao-pessoas/PastaPJ'
@@ -53,6 +54,12 @@ export default function GestaoPessoas() {
               >
                 Consultores
               </TabsTrigger>
+              <TabsTrigger
+                value="ex-colaboradores"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white"
+              >
+                Ex Colaboradores
+              </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
@@ -81,6 +88,12 @@ export default function GestaoPessoas() {
           className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaConsultores />
+        </TabsContent>
+        <TabsContent
+          value="ex-colaboradores"
+          className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+        >
+          <ListaExColaboradores />
         </TabsContent>
       </Tabs>
     </div>

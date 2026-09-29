@@ -45,10 +45,17 @@ import {
 } from './constants'
 import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
 
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
+
 export interface CardAtendimentoProps {
   lead: Lead
-  currentAba: AtendimentoAbaConfig
-  users: Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+  currentAba?: AtendimentoAba
+  users: Array<{
+    id: string
+    nome: string
+    eh_consultor?: boolean | null
+    ex_colaborador?: boolean | null
+  }>
   isDragging?: boolean
   unreadCount?: number
   isPending?: boolean
@@ -278,18 +285,24 @@ function CardAtendimentoComponent({
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = useMemo(() => {
     try {
+      let foundName: string | undefined
+      let isEx = false
+
       if (Array.isArray(consultorRaw)) {
         const first = consultorRaw[0]
         if (first && typeof first === 'object' && typeof first.nome === 'string') {
-          return first.nome.trim() || undefined
+          foundName = first.nome.trim() || undefined
+          isEx = Boolean((first as any).ex_colaborador)
+        } else if (typeof first === 'string' && first.trim()) {
+          foundName = first.trim()
         }
-        if (typeof first === 'string' && first.trim()) return first.trim()
       } else if (consultorRaw && typeof consultorRaw === 'object') {
         if (typeof (consultorRaw as any).nome === 'string' && (consultorRaw as any).nome.trim()) {
-          return (consultorRaw as any).nome.trim()
+          foundName = (consultorRaw as any).nome.trim()
+          isEx = Boolean((consultorRaw as any).ex_colaborador)
         }
       } else if (typeof consultorRaw === 'string' && consultorRaw.trim()) {
-        return consultorRaw.trim()
+        foundName = consultorRaw.trim()
       }
 
       // Fallback: buscar na lista safeUsers pelo consultor_id
@@ -297,7 +310,14 @@ function CardAtendimentoComponent({
         const u = users.find(
           (user) => user && typeof user.id === 'string' && user.id === lead.consultor_id,
         )
-        if (typeof u?.nome === 'string' && u.nome.trim()) return u.nome.trim()
+        if (typeof u?.nome === 'string' && u.nome.trim()) {
+          foundName = u.nome.trim()
+          isEx = Boolean(u.ex_colaborador)
+        }
+      }
+
+      if (foundName) {
+        return formatConsultorOptionLabel({ nome: foundName, ex_colaborador: isEx })
       }
     } catch {
       return undefined
@@ -308,28 +328,41 @@ function CardAtendimentoComponent({
   const consultorSecundarioRaw = (lead as any)?.consultor_secundario
   const consultorSecundarioNome = useMemo(() => {
     try {
+      let foundName: string | undefined
+      let isEx = false
+
       if (Array.isArray(consultorSecundarioRaw)) {
         const first = consultorSecundarioRaw[0]
         if (first && typeof first === 'object' && typeof first.nome === 'string') {
-          return first.nome.trim() || undefined
+          foundName = first.nome.trim() || undefined
+          isEx = Boolean((first as any).ex_colaborador)
+        } else if (typeof first === 'string' && first.trim()) {
+          foundName = first.trim()
         }
-        if (typeof first === 'string' && first.trim()) return first.trim()
       } else if (consultorSecundarioRaw && typeof consultorSecundarioRaw === 'object') {
         if (
           typeof (consultorSecundarioRaw as any).nome === 'string' &&
           (consultorSecundarioRaw as any).nome.trim()
         ) {
-          return (consultorSecundarioRaw as any).nome.trim()
+          foundName = (consultorSecundarioRaw as any).nome.trim()
+          isEx = Boolean((consultorSecundarioRaw as any).ex_colaborador)
         }
       } else if (typeof consultorSecundarioRaw === 'string' && consultorSecundarioRaw.trim()) {
-        return consultorSecundarioRaw.trim()
+        foundName = consultorSecundarioRaw.trim()
       }
 
       if (lead?.consultor_id_secundario && Array.isArray(users)) {
         const u = users.find(
           (user) => user && typeof user.id === 'string' && user.id === lead.consultor_id_secundario,
         )
-        if (typeof u?.nome === 'string' && u.nome.trim()) return u.nome.trim()
+        if (typeof u?.nome === 'string' && u.nome.trim()) {
+          foundName = u.nome.trim()
+          isEx = Boolean(u.ex_colaborador)
+        }
+      }
+
+      if (foundName) {
+        return formatConsultorOptionLabel({ nome: foundName, ex_colaborador: isEx })
       }
     } catch {
       return undefined
@@ -360,10 +393,12 @@ function CardAtendimentoComponent({
     // Se o consultor atribuído não está na lista (inativo ou inexistente em users), injeta como opção
     const currentId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
     if (currentId && !list.some((u) => u.id === currentId)) {
+      const matchInAllUsers = users.find((u) => u && u.id === currentId)
       list.push({
         id: currentId,
-        nome: consultorNome || 'Responsável anterior',
+        nome: matchInAllUsers?.nome || consultorNome || 'Responsável anterior',
         eh_consultor: false,
+        ex_colaborador: matchInAllUsers?.ex_colaborador ?? false,
       })
     }
     return list
@@ -386,10 +421,12 @@ function CardAtendimentoComponent({
     })
 
     if (secId && !list.some((u) => u.id === secId)) {
+      const matchInAllUsers = users.find((u) => u && u.id === secId)
       list.push({
         id: secId,
-        nome: consultorSecundarioNome || '2º Responsável anterior',
+        nome: matchInAllUsers?.nome || consultorSecundarioNome || '2º Responsável anterior',
         eh_consultor: false,
+        ex_colaborador: matchInAllUsers?.ex_colaborador ?? false,
       })
     }
     return list
@@ -1185,7 +1222,7 @@ function CardAtendimentoComponent({
               <SelectItem value="unassigned">Sem responsável</SelectItem>
               {safeUsers.map((u) => (
                 <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
-                  {u.nome || u.id}
+                  {formatConsultorOptionLabel(u)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1232,7 +1269,7 @@ function CardAtendimentoComponent({
                 </SelectItem>
                 {safeUsersSecundario.map((u) => (
                   <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
-                    {u.nome || u.id}
+                    {formatConsultorOptionLabel(u)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1278,37 +1315,49 @@ function CardAtendimentoComponent({
 function getSafeConsultorNome(l: Record<string, any> | undefined): string {
   if (!l || typeof l !== 'object') return ''
   const c = l.consultor ?? l.users
+  let name = ''
+  let isEx = false
   if (Array.isArray(c)) {
     const first = c[0]
-    if (first && typeof first === 'object' && typeof first.nome === 'string')
-      return first.nome.trim()
-    if (typeof first === 'string') return first.trim()
-    return ''
+    if (first && typeof first === 'object' && typeof first.nome === 'string') {
+      name = first.nome.trim()
+      isEx = Boolean(first.ex_colaborador)
+    } else if (typeof first === 'string') {
+      name = first.trim()
+    }
+  } else if (c && typeof c === 'object') {
+    if (typeof c.nome === 'string') {
+      name = c.nome.trim()
+      isEx = Boolean(c.ex_colaborador)
+    }
+  } else if (typeof c === 'string') {
+    name = c.trim()
   }
-  if (c && typeof c === 'object') {
-    if (typeof c.nome === 'string') return c.nome.trim()
-    return ''
-  }
-  if (typeof c === 'string') return c.trim()
-  return ''
+  return formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx })
 }
 
 function getSafeConsultorSecundarioNome(l: Record<string, any> | undefined): string {
   if (!l || typeof l !== 'object') return ''
   const c = l.consultor_secundario
+  let name = ''
+  let isEx = false
   if (Array.isArray(c)) {
     const first = c[0]
-    if (first && typeof first === 'object' && typeof first.nome === 'string')
-      return first.nome.trim()
-    if (typeof first === 'string') return first.trim()
-    return ''
+    if (first && typeof first === 'object' && typeof first.nome === 'string') {
+      name = first.nome.trim()
+      isEx = Boolean(first.ex_colaborador)
+    } else if (typeof first === 'string') {
+      name = first.trim()
+    }
+  } else if (c && typeof c === 'object') {
+    if (typeof c.nome === 'string') {
+      name = c.nome.trim()
+      isEx = Boolean(c.ex_colaborador)
+    }
+  } else if (typeof c === 'string') {
+    name = c.trim()
   }
-  if (c && typeof c === 'object') {
-    if (typeof c.nome === 'string') return c.nome.trim()
-    return ''
-  }
-  if (typeof c === 'string') return c.trim()
-  return ''
+  return formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx })
 }
 
 function areCardPropsEqual(

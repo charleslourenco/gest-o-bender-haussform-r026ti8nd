@@ -43,10 +43,16 @@ import {
   isOrigemCorretor,
   isStatusPerdido,
 } from './constants'
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 export interface ModalAtendimentoProps {
   lead: Lead | null
   currentAba?: AtendimentoAbaConfig | null
-  users?: Array<{ id: string; nome: string; eh_consultor?: boolean | null }> | null
+  users?: Array<{
+    id: string
+    nome: string
+    eh_consultor?: boolean | null
+    ex_colaborador?: boolean | null
+  }> | null
   open: boolean
   onClose: () => void
   onUpdateLead: (id: string, updates: Partial<Lead>) => Promise<void> | void
@@ -101,7 +107,13 @@ export function ModalAtendimento({
     })
     const curId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
     if (curId && !list.some((u) => u.id === curId)) {
-      list.push({ id: curId, nome: 'Responsável anterior', eh_consultor: false })
+      const matchInUsers = safeUsers.find((u) => u.id === curId)
+      list.push({
+        id: curId,
+        nome: matchInUsers?.nome || 'Responsável anterior',
+        eh_consultor: false,
+        ex_colaborador: matchInUsers?.ex_colaborador ?? false,
+      })
     }
     return list
   }, [safeUsers, lead?.consultor_id])
@@ -116,7 +128,13 @@ export function ModalAtendimento({
       return false
     })
     if (secId && !list.some((u) => u.id === secId)) {
-      list.push({ id: secId, nome: '2º Responsável anterior', eh_consultor: false })
+      const matchInUsers = safeUsers.find((u) => u.id === secId)
+      list.push({
+        id: secId,
+        nome: matchInUsers?.nome || '2º Responsável anterior',
+        eh_consultor: false,
+        ex_colaborador: matchInUsers?.ex_colaborador ?? false,
+      })
     }
     return list
   }, [safeUsers, lead?.consultor_id, lead?.consultor_id_secundario])
@@ -458,28 +476,52 @@ export function ModalAtendimento({
   if (!lead) return null
 
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
-  const consultorNome = Array.isArray(consultorRaw)
-    ? consultorRaw[0]?.nome
-    : typeof consultorRaw === 'object' && consultorRaw !== null && 'nome' in consultorRaw
-      ? (consultorRaw as any).nome
-      : typeof (lead as any)?.consultor === 'string'
-        ? (lead as any).consultor
-        : lead?.consultor_id
-          ? safeUsers.find((u) => u.id === lead.consultor_id)?.nome
-          : undefined
+  const consultorNome = useMemo(() => {
+    let name: string | undefined
+    let isEx = false
+    if (Array.isArray(consultorRaw)) {
+      name = consultorRaw[0]?.nome
+      isEx = Boolean(consultorRaw[0]?.ex_colaborador)
+    } else if (
+      typeof consultorRaw === 'object' &&
+      consultorRaw !== null &&
+      'nome' in consultorRaw
+    ) {
+      name = (consultorRaw as any).nome
+      isEx = Boolean((consultorRaw as any).ex_colaborador)
+    } else if (typeof (lead as any)?.consultor === 'string') {
+      name = (lead as any).consultor
+    } else if (lead?.consultor_id) {
+      const u = safeUsers.find((u) => u.id === lead.consultor_id)
+      name = u?.nome
+      isEx = Boolean(u?.ex_colaborador)
+    }
+    return name ? formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx }) : undefined
+  }, [consultorRaw, lead?.consultor_id, safeUsers])
 
   const consultorSecundarioRaw = (lead as any)?.consultor_secundario
-  const consultorSecundarioNome = Array.isArray(consultorSecundarioRaw)
-    ? consultorSecundarioRaw[0]?.nome
-    : typeof consultorSecundarioRaw === 'object' &&
-        consultorSecundarioRaw !== null &&
-        'nome' in consultorSecundarioRaw
-      ? (consultorSecundarioRaw as any).nome
-      : typeof (lead as any)?.consultor_secundario === 'string'
-        ? (lead as any).consultor_secundario
-        : lead?.consultor_id_secundario
-          ? safeUsers.find((u) => u.id === lead.consultor_id_secundario)?.nome
-          : undefined
+  const consultorSecundarioNome = useMemo(() => {
+    let name: string | undefined
+    let isEx = false
+    if (Array.isArray(consultorSecundarioRaw)) {
+      name = consultorSecundarioRaw[0]?.nome
+      isEx = Boolean(consultorSecundarioRaw[0]?.ex_colaborador)
+    } else if (
+      typeof consultorSecundarioRaw === 'object' &&
+      consultorSecundarioRaw !== null &&
+      'nome' in consultorSecundarioRaw
+    ) {
+      name = (consultorSecundarioRaw as any).nome
+      isEx = Boolean((consultorSecundarioRaw as any).ex_colaborador)
+    } else if (typeof (lead as any)?.consultor_secundario === 'string') {
+      name = (lead as any).consultor_secundario
+    } else if (lead?.consultor_id_secundario) {
+      const u = safeUsers.find((u) => u.id === lead.consultor_id_secundario)
+      name = u?.nome
+      isEx = Boolean(u?.ex_colaborador)
+    }
+    return name ? formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx }) : undefined
+  }, [consultorSecundarioRaw, lead?.consultor_id_secundario, safeUsers])
 
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
@@ -553,7 +595,7 @@ export function ModalAtendimento({
                         </SelectItem>
                         {consultorOptions.map((u) => (
                           <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
-                            {u.nome || u.id}
+                            {formatConsultorOptionLabel(u)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -583,7 +625,7 @@ export function ModalAtendimento({
                         </SelectItem>
                         {consultorSecundarioOptions.map((u) => (
                           <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
-                            {u.nome || u.id}
+                            {formatConsultorOptionLabel(u)}
                           </SelectItem>
                         ))}
                       </SelectContent>

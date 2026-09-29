@@ -6,6 +6,7 @@ export interface AppUser {
   funcao: string | null
   foto_perfil: string | null
   eh_consultor?: boolean | null
+  ex_colaborador?: boolean | null
   status: boolean
   criado_em: string
   atualizado_em: string

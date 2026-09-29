@@ -6,6 +6,7 @@ import { useDebounce } from '@/hooks/use-debounce'
 import { MessageSquare, AlertTriangle } from 'lucide-react'
 import { ORIGENS_LEAD, exigeNomePessoa, getRotuloNomePessoa, isOrigemCorretor } from './constants'
 import { cn } from '@/lib/utils'
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 
 interface Props {
   lead: Lead | null
@@ -298,7 +299,7 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                     })
                     .map((u) => (
                       <option key={u.id} value={u.id}>
-                        {u.nome}
+                        {formatConsultorOptionLabel(u)}
                       </option>
                     ))}
                 </select>

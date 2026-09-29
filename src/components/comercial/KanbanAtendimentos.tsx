@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/client'
 import { fetchLeads, fetchUsers, createLead, updateLead, deleteLead } from '@/services/comercial'
 import { arquivarLead } from '@/services/arquivamento'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 import {
   AtendimentoAbaConfig,
   ATENDIMENTO_ABAS,
@@ -78,7 +79,12 @@ export function KanbanAtendimentos({
 
   const [leads, setLeads] = useState<Lead[]>([])
   const [users, setUsers] = useState<
-    Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+    Array<{
+      id: string
+      nome: string
+      eh_consultor?: boolean | null
+      ex_colaborador?: boolean | null
+    }>
   >([])
   const [loading, setLoading] = useState(true)
 
@@ -121,7 +127,14 @@ export function KanbanAtendimentos({
   const scrollRef = useRef<HTMLDivElement>(null)
   const leadsRef = useRef<Lead[]>([])
   leadsRef.current = leads
-  const usersRef = useRef<Array<{ id: string; nome: string; eh_consultor?: boolean | null }>>([])
+  const usersRef = useRef<
+    Array<{
+      id: string
+      nome: string
+      eh_consultor?: boolean | null
+      ex_colaborador?: boolean | null
+    }>
+  >([])
   usersRef.current = users
 
   // Limpar contagem de não lidas e pendência quando abrir o modal de conversa
@@ -1094,7 +1107,7 @@ export function KanbanAtendimentos({
               )
               .map((u) => (
                 <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
-                  {u.nome || u.id}
+                  {formatConsultorOptionLabel(u)}
                 </SelectItem>
               ))}
         </SelectContent>

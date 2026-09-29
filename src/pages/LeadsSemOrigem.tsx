@@ -49,6 +49,7 @@ import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercia
 import { fetchUsers, normalizeLead } from '@/services/comercial'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 
 // Origens válidas permitidas para atribuição (exclui 'A definir' para não manter o lead como pendente)
 const ORIGENS_DISPONIVEIS: OrigemLead[] = ORIGENS_LEAD.filter(
@@ -85,7 +86,12 @@ export default function LeadsSemOrigem() {
 
   // Usuários para atribuição de consultores e ModalAtendimento
   const [users, setUsers] = useState<
-    Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+    Array<{
+      id: string
+      nome: string
+      eh_consultor?: boolean | null
+      ex_colaborador?: boolean | null
+    }>
   >([])
 
   // Estado para o ModalAtendimento
@@ -756,6 +762,10 @@ export default function LeadsSemOrigem() {
                                     (lead as any)?.criado_por_nome ||
                                     'Consultor atribuído',
                                   eh_consultor: false,
+                                  ex_colaborador:
+                                    consultorAtualObj?.ex_colaborador ??
+                                    (lead as any)?.consultor?.ex_colaborador ??
+                                    false,
                                 })
                               }
 
@@ -779,7 +789,7 @@ export default function LeadsSemOrigem() {
                                     </SelectItem>
                                     {consultoresDisponiveis.map((u) => (
                                       <SelectItem key={u.id} value={u.id} className="text-xs">
-                                        {u.nome || u.id}
+                                        {formatConsultorOptionLabel(u)}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>

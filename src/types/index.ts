@@ -25,8 +25,8 @@ export interface Lead {
   ordem: number
   criado_em: string
   criado_por_nome?: string | null
-  consultor?: { id?: string; nome?: string } | null
-  consultor_secundario?: { id?: string; nome?: string } | null
+  consultor?: { id?: string; nome?: string; ex_colaborador?: boolean | null } | null
+  consultor_secundario?: { id?: string; nome?: string; ex_colaborador?: boolean | null } | null
   kanban_ativo?: boolean
   categoria?: string
   status_atendimento?: string

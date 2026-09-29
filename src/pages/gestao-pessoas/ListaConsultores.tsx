@@ -45,11 +45,12 @@ export function ListaConsultores() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // 1. Buscar todos os usuários ATIVOS
+      // 1. Buscar usuários da equipe ativa (status=true e não marcados como ex_colaborador)
       const { data: usersData, error: usersErr } = await supabase
         .from('users')
         .select('*')
         .eq('status', true)
+        .or('ex_colaborador.is.null,ex_colaborador.eq.false')
         .order('nome', { ascending: true })
 
       if (usersErr) throw usersErr

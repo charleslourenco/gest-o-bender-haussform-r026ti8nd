@@ -6,7 +6,7 @@ export type { Lead }
 
 // Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
 export const KANBAN_LEAD_COLUMNS =
-  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, consultor_id_secundario, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(id, nome), consultor_secundario:users!leads_consultor_id_secundario_fkey(id, nome)'
+  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, consultor_id_secundario, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(id, nome, ex_colaborador), consultor_secundario:users!leads_consultor_id_secundario_fkey(id, nome, ex_colaborador)'
 
 /**
  * Normaliza e sanitiza um lead bruto vindo do banco ou realtime.
@@ -189,13 +189,16 @@ export interface ComercialUserOption {
   nome: string
   foto_perfil?: string | null
   eh_consultor?: boolean | null
+  ex_colaborador?: boolean | null
+  status?: boolean
 }
 
 export const fetchUsers = async (): Promise<ComercialUserOption[]> => {
+  // Inclui usuários ativos (status=true) OU ex-colaboradores (ex_colaborador=true)
   const { data, error } = await supabase
     .from('users')
-    .select('id, nome, foto_perfil, eh_consultor')
-    .eq('status', true)
+    .select('id, nome, foto_perfil, eh_consultor, ex_colaborador, status')
+    .or('status.eq.true,ex_colaborador.eq.true')
   if (error) throw error
   return Array.isArray(data)
     ? data
@@ -205,6 +208,8 @@ export const fetchUsers = async (): Promise<ComercialUserOption[]> => {
           nome: (u.nome || u.id).trim(),
           foto_perfil: u.foto_perfil ?? null,
           eh_consultor: Boolean(u.eh_consultor),
+          ex_colaborador: Boolean(u.ex_colaborador),
+          status: Boolean(u.status),
         }))
     : []
 }

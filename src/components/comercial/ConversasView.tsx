@@ -61,10 +61,13 @@ interface Lead {
   status_atendimento?: string
 }
 
+import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
+
 interface User {
   id: string
   nome: string
   eh_consultor?: boolean | null
+  ex_colaborador?: boolean | null
 }
 
 interface ConversasViewProps {
@@ -897,7 +900,7 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                         })
                         .map((u) => (
                           <SelectItem key={u.id.trim()} value={u.id.trim()}>
-                            {u.nome || u.id}
+                            {formatConsultorOptionLabel(u)}
                           </SelectItem>
                         ))}
                   </SelectContent>
