@@ -81,23 +81,32 @@ function calcularDiasAteData(dateStr: string | null | undefined): number | null 
   if (!dateStr || typeof dateStr !== 'string') return null
   const cleanStr = dateStr.trim()
   if (!cleanStr) return null
-  const target = new Date(cleanStr.length === 10 ? `${cleanStr}T12:00:00` : cleanStr)
-  if (isNaN(target.getTime())) return null
-  const hoje = new Date()
-  const hojeMeioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0)
-  const diffMs = target.getTime() - hojeMeioDia.getTime()
-  return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  try {
+    const target = new Date(cleanStr.length === 10 ? `${cleanStr}T12:00:00` : cleanStr)
+    if (isNaN(target.getTime())) return null
+    const hoje = new Date()
+    const hojeMeioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0)
+    const diffMs = target.getTime() - hojeMeioDia.getTime()
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  } catch {
+    return null
+  }
 }
 
 /**
  * Calcula dias decorridos desde a criação do card até hoje.
  */
 function calcularDiasDesdeCriacao(criadoEmStr?: string): number {
-  if (!criadoEmStr) return 0
-  const criado = new Date(criadoEmStr)
-  const hoje = new Date()
-  const diffMs = hoje.getTime() - criado.getTime()
-  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+  if (!criadoEmStr || typeof criadoEmStr !== 'string') return 0
+  try {
+    const criado = new Date(criadoEmStr)
+    if (isNaN(criado.getTime())) return 0
+    const hoje = new Date()
+    const diffMs = hoje.getTime() - criado.getTime()
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+  } catch {
+    return 0
+  }
 }
 
 /**
@@ -156,27 +165,28 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   // 4. status_analise NÃO pertence à lista de execução/conclusão (permanecem status de análise: iniciar, reuniao_analise, medida_fina, aguardando_liberacao, alteracao_projeto, aguardando_consultor e similares)
   // 5. Aplicável identicamente a pai, pai virtual e subcards
   const isCardAptoParaAgendar = (c: PcpCardItem): boolean => {
+    if (!c) return false
     if (c.visivel_pcp === false) return false
     if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
     if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
 
-    // Exclusão por status_analise de execução/conclusão
-    const st = (c.status_analise || '').toLowerCase().trim()
+    // Exclusão por status_analise de execução/conclusão (com safe check para não quebrar se for null/undefined/number)
+    const st = typeof c.status_analise === 'string' ? c.status_analise.toLowerCase().trim() : ''
     if (st && (STATUS_EXCLUIDOS_CARTEIRA as readonly string[]).includes(st)) {
       return false
     }
 
     const temAgendaAnalise = Boolean(
-      (c.semana_planejada_analise && c.semana_planejada_analise.trim() !== '') ||
-      (c.data_planejada_analise && c.data_planejada_analise.trim() !== ''),
+      (typeof c.semana_planejada_analise === 'string' && c.semana_planejada_analise.trim() !== '') ||
+      (typeof c.data_planejada_analise === 'string' && c.data_planejada_analise.trim() !== ''),
     )
     const temAgendaProducao = Boolean(
-      (c.semana_planejada_producao && c.semana_planejada_producao.trim() !== '') ||
-      (c.data_planejada_producao && c.data_planejada_producao.trim() !== ''),
+      (typeof c.semana_planejada_producao === 'string' && c.semana_planejada_producao.trim() !== '') ||
+      (typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim() !== ''),
     )
     const temAgendaMontagem = Boolean(
-      (c.semana_planejada_montagem && c.semana_planejada_montagem.trim() !== '') ||
-      (c.data_planejada_montagem && c.data_planejada_montagem.trim() !== ''),
+      (typeof c.semana_planejada_montagem === 'string' && c.semana_planejada_montagem.trim() !== '') ||
+      (typeof c.data_planejada_montagem === 'string' && c.data_planejada_montagem.trim() !== ''),
     )
 
     if (temAgendaAnalise || temAgendaProducao || temAgendaMontagem) return false
@@ -209,11 +219,22 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   // Agrupamento hierárquico Nível 1 (Card Pai real OU Pai Virtual por Cliente/Contrato) + Nível 2 (Subcards / Ambientes)
   const hierarchyList: ParentHierarchyItem[] = useMemo(() => {
     if (!cards || !Array.isArray(cards)) return []
+
+    // Conjunto de todos os IDs presentes na lista
+    const cardIdSet = new Set<string>()
+    for (const c of cards) {
+      if (c?.id) cardIdSet.add(c.id)
+    }
+
     // 1. Identificar todos os subcards explícitos (com card_pai_id)
     const subcardsByParentId = new Map<string, PcpCardItem[]>()
+    // Set de pais que possuem filhos e existem na lista
+    const parentsWithRealChildren = new Set<string>()
+
     for (const c of cards) {
       if (!c) continue
-      if (c.card_pai_id) {
+      if (c.card_pai_id && cardIdSet.has(c.card_pai_id)) {
+        parentsWithRealChildren.add(c.card_pai_id)
         if (!subcardsByParentId.has(c.card_pai_id)) {
           subcardsByParentId.set(c.card_pai_id, [])
         }
@@ -221,28 +242,18 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       }
     }
 
-    // 2. Separar cards sem card_pai_id em dois grupos:
-    // a) Pais reais (que possuem filhos apontando para eles via card_pai_id)
-    // b) Cards sem card_pai_id e sem nenhum filho apontando para eles (cards avulsos / contratos sem card_pai_id)
-    const parentsWithRealChildren = new Set<string>()
-    for (const c of cards) {
-      if (!c) continue
-      if (c.card_pai_id) {
-        parentsWithRealChildren.add(c.card_pai_id)
-      }
-    }
-
+    // 2. Separar cards em dois grupos:
+    // a) Pais reais (que possuem filhos apontando para eles via card_pai_id existente)
+    // b) Cards sem card_pai_id OU com card_pai_id órfão (cujo pai não está na lista)
     const realParents: PcpCardItem[] = []
     const unparentedCards: PcpCardItem[] = []
 
     for (const c of cards) {
       if (!c) continue
-      if (!c.card_pai_id) {
-        if (parentsWithRealChildren.has(c.id)) {
-          realParents.push(c)
-        } else {
-          unparentedCards.push(c)
-        }
+      if (parentsWithRealChildren.has(c.id)) {
+        realParents.push(c)
+      } else if (!c.card_pai_id || !cardIdSet.has(c.card_pai_id)) {
+        unparentedCards.push(c)
       }
     }
 
@@ -250,7 +261,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
 
     // 3. Processar pais reais (com card_pai_id existente no banco)
     for (const parent of realParents) {
-      const allSubs = subcardsByParentId.get(parent.id) || []
+      if (!parent) continue
+      const allSubs = (subcardsByParentId.get(parent.id) || []).filter(Boolean)
       const pendingSubs = allSubs.filter((s) => isCardPending(s))
       const parentPending = isCardPending(parent)
 
@@ -276,7 +288,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
         const diasDesdeCriacao = calcularDiasDesdeCriacao(parent.criado_em)
         const temSemana = Boolean(
-          parent.semana_planejada_producao && parent.semana_planejada_producao.trim() !== '',
+          typeof parent.semana_planejada_producao === 'string' &&
+          parent.semana_planejada_producao.trim() !== '',
         )
         const aging = obterAgingStatus(diasParaEntrega, temSemana)
 
@@ -317,16 +330,18 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     }
 
     for (const [groupKey, groupCards] of virtualGroups.entries()) {
-      const pendingCards = groupCards.filter((c) => isCardPending(c))
+      const validGroup = groupCards.filter(Boolean)
+      const pendingCards = validGroup.filter((c) => isCardPending(c))
       if (pendingCards.length === 0) continue
 
-      const first = groupCards[0]
+      const first = validGroup[0]
+      if (!first) continue
       const clientName = getCardClientName(first)
       const empreendimento = getCardEmpreendimento(first)
 
-      if (groupCards.length > 1) {
+      if (validGroup.length > 1) {
         // Multiplos ambientes do mesmo cliente/contrato: AGRUPAR EM CARD PAI VIRTUAL
-        const totalContratoValor = groupCards.reduce(
+        const totalContratoValor = validGroup.reduce(
           (acc, c) => acc + (Number(c.valor_total) || 0),
           0,
         )
@@ -335,7 +350,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
         const diasDesdeCriacao = calcularDiasDesdeCriacao(first.criado_em)
         const temSemana = Boolean(
-          first.semana_planejada_producao && first.semana_planejada_producao.trim() !== '',
+          typeof first.semana_planejada_producao === 'string' &&
+          first.semana_planejada_producao.trim() !== '',
         )
         const aging = obterAgingStatus(diasParaEntrega, temSemana)
 
@@ -343,10 +359,10 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           id: `virtual-${groupKey}`,
           isVirtual: true,
           parent: first,
-          subcards: groupCards,
+          subcards: validGroup,
           pendingSubcards: pendingCards,
           isParentPending: true,
-          totalSubcardsCount: groupCards.length,
+          totalSubcardsCount: validGroup.length,
           totalContratoValor,
           clientName,
           empreendimento,
@@ -365,7 +381,8 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         const diasParaEntrega = dataEntrega ? calcularDiasAteData(dataEntrega) : null
         const diasDesdeCriacao = calcularDiasDesdeCriacao(first.criado_em)
         const temSemana = Boolean(
-          first.semana_planejada_producao && first.semana_planejada_producao.trim() !== '',
+          typeof first.semana_planejada_producao === 'string' &&
+          first.semana_planejada_producao.trim() !== '',
         )
         const aging = obterAgingStatus(diasParaEntrega, temSemana)
 
@@ -470,10 +487,14 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   // Contagem total de cards/subcards pendentes na carteira
   const totalPendentesCount = useMemo(() => {
     let count = 0
+    if (!Array.isArray(hierarchyList)) return 0
     for (const item of hierarchyList) {
+      if (!item) continue
       if (item.isParentPending) count++
       // Contar também subcards pendentes
-      count += item.pendingSubcards.length
+      if (Array.isArray(item.pendingSubcards)) {
+        count += item.pendingSubcards.length
+      }
     }
     return count
   }, [hierarchyList])
@@ -621,7 +642,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
       }}
       onDrop={handleDropToCarteira}
       className={cn(
-        'w-[300px] sm:w-[320px] bg-card border-r border-border flex flex-col h-full shrink-0 select-none transition-all z-20 shadow-xs relative',
+        'w-[300px] sm:w-[320px] bg-card border-r border-border flex flex-col h-full min-h-0 shrink-0 select-none transition-all z-20 shadow-xs relative overflow-hidden',
         isDragOverSidebar &&
           'bg-primary/10 border-2 border-dashed border-primary ring-2 ring-primary ring-inset',
       )}
@@ -747,7 +768,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
         </div>
       </div>
 
-      {/* Lista de Cards Hierárquicos (Accordion Card Pai + Subcards) */}
+      {/* Lista de Cards Hierárquicos (Accordion Card Pai + Subcards) - Rolagem vertical própria e independente */}
       <div
         onDragOver={(e) => {
           e.preventDefault()
@@ -755,7 +776,7 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
           setIsDragOverSidebar(true)
         }}
         onDrop={handleDropToCarteira}
-        className="flex-1 overflow-y-auto p-2.5 space-y-2.5"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-2.5 space-y-2.5 overscroll-contain"
       >
         {filteredHierarchy.length === 0 ? (
           <div className="h-48 flex flex-col items-center justify-center text-center p-4 text-muted-foreground">

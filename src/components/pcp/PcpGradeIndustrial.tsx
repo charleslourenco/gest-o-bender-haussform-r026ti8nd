@@ -185,7 +185,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         if (!matchesSearch(c)) return false
 
         // 1. Se tem data exata igual ao dia na produção
-        if (c.data_planejada_producao && typeof c.data_planejada_producao === 'string') {
+        if (typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim()) {
           const cardDateStr = c.data_planejada_producao.slice(0, 10)
           return cardDateStr === dia.dateStr
         }
@@ -216,7 +216,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         if (!matchesSearch(c)) return false
 
         // Match por data_planejada_producao dentro dos 6 dias
-        if (c.data_planejada_producao && typeof c.data_planejada_producao === 'string') {
+        if (typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim()) {
           const cardDateStr = c.data_planejada_producao.slice(0, 10)
           if (weekDatesSet.has(cardDateStr)) return true
         }
@@ -399,7 +399,7 @@ export const PcpGradeIndustrial: React.FC = () => {
 
   // Contagem de pendentes na carteira (sem data e sem semana de produção, excluindo status de execução/conclusão)
   const unassignedCount = useMemo(() => {
-    if (!cards || cards.length === 0) return 0
+    if (!cards || !Array.isArray(cards) || cards.length === 0) return 0
     const STATUS_EXCLUIDOS = new Set([
       'aguardando_plano_corte',
       'router',
@@ -416,10 +416,15 @@ export const PcpGradeIndustrial: React.FC = () => {
     return cards.filter((c) => {
       if (!c || c.visivel_pcp === false) return false
       if (c.arquivado_producao || c.excluido_producao) return false
-      const temSemana = Boolean(c.semana_planejada_producao?.trim())
-      const temData = Boolean(c.data_planejada_producao?.trim())
+      const temSemana = Boolean(
+        typeof c.semana_planejada_producao === 'string' &&
+        c.semana_planejada_producao.trim() !== '',
+      )
+      const temData = Boolean(
+        typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim() !== '',
+      )
       if (temSemana || temData) return false
-      const st = (c.status_analise || '').toLowerCase().trim()
+      const st = typeof c.status_analise === 'string' ? c.status_analise.toLowerCase().trim() : ''
       if (st && STATUS_EXCLUIDOS.has(st)) return false
       return true
     }).length
@@ -555,7 +560,7 @@ export const PcpGradeIndustrial: React.FC = () => {
       </div>
 
       {/* ÁREA CENTRAL: CARTEIRA LATERAL + GRADE INDUSTRIAL */}
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
+      <div className="flex-1 flex flex-row overflow-hidden min-h-0 h-full relative">
         {/* CARTEIRA LATERAL: CONTROLE VISUAL DE PRAZOS E URGÊNCIA */}
         <PcpCarteiraSidebar
           cards={cards}
@@ -570,7 +575,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         />
 
         {/* 1.2 ESTRUTURA DE COLUNAS (SEMANAS ISO COM 6 DIAS DE TRABALHO: SEG A SÁB) */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto p-3 bg-muted/20">
+        <div className="flex-1 h-full min-w-0 overflow-x-auto overflow-y-auto p-3 bg-muted/20 overscroll-contain">
           <div className="flex flex-col gap-4 min-w-[920px]">
             {semanasFiltradas.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 text-center bg-card rounded-xl border border-dashed border-border">
