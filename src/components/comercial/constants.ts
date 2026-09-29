@@ -371,6 +371,8 @@ export const ORIGENS_LEAD = [
   'Arquiteto',
   'Indicação',
   'Porta',
+  'Inteligência Artificial',
+  'Mídias Físicas',
   'A definir',
   'Bender Conecta',
 ] as const

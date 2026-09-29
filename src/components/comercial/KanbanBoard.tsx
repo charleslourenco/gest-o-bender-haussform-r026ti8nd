@@ -274,6 +274,8 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         <option value="Arquiteto">Arquiteto</option>
         <option value="Indicação">Indicação</option>
         <option value="Porta">Porta</option>
+        <option value="Inteligência Artificial">Inteligência Artificial</option>
+        <option value="Mídias Físicas">Mídias Físicas</option>
         <option value="A definir">A definir</option>
       </select>
       <select

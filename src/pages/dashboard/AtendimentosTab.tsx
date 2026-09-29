@@ -70,6 +70,8 @@ const ORIGIN_COLORS = [
   '#f97316', // porta orange
   '#06b6d4', // arquiteto cyan
   '#3b82f6', // bender conecta blue
+  '#7c3aed', // inteligência artificial violet
+  '#c2410c', // mídias físicas terracotta/amber
   '#64748b', // a definir slate
 ]
 
@@ -83,6 +85,8 @@ const ORIGIN_COLOR_MAP: Record<string, string> = {
   Porta: '#f97316',
   Arquiteto: '#06b6d4',
   'Bender Conecta': '#3b82f6',
+  'Inteligência Artificial': '#7c3aed',
+  'Mídias Físicas': '#c2410c',
   'A definir': '#64748b',
 }
 

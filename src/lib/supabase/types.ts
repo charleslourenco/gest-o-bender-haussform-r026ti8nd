@@ -2046,6 +2046,7 @@ export type Database = {
           atualizado_em: string
           categoria: string
           consultor_id: string | null
+          consultor_id_secundario: string | null
           criado_em: string
           criado_por_nome: string | null
           data_venda: string | null
@@ -2070,6 +2071,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string
           consultor_id?: string | null
+          consultor_id_secundario?: string | null
           criado_em?: string
           criado_por_nome?: string | null
           data_venda?: string | null
@@ -2094,6 +2096,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string
           consultor_id?: string | null
+          consultor_id_secundario?: string | null
           criado_em?: string
           criado_por_nome?: string | null
           data_venda?: string | null
@@ -2117,6 +2120,13 @@ export type Database = {
           {
             foreignKeyName: 'leads_consultor_id_fkey'
             columns: ['consultor_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'leads_consultor_id_secundario_fkey'
+            columns: ['consultor_id_secundario']
             isOneToOne: false
             referencedRelation: 'users'
             referencedColumns: ['id']
