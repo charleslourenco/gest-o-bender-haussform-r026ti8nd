@@ -397,15 +397,31 @@ export const PcpGradeIndustrial: React.FC = () => {
     }
   }
 
-  // Contagem de pendentes na carteira (sem data e sem semana de produção)
+  // Contagem de pendentes na carteira (sem data e sem semana de produção, excluindo status de execução/conclusão)
   const unassignedCount = useMemo(() => {
     if (!cards || cards.length === 0) return 0
+    const STATUS_EXCLUIDOS = new Set([
+      'aguardando_plano_corte',
+      'router',
+      'coladeira',
+      'bancada',
+      'embalagem',
+      'aguardando_agenda',
+      'montagem',
+      'inicio_montagem',
+      'item_terceirizado',
+      'pendencia',
+      'concluido',
+    ])
     return cards.filter((c) => {
       if (!c || c.visivel_pcp === false) return false
       if (c.arquivado_producao || c.excluido_producao) return false
       const temSemana = Boolean(c.semana_planejada_producao?.trim())
       const temData = Boolean(c.data_planejada_producao?.trim())
-      return !temSemana && !temData
+      if (temSemana || temData) return false
+      const st = (c.status_analise || '').toLowerCase().trim()
+      if (st && STATUS_EXCLUIDOS.has(st)) return false
+      return true
     }).length
   }, [cards])
 
