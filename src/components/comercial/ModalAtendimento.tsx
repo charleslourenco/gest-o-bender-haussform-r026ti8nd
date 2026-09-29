@@ -45,8 +45,8 @@ import {
 } from './constants'
 export interface ModalAtendimentoProps {
   lead: Lead | null
-  currentAba: AtendimentoAbaConfig
-  users: Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+  currentAba?: AtendimentoAbaConfig | null
+  users?: Array<{ id: string; nome: string; eh_consultor?: boolean | null }> | null
   open: boolean
   onClose: () => void
   onUpdateLead: (id: string, updates: Partial<Lead>) => Promise<void> | void
@@ -432,11 +432,13 @@ export function ModalAtendimento({
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = Array.isArray(consultorRaw)
     ? consultorRaw[0]?.nome
-    : typeof consultorRaw === 'object' && consultorRaw !== null
+    : typeof consultorRaw === 'object' && consultorRaw !== null && 'nome' in consultorRaw
       ? (consultorRaw as any).nome
       : typeof (lead as any)?.consultor === 'string'
         ? (lead as any).consultor
-        : undefined
+        : lead?.consultor_id
+          ? safeUsers.find((u) => u.id === lead.consultor_id)?.nome
+          : undefined
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 
   return (

@@ -48,7 +48,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercial/constants'
 import { fetchUsers, normalizeLead } from '@/services/comercial'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
-import ModalAtendimento from '@/components/comercial/ModalAtendimento'
+import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
 
 // Origens válidas permitidas para atribuição (exclui 'A definir' para não manter o lead como pendente)
 const ORIGENS_DISPONIVEIS: OrigemLead[] = ORIGENS_LEAD.filter(
@@ -98,7 +98,17 @@ export default function LeadsSemOrigem() {
     fetchUsers()
       .then((data) => {
         if (isMounted) {
-          setUsers(Array.isArray(data) ? data.filter(Boolean) : [])
+          const validUsers = Array.isArray(data)
+            ? data.filter(
+                (u) =>
+                  Boolean(u) &&
+                  typeof u === 'object' &&
+                  Boolean(u.id) &&
+                  typeof u.id === 'string' &&
+                  u.id.trim() !== '',
+              )
+            : []
+          setUsers(validUsers)
         }
       })
       .catch((err) => {
@@ -353,16 +363,28 @@ export default function LeadsSemOrigem() {
   }, [todosComerciais])
 
   // Fila 1: Sem origem (leads com origem nula, vazia, 'whatsapp', 'a definir' ou 'sem origem')
+  // EXCLUI leads finalizados (Vendido/convertido ou Perdido) para focar apenas em leads ativos
   const leadsSemOrigem = useMemo(() => {
     return leadsComAba.filter((lead) => {
+      const statusLower = (lead.status || '').trim().toLowerCase()
+      const isPerdidoOuVendido =
+        statusLower.includes('perdido') || statusLower === 'vendido' || statusLower === 'ganho'
+      if (isPerdidoOuVendido) return false
+
       const orig = (lead.origem || '').trim().toLowerCase()
       return !orig || orig === 'whatsapp' || orig === 'a definir' || orig === 'sem origem'
     })
   }, [leadsComAba])
 
   // Fila 2: Sem consultor — Consultoria (aba 'Lead p/ Consultoria' e consultor_id vazio)
+  // EXCLUI leads finalizados (Vendido/convertido ou Perdido) para focar apenas em pendências ativas
   const leadsSemConsultor = useMemo(() => {
     return leadsComAba.filter((lead) => {
+      const statusLower = (lead.status || '').trim().toLowerCase()
+      const isPerdidoOuVendido =
+        statusLower.includes('perdido') || statusLower === 'vendido' || statusLower === 'ganho'
+      if (isPerdidoOuVendido) return false
+
       const semConsultor = !lead.consultor_id || String(lead.consultor_id).trim() === ''
       const isConsultoria =
         lead.abaConfig?.id === 'lead-consultoria' ||
@@ -699,37 +721,71 @@ export default function LeadsSemOrigem() {
                         {/* Coluna Consultor: Select para atribuir consultor */}
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Select
-                              disabled={isSaving || deletingId === lead.id}
-                              value={lead.consultor_id || 'unassigned'}
-                              onValueChange={(val) =>
-                                handleConsultorChange(lead.id, lead.nome, val)
+                            {(() => {
+                              const currentConsultorId =
+                                lead.consultor_id && String(lead.consultor_id).trim() !== ''
+                                  ? String(lead.consultor_id).trim()
+                                  : 'unassigned'
+
+                              // Consultor atual pode estar inativo ou eh_consultor=false:
+                              // garantir que sempre apareça na lista de opções para não quebrar a seleção
+                              const consultorAtualObj =
+                                currentConsultorId !== 'unassigned'
+                                  ? users.find((u) => u && u.id === currentConsultorId)
+                                  : null
+
+                              // Lista filtrada com consultores ativos/marcados como eh_consultor
+                              const consultoresFiltrados = users.filter((u) => {
+                                if (!u || !u.id || typeof u.id !== 'string' || u.id.trim() === '')
+                                  return false
+                                return Boolean(u.eh_consultor)
+                              })
+
+                              // União: garantir que o consultor JÁ ATRIBUÍDO ao lead apareça sempre
+                              // mesmo se eh_consultor for false ou se ele estiver inativo/não listado
+                              const consultoresDisponiveis = [...consultoresFiltrados]
+                              if (
+                                currentConsultorId !== 'unassigned' &&
+                                !consultoresDisponiveis.some((u) => u.id === currentConsultorId)
+                              ) {
+                                consultoresDisponiveis.unshift({
+                                  id: currentConsultorId,
+                                  nome:
+                                    consultorAtualObj?.nome ||
+                                    (lead as any)?.consultor?.nome ||
+                                    (lead as any)?.criado_por_nome ||
+                                    'Consultor atribuído',
+                                  eh_consultor: false,
+                                })
                               }
-                            >
-                              <SelectTrigger className="h-8 text-xs w-[170px]">
-                                <SelectValue placeholder="Sem consultor..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem
-                                  value="unassigned"
-                                  className="text-xs text-muted-foreground"
+
+                              return (
+                                <Select
+                                  disabled={isSaving || deletingId === lead.id}
+                                  value={currentConsultorId}
+                                  onValueChange={(val) =>
+                                    handleConsultorChange(lead.id, lead.nome, val)
+                                  }
                                 >
-                                  Sem consultor...
-                                </SelectItem>
-                                {users
-                                  .filter((u) => {
-                                    if (!u || !u.id) return false
-                                    if (u.eh_consultor) return true
-                                    if (lead.consultor_id && u.id === lead.consultor_id) return true
-                                    return false
-                                  })
-                                  .map((u) => (
-                                    <SelectItem key={u.id} value={u.id} className="text-xs">
-                                      {u.nome}
+                                  <SelectTrigger className="h-8 text-xs w-[170px]">
+                                    <SelectValue placeholder="Sem consultor..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem
+                                      value="unassigned"
+                                      className="text-xs text-muted-foreground"
+                                    >
+                                      Sem consultor...
                                     </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                                    {consultoresDisponiveis.map((u) => (
+                                      <SelectItem key={u.id} value={u.id} className="text-xs">
+                                        {u.nome || u.id}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )
+                            })()}
                             {isSaving && (
                               <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
                             )}
@@ -842,6 +898,19 @@ export default function LeadsSemOrigem() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Detalhes do Atendimento */}
+      {selectedLeadModal && (
+        <ModalAtendimento
+          key={selectedLeadModal.id}
+          lead={selectedLeadModal}
+          currentAba={selectedLeadModal.abaConfig || getLeadAba(selectedLeadModal)}
+          users={users || []}
+          open={Boolean(selectedLeadModal)}
+          onClose={() => setSelectedLeadModal(null)}
+          onUpdateLead={(id, updates) => handleModalUpdateLead(id, updates)}
+        />
+      )}
     </div>
   )
 }

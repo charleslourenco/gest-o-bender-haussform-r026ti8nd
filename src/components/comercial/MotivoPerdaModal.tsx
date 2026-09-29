@@ -71,7 +71,6 @@ export function MotivoPerdaModal({
       setError('Selecione obrigatoriamente o motivo da perda.')
       return
     }
-
     if (isOutro && !outroTexto.trim()) {
       setError('Descreva o motivo da perda no campo de texto.')
       return

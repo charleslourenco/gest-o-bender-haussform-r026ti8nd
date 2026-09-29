@@ -779,10 +779,13 @@ export function KanbanAtendimentos({
     const { lead, targetStatus, targetAbaId, targetCategoria } = pendingPerda
 
     try {
+      // Regra permanente: leads perdidos DEVEM manter o consultor atribuído
+      // (a taxa de conversão por consultor depende disso; nunca enviar null / nunca limpar consultor_id)
       const updates: Partial<Lead> = {
         status: targetStatus,
         motivo_perda,
         etapa_perda,
+        ...(lead.consultor_id ? { consultor_id: lead.consultor_id } : {}),
       }
 
       if (targetCategoria) {
