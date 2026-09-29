@@ -23,8 +23,11 @@ import {
   HelpCircle,
   CheckCircle2,
   XCircle,
+  Plus,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { AppUser } from '@/types/user'
+import { CadastrarExColaboradorDialog } from './CadastrarExColaboradorDialog'
 
 interface ExColaboradorItem extends AppUser {
   leadsCount: number
@@ -41,6 +44,7 @@ export function ListaExColaboradores() {
   const [search, setSearch] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [filterMode, setFilterMode] = useState<'all' | 'consultores' | 'com_leads'>('all')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   const fetchData = async () => {
     setLoading(true)
@@ -268,12 +272,26 @@ export function ListaExColaboradores() {
           </div>
         </div>
 
-        {!canManage && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs shrink-0">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span>Modo visualização (apenas Admin pode alterar)</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {!canManage && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
+              <ShieldAlert className="w-4 h-4 shrink-0" />
+              <span>Modo visualização (apenas Admin pode alterar)</span>
+            </div>
+          )}
+
+          {canManage && (
+            <Button
+              size="sm"
+              onClick={() => setIsCreateOpen(true)}
+              className="h-8 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm"
+              title="Cadastrar ex-colaborador manualmente"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Cadastrar Ex Colaborador</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Controles de busca e filtros rápidos */}
@@ -532,6 +550,13 @@ export function ListaExColaboradores() {
           {filteredUsers.length} de {users.length} usuários
         </span>
       </div>
+
+      {/* Dialog para Cadastrar Ex-Colaborador */}
+      <CadastrarExColaboradorDialog
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={fetchData}
+      />
     </div>
   )
 }

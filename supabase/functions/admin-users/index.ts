@@ -60,15 +60,23 @@ Deno.serve(async (req: Request) => {
       if (createError) throw createError
 
       // The trigger on_auth_user_created fires. We can just update it with additional fields safely.
+      const updatePayload: Record<string, any> = {
+        nome: userData.nome,
+        telefone: userData.telefone,
+        funcao: userData.funcao,
+        status: typeof userData.status === 'boolean' ? userData.status : true,
+        foto_perfil: userData.foto_perfil,
+      }
+      if (typeof userData.ex_colaborador === 'boolean') {
+        updatePayload.ex_colaborador = userData.ex_colaborador
+      }
+      if (typeof userData.eh_consultor === 'boolean') {
+        updatePayload.eh_consultor = userData.eh_consultor
+      }
+
       const { error: updateError } = await supabaseAdmin
         .from('users')
-        .update({
-          nome: userData.nome,
-          telefone: userData.telefone,
-          funcao: userData.funcao,
-          status: userData.status,
-          foto_perfil: userData.foto_perfil,
-        })
+        .update(updatePayload)
         .eq('id', newAuthUser.user.id)
 
       if (updateError) throw updateError
