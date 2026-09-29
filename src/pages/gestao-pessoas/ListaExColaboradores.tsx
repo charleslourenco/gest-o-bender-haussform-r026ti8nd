@@ -21,7 +21,6 @@ import {
   ShieldAlert,
   Briefcase,
   HelpCircle,
-  AlertCircle,
   CheckCircle2,
   XCircle,
 } from 'lucide-react'

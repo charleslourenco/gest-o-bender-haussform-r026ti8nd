@@ -3233,6 +3233,7 @@ export type Database = {
           criado_em: string
           eh_consultor: boolean | null
           email: string
+          ex_colaborador: boolean | null
           foto_perfil: string | null
           funcao: string | null
           id: string
@@ -3245,6 +3246,7 @@ export type Database = {
           criado_em?: string
           eh_consultor?: boolean | null
           email: string
+          ex_colaborador?: boolean | null
           foto_perfil?: string | null
           funcao?: string | null
           id: string
@@ -3257,6 +3259,7 @@ export type Database = {
           criado_em?: string
           eh_consultor?: boolean | null
           email?: string
+          ex_colaborador?: boolean | null
           foto_perfil?: string | null
           funcao?: string | null
           id?: string
