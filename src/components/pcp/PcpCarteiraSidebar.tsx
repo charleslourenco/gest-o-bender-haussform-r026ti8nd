@@ -177,15 +177,18 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
     }
 
     const temAgendaAnalise = Boolean(
-      (typeof c.semana_planejada_analise === 'string' && c.semana_planejada_analise.trim() !== '') ||
+      (typeof c.semana_planejada_analise === 'string' &&
+        c.semana_planejada_analise.trim() !== '') ||
       (typeof c.data_planejada_analise === 'string' && c.data_planejada_analise.trim() !== ''),
     )
     const temAgendaProducao = Boolean(
-      (typeof c.semana_planejada_producao === 'string' && c.semana_planejada_producao.trim() !== '') ||
+      (typeof c.semana_planejada_producao === 'string' &&
+        c.semana_planejada_producao.trim() !== '') ||
       (typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim() !== ''),
     )
     const temAgendaMontagem = Boolean(
-      (typeof c.semana_planejada_montagem === 'string' && c.semana_planejada_montagem.trim() !== '') ||
+      (typeof c.semana_planejada_montagem === 'string' &&
+        c.semana_planejada_montagem.trim() !== '') ||
       (typeof c.data_planejada_montagem === 'string' && c.data_planejada_montagem.trim() !== ''),
     )
 

@@ -3,6 +3,7 @@ import { UsersRound } from 'lucide-react'
 import { ListaCLT } from './gestao-pessoas/ListaCLT'
 import { ListaPJ } from './gestao-pessoas/ListaPJ'
 import { ListaFornecedores } from './gestao-pessoas/ListaFornecedores'
+import { ListaConsultores } from './gestao-pessoas/ListaConsultores'
 import { useParams } from 'react-router-dom'
 import { PastaCLT } from './gestao-pessoas/PastaCLT'
 import { PastaPJ } from './gestao-pessoas/PastaPJ'
@@ -46,6 +47,12 @@ export default function GestaoPessoas() {
               >
                 Fornecedores
               </TabsTrigger>
+              <TabsTrigger
+                value="consultores"
+                className="data-[state=active]:bg-off-white/20 data-[state=active]:text-off-white text-off-white"
+              >
+                Consultores
+              </TabsTrigger>
             </TabsList>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 whitespace-nowrap"></div>
@@ -68,6 +75,12 @@ export default function GestaoPessoas() {
           className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
         >
           <ListaFornecedores />
+        </TabsContent>
+        <TabsContent
+          value="consultores"
+          className="m-0 flex-1 data-[state=inactive]:hidden flex-col flex min-h-0"
+        >
+          <ListaConsultores />
         </TabsContent>
       </Tabs>
     </div>

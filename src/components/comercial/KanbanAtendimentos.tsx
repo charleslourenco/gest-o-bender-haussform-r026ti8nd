@@ -77,7 +77,9 @@ export function KanbanAtendimentos({
   }, [aba])
 
   const [leads, setLeads] = useState<Lead[]>([])
-  const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+  const [users, setUsers] = useState<
+    Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+  >([])
   const [loading, setLoading] = useState(true)
 
   // Unread badge counts per lead
@@ -119,7 +121,7 @@ export function KanbanAtendimentos({
   const scrollRef = useRef<HTMLDivElement>(null)
   const leadsRef = useRef<Lead[]>([])
   leadsRef.current = leads
-  const usersRef = useRef<Array<{ id: string; nome: string }>>([])
+  const usersRef = useRef<Array<{ id: string; nome: string; eh_consultor?: boolean | null }>>([])
   usersRef.current = users
 
   // Limpar contagem de não lidas e pendência quando abrir o modal de conversa

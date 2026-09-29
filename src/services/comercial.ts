@@ -151,13 +151,28 @@ export const fetchLeadById = async (id: string) => {
   return data ? normalizeLead(data) : null
 }
 
-export const fetchUsers = async () => {
-  const { data, error } = await supabase.from('users').select('id, nome').eq('status', true)
+export interface ComercialUserOption {
+  id: string
+  nome: string
+  foto_perfil?: string | null
+  eh_consultor?: boolean | null
+}
+
+export const fetchUsers = async (): Promise<ComercialUserOption[]> => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nome, foto_perfil, eh_consultor')
+    .eq('status', true)
   if (error) throw error
   return Array.isArray(data)
     ? data
         .filter((u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '')
-        .map((u) => ({ id: u.id.trim(), nome: (u.nome || u.id).trim() }))
+        .map((u) => ({
+          id: u.id.trim(),
+          nome: (u.nome || u.id).trim(),
+          foto_perfil: u.foto_perfil ?? null,
+          eh_consultor: Boolean(u.eh_consultor),
+        }))
     : []
 }
 

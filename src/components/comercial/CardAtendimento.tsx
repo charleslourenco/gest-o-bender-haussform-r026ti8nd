@@ -48,7 +48,7 @@ import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-uti
 export interface CardAtendimentoProps {
   lead: Lead
   currentAba: AtendimentoAbaConfig
-  users: Array<{ id: string; nome: string }>
+  users: Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
   isDragging?: boolean
   unreadCount?: number
   isPending?: boolean
@@ -311,10 +311,18 @@ function CardAtendimentoComponent({
 
   const safeUsers = useMemo(() => {
     if (!Array.isArray(users)) return []
-    return users.filter(
+    const validUsers = users.filter(
       (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
     )
-  }, [users])
+    // Filtro CRM: listar apenas quem tem eh_consultor=true
+    // PROTEÇÃO OBRIGATÓRIA: se o lead já tem consultor_id atribuído a um usuário que perdeu a função,
+    // o nome dele continua aparecendo naquele lead/dropdown (adicionar consultor_id atual mesmo se eh_consultor=false)
+    return validUsers.filter((u) => {
+      if (u.eh_consultor) return true
+      if (lead?.consultor_id && u.id === lead.consultor_id) return true
+      return false
+    })
+  }, [users, lead?.consultor_id])
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {

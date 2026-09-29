@@ -46,7 +46,7 @@ import {
 export interface ModalAtendimentoProps {
   lead: Lead | null
   currentAba: AtendimentoAbaConfig
-  users: Array<{ id: string; nome: string }>
+  users: Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
   open: boolean
   onClose: () => void
   onUpdateLead: (id: string, updates: Partial<Lead>) => Promise<void> | void

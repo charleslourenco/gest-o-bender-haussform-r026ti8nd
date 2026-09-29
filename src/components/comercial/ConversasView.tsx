@@ -64,6 +64,7 @@ interface Lead {
 interface User {
   id: string
   nome: string
+  eh_consultor?: boolean | null
 }
 
 interface ConversasViewProps {
@@ -875,13 +876,25 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
                     <SelectItem value="unassigned">Não designado</SelectItem>
                     {Array.isArray(users) &&
                       users
-                        .filter(
-                          (u) =>
-                            u &&
-                            typeof u === 'object' &&
-                            typeof u.id === 'string' &&
-                            u.id.trim() !== '',
-                        )
+                        .filter((u) => {
+                          if (
+                            !u ||
+                            typeof u !== 'object' ||
+                            typeof u.id !== 'string' ||
+                            !u.id.trim()
+                          ) {
+                            return false
+                          }
+                          // Filtro CRM: apenas eh_consultor=true, preservando o consultor atual do lead mesmo se false
+                          if (u.eh_consultor) return true
+                          if (
+                            selectedLead.consultor_id &&
+                            u.id.trim() === selectedLead.consultor_id.trim()
+                          ) {
+                            return true
+                          }
+                          return false
+                        })
                         .map((u) => (
                           <SelectItem key={u.id.trim()} value={u.id.trim()}>
                             {u.nome || u.id}

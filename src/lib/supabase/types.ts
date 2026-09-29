@@ -3221,6 +3221,7 @@ export type Database = {
         Row: {
           atualizado_em: string
           criado_em: string
+          eh_consultor: boolean | null
           email: string
           foto_perfil: string | null
           funcao: string | null
@@ -3232,6 +3233,7 @@ export type Database = {
         Insert: {
           atualizado_em?: string
           criado_em?: string
+          eh_consultor?: boolean | null
           email: string
           foto_perfil?: string | null
           funcao?: string | null
@@ -3243,6 +3245,7 @@ export type Database = {
         Update: {
           atualizado_em?: string
           criado_em?: string
+          eh_consultor?: boolean | null
           email?: string
           foto_perfil?: string | null
           funcao?: string | null

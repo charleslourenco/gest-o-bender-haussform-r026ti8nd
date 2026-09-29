@@ -289,11 +289,18 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                   className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 cursor-pointer"
                 >
                   <option value="">Selecione...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nome}
-                    </option>
-                  ))}
+                  {users
+                    .filter((u) => {
+                      if (!u || !u.id) return false
+                      if (u.eh_consultor) return true
+                      if (lead?.consultor_id && u.id === lead.consultor_id) return true
+                      return false
+                    })
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nome}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div>

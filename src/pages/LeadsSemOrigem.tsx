@@ -84,7 +84,9 @@ export default function LeadsSemOrigem() {
   const [activeFila, setActiveFila] = useState<FilaView>(initialFila)
 
   // Usuários para atribuição de consultores e ModalAtendimento
-  const [users, setUsers] = useState<Array<{ id: string; nome: string }>>([])
+  const [users, setUsers] = useState<
+    Array<{ id: string; nome: string; eh_consultor?: boolean | null }>
+  >([])
 
   // Estado para o ModalAtendimento
   const [selectedLeadModal, setSelectedLeadModal] = useState<any | null>(null)
@@ -714,11 +716,18 @@ export default function LeadsSemOrigem() {
                                 >
                                   Sem consultor...
                                 </SelectItem>
-                                {users.map((u) => (
-                                  <SelectItem key={u.id} value={u.id} className="text-xs">
-                                    {u.nome}
-                                  </SelectItem>
-                                ))}
+                                {users
+                                  .filter((u) => {
+                                    if (!u || !u.id) return false
+                                    if (u.eh_consultor) return true
+                                    if (lead.consultor_id && u.id === lead.consultor_id) return true
+                                    return false
+                                  })
+                                  .map((u) => (
+                                    <SelectItem key={u.id} value={u.id} className="text-xs">
+                                      {u.nome}
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                             {isSaving && (
