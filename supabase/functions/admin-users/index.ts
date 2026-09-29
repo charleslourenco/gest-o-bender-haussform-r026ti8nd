@@ -34,15 +34,19 @@ Deno.serve(async (req: Request) => {
     } = await supabase.auth.getUser()
     if (callerError || !caller) throw new Error('Não autorizado')
 
-    // Check caller permissions in Matriz
-    const { data: perm, error: permError } = await supabaseAdmin
+    // Check caller permissions in Matriz (Usuários or Gestão de Pessoas)
+    const { data: perms, error: permError } = await supabaseAdmin
       .from('matriz_permissoes')
-      .select('nivel_acesso')
+      .select('modulo, nivel_acesso')
       .eq('usuario_id', caller.id)
-      .eq('modulo', 'Usuários')
-      .single()
+      .in('modulo', ['Usuários', 'Gestão de Pessoas'])
 
-    if (permError || !perm || !['Admin', 'Editor'].includes(perm.nivel_acesso)) {
+    const hasAccess =
+      !permError &&
+      Array.isArray(perms) &&
+      perms.some((p) => ['Admin', 'Editor'].includes(p.nivel_acesso))
+
+    if (!hasAccess) {
       throw new Error('Permissão negada')
     }
 
