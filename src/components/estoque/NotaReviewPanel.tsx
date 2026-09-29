@@ -450,10 +450,11 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
       toast({
         title: 'Revisão gravada com sucesso!',
-        description: `Total atualizado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalculatedTotal)} com ${mergedItens.length} itens.`,
+        description: `Total atualizado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalculatedTotal)} com ${finalItens.length} itens.`,
       })
-      setDraftItens(mergedItens)
+      setDraftItens(finalItens)
       setHasChanges(false)
+      setEditingMatchedIdx(null)
       onResolved()
     } catch (e: any) {
       toast({
