@@ -270,6 +270,11 @@ function CardAtendimentoComponent({
     await onUpdateLead(lead.id, { consultor_id: val })
   }
 
+  const handleSecundarioChange = async (userId: string) => {
+    const val = userId === 'unassigned' ? null : userId
+    await onUpdateLead(lead.id, { consultor_id_secundario: val } as any)
+  }
+
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = useMemo(() => {
     try {
@@ -300,6 +305,38 @@ function CardAtendimentoComponent({
     return undefined
   }, [consultorRaw, lead?.consultor_id, users])
 
+  const consultorSecundarioRaw = (lead as any)?.consultor_secundario
+  const consultorSecundarioNome = useMemo(() => {
+    try {
+      if (Array.isArray(consultorSecundarioRaw)) {
+        const first = consultorSecundarioRaw[0]
+        if (first && typeof first === 'object' && typeof first.nome === 'string') {
+          return first.nome.trim() || undefined
+        }
+        if (typeof first === 'string' && first.trim()) return first.trim()
+      } else if (consultorSecundarioRaw && typeof consultorSecundarioRaw === 'object') {
+        if (
+          typeof (consultorSecundarioRaw as any).nome === 'string' &&
+          (consultorSecundarioRaw as any).nome.trim()
+        ) {
+          return (consultorSecundarioRaw as any).nome.trim()
+        }
+      } else if (typeof consultorSecundarioRaw === 'string' && consultorSecundarioRaw.trim()) {
+        return consultorSecundarioRaw.trim()
+      }
+
+      if (lead?.consultor_id_secundario && Array.isArray(users)) {
+        const u = users.find(
+          (user) => user && typeof user.id === 'string' && user.id === lead.consultor_id_secundario,
+        )
+        if (typeof u?.nome === 'string' && u.nome.trim()) return u.nome.trim()
+      }
+    } catch {
+      return undefined
+    }
+    return undefined
+  }, [consultorSecundarioRaw, lead?.consultor_id_secundario, users])
+
   const leadStatus = typeof lead?.status === 'string' ? lead.status : ''
   const safeCurrentAbaId = currentAba?.id || ''
   const isEncaminhado =
@@ -314,15 +351,49 @@ function CardAtendimentoComponent({
     const validUsers = users.filter(
       (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
     )
-    // Filtro CRM: listar apenas quem tem eh_consultor=true
-    // PROTEÇÃO OBRIGATÓRIA: se o lead já tem consultor_id atribuído a um usuário que perdeu a função,
-    // o nome dele continua aparecendo naquele lead/dropdown (adicionar consultor_id atual mesmo se eh_consultor=false)
-    return validUsers.filter((u) => {
+    const list = validUsers.filter((u) => {
       if (u.eh_consultor) return true
       if (lead?.consultor_id && u.id === lead.consultor_id) return true
       return false
     })
-  }, [users, lead?.consultor_id])
+
+    // Se o consultor atribuído não está na lista (inativo ou inexistente em users), injeta como opção
+    const currentId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
+    if (currentId && !list.some((u) => u.id === currentId)) {
+      list.push({
+        id: currentId,
+        nome: consultorNome || 'Responsável anterior',
+        eh_consultor: false,
+      })
+    }
+    return list
+  }, [users, lead?.consultor_id, consultorNome])
+
+  const safeUsersSecundario = useMemo(() => {
+    if (!Array.isArray(users)) return []
+    const validUsers = users.filter(
+      (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
+    )
+    const mainId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
+    const secId = lead?.consultor_id_secundario ? String(lead.consultor_id_secundario).trim() : null
+
+    // Consultores ativos excluindo o principal (u.id !== lead.consultor_id)
+    const list = validUsers.filter((u) => {
+      if (mainId && u.id === mainId) return false
+      if (u.eh_consultor) return true
+      if (secId && u.id === secId) return true
+      return false
+    })
+
+    if (secId && !list.some((u) => u.id === secId)) {
+      list.push({
+        id: secId,
+        nome: consultorSecundarioNome || '2º Responsável anterior',
+        eh_consultor: false,
+      })
+    }
+    return list
+  }, [users, lead?.consultor_id, lead?.consultor_id_secundario, consultorSecundarioNome])
 
   // Cores de prioridade
   const getPriorityBadge = (p?: 'Alta' | 'Média' | 'Baixa') => {
@@ -959,9 +1030,7 @@ function CardAtendimentoComponent({
                       : 'bg-[#FFFFFF] dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]',
                   )}
                 >
-                  <SelectValue placeholder="Prioridade">
-                    {getPriorityBadge(meta.prioridade)}
-                  </SelectValue>
+                  <SelectValue placeholder="Prioridade" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
                   <SelectItem value="unassigned">Sem prioridade</SelectItem>
@@ -1085,12 +1154,12 @@ function CardAtendimentoComponent({
       {/* Seção inferior do Card: Responsável (Consultor) */}
       <div
         className={cn(
-          'pt-2 border-t',
+          'pt-2 border-t space-y-1.5',
           isNovoContato ? 'border-white/20' : 'border-solid border-[#E5E7EB] dark:border-[#3A3A3A]',
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Dropdown de Responsável */}
+        {/* Dropdown de Responsável Principal */}
         <div className="flex items-center gap-1.5">
           <User
             className={cn(
@@ -1098,7 +1167,10 @@ function CardAtendimentoComponent({
               isNovoContato ? 'text-[#FFFFFF]' : 'text-[#6B7280] dark:text-[#8B949E]',
             )}
           />
-          <Select value={lead.consultor_id || 'unassigned'} onValueChange={handleResponsavelChange}>
+          <Select
+            value={lead.consultor_id ? String(lead.consultor_id).trim() : 'unassigned'}
+            onValueChange={handleResponsavelChange}
+          >
             <SelectTrigger
               className={cn(
                 'h-7 text-[13px] w-full font-normal',
@@ -1107,9 +1179,7 @@ function CardAtendimentoComponent({
                   : 'bg-[#F9FAFB] dark:bg-[#252525] border-solid border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3] hover:border-[#D1D5DB] dark:hover:border-[#4A4A4A]',
               )}
             >
-              <SelectValue placeholder="Designar responsável...">
-                {consultorNome || 'Sem responsável'}
-              </SelectValue>
+              <SelectValue placeholder="Designar responsável..." />
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
               <SelectItem value="unassigned">Sem responsável</SelectItem>
@@ -1120,6 +1190,54 @@ function CardAtendimentoComponent({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Segundo Responsável (Vendas em dupla) */}
+        <div className="flex items-center justify-between pl-5 text-[11px]">
+          {lead.consultor_id_secundario ? (
+            <div
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium max-w-full',
+                isNovoContato
+                  ? 'bg-white/20 border-white/30 text-white'
+                  : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-300',
+              )}
+            >
+              <span className="opacity-70 font-semibold shrink-0">2º:</span>
+              <span className="truncate">{consultorSecundarioNome || 'Segundo responsável'}</span>
+              <button
+                type="button"
+                onClick={() => handleSecundarioChange('unassigned')}
+                className="ml-0.5 hover:opacity-80 rounded-full p-0.5"
+                title="Remover segundo responsável"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <Select value="unassigned" onValueChange={handleSecundarioChange}>
+              <SelectTrigger
+                className={cn(
+                  'h-6 text-[11px] w-auto border-dashed px-2 py-0 font-medium',
+                  isNovoContato
+                    ? 'border-white/40 text-white hover:bg-white/10'
+                    : 'border-[#D1D5DB] dark:border-[#4A4A4A] text-[#6B7280] dark:text-[#8B949E] hover:text-[#111827] dark:hover:text-[#E6EDF3] bg-transparent',
+                )}
+              >
+                <span>+ Responsável</span>
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-[#1E1E1E] border-[#E5E7EB] dark:border-[#3A3A3A] text-[#111827] dark:text-[#E6EDF3]">
+                <SelectItem value="unassigned" className="text-xs">
+                  Nenhum / Remover
+                </SelectItem>
+                {safeUsersSecundario.map((u) => (
+                  <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
+                    {u.nome || u.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </div>
       {/* Footer do Card: Data e Tempo no estágio */}
@@ -1175,6 +1293,24 @@ function getSafeConsultorNome(l: Record<string, any> | undefined): string {
   return ''
 }
 
+function getSafeConsultorSecundarioNome(l: Record<string, any> | undefined): string {
+  if (!l || typeof l !== 'object') return ''
+  const c = l.consultor_secundario
+  if (Array.isArray(c)) {
+    const first = c[0]
+    if (first && typeof first === 'object' && typeof first.nome === 'string')
+      return first.nome.trim()
+    if (typeof first === 'string') return first.trim()
+    return ''
+  }
+  if (c && typeof c === 'object') {
+    if (typeof c.nome === 'string') return c.nome.trim()
+    return ''
+  }
+  if (typeof c === 'string') return c.trim()
+  return ''
+}
+
 function areCardPropsEqual(
   prevProps: CardAtendimentoProps,
   nextProps: CardAtendimentoProps,
@@ -1203,6 +1339,7 @@ function areCardPropsEqual(
       prevLead.origem === nextLead.origem &&
       prevLead.origem_pessoa === nextLead.origem_pessoa &&
       prevLead.consultor_id === nextLead.consultor_id &&
+      prevLead.consultor_id_secundario === nextLead.consultor_id_secundario &&
       prevLead.status === nextLead.status &&
       prevLead.categoria === nextLead.categoria &&
       prevLead.notas_pessoais === nextLead.notas_pessoais &&
@@ -1210,7 +1347,8 @@ function areCardPropsEqual(
       prevLead.criado_em === nextLead.criado_em &&
       prevLead.motivo_perda === nextLead.motivo_perda &&
       prevLead.etapa_perda === nextLead.etapa_perda &&
-      getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead)
+      getSafeConsultorNome(prevLead) === getSafeConsultorNome(nextLead) &&
+      getSafeConsultorSecundarioNome(prevLead) === getSafeConsultorSecundarioNome(nextLead)
     )
   } catch {
     return false

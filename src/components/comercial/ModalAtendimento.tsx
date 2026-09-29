@@ -92,6 +92,34 @@ export function ModalAtendimento({
       (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
     )
   }, [users])
+
+  const consultorOptions = useMemo(() => {
+    const list = safeUsers.filter((u) => {
+      if (u.eh_consultor) return true
+      if (lead?.consultor_id && u.id === lead.consultor_id) return true
+      return false
+    })
+    const curId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
+    if (curId && !list.some((u) => u.id === curId)) {
+      list.push({ id: curId, nome: 'Responsável anterior', eh_consultor: false })
+    }
+    return list
+  }, [safeUsers, lead?.consultor_id])
+
+  const consultorSecundarioOptions = useMemo(() => {
+    const mainId = lead?.consultor_id ? String(lead.consultor_id).trim() : null
+    const secId = lead?.consultor_id_secundario ? String(lead.consultor_id_secundario).trim() : null
+    const list = safeUsers.filter((u) => {
+      if (mainId && u.id === mainId) return false
+      if (u.eh_consultor) return true
+      if (secId && u.id === secId) return true
+      return false
+    })
+    if (secId && !list.some((u) => u.id === secId)) {
+      list.push({ id: secId, nome: '2º Responsável anterior', eh_consultor: false })
+    }
+    return list
+  }, [safeUsers, lead?.consultor_id, lead?.consultor_id_secundario])
   // Notas e Notas Pessoais
   const [notasIa, setNotasIa] = useState('')
   const [notasPessoaisClean, setNotasPessoaisClean] = useState('')
@@ -439,7 +467,43 @@ export function ModalAtendimento({
         : lead?.consultor_id
           ? safeUsers.find((u) => u.id === lead.consultor_id)?.nome
           : undefined
+
+  const consultorSecundarioRaw = (lead as any)?.consultor_secundario
+  const consultorSecundarioNome = Array.isArray(consultorSecundarioRaw)
+    ? consultorSecundarioRaw[0]?.nome
+    : typeof consultorSecundarioRaw === 'object' &&
+        consultorSecundarioRaw !== null &&
+        'nome' in consultorSecundarioRaw
+      ? (consultorSecundarioRaw as any).nome
+      : typeof (lead as any)?.consultor_secundario === 'string'
+        ? (lead as any).consultor_secundario
+        : lead?.consultor_id_secundario
+          ? safeUsers.find((u) => u.id === lead.consultor_id_secundario)?.nome
+          : undefined
+
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
+
+  const handleConsultorChange = async (val: string) => {
+    if (!lead) return
+    const newId = val === 'unassigned' ? null : val
+    try {
+      await onUpdateLead(lead.id, { consultor_id: newId } as any)
+      toast.success('Responsável atualizado!')
+    } catch (err: any) {
+      toast.error('Erro ao atualizar responsável: ' + (err.message || 'Falha'))
+    }
+  }
+
+  const handleConsultorSecundarioChange = async (val: string) => {
+    if (!lead) return
+    const newId = val === 'unassigned' ? null : val
+    try {
+      await onUpdateLead(lead.id, { consultor_id_secundario: newId } as any)
+      toast.success('Segundo responsável atualizado!')
+    } catch (err: any) {
+      toast.error('Erro ao atualizar segundo responsável: ' + (err.message || 'Falha'))
+    }
+  }
 
   return (
     <ErrorBoundary fallback={null} source={`ModalAtendimentoRoot-${lead?.id}`}>
@@ -472,11 +536,60 @@ export function ModalAtendimento({
                   <Phone className="w-3.5 h-3.5 text-primary" />
                   <strong className="font-mono text-foreground">{lead.telefone || 'Nenhum'}</strong>
                 </span>
-                <span className="flex items-center gap-1">
-                  <UserIcon className="w-3.5 h-3.5" />
-                  <span>Responsável: </span>
-                  <strong className="text-foreground">{consultorNome || 'Não atribuído'}</strong>
-                </span>
+                <div className="flex items-center gap-1.5 py-0.5">
+                  <UserIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="shrink-0 font-medium text-muted-foreground">Responsável:</span>
+                  <div className="w-40">
+                    <Select
+                      value={lead.consultor_id ? String(lead.consultor_id).trim() : 'unassigned'}
+                      onValueChange={handleConsultorChange}
+                    >
+                      <SelectTrigger className="h-7 text-xs bg-background/80 px-2 py-0">
+                        <SelectValue placeholder="Designar..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned" className="text-xs">
+                          Não atribuído
+                        </SelectItem>
+                        {consultorOptions.map((u) => (
+                          <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
+                            {u.nome || u.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 py-0.5">
+                  <span className="shrink-0 font-medium text-muted-foreground">
+                    2º Responsável:
+                  </span>
+                  <div className="w-40">
+                    <Select
+                      value={
+                        lead.consultor_id_secundario
+                          ? String(lead.consultor_id_secundario).trim()
+                          : 'unassigned'
+                      }
+                      onValueChange={handleConsultorSecundarioChange}
+                    >
+                      <SelectTrigger className="h-7 text-xs bg-background/80 px-2 py-0">
+                        <SelectValue placeholder="Nenhum" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned" className="text-xs">
+                          Nenhum / Remover
+                        </SelectItem>
+                        {consultorSecundarioOptions.map((u) => (
+                          <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
+                            {u.nome || u.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="flex items-center gap-1.5 py-0.5">
                   <span className="shrink-0 font-medium text-muted-foreground">Origem:</span>
                   <div className="w-36">

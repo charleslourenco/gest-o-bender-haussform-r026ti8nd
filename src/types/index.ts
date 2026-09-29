@@ -19,12 +19,14 @@ export interface Lead {
   origem: string
   origem_pessoa?: string | null
   consultor_id: string | null
+  consultor_id_secundario?: string | null
   status: string
   notas: string | null
   ordem: number
   criado_em: string
   criado_por_nome?: string | null
-  consultor?: { nome: string } | null
+  consultor?: { id?: string; nome?: string } | null
+  consultor_secundario?: { id?: string; nome?: string } | null
   kanban_ativo?: boolean
   categoria?: string
   status_atendimento?: string

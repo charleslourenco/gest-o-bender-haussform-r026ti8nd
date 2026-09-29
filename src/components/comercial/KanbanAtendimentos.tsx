@@ -1085,10 +1085,15 @@ export function KanbanAtendimentos({
           {Array.isArray(users) &&
             users
               .filter(
-                (u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '',
+                (u) =>
+                  u &&
+                  typeof u === 'object' &&
+                  typeof u.id === 'string' &&
+                  u.id.trim() !== '' &&
+                  u.eh_consultor,
               )
               .map((u) => (
-                <SelectItem key={u.id} value={u.id.trim()} className="text-xs">
+                <SelectItem key={u.id.trim()} value={u.id.trim()} className="text-xs">
                   {u.nome || u.id}
                 </SelectItem>
               ))}

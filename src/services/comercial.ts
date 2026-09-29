@@ -1,10 +1,12 @@
 import { supabase } from '@/lib/supabase/client'
 import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
+import type { Lead } from '@/types'
+export type { Lead }
 
 // Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
 export const KANBAN_LEAD_COLUMNS =
-  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(nome)'
+  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, consultor_id_secundario, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(id, nome), consultor_secundario:users!leads_consultor_id_secundario_fkey(id, nome)'
 
 /**
  * Normaliza e sanitiza um lead bruto vindo do banco ou realtime.
@@ -20,6 +22,7 @@ export function normalizeLead(raw: any) {
       origem: 'A definir',
       origem_pessoa: null,
       consultor_id: null,
+      consultor_id_secundario: null,
       status: 'Novo contato',
       status_atendimento: 'novo',
       categoria: 'Comercial',
@@ -36,6 +39,7 @@ export function normalizeLead(raw: any) {
       motivo_perda: null,
       etapa_perda: null,
       consultor: null,
+      consultor_secundario: null,
     }
   }
 
@@ -81,6 +85,7 @@ export function normalizeLead(raw: any) {
     origem: safeOrigem,
     origem_pessoa: safeOrigemPessoa,
     consultor_id: raw.consultor_id ?? null,
+    consultor_id_secundario: raw.consultor_id_secundario ?? null,
     status: safeStatus,
     status_atendimento: safeStatusAtendimento,
     categoria: safeCategoria,
@@ -110,7 +115,7 @@ export function normalizeLead(raw: any) {
           typeof first.nome === 'string' &&
           first.nome.trim()
         ) {
-          return { nome: first.nome.trim() }
+          return { id: first.id, nome: first.nome.trim() }
         }
         if (typeof first === 'string' && first.trim()) {
           return { nome: first.trim() }
@@ -119,7 +124,35 @@ export function normalizeLead(raw: any) {
       }
       if (source && typeof source === 'object') {
         if (typeof source.nome === 'string' && source.nome.trim()) {
-          return { nome: source.nome.trim() }
+          return { id: source.id, nome: source.nome.trim() }
+        }
+        return null
+      }
+      if (typeof source === 'string' && source.trim()) {
+        return { nome: source.trim() }
+      }
+      return null
+    })(),
+    consultor_secundario: (() => {
+      const source = raw.consultor_secundario
+      if (Array.isArray(source)) {
+        const first = source[0]
+        if (
+          first &&
+          typeof first === 'object' &&
+          typeof first.nome === 'string' &&
+          first.nome.trim()
+        ) {
+          return { id: first.id, nome: first.nome.trim() }
+        }
+        if (typeof first === 'string' && first.trim()) {
+          return { nome: first.trim() }
+        }
+        return null
+      }
+      if (source && typeof source === 'object') {
+        if (typeof source.nome === 'string' && source.nome.trim()) {
+          return { id: source.id, nome: source.nome.trim() }
         }
         return null
       }
