@@ -131,23 +131,28 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     media_dia,
     vendas_com_data_qtd,
     vendas_total_para_cobertura,
-    status_atendimento,
-    origens,
+    origens: rawOrigens,
     ticket_medio_origens,
     ciclo_vendas,
     motivos_perda,
-    evolucao_mensal,
-    dias_semana,
+    evolucao_mensal: rawEvolucaoMensal,
+    dias_semana: rawDiasSemana,
     leads_sem_origem,
     leads_sem_consultor_consultoria,
     performance_periodo,
     raio_x_atual,
-    regua_coortes,
+    regua_coortes: rawReguaCoortes,
     novo_contato,
     consultoria,
     orcamentos,
     tempo_colunas,
   } = data
+
+  const origens = rawOrigens ?? []
+  const evolucao_mensal = rawEvolucaoMensal ?? []
+  const dias_semana = rawDiasSemana ?? []
+  const regua_coortes = rawReguaCoortes ?? []
+  const status_atendimento = data.status_atendimento ?? []
 
   const vendasPeriodoQtd =
     performance_periodo?.vendas_concluidas ?? data.vendas_periodo_qtd ?? convertidos

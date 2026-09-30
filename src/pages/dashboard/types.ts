@@ -193,13 +193,13 @@ export interface AtendimentosMetrics {
   raio_x_atual?: RaioXAtualMetrics
   regua_coortes?: ReguaCoorteItem[]
   raio_x_estagnados?: RaioXEstagnados
-  status_atendimento: StatusAtendimentoItem[]
-  origens: OrigemItem[]
+  status_atendimento?: StatusAtendimentoItem[]
+  origens?: OrigemItem[]
   ticket_medio_origens?: OrigemTicket[]
   ciclo_vendas?: CicloVendasMetrics
   motivos_perda?: MotivosPerdaMetrics
-  evolucao_mensal: EvolucaoMensalItem[]
-  dias_semana: DiaSemanaItem[]
+  evolucao_mensal?: EvolucaoMensalItem[]
+  dias_semana?: DiaSemanaItem[]
   leads_sem_origem?: LeadsSemOrigemItem
   leads_sem_consultor_consultoria?: LeadsSemOrigemItem
   novo_contato?: NovoContatoMetrics
