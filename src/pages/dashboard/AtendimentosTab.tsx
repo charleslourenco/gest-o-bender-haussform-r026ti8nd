@@ -169,10 +169,19 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
   }
 
   const cicloGeral = ciclo_vendas?.geral
+  const cicloGeralComStandby = ciclo_vendas?.geral_com_standby
   const cicloOrigens = ciclo_vendas?.por_origem ?? []
-  const temDadosCiclo = (cicloGeral?.qtd_vendas ?? 0) > 0 && cicloOrigens.length > 0
+  const temDadosCiclo =
+    ((cicloGeral?.qtd_vendas ?? 0) > 0 || (cicloGeralComStandby?.qtd_vendas ?? 0) > 0) &&
+    cicloOrigens.length > 0
   const maxCicloOrigem =
-    cicloOrigens.length > 0 ? Math.max(...cicloOrigens.map((item) => item.ciclo_medio_dias)) : 0
+    cicloOrigens.length > 0
+      ? Math.max(
+          ...cicloOrigens.map((item) =>
+            Math.max(item.ciclo_medio_dias || 0, item.ciclo_medio_com_standby || 0),
+          ),
+        )
+      : 0
 
   const ticketOrigensOrdenado = [...(ticket_medio_origens ?? [])].sort(
     (a, b) => b.ticket_medio - a.ticket_medio,
@@ -1131,18 +1140,28 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Hourglass className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  Ciclo Médio de Vendas
+                  Ciclo de Vendas (Duas Réguas: Fluxo Direto vs. Com Stand By)
                 </CardTitle>
                 <CardDescription>
-                  Tempo transcorrido entre o primeiro contato e a data de fechamento da venda
+                  Tempo do primeiro contato até o fechamento. O tempo em Vendido jamais entra e
+                  leads que passaram por Stand By são analisados em régua separada.
                 </CardDescription>
               </div>
               {temDadosCiclo && (
                 <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 px-3 py-1 rounded-md border border-border">
                   <span>Amostra analisada:</span>
                   <strong className="text-foreground font-semibold">
-                    {cicloGeral?.qtd_vendas} vendas com data
+                    {(cicloGeral?.qtd_vendas ?? 0) + (cicloGeralComStandby?.qtd_vendas ?? 0)} vendas
+                    totais
                   </strong>
+                  <span className="text-muted-foreground/60">•</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-medium">
+                    {cicloGeral?.qtd_vendas ?? 0} direto
+                  </span>
+                  <span className="text-muted-foreground/60">/</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">
+                    {cicloGeralComStandby?.qtd_vendas ?? 0} com Stand By
+                  </span>
                 </div>
               )}
             </CardHeader>
@@ -1153,70 +1172,116 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Mini-cards de destaque do ciclo geral */}
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/60 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  {/* Grid das 2 Réguas Principais */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* Régua 1: Fluxo Direto */}
+                    <div className="p-4 rounded-xl border border-blue-200/80 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/20 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-blue-900 dark:text-blue-300">
-                          Ciclo Médio Geral
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">
+                            Fluxo Direto (Sem Stand By)
+                          </span>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="border-blue-300 text-blue-800 dark:border-blue-800 dark:text-blue-300 bg-blue-100/60 dark:bg-blue-900/40 text-[11px] font-semibold"
+                        >
+                          {cicloGeral?.qtd_vendas ?? 0}{' '}
+                          {cicloGeral?.qtd_vendas === 1 ? 'venda' : 'vendas'}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-extrabold text-blue-950 dark:text-blue-100">
+                          {formatDias(cicloGeral?.media_dias)}
                         </span>
-                        <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span className="text-xs text-blue-800/80 dark:text-blue-300/80">
+                          ciclo médio
+                        </span>
                       </div>
-                      <div className="text-2xl font-extrabold text-blue-950 dark:text-blue-100 mt-1">
-                        {formatDias(cicloGeral?.media_dias)}
+
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-blue-200/60 dark:border-blue-900/40 text-[11px]">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mediana
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {formatDias(cicloGeral?.mediana_dias)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mais Rápido
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatDias(cicloGeral?.min_dias)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mais Lento
+                          </span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            {formatDias(cicloGeral?.max_dias)}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 mt-0.5">
-                        Média de fechamento da empresa
-                      </p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-border bg-muted/30">
+                    {/* Régua 2: Com Stand By */}
+                    <div className="p-4 rounded-xl border border-amber-200/80 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground">Mediana</span>
-                        <Timer className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-950 dark:text-amber-200">
+                            Com Passagem por Stand By
+                          </span>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 text-amber-800 dark:border-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-amber-900/40 text-[11px] font-semibold"
+                        >
+                          {cicloGeralComStandby?.qtd_vendas ?? 0}{' '}
+                          {cicloGeralComStandby?.qtd_vendas === 1 ? 'venda' : 'vendas'}
+                        </Badge>
                       </div>
-                      <div className="text-2xl font-extrabold text-foreground mt-1">
-                        {formatDias(cicloGeral?.mediana_dias)}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        50% fecham até este prazo
-                      </p>
-                    </div>
 
-                    <div className="p-3.5 rounded-xl border border-border bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Mais Rápido / Mais Lento
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-extrabold text-amber-950 dark:text-amber-100">
+                          {formatDias(cicloGeralComStandby?.media_dias)}
                         </span>
-                        <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div className="text-base font-extrabold text-foreground mt-1.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-emerald-600 dark:text-emerald-400">
-                          {formatDias(cicloGeral?.min_dias)}
-                        </span>
-                        <span className="text-muted-foreground font-normal">/</span>
-                        <span className="text-rose-600 dark:text-rose-400">
-                          {formatDias(cicloGeral?.max_dias)}
+                        <span className="text-xs text-amber-800/80 dark:text-amber-300/80">
+                          ciclo médio
                         </span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Mínimo e máximo observados
-                      </p>
-                    </div>
 
-                    <div className="p-3.5 rounded-xl border border-border bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Vendas Analisadas
-                        </span>
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-200/60 dark:border-amber-900/40 text-[11px]">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mediana
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {formatDias(cicloGeralComStandby?.mediana_dias)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mais Rápido
+                          </span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatDias(cicloGeralComStandby?.min_dias)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                            Mais Lento
+                          </span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400">
+                            {formatDias(cicloGeralComStandby?.max_dias)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-2xl font-extrabold text-foreground mt-1">
-                        {cicloGeral?.qtd_vendas}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Vendas com data no período
-                      </p>
                     </div>
                   </div>
 
@@ -1224,9 +1289,12 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                   <div className="space-y-3 pt-2 border-t border-border">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-bold text-foreground">Ciclo por Origem</h3>
+                        <h3 className="text-sm font-bold text-foreground">
+                          Ciclo por Origem (Duas Réguas)
+                        </h3>
                         <p className="text-xs text-muted-foreground">
-                          Ordenado do canal de venda mais rápida para a mais lenta
+                          Desdobramento do ciclo em fluxo direto e histórico com passagem por Stand
+                          By
                         </p>
                       </div>
                       <span className="text-[11px] text-muted-foreground">
@@ -1235,8 +1303,12 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                     </div>
 
                     <div className="grid lg:grid-cols-12 gap-6 items-start pt-1">
-                      {/* Barras horizontais por origem (mesmo padrão visual do Ticket Médio) */}
-                      <div className="lg:col-span-7 space-y-4">
+                      {/* Barras horizontais por origem (Fluxo Direto) */}
+                      <div className="lg:col-span-6 space-y-4">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between pb-1 border-b border-border/60">
+                          <span>Fluxo Direto por Origem</span>
+                          <span className="text-[10px] text-blue-600 font-bold">Sem Stand By</span>
+                        </div>
                         {cicloOrigens.map((item, idx) => {
                           const color = getOriginColor(item.origem, idx)
                           const percentWidth =
@@ -1273,7 +1345,7 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                                     width: `${percentWidth}%`,
                                     backgroundColor: color,
                                   }}
-                                  title={`${item.origem} — ${formatDias(item.ciclo_medio_dias)} · ${item.qtd_vendas} vendas`}
+                                  title={`${item.origem} (Direto) — ${formatDias(item.ciclo_medio_dias)} · ${item.qtd_vendas} vendas`}
                                 />
                               </div>
                             </div>
@@ -1281,15 +1353,24 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                         })}
                       </div>
 
-                      {/* Mini-tabela resumo ao lado */}
-                      <div className="lg:col-span-5 overflow-x-auto rounded-lg border border-border">
+                      {/* Tabela completa com as duas réguas lado a lado */}
+                      <div className="lg:col-span-6 overflow-x-auto rounded-lg border border-border">
                         <table className="w-full text-xs text-left">
                           <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
                             <tr>
                               <th className="py-2.5 px-3 font-semibold">Origem</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Vendas</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Mín / Máx</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Ciclo Médio</th>
+                              <th className="py-2.5 px-3 text-right font-semibold text-blue-600">
+                                Direto
+                              </th>
+                              <th className="py-2.5 px-3 text-right font-semibold text-blue-600">
+                                Ciclo Direto
+                              </th>
+                              <th className="py-2.5 px-3 text-right font-semibold text-amber-600">
+                                c/ StandBy
+                              </th>
+                              <th className="py-2.5 px-3 text-right font-semibold text-amber-600">
+                                Ciclo c/ SB
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border bg-card">
@@ -1305,18 +1386,17 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                                 <td className="py-2.5 px-3 text-right font-medium text-foreground">
                                   {item.qtd_vendas}
                                 </td>
-                                <td className="py-2.5 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
-                                  {item.ciclo_min_dias.toLocaleString('pt-BR', {
-                                    maximumFractionDigits: 1,
-                                  })}
-                                  d /{' '}
-                                  {item.ciclo_max_dias.toLocaleString('pt-BR', {
-                                    maximumFractionDigits: 1,
-                                  })}
-                                  d
-                                </td>
                                 <td className="py-2.5 px-3 text-right font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                   {formatDias(item.ciclo_medio_dias)}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-medium text-muted-foreground">
+                                  {item.qtd_vendas_com_standby ?? 0}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                  {item.ciclo_medio_com_standby !== null &&
+                                  item.ciclo_medio_com_standby !== undefined
+                                    ? formatDias(item.ciclo_medio_com_standby)
+                                    : '—'}
                                 </td>
                               </tr>
                             ))}
@@ -1324,21 +1404,17 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                           <tfoot className="border-t border-border bg-muted/40 font-semibold text-foreground">
                             <tr>
                               <td className="py-2 px-3">Geral Empresa</td>
-                              <td className="py-2 px-3 text-right">
+                              <td className="py-2 px-3 text-right font-medium">
                                 {cicloGeral?.qtd_vendas ?? 0}
-                              </td>
-                              <td className="py-2 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
-                                {(cicloGeral?.min_dias ?? 0).toLocaleString('pt-BR', {
-                                  maximumFractionDigits: 1,
-                                })}
-                                d /{' '}
-                                {(cicloGeral?.max_dias ?? 0).toLocaleString('pt-BR', {
-                                  maximumFractionDigits: 1,
-                                })}
-                                d
                               </td>
                               <td className="py-2 px-3 text-right font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                                 {formatDias(cicloGeral?.media_dias)}
+                              </td>
+                              <td className="py-2 px-3 text-right font-medium text-muted-foreground">
+                                {cicloGeralComStandby?.qtd_vendas ?? 0}
+                              </td>
+                              <td className="py-2 px-3 text-right font-bold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                                {formatDias(cicloGeralComStandby?.media_dias)}
                               </td>
                             </tr>
                           </tfoot>
@@ -1761,6 +1837,19 @@ function BlocoTempoColunas({ abaId, items = [], descricao }: BlocoTempoColunasPr
 
   for (const col of colunasConfig) {
     const limpo = cleanColumnTitle(col)
+    // Filtrar defensivamente as colunas Vendido e Perdido do tempo por coluna (fim de fluxo)
+    const lowerCol = (col || '').toLowerCase().trim()
+    const lowerLimpo = (limpo || '').toLowerCase().trim()
+    if (
+      lowerCol === 'vendido' ||
+      lowerLimpo === 'vendido' ||
+      lowerCol === 'perdido' ||
+      lowerLimpo === 'perdido' ||
+      lowerCol.includes('perdido')
+    ) {
+      continue
+    }
+
     // Tenta correspondência exata, depois limpa
     const it = mapItens.get(col) ?? mapItens.get(limpo)
     colunasOrdenadas.push({

@@ -41,6 +41,10 @@ export interface CicloOrigem {
   ciclo_medio_dias: number
   ciclo_min_dias: number
   ciclo_max_dias: number
+  qtd_vendas_com_standby?: number
+  ciclo_medio_com_standby?: number | null
+  ciclo_min_com_standby?: number | null
+  ciclo_max_com_standby?: number | null
 }
 
 export interface CicloVendasGeral {
@@ -53,6 +57,7 @@ export interface CicloVendasGeral {
 
 export interface CicloVendasMetrics {
   geral: CicloVendasGeral
+  geral_com_standby?: CicloVendasGeral
   por_origem: CicloOrigem[]
 }
 
@@ -224,6 +229,7 @@ export interface ConsultorDesempenho {
   vendidos: number
   taxa_conversao: number
   ciclo_medio_dias: number | null
+  ciclo_medio_com_standby?: number | null
   valor_total: number
   ticket_medio: number
 }

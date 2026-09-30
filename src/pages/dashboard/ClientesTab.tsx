@@ -589,15 +589,16 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                   <th className="py-2.5 px-3 text-right">Nº de Leads</th>
                   <th className="py-2.5 px-3 text-right">Vendidos</th>
                   <th className="py-2.5 px-3 text-right">Taxa de Conversão</th>
-                  <th className="py-2.5 px-3 text-right">Ciclo Médio</th>
-                  <th className="py-2.5 px-3 text-right">Valor Total</th>
+                  <th className="py-2.5 px-3 text-right">Ciclo Direto</th>
+                  <th className="py-2.5 px-3 text-right">Ciclo c/ StandBy</th>
+                  <th className="py-2.5 px-3 text-right">Valor Total</th>{' '}
                   <th className="py-2.5 px-3 text-right">Ticket Médio</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border bg-card">
                 {sortedDesempenho.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="py-8 text-center text-muted-foreground">
                       Nenhum consultor com leads no período
                     </td>
                   </tr>
@@ -651,9 +652,24 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                         </td>
                         <td className="py-2.5 px-3 text-right font-medium text-foreground">
                           {item.ciclo_medio_dias !== null && item.ciclo_medio_dias !== undefined ? (
-                            <span className="inline-flex items-center gap-1 justify-end">
+                            <span className="inline-flex items-center gap-1 justify-end font-semibold text-blue-600 dark:text-blue-400">
                               <Clock className="h-3 w-3 text-muted-foreground" />
                               {item.ciclo_medio_dias.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 1,
+                                maximumFractionDigits: 1,
+                              })}{' '}
+                              dias
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                          {item.ciclo_medio_com_standby !== null &&
+                          item.ciclo_medio_com_standby !== undefined ? (
+                            <span className="inline-flex items-center gap-1 justify-end font-semibold text-amber-600 dark:text-amber-400">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              {item.ciclo_medio_com_standby.toLocaleString('pt-BR', {
                                 minimumFractionDigits: 1,
                                 maximumFractionDigits: 1,
                               })}{' '}
