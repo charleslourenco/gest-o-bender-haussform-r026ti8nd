@@ -34,7 +34,7 @@ export function isAuthSessionError(error: any): boolean {
     'unauthorized',
     'pgrst301',
     'bearer token',
-    'failed to fetch', // às vezes CORS após 401 em gateways
+    'failed to fetch', // as vezes CORS apos 401 em gateways
   ]
 
   return authPatterns.some((pattern) => message.includes(pattern))
