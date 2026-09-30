@@ -111,8 +111,7 @@ export default function Dashboard() {
     if (preset.all) {
       setDate(undefined)
     } else if (preset.days) {
-      const from = new Date()
-      from.setDate(from.getDate() - preset.days)
+      const from = new Date(new Date().setDate(new Date().getDate() - preset.days))
       setDate({ from, to: new Date() })
     } else if (preset.months) {
       setDate({ from: subMonths(new Date(), preset.months), to: new Date() })
@@ -288,10 +287,14 @@ export default function Dashboard() {
               <h2 className="text-lg font-bold text-foreground mb-2">
                 {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar o Painel de Gestão'}
               </h2>
-              <p className="text-sm text-muted-foreground mb-6 max-w-md">
-                {errorMessage ||
-                  'Não foi possível obter as informações do dashboard. Ocorreu uma falha na comunicação com o servidor.'}
+              <p className="text-sm text-muted-foreground mb-2 max-w-md font-medium">
+                Não foi possível carregar os indicadores. Sua sessão pode ter expirado.
               </p>
+              {errorMessage && (
+                <p className="text-xs text-muted-foreground/80 mb-6 max-w-md bg-muted/40 p-2.5 rounded-lg border border-border/50">
+                  {errorMessage}
+                </p>
+              )}
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <Button onClick={handleRetry} disabled={isRetrying} className="gap-2 font-medium">
                   <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
