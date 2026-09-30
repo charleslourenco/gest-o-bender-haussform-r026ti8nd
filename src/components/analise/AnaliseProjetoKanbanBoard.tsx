@@ -75,7 +75,7 @@ export function AnaliseProjetoKanbanBoard() {
             produtos_servicos,
             arquivado_analise,
             clientes (nome),
-            leads ( kanban_ativo, users (nome) ),
+            leads ( kanban_ativo, consultor:users!leads_consultor_id_fkey (nome) ),
             produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao )
           `,
           )
@@ -322,18 +322,16 @@ export function AnaliseProjetoKanbanBoard() {
               <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {col.items.map((project) => {
                   let consultantName = 'Consultor não encontrado'
-                  if (
-                    project.leads &&
-                    !Array.isArray(project.leads) &&
-                    (project.leads as any).users
-                  ) {
-                    consultantName = (project.leads as any).users.nome
-                  } else if (
-                    project.leads &&
-                    Array.isArray(project.leads) &&
-                    project.leads[0]?.users
-                  ) {
-                    consultantName = project.leads[0].users.nome
+                  if (project.leads && !Array.isArray(project.leads)) {
+                    consultantName =
+                      (project.leads as any).consultor?.nome ||
+                      (project.leads as any).users?.nome ||
+                      consultantName
+                  } else if (project.leads && Array.isArray(project.leads) && project.leads[0]) {
+                    consultantName =
+                      project.leads[0]?.consultor?.nome ||
+                      project.leads[0]?.users?.nome ||
+                      consultantName
                   }
 
                   if (!consultantName || consultantName === 'Consultor não encontrado') {
