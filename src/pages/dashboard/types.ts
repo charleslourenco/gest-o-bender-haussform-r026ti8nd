@@ -125,6 +125,59 @@ export interface TempoColunasMetrics {
   orcamentos: TempoColunaItem[]
 }
 
+export interface ReguaCoorteItem {
+  safra_iso?: string
+  safra?: string
+  total_chegados?: number
+  fechados_ate_hoje?: number
+  taxa_conversao?: number
+  perdidos?: number
+  ainda_em_aberto?: number
+  meses_atras?: number
+  rotulo_mes?: string
+  mes_iso?: string
+  total_leads_coorte?: number
+  convertidos_ate_hoje?: number
+  taxa_conversao_coorte?: number
+}
+
+export interface TopEstagnadoItem {
+  id: string
+  nome: string
+  status: string
+  esteira: string
+  dias_parado: number
+}
+
+export interface RaioXAtualMetrics {
+  total_ativos: number
+  media_dias_parado: number
+  mais_90_dias: number
+  entre_60_90_dias: number
+  entre_30_60_dias: number
+  menos_30_dias: number
+  top_estagnados: TopEstagnadoItem[]
+}
+
+export interface PerformancePeriodoMetrics {
+  vendas_concluidas: number
+  vendas_com_data: number
+  leads_chegados: number
+  consultorias_iniciadas: number
+  perdas_periodo: number
+  ticket_medio_periodo: number
+  valor_total_vendas: number
+  taxa_conversao_periodo: number
+  status_taxa: 'em_construcao' | string
+}
+
+export interface RaioXEstagnados {
+  parados_mais_30d: number
+  parados_mais_60d: number
+  parados_mais_90d: number
+  total_ativos: number
+}
+
 export interface AtendimentosMetrics {
   total_leads: number
   convertidos: number
@@ -132,6 +185,14 @@ export interface AtendimentosMetrics {
   media_dia: number
   vendas_com_data_qtd?: number
   vendas_total_para_cobertura?: number
+  vendas_periodo_qtd?: number
+  vendas_periodo_valor?: number
+  vendas_periodo_ticket_medio?: number
+  consultorias_iniciadas_periodo?: number
+  performance_periodo?: PerformancePeriodoMetrics
+  raio_x_atual?: RaioXAtualMetrics
+  regua_coortes?: ReguaCoorteItem[]
+  raio_x_estagnados?: RaioXEstagnados
   status_atendimento: StatusAtendimentoItem[]
   origens: OrigemItem[]
   ticket_medio_origens?: OrigemTicket[]

@@ -4,20 +4,20 @@
     "admin-users": 14,
     "gerar_documento_cliente": 92,
     "send-signature-email": 12,
-    "finalize-signature-document": 430,
+    "finalize-signature-document": 431,
     "whatsapp-webhook": 51,
     "assistant-intelligence": 16,
     "financeiro-ai": 22,
     "material-normalization": 7,
     "gerar-comprovante-caixa": 4,
     "gerar-comprovante-item-cliente": 3,
-    "send-whatsapp-message": 388,
+    "send-whatsapp-message": 390,
     "merge-estoque-items": 3,
-    "processar-orcamento-ocr": 283,
+    "processar-orcamento-ocr": 285,
     "export-pdf-document": 2,
     "gerar-dossie": 2,
-    "conecta-sync-event": 145,
-    "conecta-leads": 144,
-    "client-log": 139
+    "conecta-sync-event": 147,
+    "conecta-leads": 146,
+    "client-log": 141
   }
 }
