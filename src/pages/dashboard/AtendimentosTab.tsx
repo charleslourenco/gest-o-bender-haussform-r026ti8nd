@@ -140,11 +140,23 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
     dias_semana,
     leads_sem_origem,
     leads_sem_consultor_consultoria,
+    performance_periodo,
+    raio_x_atual,
+    regua_coortes,
     novo_contato,
     consultoria,
     orcamentos,
     tempo_colunas,
   } = data
+
+  const vendasPeriodoQtd =
+    performance_periodo?.vendas_concluidas ?? data.vendas_periodo_qtd ?? convertidos
+  const consultoriasIniciadasQtd =
+    performance_periodo?.consultorias_iniciadas ?? data.consultorias_iniciadas_periodo ?? 0
+  const perdasPeriodoQtd = performance_periodo?.perdas_periodo ?? motivos_perda?.total_perdas ?? 0
+  const ticketMedioPeriodo =
+    performance_periodo?.ticket_medio_periodo ?? data.vendas_periodo_ticket_medio ?? 0
+  const taxaConversaoPeriodo = performance_periodo?.taxa_conversao_periodo ?? taxa_conversao
 
   const formatDias = (dias: number | undefined | null) => {
     if (dias === undefined || dias === null || isNaN(dias)) return '0,0 dias'
@@ -387,21 +399,23 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
               </p>
             </div>
 
-            {/* 5 Cards de Performance do Período */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {/* 6 Cards de Performance do Período */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
               <Card className="border-border shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
                     Leads Chegados
                   </CardTitle>
                   <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <Users className="h-5 w-5" />
+                    <Users className="h-4 w-4" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-extrabold text-foreground">{total_leads}</div>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+                    {total_leads}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
                     Média de <strong className="text-foreground">{media_dia}</strong> leads/dia
                   </p>
                 </CardContent>
@@ -409,81 +423,119 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
 
               <Card className="border-border shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
-                    Vendas Fechadas
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+                    Vendas do Período
                   </CardTitle>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <TooltipProvider>
                       <UITooltip>
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            aria-label="Cobertura de dados de vendas"
+                            aria-label="Critério de Vendas"
                             className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           >
-                            <Info className="h-3.5 w-3.5" />
+                            <Info className="h-3 w-3" />
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-xs text-xs">
-                          <p className="font-semibold">Vendas com Data no Período</p>
+                          <p className="font-semibold">Vendas Concluídas no Período</p>
                           <p className="text-muted-foreground mt-0.5">
-                            Contabiliza leads cuja data_venda está dentro do intervalo selecionado.
+                            Filtro estrito por data_venda dentro do intervalo selecionado. Não
+                            mistura com leads antigos.
                           </p>
                         </TooltipContent>
                       </UITooltip>
                     </TooltipProvider>
 
                     <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      <Target className="h-5 w-5" />
+                      <Target className="h-4 w-4" />
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-extrabold text-foreground">
-                    {data.vendas_periodo_qtd ?? convertidos}
+                  <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+                    {vendasPeriodoQtd}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 font-medium flex items-center justify-between">
-                    <span>Data da venda no período</span>
-                    {data.vendas_periodo_ticket_medio ? (
-                      <span className="text-[10px] text-emerald-600 font-semibold">
-                        TM {currencyFormatter.format(data.vendas_periodo_ticket_medio)}
-                      </span>
-                    ) : null}
+                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                    Por <strong className="text-foreground">data_venda</strong> no período
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="border-border shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
                     Consultorias Iniciadas
                   </CardTitle>
                   <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                    <Send className="h-5 w-5" />
+                    <Send className="h-4 w-4" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-extrabold text-foreground">
-                    {data.consultorias_iniciadas_periodo ?? 0}
+                  <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+                    {consultoriasIniciadasQtd}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 font-medium">
-                    Entradas no funil consultivo
+                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                    Histórico kanban no período
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="border-border shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
-                    Taxa do Período
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+                    Perdas no Período
                   </CardTitle>
-                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                    <TrendingUp className="h-5 w-5" />
+                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="h-4 w-4" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-extrabold text-foreground">{taxa_conversao}%</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+                    {perdasPeriodoQtd}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                    Perdas com evento no período
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+                    Ticket Médio Vendas
+                  </CardTitle>
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <DollarSign className="h-4 w-4" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl sm:text-2xl font-extrabold text-foreground truncate">
+                    {ticketMedioPeriodo > 0
+                      ? currencyFormatter.format(ticketMedioPeriodo)
+                      : 'R$ 0,00'}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                    Vendas com data no período
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-semibold text-muted-foreground">
+                    Taxa do Período
+                  </CardTitle>
+                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                    <TrendingUp className="h-4 w-4" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-1.5 flex-wrap">
+                    <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
+                      {taxaConversaoPeriodo}%
+                    </div>
                     <Badge
                       variant="outline"
                       className="text-[9px] py-0 px-1 border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40"
@@ -491,36 +543,8 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                       Em construção
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1 font-medium leading-tight">
+                  <p className="text-[10px] text-muted-foreground mt-1 font-medium leading-tight">
                     Vendas (data_venda) ÷ Chegados (criado_em)
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
-                    Melhor Origem
-                  </CardTitle>
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold truncate text-foreground">
-                    {melhorOrigem ? melhorOrigem.origem : 'N/A'}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 font-medium">
-                    {melhorOrigem ? (
-                      <>
-                        <strong className="text-emerald-600 dark:text-emerald-400">
-                          {melhorOrigem.taxa}%
-                        </strong>{' '}
-                        de conversão ({melhorOrigem.convertidos}/{melhorOrigem.total})
-                      </>
-                    ) : (
-                      'Sem leads no período'
-                    )}
                   </p>
                 </CardContent>
               </Card>
@@ -549,43 +573,45 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
 
             {/* Alerta de Leads Parados & Bloco de Permanência das Colunas */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="p-3.5 rounded-xl border border-rose-200/90 bg-rose-50/70 dark:border-rose-900/50 dark:bg-rose-950/20">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-rose-900 dark:text-rose-300">
+                    Parados há &gt; 90 dias
+                  </span>
+                  <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div className="text-2xl font-extrabold text-rose-950 dark:text-rose-100 mt-1">
+                  {raio_x_atual?.mais_90_dias ?? data.raio_x_estagnados?.parados_mais_90d ?? 0}
+                </div>
+                <p className="text-[11px] text-rose-800/80 dark:text-rose-300/80 mt-0.5">
+                  Aparecem aqui, nunca na performance
+                </p>
+              </div>
+
               <div className="p-3.5 rounded-xl border border-amber-200/90 bg-amber-50/70 dark:border-amber-900/50 dark:bg-amber-950/20">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-amber-900 dark:text-amber-300">
-                    Parados &gt; 90 dias
+                    Parados entre 60 e 90 dias
                   </span>
-                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="text-2xl font-extrabold text-amber-950 dark:text-amber-100 mt-1">
-                  {data.raio_x_estagnados?.parados_mais_90d ?? 0}
+                  {raio_x_atual?.entre_60_90_dias ?? data.raio_x_estagnados?.parados_mais_60d ?? 0}
                 </div>
                 <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
-                  Não poluem a performance do período
+                  Sem movimentação há 2 meses
                 </p>
               </div>
 
               <div className="p-3.5 rounded-xl border border-border bg-muted/30">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">
-                    Parados &gt; 60 dias
-                  </span>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-extrabold text-foreground mt-1">
-                  {data.raio_x_estagnados?.parados_mais_60d ?? 0}
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Sem movimentação recente</p>
-              </div>
-
-              <div className="p-3.5 rounded-xl border border-border bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    Parados &gt; 30 dias
+                    Parados entre 30 e 60 dias
                   </span>
                   <Timer className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="text-2xl font-extrabold text-foreground mt-1">
-                  {data.raio_x_estagnados?.parados_mais_30d ?? 0}
+                  {raio_x_atual?.entre_30_60_dias ?? data.raio_x_estagnados?.parados_mais_30d ?? 0}
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Exigem ação do consultor</p>
               </div>
@@ -593,16 +619,68 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
               <div className="p-3.5 rounded-xl border border-border bg-muted/30">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">
-                    Total Ativos no Funil
+                    Total Ativos no Funil Hoje
                   </span>
                   <Layers className="h-4 w-4 text-primary" />
                 </div>
                 <div className="text-2xl font-extrabold text-foreground mt-1">
-                  {data.raio_x_estagnados?.total_ativos ?? 0}
+                  {raio_x_atual?.total_ativos ?? data.raio_x_estagnados?.total_ativos ?? 0}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Leads em andamento hoje</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Média: {raio_x_atual?.media_dias_parado ?? 0} dias parado
+                </p>
               </div>
             </div>
+
+            {/* Lista dos Maiores Estagnados no Raio-X Atual */}
+            {raio_x_atual?.top_estagnados && raio_x_atual.top_estagnados.length > 0 && (
+              <Card className="border-border shadow-sm">
+                <CardHeader className="py-3 px-4 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      Leads mais estagnados na esteira hoje (sem movimentação recente)
+                    </CardTitle>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                    Top {raio_x_atual.top_estagnados.length}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y divide-border">
+                    {raio_x_atual.top_estagnados.slice(0, 5).map((est) => (
+                      <div
+                        key={est.id}
+                        className="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="space-y-0.5">
+                          <p className="font-semibold text-foreground">{est.nome}</p>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{est.esteira}</span>
+                            <span>•</span>
+                            <span className="font-medium text-foreground/80">{est.status}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge
+                            variant="outline"
+                            className={
+                              est.dias_parado >= 90
+                                ? 'border-rose-400 text-rose-600 bg-rose-50 dark:bg-rose-950/30 font-bold'
+                                : est.dias_parado >= 60
+                                  ? 'border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/30 font-bold'
+                                  : 'border-border text-muted-foreground'
+                            }
+                          >
+                            {est.dias_parado} dias parado
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Bloco de Tempo dos Leads por Coluna */}
             {tempo_colunas?.consultoria && tempo_colunas.consultoria.length > 0 && (
@@ -645,38 +723,52 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!data.regua_coortes || data.regua_coortes.length === 0 ? (
+                {(!regua_coortes || regua_coortes.length === 0) &&
+                (!data.regua_coortes || data.regua_coortes.length === 0) ? (
                   <p className="text-xs text-muted-foreground py-6 text-center">
                     Sem dados históricos de safras disponíveis
                   </p>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 pt-1">
-                    {data.regua_coortes.map((coorte) => (
-                      <div
-                        key={coorte.mes_iso}
-                        className="p-3 rounded-xl border border-border bg-card/60 flex flex-col justify-between"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-foreground">
-                              {coorte.rotulo_mes}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              {coorte.meses_atras}m atrás
-                            </span>
+                    {(regua_coortes && regua_coortes.length > 0
+                      ? regua_coortes
+                      : (data.regua_coortes ?? [])
+                    )
+                      .slice(0, 6)
+                      .map((coorte, idx) => {
+                        const rotulo = coorte.safra ?? coorte.rotulo_mes ?? 'Safra'
+                        const taxa = coorte.taxa_conversao ?? coorte.taxa_conversao_coorte ?? 0
+                        const fechados =
+                          coorte.fechados_ate_hoje ?? coorte.convertidos_ate_hoje ?? 0
+                        const totalChegados =
+                          coorte.total_chegados ?? coorte.total_leads_coorte ?? 0
+                        const key = coorte.safra_iso ?? coorte.mes_iso ?? `coorte-${idx}`
+
+                        return (
+                          <div
+                            key={key}
+                            className="p-3 rounded-xl border border-border bg-card/60 flex flex-col justify-between"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-foreground">{rotulo}</span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  Safra
+                                </span>
+                              </div>
+                              <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">
+                                {taxa}%
+                              </div>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground pt-2 border-t border-border/60 mt-2 flex items-center justify-between">
+                              <span className="font-semibold text-foreground/80">
+                                {fechados} fechados
+                              </span>
+                              <span className="text-muted-foreground/70">de {totalChegados}</span>
+                            </div>
                           </div>
-                          <div className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">
-                            {coorte.taxa_conversao_coorte}%
-                          </div>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground pt-2 border-t border-border/60 mt-2 flex items-center justify-between">
-                          <span>{coorte.convertidos_ate_hoje} vendas</span>
-                          <span className="text-muted-foreground/70">
-                            de {coorte.total_leads_coorte}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                        )
+                      })}
                   </div>
                 )}
               </CardContent>
@@ -2181,7 +2273,7 @@ function ConsultoriaSubTab({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 5 Cards Resumo */}
+      {/* 5 Cards Resumo — Baseados em criado_em para entradas e data_venda para vendas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -2195,7 +2287,7 @@ function ConsultoriaSubTab({
           <CardContent>
             <div className="text-3xl font-extrabold text-foreground">{total}</div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Entrada por criado_em no período
+              Entrada por <strong className="text-foreground">criado_em</strong> no período
             </p>
           </CardContent>
         </Card>
@@ -2203,7 +2295,7 @@ function ConsultoriaSubTab({
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              Vendas do Período
+              Vendas Concluídas
             </CardTitle>
             <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <Target className="h-5 w-5" />
@@ -2212,7 +2304,7 @@ function ConsultoriaSubTab({
           <CardContent>
             <div className="text-3xl font-extrabold text-foreground">{vendidos}</div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Fechamentos por data_venda no período
+              Evento de venda (<strong className="text-foreground">data_venda</strong>) no período
             </p>
           </CardContent>
         </Card>
@@ -2227,15 +2319,23 @@ function ConsultoriaSubTab({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-extrabold text-foreground">
-              {taxaConversao.toLocaleString('pt-BR', {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}
-              %
+            <div className="flex items-baseline gap-2">
+              <div className="text-3xl font-extrabold text-foreground">
+                {taxaConversao.toLocaleString('pt-BR', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                })}
+                %
+              </div>
+              <Badge
+                variant="outline"
+                className="text-[9px] py-0 px-1 border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40"
+              >
+                Em construção
+              </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Vendidos ÷ total da esteira
+              Vendas no período ÷ Entradas
             </p>
           </CardContent>
         </Card>
@@ -2254,7 +2354,7 @@ function ConsultoriaSubTab({
               {currencyFormatter.format(ticketMedio || 0)}
             </div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Média dos fechamentos com valor
+              Vendas com data no período
             </p>
           </CardContent>
         </Card>
