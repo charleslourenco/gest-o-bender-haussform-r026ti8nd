@@ -51,6 +51,7 @@ import {
   Pie,
 } from 'recharts'
 import { cleanColumnTitle, ATENDIMENTO_ABAS } from '@/components/comercial/constants'
+import { CoorteConversaoTab } from './CoorteConversaoTab'
 import type {
   AtendimentosMetrics,
   NovoContatoMetrics,
@@ -2291,6 +2292,64 @@ function NovoContatoSubTab({
 // Componente da Sub-aba Consultoria (Aba 02 / Comercial)
 // -------------------------------------------------------------
 function ConsultoriaSubTab({
+  data,
+  tempoColunas,
+}: {
+  data?: ConsultoriaMetrics
+  tempoColunas?: TempoColunaItem[]
+}) {
+  const [consultoriaView, setConsultoriaView] = useState<'esteira' | 'coortes'>('esteira')
+
+  return (
+    <div className="space-y-6">
+      {/* Navegação de Sub-abas de Consultoria */}
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <Tabs
+          value={consultoriaView}
+          onValueChange={(val) => setConsultoriaView(val as 'esteira' | 'coortes')}
+          className="w-auto"
+        >
+          <TabsList className="bg-muted p-1 rounded-lg border border-border h-9">
+            <TabsTrigger
+              value="esteira"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              Funil / Esteira de Consultoria
+            </TabsTrigger>
+            <TabsTrigger
+              value="coortes"
+              className="data-[state=active]:bg-background data-[state=active]:text-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3"
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              Conversão por Coorte
+              <Badge
+                variant="outline"
+                className="ml-1 text-[9px] py-0 px-1 border-purple-300 text-purple-700 bg-purple-50 dark:bg-purple-950/40"
+              >
+                Novo
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="text-xs text-muted-foreground hidden sm:block">
+          {consultoriaView === 'esteira'
+            ? 'Métricas de fluxo atual da consultoria (período selecionado)'
+            : 'Agrupamento de leads por mês de chegada (criado_em) e defasagem de vendas'}
+        </div>
+      </div>
+
+      {consultoriaView === 'coortes' ? (
+        <CoorteConversaoTab />
+      ) : (
+        <ConsultoriaEsteiraConteudo data={data} tempoColunas={tempoColunas} />
+      )}
+    </div>
+  )
+}
+
+function ConsultoriaEsteiraConteudo({
   data,
   tempoColunas,
 }: {
