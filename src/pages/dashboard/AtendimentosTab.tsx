@@ -2346,7 +2346,7 @@ function ConsultoriaSubTab({
           <Card className="border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Total de Leads
+                Iniciaram consultoria (período)
               </CardTitle>
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                 <Users className="h-5 w-5" />
@@ -2354,7 +2354,9 @@ function ConsultoriaSubTab({
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-extrabold text-foreground">0</div>
-              <p className="text-xs text-muted-foreground mt-1">Nenhum lead no período</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Histórico de status desde 24/set · leads anteriores contados pela data de criação
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -2367,12 +2369,12 @@ function ConsultoriaSubTab({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* 5 Cards Resumo — Baseados em criado_em para entradas e data_venda para vendas */}
+      {/* 5 Cards Resumo — Baseados em iniciaram consultoria e data_venda para vendas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="border-border shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">
-              Leads Chegados (Período)
+              Iniciaram consultoria (período)
             </CardTitle>
             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
               <Users className="h-5 w-5" />
@@ -2381,7 +2383,7 @@ function ConsultoriaSubTab({
           <CardContent>
             <div className="text-3xl font-extrabold text-foreground">{total}</div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Entrada por <strong className="text-foreground">criado_em</strong> no período
+              Histórico de status desde 24/set · leads anteriores contados pela data de criação
             </p>
           </CardContent>
         </Card>
@@ -2429,7 +2431,7 @@ function ConsultoriaSubTab({
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground mt-1 font-medium">
-              Vendas no período ÷ Entradas
+              Vendas concluídas ÷ Iniciaram consultoria
             </p>
           </CardContent>
         </Card>
