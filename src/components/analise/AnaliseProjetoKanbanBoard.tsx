@@ -2,11 +2,22 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
-import { Calendar, User, DollarSign, Trash2, Archive } from 'lucide-react'
+import {
+  Calendar,
+  User,
+  DollarSign,
+  Trash2,
+  Archive,
+  AlertTriangle,
+  RefreshCw,
+  LogIn,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { arquivarAnaliseFormulario } from '@/services/arquivamento'
 import { getBadgeProgramacaoSemana, parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
+import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,47 +44,63 @@ export function AnaliseProjetoKanbanBoard() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
   const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const { toast } = useToast()
   const navigate = useNavigate()
   const [users, setUsers] = useState<any[]>([])
 
   const loadProjects = async () => {
+    setLoading(true)
+    setErrorMessage(null)
+    setIsSessionExpired(false)
     try {
-      const { data: usersData } = await supabase.from('users').select('id, nome')
-      if (usersData) setUsers(usersData)
+      const usersRes = await runWithAuthRecovery<any[]>(() =>
+        supabase.from('users').select('id, nome'),
+      )
+      if (usersRes.data) setUsers(usersRes.data)
 
-      const { data, error } = await supabase
-        .from('formulario_comercial')
-        .select(
-          `
-          id,
-          valor_total,
-          data_prevista_entrega,
-          status_analise_projeto,
-          user_id,
-          ambientes,
-          produtos_servicos,
-          arquivado_analise,
-          clientes (nome),
-          leads ( kanban_ativo, users (nome) ),
-          produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao )
-        `,
-        )
-        .eq('arquivado_analise' as any, false)
+      const result = await runWithAuthRecovery<any[]>(() =>
+        supabase
+          .from('formulario_comercial')
+          .select(
+            `
+            id,
+            valor_total,
+            data_prevista_entrega,
+            status_analise_projeto,
+            user_id,
+            ambientes,
+            produtos_servicos,
+            arquivado_analise,
+            clientes (nome),
+            leads ( kanban_ativo, users (nome) ),
+            produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao )
+          `,
+          )
+          .eq('arquivado_analise' as any, false),
+      )
 
-      if (error) {
-        console.error('Erro ao carregar projetos:', error)
+      if (result.error) {
+        console.error('Erro ao carregar projetos:', result.error)
+        const msg = result.sessionExpired
+          ? 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.'
+          : result.error?.message || 'Falha ao carregar os projetos da análise técnica.'
+
+        setErrorMessage(msg)
+        setIsSessionExpired(result.sessionExpired)
+
         toast({
           title: 'Erro ao carregar projetos',
-          description: error.message,
+          description: msg,
           variant: 'destructive',
         })
         setProjects([])
-        setLoading(false)
         return
       }
 
-      const mapped = (data || []).map((p: any) => ({
+      const mapped = (result.data || []).map((p: any) => ({
         ...p,
         status_analise_projeto: p.status_analise_projeto || 'iniciar',
         arquivado_analise: p.arquivado_analise ?? false,
@@ -82,9 +109,11 @@ export function AnaliseProjetoKanbanBoard() {
       setProjects(mapped)
     } catch (err: any) {
       console.error('Erro inesperado ao carregar projetos:', err)
+      setErrorMessage(err?.message || 'Erro inesperado ao carregar projetos.')
       setProjects([])
     } finally {
       setLoading(false)
+      setIsRetrying(false)
     }
   }
 
@@ -214,7 +243,56 @@ export function AnaliseProjetoKanbanBoard() {
     items: filteredProjects.filter((p) => p.status_analise_projeto === col.id),
   }))
 
-  if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>
+  const handleRetry = () => {
+    setIsRetrying(true)
+    loadProjects()
+  }
+
+  const handleGoToLogin = () => {
+    redirectToLogin('/pcp/analise-tecnica')
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 text-muted-foreground gap-2">
+        <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+        <span>Carregando projetos da análise técnica...</span>
+      </div>
+    )
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background min-h-[360px]">
+        <div className="max-w-md w-full p-6 bg-card border border-border rounded-xl shadow-sm flex flex-col items-center animate-in fade-in duration-200">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-base text-foreground mb-1">
+            {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar Projetos'}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">{errorMessage}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <Button onClick={handleRetry} disabled={isRetrying} size="sm" className="gap-2 text-xs">
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
+            </Button>
+            {isSessionExpired && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGoToLogin}
+                className="gap-2 text-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Fazer login novamente
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-background">

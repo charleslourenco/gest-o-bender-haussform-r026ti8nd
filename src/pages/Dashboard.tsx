@@ -11,9 +11,14 @@ import {
   RotateCcw,
   ChevronDown,
   Check,
+  AlertTriangle,
+  RefreshCw,
+  LogIn,
 } from 'lucide-react'
 import { DateRange } from 'react-day-picker'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -40,6 +45,7 @@ const PERIOD_PRESETS = [
 ]
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   // Padrão: Todo o histórico para visão completa da operação, ou ajustável pelo usuário
   const [date, setDate] = useState<DateRange | undefined>({
     from: subMonths(new Date(), 6),
@@ -48,27 +54,51 @@ export default function Dashboard() {
   const [activePreset, setActivePreset] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<FullDashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true)
+    setErrorMessage(null)
+    setIsSessionExpired(false)
     try {
       const from = date?.from ? date.from.toISOString() : null
       const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : null
 
-      const { data, error } = await supabase.rpc('get_dashboard_metrics', {
-        p_start_date: from,
-        p_end_date: to,
-      })
+      const result = await runWithAuthRecovery<FullDashboardMetrics>(() =>
+        supabase.rpc('get_dashboard_metrics', {
+          p_start_date: from,
+          p_end_date: to,
+        }),
+      )
 
-      if (error) {
-        console.error('[Dashboard] Erro ao carregar métricas via RPC:', error)
-      } else if (data) {
-        setMetrics(data as FullDashboardMetrics)
+      if (result.error) {
+        console.error('[Dashboard] Erro ao carregar métricas via RPC:', result.error)
+        if (result.sessionExpired) {
+          setIsSessionExpired(true)
+          setErrorMessage(
+            'Sua sessão expirou ou não é mais válida. Por favor, faça login novamente para continuar.',
+          )
+        } else {
+          setErrorMessage(
+            result.error?.message ||
+              'Não foi possível carregar as métricas operacionais. Verifique sua conexão e tente novamente.',
+          )
+        }
+      } else if (result.data) {
+        setMetrics(result.data)
+      } else {
+        setErrorMessage('Nenhum dado retornado para o período selecionado.')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Exceção ao consultar get_dashboard_metrics:', err)
+      setErrorMessage(
+        err?.message || 'Ocorreu um erro inesperado ao carregar as métricas do painel.',
+      )
     } finally {
       setLoading(false)
+      setIsRetrying(false)
     }
   }, [date])
 
@@ -87,6 +117,15 @@ export default function Dashboard() {
     } else if (preset.months) {
       setDate({ from: subMonths(new Date(), preset.months), to: new Date() })
     }
+  }
+
+  const handleRetry = () => {
+    setIsRetrying(true)
+    fetchMetrics()
+  }
+
+  const handleGoToLogin = () => {
+    redirectToLogin('/dashboard')
   }
 
   return (
@@ -225,9 +264,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Conteúdo das 4 Abas com Tratamento de Loading */}
+        {/* Conteúdo das 4 Abas com Tratamento de Loading e Erro Visível */}
         <div className="flex-1 overflow-y-auto min-h-0 w-full pr-1">
-          {loading || !metrics ? (
+          {loading ? (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <Skeleton className="h-28 w-full rounded-xl bg-muted" />
@@ -240,6 +279,31 @@ export default function Dashboard() {
                 <Skeleton className="h-80 w-full rounded-xl bg-muted" />
               </div>
               <Skeleton className="h-72 w-full rounded-xl bg-muted" />
+            </div>
+          ) : errorMessage || !metrics ? (
+            <div className="flex flex-col items-center justify-center min-h-[360px] p-8 bg-card border border-border rounded-xl shadow-sm text-center max-w-xl mx-auto my-8 animate-in fade-in duration-200">
+              <div className="w-14 h-14 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-4">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground mb-2">
+                {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar o Painel de Gestão'}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6 max-w-md">
+                {errorMessage ||
+                  'Não foi possível obter as informações do dashboard. Ocorreu uma falha na comunicação com o servidor.'}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button onClick={handleRetry} disabled={isRetrying} className="gap-2 font-medium">
+                  <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+                  {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
+                </Button>
+                {isSessionExpired && (
+                  <Button variant="outline" onClick={handleGoToLogin} className="gap-2 font-medium">
+                    <LogIn className="w-4 h-4" />
+                    Fazer login novamente
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <>

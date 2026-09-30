@@ -16,11 +16,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Trash2, ShoppingBag } from 'lucide-react'
+import { Trash2, ShoppingBag, AlertTriangle, RefreshCw, LogIn } from 'lucide-react'
 import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
+import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
 
 interface Props {
   searchQuery: string
@@ -32,28 +33,45 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
   const fetchData = async () => {
     try {
       setLoading(true)
+      setErrorMessage(null)
+      setIsSessionExpired(false)
       const columnIds = columns.map((c) => c.id)
-      let query = supabase
-        .from('produtos_servicos_projeto')
-        .select(`
-          *,
-          semana_planejada_producao,
-          cliente:clientes(nome),
-          analista:users!produtos_servicos_projeto_analista_id_fkey(id, nome)
-        `)
-        .in('status_analise', columnIds)
-        .eq('is_outsourced', false)
-        .order('atualizado_em', { ascending: false })
 
-      const { data, error } = await query
+      const result = await runWithAuthRecovery<any[]>(() =>
+        supabase
+          .from('produtos_servicos_projeto')
+          .select(`
+            *,
+            semana_planejada_producao,
+            cliente:clientes(nome),
+            analista:users!produtos_servicos_projeto_analista_id_fkey(id, nome)
+          `)
+          .in('status_analise', columnIds)
+          .eq('is_outsourced', false)
+          .order('atualizado_em', { ascending: false }),
+      )
 
-      if (error) throw error
+      if (result.error) {
+        const msg = result.sessionExpired
+          ? 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.'
+          : result.error?.message || 'Falha ao carregar lista da análise técnica.'
+        setErrorMessage(msg)
+        setIsSessionExpired(result.sessionExpired)
+        toast({ title: 'Erro', description: msg, variant: 'destructive' })
+        setItems([])
+        return
+      }
+
+      const data = result.data
 
       let filtered = data || []
 
@@ -77,18 +95,18 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
 
       setItems(filtered)
     } catch (err: any) {
+      setErrorMessage(err?.message || 'Erro inesperado ao carregar dados.')
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
+      setIsRetrying(false)
     }
   }
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from('users')
-      .select('id, nome')
-      .eq('status', true)
-      .order('nome')
+    const { data } = await runWithAuthRecovery<any[]>(() =>
+      supabase.from('users').select('id, nome').eq('status', true).order('nome'),
+    )
     if (data) setUsers(data)
   }
 
@@ -201,6 +219,48 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
       fetchData()
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
     }
+  }
+
+  const handleRetry = () => {
+    setIsRetrying(true)
+    fetchData()
+  }
+
+  const handleGoToLogin = () => {
+    redirectToLogin('/pcp/analise-tecnica')
+  }
+
+  if (errorMessage && !loading) {
+    return (
+      <div className="p-8 flex flex-col items-center justify-center text-center">
+        <div className="max-w-md w-full p-6 bg-card border border-border rounded-xl shadow-sm flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-base text-foreground mb-1">
+            {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar Lista'}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">{errorMessage}</p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleRetry} disabled={isRetrying} className="gap-2 text-xs">
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
+            </Button>
+            {isSessionExpired && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGoToLogin}
+                className="gap-2 text-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Fazer login novamente
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

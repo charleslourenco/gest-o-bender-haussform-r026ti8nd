@@ -50,7 +50,17 @@ export default function Login() {
       setError('Credenciais inválidas. Verifique seu e-mail e senha.')
       setIsLoading(false)
     } else {
-      navigate('/')
+      const searchParams = new URLSearchParams(window.location.search)
+      const urlReturnTo = searchParams.get('returnTo')
+      let savedReturnTo = null
+      try {
+        savedReturnTo = sessionStorage.getItem('auth_return_to')
+        sessionStorage.removeItem('auth_return_to')
+      } catch (e) {
+        // ignore
+      }
+      const target = urlReturnTo || savedReturnTo || '/'
+      navigate(target)
     }
   }
 
