@@ -114,10 +114,13 @@ export function NotaReviewItemCard({
         .single()
       if (estFetchErr || !estItem) throw new Error('Item não encontrado no estoque')
 
+      const precoUnitarioLiquido = Number(item.preco_unitario) || 0
       const { error: updateEstErr } = await supabase
         .from('estoque_itens')
         .update({
           quantidade: Number(estItem.quantidade) + Number(item.quantidade),
+          valor_unitario: precoUnitarioLiquido > 0 ? precoUnitarioLiquido : undefined,
+          fornecedor: notaFornecedor || undefined,
           atualizado_em: new Date().toISOString(),
         })
         .eq('id', selectedItemId)
@@ -199,6 +202,17 @@ export function NotaReviewItemCard({
     item.preco_total !== undefined
       ? item.preco_total
       : Math.round(Number(item.quantidade || 0) * Number(item.preco_unitario || 0) * 100) / 100
+
+  const hasDesconto = item.desconto !== undefined && Number(item.desconto) > 0
+  const precoBrutoExibicao =
+    item.preco_bruto !== undefined && Number(item.preco_bruto) > 0
+      ? Number(item.preco_bruto)
+      : hasDesconto
+        ? currentTotal + Number(item.desconto)
+        : undefined
+
+  const formatBRL = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border dark:border-slate-800 space-y-3">
@@ -282,7 +296,7 @@ export function NotaReviewItemCard({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <div>
               <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
                 Quantidade (&gt;0) *
@@ -318,7 +332,7 @@ export function NotaReviewItemCard({
             </div>
             <div>
               <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
-                Preço Unitário (R$)
+                Preço Unit. Líquido (R$)
               </label>
               <Input
                 type="number"
@@ -338,12 +352,28 @@ export function NotaReviewItemCard({
             </div>
             <div>
               <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
-                Total do Item (R$)
+                Desconto Item (R$)
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={item.desconto || 0}
+                onChange={(e) => {
+                  const desc = parseFloat(e.target.value) || 0
+                  onItemChange?.(item._draftId || realIdx, {
+                    desconto: desc,
+                  })
+                }}
+                className="h-8 text-xs bg-white dark:bg-slate-900"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                Total Líquido (R$)
               </label>
               <div className="h-8 px-2 flex items-center font-bold text-xs bg-white dark:bg-slate-900 border rounded-md text-emerald-700 dark:text-emerald-400">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                  currentTotal,
-                )}
+                {formatBRL(currentTotal)}
               </div>
             </div>
           </div>
@@ -371,12 +401,23 @@ export function NotaReviewItemCard({
               {item.unidade}
             </Badge>
           )}
-        </div>
-        <div className="text-xs text-slate-600 dark:text-slate-300 font-semibold">
-          Total:{' '}
-          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-            currentTotal,
+          {hasDesconto && (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800 text-[10px]">
+              Desc: -{formatBRL(Number(item.desconto))}
+            </Badge>
           )}
+        </div>
+        <div className="text-right">
+          <div className="flex items-center gap-1.5 justify-end">
+            {hasDesconto && precoBrutoExibicao && (
+              <span className="text-xs text-slate-400 line-through">
+                {formatBRL(precoBrutoExibicao)}
+              </span>
+            )}
+            <span className="text-xs text-slate-800 dark:text-slate-200 font-bold">
+              Total Líquido: {formatBRL(currentTotal)}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -124,7 +124,79 @@ export function runNFeParserTests(): { passed: boolean; results: string[] } {
     assert(err.message.includes('Bender'), 'Rejeitou com mensagem clara para Bender emitente')
   }
 
-  // 5. Teste de rejeição de XML que não é NF-e
+  // 5. Teste de NF-e com Descontos (vDesc), Frete (vFrete) e IPI (vIPI)
+  const xmlComDescontoEImpostos = `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe>
+    <infNFe Id="NFe35240112345678000195550010000543211000123456">
+      <ide>
+        <nNF>54321</nNF>
+        <natOp>COMPRA PARA INDUSTRIALIZACAO</natOp>
+        <dhEmi>2026-09-25T14:30:00-03:00</dhEmi>
+      </ide>
+      <emit>
+        <CNPJ>12345678000195</CNPJ>
+        <xNome>COMPENSADOS E FERRAGENS ALIANCA LTDA</xNome>
+      </emit>
+      <dest>
+        <CNPJ>98765432000110</CNPJ>
+        <xNome>BENDER HAUSSFORM LTDA</xNome>
+      </dest>
+      <total>
+        <ICMSTot>
+          <vProd>1000.00</vProd>
+          <vDesc>100.00</vDesc>
+          <vFrete>50.00</vFrete>
+          <vICMS>108.00</vICMS>
+          <vIPI>45.00</vIPI>
+          <vST>0.00</vST>
+          <vNF>995.00</vNF>
+        </ICMSTot>
+      </total>
+      <det nItem="1">
+        <prod>
+          <cProd>MDF-001</cProd>
+          <xProd>CHAPA MDF NOGUEIRA 18MM 2 FACES</xProd>
+          <NCM>44111490</NCM>
+          <uCom>CHAPA</uCom>
+          <qCom>5.00</qCom>
+          <vUnCom>200.00</vUnCom>
+          <vProd>1000.00</vProd>
+          <vDesc>100.00</vDesc>
+        </prod>
+      </det>
+    </infNFe>
+  </NFe>
+</nfeProc>`
+
+  try {
+    const parsedComDesconto = parseNFeXml(xmlComDescontoEImpostos)
+    assert(parsedComDesconto.itens.length === 1, '1 item com desconto')
+    // vProd = 1000, vDesc = 100 => Líquido = 900
+    // Quantidade = 5 => Unitário líquido = 180 (e não 200)
+    assert(parsedComDesconto.itens[0].preco_total === 900, 'Preço total líquido = 900 (1000 - 100)')
+    assert(
+      parsedComDesconto.itens[0].preco_unitario === 180,
+      'Preço unitário líquido = 180 (900 / 5)',
+    )
+    assert(parsedComDesconto.itens[0].preco_bruto === 1000, 'Preço bruto preservado = 1000')
+    assert(parsedComDesconto.itens[0].desconto === 100, 'Desconto por item extraído = 100')
+    assert(parsedComDesconto.itens[0].valor_unitario_bruto === 200, 'Valor unitário bruto = 200')
+
+    // Totais SEFAZ do grupo ICMSTot
+    assert(parsedComDesconto.totais !== undefined, 'Totais estruturados extraídos')
+    assert(parsedComDesconto.totais?.valor_produtos === 1000, 'Totais: produtos = 1000')
+    assert(parsedComDesconto.totais?.valor_desconto === 100, 'Totais: desconto = 100')
+    assert(parsedComDesconto.totais?.valor_frete === 50, 'Totais: frete = 50')
+    assert(parsedComDesconto.totais?.valor_ipi === 45, 'Totais: IPI = 45')
+    assert(parsedComDesconto.totais?.valor_icms === 108, 'Totais: ICMS = 108')
+    assert(parsedComDesconto.totais?.valor_total_nota === 995, 'Totais: total NF = 995')
+    assert(parsedComDesconto.valor === 995, 'Valor total da nota = 995')
+  } catch (err: any) {
+    assert(false, `Falha no teste com desconto e impostos: ${err.message}`)
+  }
+
+  // 6. Teste de rejeição de XML que não é NF-e
   const invalidXml = `<?xml version="1.0" encoding="UTF-8"?>
 <root>
   <cliente>Jose</cliente>

@@ -9,6 +9,9 @@ export interface MatchedItem {
   quantidade: number
   preco_unitario: number
   preco_total?: number
+  preco_bruto?: number
+  desconto?: number
+  valor_unitario_bruto?: number
   unidade?: string
   categoria?: string
   metadados_normalizados: any
@@ -162,6 +165,10 @@ export async function matchInvoiceItems(
       quantidade: qtd,
       preco_unitario: precoUnitario,
       preco_total: precoTotal,
+      preco_bruto: item.preco_bruto !== undefined ? Number(item.preco_bruto) : undefined,
+      desconto: item.desconto !== undefined ? Number(item.desconto) : undefined,
+      valor_unitario_bruto:
+        item.valor_unitario_bruto !== undefined ? Number(item.valor_unitario_bruto) : undefined,
       unidade,
       categoria,
       metadados_normalizados: meta,

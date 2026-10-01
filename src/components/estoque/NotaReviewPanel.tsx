@@ -65,6 +65,11 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
     return (rawItens || []).map((item) => {
       const qtd = Number(item.quantidade) || 1
       const pu = Number(item.preco_unitario) || 0
+      const desc = item.desconto !== undefined ? Number(item.desconto) : undefined
+      const pBruto = item.preco_bruto !== undefined ? Number(item.preco_bruto) : undefined
+      const vUnitBruto =
+        item.valor_unitario_bruto !== undefined ? Number(item.valor_unitario_bruto) : undefined
+
       const pt =
         item.preco_total !== undefined ? Number(item.preco_total) : Math.round(qtd * pu * 100) / 100
       return {
@@ -73,6 +78,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         quantidade: qtd,
         preco_unitario: pu,
         preco_total: pt,
+        preco_bruto: pBruto,
+        desconto: desc,
+        valor_unitario_bruto: vUnitBruto,
         unidade: item.unidade || 'un',
         categoria: item.categoria || '',
         metadados_normalizados: item.metadados_normalizados || {},
@@ -107,18 +115,76 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
   const totalDivergence = Math.abs(recalculatedTotal - originalTotal) > 0.01
 
+  // Dados de conciliação / totais do XML ou cálculo derivado
+  const totaisXml = useMemo(() => {
+    const dadosOcrTotais = nota.dados_ocr?.totais
+    const somaProdutosBruto = draftItens.reduce((acc, curr) => {
+      const bruto =
+        curr.preco_bruto !== undefined
+          ? Number(curr.preco_bruto)
+          : curr.preco_total !== undefined && curr.desconto
+            ? Number(curr.preco_total) + Number(curr.desconto)
+            : Number(curr.quantidade || 0) * Number(curr.preco_unitario || 0)
+      return acc + bruto
+    }, 0)
+
+    const somaDescontosItens = draftItens.reduce((acc, curr) => {
+      return acc + (curr.desconto ? Number(curr.desconto) : 0)
+    }, 0)
+
+    return {
+      valor_produtos:
+        dadosOcrTotais?.valor_produtos !== undefined
+          ? Number(dadosOcrTotais.valor_produtos)
+          : Math.round(somaProdutosBruto * 100) / 100,
+      valor_desconto:
+        dadosOcrTotais?.valor_desconto !== undefined
+          ? Number(dadosOcrTotais.valor_desconto)
+          : Math.round(somaDescontosItens * 100) / 100,
+      valor_frete: Number(dadosOcrTotais?.valor_frete || 0),
+      valor_icms: Number(dadosOcrTotais?.valor_icms || 0),
+      valor_ipi: Number(dadosOcrTotais?.valor_ipi || 0),
+      valor_st: Number(dadosOcrTotais?.valor_st || 0),
+      valor_seguro: Number(dadosOcrTotais?.valor_seguro || 0),
+      valor_outras_despesas: Number(dadosOcrTotais?.valor_outras_despesas || 0),
+      valor_total_nota:
+        dadosOcrTotais?.valor_total_nota !== undefined
+          ? Number(dadosOcrTotais.valor_total_nota)
+          : originalTotal,
+      somaDescontosItens: Math.round(somaDescontosItens * 100) / 100,
+    }
+  }, [nota.dados_ocr, draftItens, originalTotal])
+
   // Manipulação de itens no rascunho local por _draftId ou índice
   const handleItemChange = (target: number | string, updated: Partial<MatchedItem>) => {
     setDraftItens((prev) => {
       const idx = typeof target === 'string' ? prev.findIndex((i) => i._draftId === target) : target
       if (idx < 0 || idx >= prev.length) return prev
       const next = [...prev]
-      const item = { ...next[idx], ...updated }
-      if (updated.quantidade !== undefined || updated.preco_unitario !== undefined) {
+      const current = next[idx]
+      const item = { ...current, ...updated }
+
+      // Se editou desconto ou preco_bruto diretamente, recalcula preco_total líquido e preco_unitario líquido
+      if (updated.desconto !== undefined || updated.preco_bruto !== undefined) {
+        const desc = Number(item.desconto || 0)
+        const bruto =
+          item.preco_bruto !== undefined
+            ? Number(item.preco_bruto)
+            : Math.round(
+                Number(item.quantidade || 1) *
+                  Number(item.valor_unitario_bruto || item.preco_unitario || 0) *
+                  100,
+              ) / 100
+        const liqTotal = Math.max(0, Math.round((bruto - desc) * 100) / 100)
+        item.preco_total = liqTotal
+        const q = Number(item.quantidade) || 1
+        item.preco_unitario = q > 0 ? Math.round((liqTotal / q) * 10000) / 10000 : liqTotal
+      } else if (updated.quantidade !== undefined || updated.preco_unitario !== undefined) {
         const q = Number(item.quantidade) || 0
         const pu = Number(item.preco_unitario) || 0
         item.preco_total = Math.round(q * pu * 100) / 100
       }
+
       next[idx] = item
       return next
     })
@@ -169,6 +235,8 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       quantidade: 1,
       preco_unitario: 0,
       preco_total: 0,
+      preco_bruto: 0,
+      desconto: 0,
       unidade: 'un',
       categoria: '',
       metadados_normalizados: {},
@@ -351,10 +419,13 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
                 if (estItem) {
                   const updatedQty = Math.max(0, Number(estItem.quantidade) + diff)
+                  const unitarioLiquido = Number(dItem.preco_unitario) || 0
                   await supabase
                     .from('estoque_itens')
                     .update({
                       quantidade: updatedQty,
+                      valor_unitario: unitarioLiquido > 0 ? unitarioLiquido : undefined,
+                      fornecedor: nota.fornecedor || undefined,
                       atualizado_em: new Date().toISOString(),
                     })
                     .eq('id', dItem.item_id)
@@ -403,10 +474,13 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 .single()
 
               if (newEstItem) {
+                const unitarioLiquido = Number(dItem.preco_unitario) || 0
                 await supabase
                   .from('estoque_itens')
                   .update({
                     quantidade: Number(newEstItem.quantidade) + newQty,
+                    valor_unitario: unitarioLiquido > 0 ? unitarioLiquido : undefined,
+                    fornecedor: nota.fornecedor || undefined,
                     atualizado_em: new Date().toISOString(),
                   })
                   .eq('id', dItem.item_id)
@@ -608,6 +682,14 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 : Math.round(
                     Number(item.quantidade || 0) * Number(item.preco_unitario || 0) * 100,
                   ) / 100
+            const hasItemDesconto = item.desconto !== undefined && Number(item.desconto) > 0
+            const precoBrutoExibicao =
+              item.preco_bruto !== undefined && Number(item.preco_bruto) > 0
+                ? Number(item.preco_bruto)
+                : hasItemDesconto
+                  ? currentItemTotal + Number(item.desconto)
+                  : undefined
+
             const linkedEstoque = item.item_id
               ? estoqueItems.find((e) => e.id === item.item_id)
               : null
@@ -631,9 +713,23 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      {formatBRL(currentItemTotal)}
-                    </span>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {hasItemDesconto && precoBrutoExibicao && (
+                          <span className="text-xs text-slate-400 line-through">
+                            {formatBRL(precoBrutoExibicao)}
+                          </span>
+                        )}
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {formatBRL(currentItemTotal)}
+                        </span>
+                      </div>
+                      {hasItemDesconto && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 block font-medium">
+                          Desc: -{formatBRL(Number(item.desconto))}
+                        </span>
+                      )}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
@@ -676,8 +772,21 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                       Qtd: <strong>{item.quantidade}</strong> {item.unidade || 'un'}
                     </span>
                     <span>
-                      Unit: <strong>{formatBRL(Number(item.preco_unitario) || 0)}</strong>
+                      Unit. Líquido:{' '}
+                      <strong className="text-emerald-700 dark:text-emerald-400">
+                        {formatBRL(Number(item.preco_unitario) || 0)}
+                      </strong>
+                      {hasItemDesconto && item.valor_unitario_bruto && (
+                        <span className="text-slate-400 line-through ml-1 text-[11px]">
+                          ({formatBRL(Number(item.valor_unitario_bruto))})
+                        </span>
+                      )}
                     </span>
+                    {hasItemDesconto && (
+                      <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 text-[11px]">
+                        Desconto aplicado: {formatBRL(Number(item.desconto))}
+                      </span>
+                    )}
                     {item.metadados_normalizados?.marca && (
                       <span>Marca: {item.metadados_normalizados.marca}</span>
                     )}
@@ -725,7 +834,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       <div>
                         <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
                           Quantidade (&gt;0) *
@@ -757,7 +866,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                       </div>
                       <div>
                         <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
-                          Preço Unitário (R$)
+                          Preço Unit. Líquido (R$)
                         </label>
                         <Input
                           type="number"
@@ -773,7 +882,23 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                       </div>
                       <div>
                         <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
-                          Total do Item (R$)
+                          Desconto Item (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.desconto || 0}
+                          onChange={(e) => {
+                            const desc = parseFloat(e.target.value) || 0
+                            handleItemChange(item._draftId || idx, { desconto: desc })
+                          }}
+                          className="h-8 text-xs bg-white dark:bg-slate-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                          Total Líquido (R$)
                         </label>
                         <div className="h-8 px-2 flex items-center font-bold text-xs bg-white dark:bg-slate-900 border rounded-md text-emerald-700 dark:text-emerald-400">
                           {formatBRL(currentItemTotal)}
@@ -816,6 +941,119 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
           </p>
         )
       )}
+
+      {/* 3. AVISO DE DIVERGÊNCIA INLINE (Quando soma dos itens líquidos ≠ total da nota vNF) */}
+      {totalDivergence && (
+        <div className="mt-4 p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-amber-900 dark:text-amber-200">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex-1 text-xs leading-relaxed">
+              <p className="font-semibold text-sm mb-1 text-amber-800 dark:text-amber-300">
+                Aviso: Divergência entre soma dos itens e total da nota fiscal
+              </p>
+              <p>
+                A soma dos itens líquidos ({formatBRL(recalculatedTotal)}) difere do total da nota (
+                {formatBRL(originalTotal)}) em{' '}
+                <strong className="underline">
+                  {formatBRL(Math.abs(recalculatedTotal - originalTotal))}
+                </strong>
+                .
+              </p>
+              <p className="mt-1 text-slate-600 dark:text-slate-400">
+                Essa diferença geralmente decorre de <strong>frete</strong>,{' '}
+                <strong>impostos adicionais (IPI, ICMS-ST)</strong> ou{' '}
+                <strong>descontos globais</strong> da nota (consulte a tabela de conciliação
+                abaixo). Você pode confirmar o rascunho normalmente ou editar os itens se
+                necessário.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. RODAPÉ DE CONCILIAÇÃO DA NOTA FISCAL (Extraído do grupo total/icmsTot do XML) */}
+      <div className="mt-4 bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg p-4 shadow-xs">
+        <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide mb-3 flex items-center justify-between">
+          <span>Conciliação Financeira da Nota Fiscal (Totais SEFAZ)</span>
+          <Badge variant="outline" className="text-[10px] font-normal">
+            Grupo ICMSTot
+          </Badge>
+        </h5>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded border dark:border-slate-800">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+              1. Produtos (vProd)
+            </span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+              {formatBRL(totaisXml.valor_produtos)}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded border dark:border-slate-800">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+              2. Descontos (vDesc)
+            </span>
+            <span
+              className={`font-semibold text-sm ${
+                totaisXml.valor_desconto > 0 || totaisXml.somaDescontosItens > 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              -{formatBRL(totaisXml.valor_desconto || totaisXml.somaDescontosItens)}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded border dark:border-slate-800">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+              3. Frete (vFrete)
+            </span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+              +{formatBRL(totaisXml.valor_frete)}
+            </span>
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded border dark:border-slate-800">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+              4. Impostos (IPI + ST)
+            </span>
+            <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
+              +{formatBRL(totaisXml.valor_ipi + totaisXml.valor_st)}
+            </div>
+            {(totaisXml.valor_ipi > 0 || totaisXml.valor_st > 0 || totaisXml.valor_icms > 0) && (
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                IPI: {formatBRL(totaisXml.valor_ipi)} | ST: {formatBRL(totaisXml.valor_st)}
+                {totaisXml.valor_icms > 0 ? ` | ICMS: ${formatBRL(totaisXml.valor_icms)}` : ''}
+              </span>
+            )}
+          </div>
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded border dark:border-slate-800">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+              5. Soma Itens Líquidos
+            </span>
+            <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+              {formatBRL(recalculatedTotal)}
+            </span>
+          </div>
+
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 p-2.5 rounded border border-emerald-200 dark:border-emerald-800">
+            <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium block">
+              6. Total da Nota (vNF)
+            </span>
+            <span className="font-bold text-emerald-800 dark:text-emerald-300 text-sm">
+              {formatBRL(originalTotal)}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-slate-400 mt-2.5">
+          * Os custos unitários de estoque e alocação utilizam o{' '}
+          <strong>valor líquido do item</strong> (vProd − vDesc), garantindo que descontos
+          comerciais não inflem o custo do projeto.
+        </p>
+      </div>
 
       {showAddModal && (
         <UnifiedItemModal

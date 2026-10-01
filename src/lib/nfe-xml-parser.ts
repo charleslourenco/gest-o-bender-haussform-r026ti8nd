@@ -16,12 +16,27 @@ export interface NFeItemParsed {
   produto: string
   marca?: string
   quantidade: number
-  preco_unitario: number
-  preco_total: number
+  preco_unitario: number // Líquido = (preco_bruto - desconto) / quantidade
+  preco_total: number // Líquido = preco_bruto - desconto
+  preco_bruto?: number // vProd do item
+  desconto?: number // vDesc do item
+  valor_unitario_bruto?: number // vUnCom bruto do XML
   categoria: string
   unidade?: string
   codigo_produto?: string
   ncm?: string
+}
+
+export interface NFeTotaisParsed {
+  valor_produtos: number // vProd
+  valor_desconto: number // vDesc
+  valor_frete: number // vFrete
+  valor_icms: number // vICMS
+  valor_ipi: number // vIPI
+  valor_st: number // vST
+  valor_seguro?: number // vSeg
+  valor_outras_despesas?: number // vOutro
+  valor_total_nota: number // vNF
 }
 
 export interface NFeParsedData {
@@ -31,6 +46,7 @@ export interface NFeParsedData {
   data_emissao: string
   numero_nota: string
   itens: NFeItemParsed[]
+  totais?: NFeTotaisParsed
   chave_acesso?: string
   natureza_operacao?: string
 }
@@ -259,6 +275,14 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
   // 4. Totais (total -> ICMSTot)
   let valorTotalNota = 0
   let valorTotalProdutos = 0
+  let valorTotalDesconto = 0
+  let valorFrete = 0
+  let valorICMS = 0
+  let valorIPI = 0
+  let valorST = 0
+  let valorSeguro = 0
+  let valorOutrasDespesas = 0
+
   const totalEl =
     infNFe.getElementsByTagName('total')[0] || infNFe.getElementsByTagNameNS('*', 'total')[0]
 
@@ -270,14 +294,30 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
     if (icmsTot) {
       const vNF = parseFloat(getElementText(icmsTot, 'vNF') || '0')
       const vProd = parseFloat(getElementText(icmsTot, 'vProd') || '0')
+      const vDesc = parseFloat(getElementText(icmsTot, 'vDesc') || '0')
+      const vFrete = parseFloat(getElementText(icmsTot, 'vFrete') || '0')
+      const vICMS = parseFloat(getElementText(icmsTot, 'vICMS') || '0')
+      const vIPI = parseFloat(getElementText(icmsTot, 'vIPI') || '0')
+      const vST = parseFloat(getElementText(icmsTot, 'vST') || '0')
+      const vSeg = parseFloat(getElementText(icmsTot, 'vSeg') || '0')
+      const vOutro = parseFloat(getElementText(icmsTot, 'vOutro') || '0')
+
       valorTotalNota = !isNaN(vNF) ? vNF : 0
       valorTotalProdutos = !isNaN(vProd) ? vProd : 0
+      valorTotalDesconto = !isNaN(vDesc) ? vDesc : 0
+      valorFrete = !isNaN(vFrete) ? vFrete : 0
+      valorICMS = !isNaN(vICMS) ? vICMS : 0
+      valorIPI = !isNaN(vIPI) ? vIPI : 0
+      valorST = !isNaN(vST) ? vST : 0
+      valorSeguro = !isNaN(vSeg) ? vSeg : 0
+      valorOutrasDespesas = !isNaN(vOutro) ? vOutro : 0
     }
   }
 
   // 5. Itens (det)
   const detList = getElements(infNFe, 'det')
   const itens: NFeItemParsed[] = []
+  let somaDescontoItens = 0
 
   for (const det of detList) {
     const prodEl = det.getElementsByTagName('prod')[0] || det.getElementsByTagNameNS('*', 'prod')[0]
@@ -291,21 +331,38 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
     const qComStr = getElementText(prodEl, 'qCom')
     const vUnComStr = getElementText(prodEl, 'vUnCom')
     const vProdStr = getElementText(prodEl, 'vProd')
+    const vDescStr = getElementText(prodEl, 'vDesc')
 
     const quantidade = parseFloat(qComStr.replace(',', '.')) || 1
-    const precoUnitario = parseFloat(vUnComStr.replace(',', '.')) || 0
-    let precoTotal = parseFloat(vProdStr.replace(',', '.')) || 0
+    const valorUnitarioBruto = parseFloat(vUnComStr.replace(',', '.')) || 0
+    let precoBruto = parseFloat(vProdStr.replace(',', '.')) || 0
+    const descontoItem = parseFloat(vDescStr.replace(',', '.')) || 0
 
-    if (precoTotal === 0 && quantidade > 0 && precoUnitario > 0) {
-      precoTotal = Math.round(quantidade * precoUnitario * 100) / 100
+    if (descontoItem > 0) {
+      somaDescontoItens += descontoItem
     }
+
+    if (precoBruto === 0 && quantidade > 0 && valorUnitarioBruto > 0) {
+      precoBruto = Math.round(quantidade * valorUnitarioBruto * 100) / 100
+    }
+
+    // Valor líquido do item = precoBruto - descontoItem
+    const precoLiquidoTotal = Math.max(0, Math.round((precoBruto - descontoItem) * 100) / 100)
+    // Preço unitário líquido = precoLiquidoTotal / quantidade
+    const precoUnitarioLiquido =
+      quantidade > 0
+        ? Math.round((precoLiquidoTotal / quantidade) * 10000) / 10000
+        : precoLiquidoTotal
 
     if (xProd) {
       itens.push({
         produto: xProd,
         quantidade,
-        preco_unitario: precoUnitario,
-        preco_total: precoTotal,
+        preco_unitario: precoUnitarioLiquido, // Líquido para o estoque
+        preco_total: precoLiquidoTotal, // Líquido
+        preco_bruto: precoBruto, // Bruto original (vProd)
+        desconto: descontoItem > 0 ? descontoItem : undefined, // vDesc
+        valor_unitario_bruto: valorUnitarioBruto, // vUnCom bruto
         categoria: classificarCategoriaItem(xProd),
         unidade: uCom || 'un',
         codigo_produto: cProd || undefined,
@@ -314,13 +371,36 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
     }
   }
 
-  // Se o valor total da nota não foi obtido do cabeçalho ICMSTot, calcula da soma dos itens
+  // Se o desconto do cabeçalho era 0 mas os itens têm vDesc, usa a soma dos itens
+  if (valorTotalDesconto === 0 && somaDescontoItens > 0) {
+    valorTotalDesconto = Math.round(somaDescontoItens * 100) / 100
+  }
+
+  // Se o valor total da nota não foi obtido do cabeçalho ICMSTot, calcula da soma dos itens líquidos
   if (valorTotalNota <= 0) {
     if (valorTotalProdutos > 0) {
-      valorTotalNota = valorTotalProdutos
+      valorTotalNota = Math.max(
+        0,
+        Math.round(
+          (valorTotalProdutos - valorTotalDesconto + valorFrete + valorIPI + valorST) * 100,
+        ) / 100,
+      )
     } else {
       valorTotalNota = itens.reduce((acc, curr) => acc + curr.preco_total, 0)
     }
+  }
+
+  // Objeto estruturado de totais da nota
+  const totais: NFeTotaisParsed = {
+    valor_produtos: valorTotalProdutos,
+    valor_desconto: valorTotalDesconto,
+    valor_frete: valorFrete,
+    valor_icms: valorICMS,
+    valor_ipi: valorIPI,
+    valor_st: valorST,
+    valor_seguro: valorSeguro > 0 ? valorSeguro : undefined,
+    valor_outras_despesas: valorOutrasDespesas > 0 ? valorOutrasDespesas : undefined,
+    valor_total_nota: valorTotalNota,
   }
 
   return {
@@ -330,6 +410,7 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
     data_emissao: dataEmissao,
     numero_nota: numeroNota || (chaveAcesso ? chaveAcesso.substring(25, 34) : `NF-${Date.now()}`),
     itens,
+    totais,
     chave_acesso: chaveAcesso || undefined,
     natureza_operacao: naturezaOperacao || undefined,
   }
