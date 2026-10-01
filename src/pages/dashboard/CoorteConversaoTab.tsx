@@ -31,11 +31,24 @@ import {
 } from 'lucide-react'
 import { fetchDadosCoorte, processarCoortes, RawLeadCoorte } from '@/services/coortes'
 
-export function CoorteConversaoTab() {
+import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
+import type { AtendimentosMetrics, FullDashboardMetrics } from './types'
+
+interface CoorteConversaoTabProps {
+  atendimentosMetrics?: AtendimentosMetrics
+}
+
+export function CoorteConversaoTab({ atendimentosMetrics }: CoorteConversaoTabProps = {}) {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [rawLeads, setRawLeads] = useState<RawLeadCoorte[]>([])
   const [historicoMap, setHistoricoMap] = useState<Set<string>>(new Set())
+
+  // Métricas da RPC para leads comerciais válidos (fallback se não fornecido via prop)
+  const [rpcAtendimentos, setRpcAtendimentos] = useState<AtendimentosMetrics | null>(
+    atendimentosMetrics || null,
+  )
 
   // Filtros
   const [consultorId, setConsultorId] = useState<string>('todos')
@@ -46,9 +59,25 @@ export function CoorteConversaoTab() {
     setLoading(true)
     setErrorMessage(null)
     try {
-      const { leads, historicoMap: hMap } = await fetchDadosCoorte()
+      const p1 = fetchDadosCoorte()
+      // Se não recebemos as métricas via prop, busca diretamente via RPC com todo o histórico
+      const p2 = atendimentosMetrics
+        ? Promise.resolve(null)
+        : runWithAuthRecovery<FullDashboardMetrics>(() =>
+            supabase.rpc('get_dashboard_metrics', {
+              p_start_date: null,
+              p_end_date: null,
+            }),
+          )
+
+      const [{ leads, historicoMap: hMap }, rpcRes] = await Promise.all([p1, p2])
+
       setRawLeads(leads)
       setHistoricoMap(hMap)
+
+      if (rpcRes?.data?.atendimentos) {
+        setRpcAtendimentos(rpcRes.data.atendimentos)
+      }
     } catch (err: unknown) {
       console.error('[CoorteConversaoTab] Erro ao carregar dados:', err)
       const msg =
@@ -62,6 +91,13 @@ export function CoorteConversaoTab() {
       setLoading(false)
     }
   }
+
+  // Sincroniza se a prop mudar
+  useEffect(() => {
+    if (atendimentosMetrics) {
+      setRpcAtendimentos(atendimentosMetrics)
+    }
+  }, [atendimentosMetrics])
 
   useEffect(() => {
     carregarDados()
@@ -88,6 +124,33 @@ export function CoorteConversaoTab() {
     consultores_disponiveis,
     origens_disponiveis,
   } = resultado
+
+  // Valor de leads chegados a exibir no card:
+  // Usa o valor da RPC get_dashboard_metrics para leads comerciais válidos.
+  // Se não houver filtro na tela e as métricas da RPC estiverem disponíveis:
+  // usa total_leads (ou performance_periodo.leads_chegados); se a prop fornecida veio do filtro do dashboard,
+  // performance_periodo.leads_chegados reflete o período (ex: 30d -> 110, histórico -> 278).
+  // Caso contrário ou se houver filtro específico ativo na coorte, mantém total_chegados_geral da coorte como fallback.
+  const totalChegadosCard = useMemo(() => {
+    if (rpcAtendimentos) {
+      // Se não há filtro de consultor nem de origem específico aplicado na coorte:
+      if (consultorId === 'todos' && origemFiltro === 'todas') {
+        const rpcValor =
+          rpcAtendimentos.performance_periodo?.leads_chegados ?? rpcAtendimentos.total_leads
+        if (typeof rpcValor === 'number' && rpcValor > 0) {
+          return rpcValor
+        }
+      }
+    }
+    return total_chegados_geral
+  }, [rpcAtendimentos, consultorId, origemFiltro, total_chegados_geral])
+
+  const subtituloChegadosCard = useMemo(() => {
+    if (rpcAtendimentos && consultorId === 'todos' && origemFiltro === 'todas') {
+      return 'Total histórico da esteira comercial (leads comerciais válidos)'
+    }
+    return 'Soma das safras exibidas (não excluídos)'
+  }, [rpcAtendimentos, consultorId, origemFiltro])
 
   // Limpar filtros
   const handleLimparFiltros = () => {
@@ -268,10 +331,10 @@ export function CoorteConversaoTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground">
-              {total_chegados_geral}
+              {totalChegadosCard}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1 font-medium">
-              Soma das safras exibidas (não excluídos)
+              {subtituloChegadosCard}
             </p>
           </CardContent>
         </Card>

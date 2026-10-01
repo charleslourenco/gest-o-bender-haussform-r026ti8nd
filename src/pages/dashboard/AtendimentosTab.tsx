@@ -1791,7 +1791,11 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
 
       {/* SUB-ABA 3: CONSULTORIA */}
       {activeSubTab === 'consultoria' && (
-        <ConsultoriaSubTab data={consultoria} tempoColunas={tempo_colunas?.consultoria} />
+        <ConsultoriaSubTab
+          data={consultoria}
+          tempoColunas={tempo_colunas?.consultoria}
+          atendimentosMetrics={data}
+        />
       )}
 
       {/* SUB-ABA 4: LEADS P/ ORÇAMENTO */}
@@ -2294,9 +2298,11 @@ function NovoContatoSubTab({
 function ConsultoriaSubTab({
   data,
   tempoColunas,
+  atendimentosMetrics,
 }: {
   data?: ConsultoriaMetrics
   tempoColunas?: TempoColunaItem[]
+  atendimentosMetrics?: AtendimentosMetrics
 }) {
   const [consultoriaView, setConsultoriaView] = useState<'esteira' | 'coortes'>('esteira')
 
@@ -2341,7 +2347,7 @@ function ConsultoriaSubTab({
       </div>
 
       {consultoriaView === 'coortes' ? (
-        <CoorteConversaoTab />
+        <CoorteConversaoTab atendimentosMetrics={atendimentosMetrics} />
       ) : (
         <ConsultoriaEsteiraConteudo data={data} tempoColunas={tempoColunas} />
       )}
