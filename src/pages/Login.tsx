@@ -155,19 +155,10 @@ export default function Login() {
                 <div className="w-full border-t border-steel-blue" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-midnight-navy text-pale-cornflower font-medium">
-                  Ainda não tem conta?
+                <span className="px-2 bg-midnight-navy text-pale-cornflower/80 font-normal text-xs text-center">
+                  Acesso restrito. Solicite seu cadastro ao administrador.
                 </span>
               </div>
-            </div>
-
-            <div className="mt-6 text-center">
-              <Link
-                to="/signup"
-                className="font-semibold text-pale-cornflower hover:text-off-white transition-colors duration-200"
-              >
-                Criar nova conta
-              </Link>
             </div>
           </div>
         </div>

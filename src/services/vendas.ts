@@ -205,10 +205,19 @@ export async function createClientWithSale(params: {
   if (existing) {
     clienteId = existing.id
   } else {
+    const finalNome = (clientData.nome ?? '').trim()
+    if (
+      !finalNome ||
+      finalNome.toLowerCase() === 'novo cliente' ||
+      finalNome.toLowerCase() === 'cliente sem nome'
+    ) {
+      throw new Error('Nome do cliente é obrigatório e não pode ser genérico.')
+    }
+
     const { data: newClient, error } = await supabase
       .from('clientes')
       .insert({
-        nome: (clientData.nome ?? '').trim() || 'Cliente sem nome',
+        nome: finalNome,
         email: (clientData.email ?? '').trim(),
         telefone: (clientData.telefone ?? '').trim(),
         cpf: clientData.cpf || null,

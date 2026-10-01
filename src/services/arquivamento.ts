@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase/client'
 export async function arquivarLead(id: string): Promise<void> {
   const { error } = await supabase
     .from('leads')
-    .update({ arquivado_comercial: true } as any)
+    .update({ arquivado_comercial: true, kanban_ativo: false } as any)
     .eq('id', id)
   if (error) throw error
 }
@@ -11,7 +11,7 @@ export async function arquivarLead(id: string): Promise<void> {
 export async function desarquivarLead(id: string): Promise<void> {
   const { error } = await supabase
     .from('leads')
-    .update({ arquivado_comercial: false } as any)
+    .update({ arquivado_comercial: false, kanban_ativo: true } as any)
     .eq('id', id)
   if (error) throw error
 }
