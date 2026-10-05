@@ -24,6 +24,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -645,7 +646,7 @@ export function CaixasVirtuais() {
                               </div>
                             ) : (
                               <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
-                                {caixa.itens.map((item) => (
+                                {(caixa.itens || []).map((item) => (
                                   <li
                                     key={item.id}
                                     className="flex justify-between items-center text-xs p-2 rounded-lg bg-card border border-border/80 shadow-xs"
@@ -778,11 +779,16 @@ export function CaixasVirtuais() {
                             <span>Pendente de assinatura do recebedor</span>
                           </div>
                           <p className="text-[10px] text-muted-foreground">
-                            Destino:{' '}
-                            {caixa.destino === 'consumo_interno'
-                              ? 'Consumo Interno / Produção'
-                              : 'Cliente'}
-                            {' · '}Quem recebeu fisicamente (produção/montagem) pode assinar agora.
+                            {caixa.destino ? (
+                              <>
+                                Destino:{' '}
+                                {caixa.destino === 'consumo_interno'
+                                  ? 'Consumo Interno / Produção'
+                                  : 'Cliente'}
+                                {' · '}
+                              </>
+                            ) : null}
+                            Quem recebeu fisicamente (produção/montagem) pode assinar agora.
                           </p>
                         </div>
                       )}

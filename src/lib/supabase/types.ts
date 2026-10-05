@@ -1323,6 +1323,7 @@ export type Database = {
           cliente_id: string | null
           comprovante_url: string | null
           criado_em: string
+          destino: string
           id: string
           nome: string
           projeto_id: string | null
@@ -1336,6 +1337,7 @@ export type Database = {
           cliente_id?: string | null
           comprovante_url?: string | null
           criado_em?: string
+          destino?: string
           id?: string
           nome: string
           projeto_id?: string | null
@@ -1349,6 +1351,7 @@ export type Database = {
           cliente_id?: string | null
           comprovante_url?: string | null
           criado_em?: string
+          destino?: string
           id?: string
           nome?: string
           projeto_id?: string | null
