@@ -66,6 +66,7 @@ interface CaixaData {
   comprovante_url?: string | null
   assinado_em?: string | null
   criado_em?: string
+  destino?: 'consumo_interno' | 'cliente'
   cliente?: {
     nome: string
   } | null
@@ -85,6 +86,14 @@ export function CaixasVirtuais() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false)
   const [selectedCaixa, setSelectedCaixa] = useState<CaixaData | null>(null)
+
+  // Diálogo Fechar e Entregar Caixa
+  const [isFecharDialogOpen, setIsFecharDialogOpen] = useState(false)
+  const [caixaParaFechar, setCaixaParaFechar] = useState<CaixaData | null>(null)
+  const [fecharDestino, setFecharDestino] = useState<'consumo_interno' | 'cliente'>(
+    'consumo_interno',
+  )
+  const [fechandoLoading, setFechandoLoading] = useState(false)
 
   const [novaCaixa, setNovaCaixa] = useState({ nome: '', cliente_id: '' })
   const [novoItem, setNovoItem] = useState<{
@@ -106,7 +115,7 @@ export function CaixasVirtuais() {
     const { data } = await supabase
       .from('estoque_caixas' as any)
       .select(
-        '*, cliente:clientes(nome), itens:estoque_caixas_itens(*, item:estoque_itens(nome, unidade))',
+        '*, cliente:clientes(nome), itens:estoque_caixas_itens(*, item:estoque_itens(nome, unidade, valor_unitario))',
       )
       .order('criado_em', { ascending: false })
     if (data) {
@@ -251,44 +260,126 @@ export function CaixasVirtuais() {
     }
   }
 
-  async function handleEntregarCaixa(caixaId: string) {
-    if (!confirm('Confirmar o fechamento e a entrega de todos os itens desta caixa?')) return
+  function abrirDialogoFecharCaixa(caixa: CaixaData) {
+    setCaixaParaFechar(caixa)
+    setFecharDestino((caixa.destino as any) || 'consumo_interno')
+    setIsFecharDialogOpen(true)
+  }
 
-    const caixa = caixas.find((c) => c.id === caixaId)
-    if (!caixa) return
-    const itensPendentes = (caixa.itens || []).filter((i: any) => i.status === 'reservado')
+  async function executarFechamentoCaixa(
+    modoAssinatura: 'pular' | 'copiar_link' | 'assinar_agora',
+  ) {
+    if (!caixaParaFechar) return
 
-    for (const item of itensPendentes) {
-      await supabase
-        .from('estoque_caixas_itens' as any)
-        .update({ status: 'entregue' })
-        .eq('id', item.id)
-      await supabase.from('estoque_movimentacoes' as any).insert({
-        item_id: item.item_id,
-        tipo: 'Saída',
-        quantidade: item.quantidade,
+    setFechandoLoading(true)
+    const caixaId = caixaParaFechar.id
+    const caixa = caixas.find((c) => c.id === caixaId) || caixaParaFechar
+
+    try {
+      const itensPendentes = (caixa.itens || []).filter((i: any) => i.status === 'reservado')
+      const nowIso = new Date().toISOString()
+      const clienteNomeFallback =
+        fecharDestino === 'consumo_interno'
+          ? `PRODUÇÃO (${caixa.nome})`
+          : caixa.cliente?.nome || 'Cliente'
+
+      // Atualiza cada item da caixa para 'entregue', registra estoque_alocacoes com valor congelado e estoque_movimentacoes 'saida'
+      for (const item of itensPendentes) {
+        const { error: itemErr } = await supabase
+          .from('estoque_caixas_itens' as any)
+          .update({ status: 'entregue' })
+          .eq('id', item.id)
+        if (itemErr) throw itemErr
+
+        const unitPreco = Number((item.item as any)?.valor_unitario ?? 0)
+        const qtd = Number(item.quantidade || 0)
+        const valorTotal = Math.round(qtd * unitPreco * 100) / 100
+
+        const { error: alocErr } = await supabase.from('estoque_alocacoes' as any).insert({
+          item_id: item.item_id,
+          cliente_id: caixa.cliente_id || null,
+          cliente_nome: clienteNomeFallback,
+          quantidade: Math.round(qtd),
+          status: 'baixado',
+          destino: fecharDestino,
+          valor_unitario_congelado: unitPreco,
+          valor_total_congelado: valorTotal,
+          baixado_em: nowIso,
+          baixado_por:
+            modoAssinatura === 'pular' ? 'Fechamento sem assinatura' : 'Aguardando assinatura',
+          criado_em: nowIso,
+        })
+        if (alocErr) throw alocErr
+
+        const { error: movErr } = await supabase.from('estoque_movimentacoes' as any).insert({
+          item_id: item.item_id,
+          tipo: 'saida',
+          quantidade: qtd,
+        })
+        if (movErr) throw movErr
+      }
+
+      // Atualiza a caixa para 'entregue' e salva o destino escolhido
+      const { error: caixaErr } = await supabase
+        .from('estoque_caixas' as any)
+        .update({
+          status: 'entregue',
+          destino: fecharDestino,
+          atualizado_em: nowIso,
+        })
+        .eq('id', caixaId)
+
+      if (caixaErr) throw caixaErr
+
+      const linkAssinatura = `${window.location.origin}/recebimento-caixa/${caixaId}`
+
+      if (modoAssinatura === 'copiar_link') {
+        try {
+          await navigator.clipboard.writeText(linkAssinatura)
+          toast({
+            title: 'Caixa fechada e link copiado!',
+            description: 'A baixa foi gerada com sucesso e o link de assinatura foi copiado.',
+          })
+        } catch {
+          toast({
+            title: 'Caixa fechada com sucesso!',
+            description: `Acesse o link para assinar: ${linkAssinatura}`,
+          })
+        }
+      } else if (modoAssinatura === 'assinar_agora') {
+        toast({
+          title: 'Caixa fechada!',
+          description: 'Abrindo tela de assinatura para o recebedor...',
+        })
+        window.open(linkAssinatura, '_blank')
+      } else {
+        toast({
+          title: 'Caixa fechada e entregue!',
+          description:
+            'A baixa no estoque foi concluída com custo congelado. A assinatura pode ser feita no histórico a qualquer momento.',
+        })
+      }
+
+      // Remove do estado expandido e atualiza listagem
+      setExpandedCaixas((prev) => {
+        const next = { ...prev }
+        delete next[caixaId]
+        return next
       })
+
+      setIsFecharDialogOpen(false)
+      setCaixaParaFechar(null)
+      await fetchCaixas()
+    } catch (err: any) {
+      console.error('Erro ao fechar caixa:', err)
+      toast({
+        title: 'Erro ao fechar caixa',
+        description: err.message || 'Verifique os dados e tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setFechandoLoading(false)
     }
-
-    await supabase
-      .from('estoque_caixas' as any)
-      .update({ status: 'entregue' })
-      .eq('id', caixaId)
-
-    toast({
-      title: 'Caixa fechada e entregue!',
-      description:
-        'A baixa no estoque foi concluída e a caixa foi movida para o histórico de Entregues.',
-    })
-
-    // Remove do estado expandido e atualiza listagem
-    setExpandedCaixas((prev) => {
-      const next = { ...prev }
-      delete next[caixaId]
-      return next
-    })
-    await fetchCaixas()
-    // Alterna visualmente para a aba Entregues ou mantém o usuário informado
   }
 
   return (
@@ -579,14 +670,14 @@ export function CaixasVirtuais() {
                           </div>
                         </CardContent>
 
-                        {/* Botão Fechar e Entregar: executa baixa e move para Entregues */}
+                        {/* Botão Fechar e Entregar: abre diálogo com destino e opções de assinatura */}
                         <CardFooter className="pt-2 pb-4 px-4 border-t border-border/60 bg-muted/20">
                           <Button
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-medium"
                             disabled={totalItens === 0}
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleEntregarCaixa(caixa.id)
+                              abrirDialogoFecharCaixa(caixa)
                             }}
                           >
                             <Check className="w-4 h-4 mr-2" /> Fechar e Entregar Caixa
@@ -665,15 +756,34 @@ export function CaixasVirtuais() {
                       {caixa.recebedor_nome ? (
                         <div className="flex items-center gap-2 p-2 rounded-md bg-white dark:bg-slate-900/60 border border-emerald-200/80 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300">
                           <UserRound className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span className="truncate text-[11px] font-medium">
-                            Recebido por: <strong>{caixa.recebedor_nome}</strong>
-                            {caixa.recebedor_cpf && ` · CPF: ${maskCpf(caixa.recebedor_cpf)}`}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[11px] font-medium">
+                              Recebido por: <strong>{caixa.recebedor_nome}</strong>
+                              {caixa.recebedor_cpf && ` · CPF: ${maskCpf(caixa.recebedor_cpf)}`}
+                            </p>
+                            {caixa.destino && (
+                              <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80">
+                                Destino:{' '}
+                                {caixa.destino === 'consumo_interno'
+                                  ? 'Consumo Interno / Produção'
+                                  : 'Cliente'}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground italic px-1">
-                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                          <span>Baixa confirmada sem recebedor assinado</span>
+                        <div className="p-2 rounded-md bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                            <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                            <span>Pendente de assinatura do recebedor</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Destino:{' '}
+                            {caixa.destino === 'consumo_interno'
+                              ? 'Consumo Interno / Produção'
+                              : 'Cliente'}
+                            {' · '}Quem recebeu fisicamente (produção/montagem) pode assinar agora.
+                          </p>
                         </div>
                       )}
 
@@ -700,26 +810,67 @@ export function CaixasVirtuais() {
                         </ul>
                       </div>
 
-                      {/* Metadados: Data e Ação de ver comprovante */}
-                      <div className="pt-2 border-t border-border/40 flex items-center justify-between text-[11px] text-muted-foreground">
-                        <span className="flex items-center gap-1">
+                      {/* Metadados: Data e Ações de assinatura/comprovante */}
+                      <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-1 text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1 shrink-0">
                           <Calendar className="w-3 h-3" />
                           {caixa.criado_em
                             ? new Date(caixa.criado_em).toLocaleDateString('pt-BR')
                             : '-'}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-[11px] px-2 text-steel-blue hover:text-dark-denim dark:text-blue-400"
-                          onClick={() => {
-                            const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
-                            window.open(link, '_blank')
-                          }}
-                        >
-                          <Link2 className="w-3 h-3 mr-1" />
-                          Ver Comprovante
-                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {!caixa.recebedor_nome && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-[11px] px-1.5 text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                                  navigator.clipboard.writeText(link)
+                                  toast({
+                                    title: 'Link copiado!',
+                                    description:
+                                      'Link de assinatura copiado para a área de transferência.',
+                                  })
+                                }}
+                                title="Copiar link de assinatura"
+                              >
+                                <Link2 className="w-3 h-3 mr-1" />
+                                Copiar link
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[11px] px-2 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 font-medium"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                                  window.open(link, '_blank')
+                                }}
+                                title="Abrir página de assinatura para o recebedor assinar agora"
+                              >
+                                <ShieldCheck className="w-3 h-3 mr-1 text-amber-600 dark:text-amber-400" />
+                                Assinar agora
+                              </Button>
+                            </>
+                          )}
+
+                          {caixa.recebedor_nome && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-[11px] px-2 text-steel-blue hover:text-dark-denim dark:text-blue-400"
+                              onClick={() => {
+                                const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                                window.open(link, '_blank')
+                              }}
+                            >
+                              <Link2 className="w-3 h-3 mr-1" />
+                              Ver Comprovante
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -729,6 +880,200 @@ export function CaixasVirtuais() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* DIÁLOGO: FECHAR E ENTREGAR CAIXA (NOVO FLUXO COM DESTINO E OPÇÕES DE ASSINATURA) */}
+      <Dialog
+        open={isFecharDialogOpen}
+        onOpenChange={(open) => {
+          if (!fechandoLoading) {
+            setIsFecharDialogOpen(open)
+            if (!open) setCaixaParaFechar(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-midnight-navy dark:text-slate-100">
+              <PackageCheck className="w-5 h-5 text-emerald-600" />
+              <span>Fechar e Entregar Caixa</span>
+            </DialogTitle>
+            <DialogDescription>
+              Defina o destino contábil da baixa e escolha como coletar a assinatura de quem está
+              recebendo fisicamente a caixa.
+            </DialogDescription>
+          </DialogHeader>
+
+          {caixaParaFechar && (
+            <div className="space-y-4 py-2 text-sm">
+              {/* Resumo da Caixa */}
+              <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-1">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-bold text-foreground">{caixaParaFechar.nome}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Cliente vinculado:{' '}
+                      <strong className="text-foreground">
+                        {caixaParaFechar.cliente?.nome || 'Não especificado'}
+                      </strong>
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {(caixaParaFechar.itens || []).length} iten(s)
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Regra de Negócio: Destino da Baixa */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Destino da Baixa (Custo / DRE) *
+                </Label>
+                <Select
+                  value={fecharDestino}
+                  onValueChange={(v) => setFecharDestino(v as 'consumo_interno' | 'cliente')}
+                  disabled={fechandoLoading}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="consumo_interno">
+                      <div className="text-left py-0.5">
+                        <span className="font-semibold block text-slate-900 dark:text-slate-100">
+                          Consumo interno / Produção (Padrão)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block">
+                          Entregue à fábrica/equipe de montagem; computado no relatório de Consumo
+                          Interno.
+                        </span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="cliente">
+                      <div className="text-left py-0.5">
+                        <span className="font-semibold block text-slate-900 dark:text-slate-100">
+                          Cliente (Direto)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block">
+                          Entregue diretamente na obra/ao cliente; computado no DRE do Projeto.
+                        </span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {fecharDestino === 'consumo_interno'
+                    ? '✓ Alinhado à Fase 2: gera estoque_alocacoes com destino consumo_interno e preço congelado.'
+                    : '✓ Alinhado à Fase 2: gera estoque_alocacoes com destino cliente e preço congelado para o DRE.'}
+                </p>
+              </div>
+
+              {/* Informação sobre o recebedor */}
+              <div className="rounded-lg border border-blue-200/80 bg-blue-50/50 dark:border-blue-900/60 dark:bg-blue-950/30 p-3 space-y-1">
+                <p className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                  <UserRound className="w-3.5 h-3.5 text-blue-600" />
+                  Quem assina o comprovante?
+                </p>
+                <p className="text-xs text-blue-800/90 dark:text-blue-300/90 leading-relaxed">
+                  A assinatura é de <strong>quem recebe fisicamente a caixa</strong> (membro da
+                  produção ou equipe de montagem: Davi, Douglas, Roberto, Guilherme etc.),
+                  informando Nome Completo e CPF.
+                </p>
+              </div>
+
+              {/* Opções de Assinatura */}
+              <div className="space-y-2 pt-1">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Escolha como concluir a entrega:
+                </Label>
+
+                <div className="grid grid-cols-1 gap-2 pt-1">
+                  {/* Opção 1: Assinar Agora */}
+                  <Button
+                    type="button"
+                    className="w-full justify-start h-auto py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                    disabled={fechandoLoading}
+                    onClick={() => executarFechamentoCaixa('assinar_agora')}
+                  >
+                    <div className="flex items-center gap-2.5 text-left w-full">
+                      <div className="p-1.5 rounded-md bg-white/20 shrink-0">
+                        <ShieldCheck className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold leading-tight">Assinar agora</div>
+                        <div className="text-[11px] text-emerald-100 font-normal leading-tight">
+                          Fecha a caixa, dá baixa com preço congelado e abre a tela para o recebedor
+                          assinar imediatamente.
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+
+                  {/* Opção 2: Copiar Link */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start h-auto py-2.5 px-3 border-steel-blue/40 hover:bg-steel-blue/10 dark:hover:bg-blue-950/40 text-foreground"
+                    disabled={fechandoLoading}
+                    onClick={() => executarFechamentoCaixa('copiar_link')}
+                  >
+                    <div className="flex items-center gap-2.5 text-left w-full">
+                      <div className="p-1.5 rounded-md bg-steel-blue/10 dark:bg-blue-900/40 shrink-0">
+                        <Link2 className="w-4 h-4 text-steel-blue dark:text-blue-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold leading-tight">
+                          Copiar link de assinatura
+                        </div>
+                        <div className="text-[11px] text-muted-foreground font-normal leading-tight">
+                          Fecha a caixa, dá baixa e copia o link para enviar por WhatsApp ao
+                          recebedor.
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+
+                  {/* Opção 3: Pular Assinatura */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start h-auto py-2 px-3 text-muted-foreground hover:text-foreground hover:bg-muted"
+                    disabled={fechandoLoading}
+                    onClick={() => executarFechamentoCaixa('pular')}
+                  >
+                    <div className="flex items-center gap-2.5 text-left w-full">
+                      <div className="p-1.5 rounded-md bg-muted shrink-0">
+                        <Check className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold leading-tight">
+                          Pular assinatura por enquanto
+                        </div>
+                        <div className="text-[11px] text-muted-foreground font-normal leading-tight">
+                          Fecha a caixa e dá baixa imediata. A assinatura poderá ser realizada no
+                          histórico depois.
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              disabled={fechandoLoading}
+              onClick={() => {
+                setIsFecharDialogOpen(false)
+                setCaixaParaFechar(null)
+              }}
+            >
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* DIÁLOGO: NOVA CAIXA VIRTUAL */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

@@ -285,6 +285,42 @@ Deno.serve(async (req: Request) => {
 
     if (updateError) throw updateError
 
+    // Se houver itens pendentes (status 'reservado'), realizar a baixa com alocação e movimentação 'saida'
+    const itensPendentes = (caixa.itens || []).filter((i: any) => i.status === 'reservado')
+    if (itensPendentes.length > 0) {
+      const nowIso = new Date().toISOString()
+      const destinoCaixa = caixa.destino || 'consumo_interno'
+      const clienteNomeFallback = (caixa.cliente as any)?.nome || 'Consumo Interno / Produção'
+
+      for (const item of itensPendentes) {
+        await supabase.from('estoque_caixas_itens').update({ status: 'entregue' }).eq('id', item.id)
+
+        const precoUnit = Number(item.item?.valor_unitario ?? 0)
+        const qtd = Number(item.quantidade || 0)
+        const valorTotal = Math.round(qtd * precoUnit * 100) / 100
+
+        await supabase.from('estoque_alocacoes').insert({
+          item_id: item.item_id,
+          cliente_id: caixa.cliente_id || null,
+          cliente_nome: clienteNomeFallback,
+          quantidade: Math.round(qtd),
+          status: 'baixado',
+          destino: destinoCaixa,
+          valor_unitario_congelado: precoUnit,
+          valor_total_congelado: valorTotal,
+          baixado_em: nowIso,
+          baixado_por: nomeRecebedor || 'Assinatura Recebimento',
+          criado_em: nowIso,
+        })
+
+        await supabase.from('estoque_movimentacoes').insert({
+          item_id: item.item_id,
+          tipo: 'saida',
+          quantidade: qtd,
+        })
+      }
+    }
+
     return new Response(JSON.stringify({ success: true, url: urlData.publicUrl, path: filePath }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
