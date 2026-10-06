@@ -26,6 +26,9 @@ interface NotaReviewItemCardProps {
   notaFornecedor: string
   estoqueItems: any[]
   onResolved: () => void
+  onItemResolved?: (draftId?: string, matchedEstoqueItemId?: string) => void
+  custoEfetivoUnitario?: number
+  acrescimoRateado?: number
   onItemChange?: (idx: number | string, updated: Partial<MatchedItem>) => void
   onItemDelete?: (idx: number | string) => void
 }
@@ -37,6 +40,9 @@ export function NotaReviewItemCard({
   notaFornecedor,
   estoqueItems,
   onResolved,
+  onItemResolved,
+  custoEfetivoUnitario,
+  acrescimoRateado,
   onItemChange,
   onItemDelete,
 }: NotaReviewItemCardProps) {
@@ -115,11 +121,19 @@ export function NotaReviewItemCard({
       if (estFetchErr || !estItem) throw new Error('Item não encontrado no estoque')
 
       const precoUnitarioLiquido = Number(item.preco_unitario) || 0
+      // Se custo efetivo unitário foi calculado (com rateio de IPI/ST/frete), gravar o custo efetivo
+      const valorUnitarioParaEstoque =
+        custoEfetivoUnitario !== undefined && custoEfetivoUnitario > 0
+          ? custoEfetivoUnitario
+          : precoUnitarioLiquido > 0
+            ? precoUnitarioLiquido
+            : undefined
+
       const { error: updateEstErr } = await supabase
         .from('estoque_itens')
         .update({
           quantidade: Number(estItem.quantidade) + Number(item.quantidade),
-          valor_unitario: precoUnitarioLiquido > 0 ? precoUnitarioLiquido : undefined,
+          valor_unitario: valorUnitarioParaEstoque,
           fornecedor: notaFornecedor || undefined,
           atualizado_em: new Date().toISOString(),
         })
@@ -150,26 +164,14 @@ export function NotaReviewItemCard({
 
       if (notaData?.dados_ocr) {
         const itens = [...(notaData.dados_ocr.itens || [])]
-        // Localizar o item alvo por _draftId se disponível, senão por realIdx
-        let targetIndex = -1
-        if (item._draftId) {
-          targetIndex = itens.findIndex((it: any) => it._draftId === item._draftId)
-        }
-        if (targetIndex === -1 && item.produto) {
-          targetIndex = itens.findIndex(
-            (it: any) =>
-              (it.produto || it.nome) === item.produto &&
-              (!it.item_id || it.status === 'pendente_revisao'),
-          )
-        }
-        if (targetIndex === -1 && realIdx >= 0 && realIdx < itens.length) {
-          targetIndex = realIdx
-        }
+        // Localizar o item alvo EXCLUSIVAMENTE por _draftId
+        const targetIndex = item._draftId
+          ? itens.findIndex((it: any) => it._draftId === item._draftId)
+          : -1
 
         if (targetIndex >= 0 && targetIndex < itens.length) {
           itens[targetIndex] = {
             ...itens[targetIndex],
-            _draftId: itens[targetIndex]._draftId || item._draftId,
             status: 'matched',
             item_id: selectedItemId,
             source: 'manual',
@@ -190,6 +192,7 @@ export function NotaReviewItemCard({
         await syncItensNotaFiscal(notaId, itens)
       }
       toast({ title: 'Item associado!', description: 'Estoque atualizado com sucesso.' })
+      onItemResolved?.(item._draftId, selectedItemId)
       onResolved()
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
@@ -406,6 +409,13 @@ export function NotaReviewItemCard({
               Desc: -{formatBRL(Number(item.desconto))}
             </Badge>
           )}
+          {custoEfetivoUnitario !== undefined &&
+            Math.abs(custoEfetivoUnitario - (Number(item.preco_unitario) || 0)) > 0.005 && (
+              <Badge className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 text-[10px]">
+                Líquido: {formatBRL(Number(item.preco_unitario) || 0)} · Custo efetivo no estoque:{' '}
+                {formatBRL(custoEfetivoUnitario)} c/ impostos e frete
+              </Badge>
+            )}
         </div>
         <div className="text-right">
           <div className="flex items-center gap-1.5 justify-end">
@@ -418,9 +428,17 @@ export function NotaReviewItemCard({
               Total Líquido: {formatBRL(currentTotal)}
             </span>
           </div>
+          {custoEfetivoUnitario !== undefined &&
+            Math.abs(custoEfetivoUnitario - (Number(item.preco_unitario) || 0)) > 0.005 && (
+              <span className="text-[10px] text-blue-600 dark:text-blue-400 block font-medium">
+                Efetivo c/ rateio:{' '}
+                {formatBRL(
+                  Math.round((Number(currentTotal) + Number(acrescimoRateado || 0)) * 100) / 100,
+                )}
+              </span>
+            )}
         </div>
       </div>
-
       <div className="relative mb-2">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
         <Input
@@ -494,8 +512,9 @@ export function NotaReviewItemCard({
           notaFornecedor={notaFornecedor}
           ocrItem={item}
           realIdx={realIdx}
-          onSaved={() => {
+          onSaved={(draftId, matchedId) => {
             setShowRegister(false)
+            onItemResolved?.(draftId || item._draftId, matchedId)
             onResolved()
           }}
         />

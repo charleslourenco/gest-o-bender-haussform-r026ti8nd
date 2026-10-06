@@ -22,6 +22,7 @@ export interface SaveUnifiedItemParams {
   notaId: string
   mode: 'create' | 'edit'
   realIdx?: number
+  _draftId?: string
   ocrProduto?: string
   lembrar?: boolean
   userId?: string
@@ -41,7 +42,9 @@ export async function saveUnifiedItem(
   const { data, notaId, mode, realIdx, ocrProduto, lembrar, userId } = params
 
   try {
-    const { data: existing } = await supabase.from('estoque_itens').select('id, nome, quantidade')
+    const { data: existing } = await supabase
+      .from('estoque_itens')
+      .select('id, nome, quantidade, valor_unitario')
 
     const exactMatch = (existing || []).find(
       (i) => normalizeString(i.nome) === normalizeString(data.nome),
@@ -70,6 +73,10 @@ export async function saveUnifiedItem(
         .update({
           ...stockFields,
           quantidade: Number(exactMatch.quantidade) + Number(data.quantidade),
+          valor_unitario:
+            Number(data.valor_unitario) > 0
+              ? Number(data.valor_unitario)
+              : exactMatch.valor_unitario,
           atualizado_em: new Date().toISOString(),
         })
         .eq('id', exactMatch.id)
@@ -96,8 +103,12 @@ export async function saveUnifiedItem(
       .eq('id', notaId)
       .maybeSingle()
 
-    if (mode === 'edit' && realIdx !== undefined && currentNota?.dados_ocr?.itens) {
-      const oldItem = currentNota.dados_ocr.itens[realIdx]
+    if (mode === 'edit' && currentNota?.dados_ocr?.itens) {
+      const oldItem = currentNota.dados_ocr.itens.find((it: any, idx: number) =>
+        params.data && params.ocrProduto
+          ? (params._draftId && it._draftId === params._draftId) || idx === realIdx
+          : idx === realIdx,
+      )
       if (oldItem && oldItem.status === 'matched' && oldItem.item_id) {
         const oldQty = Number(oldItem.quantidade) || 0
         if (oldItem.item_id === itemId) {
@@ -208,16 +219,32 @@ export async function saveUnifiedItem(
 
     if (notaData?.dados_ocr) {
       const itens: any[] = [...(notaData.dados_ocr.itens || [])]
+      const targetDraftId = params._draftId
 
-      if (mode === 'edit' && realIdx !== undefined && realIdx >= 0 && realIdx < itens.length) {
-        itens[realIdx] = {
-          ...itens[realIdx],
+      let targetIndex = -1
+      if (mode === 'edit') {
+        if (targetDraftId) {
+          targetIndex = itens.findIndex((it: any) => it._draftId === targetDraftId)
+        }
+        if (targetIndex === -1 && realIdx !== undefined && realIdx >= 0 && realIdx < itens.length) {
+          targetIndex = realIdx
+        }
+      }
+
+      if (mode === 'edit' && targetIndex >= 0 && targetIndex < itens.length) {
+        itens[targetIndex] = {
+          ...itens[targetIndex],
           status: 'matched',
           item_id: itemId,
           source: 'manual',
         }
       } else {
         itens.push({
+          _draftId:
+            targetDraftId ||
+            (typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `draft-${Date.now()}`),
           produto: data.nome,
           quantidade: Number(data.quantidade),
           preco_unitario: Number(data.valor_unitario),

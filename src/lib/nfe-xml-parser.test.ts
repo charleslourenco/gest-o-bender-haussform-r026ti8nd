@@ -1,4 +1,5 @@
 import { parseNFeXml, classificarCategoriaItem, isInvalidBenderFornecedor } from './nfe-xml-parser'
+import { calcularCustosEfetivos } from '@/services/estoque-matching'
 
 export function runNFeParserTests(): { passed: boolean; results: string[] } {
   const results: string[] = []
@@ -208,6 +209,62 @@ export function runNFeParserTests(): { passed: boolean; results: string[] } {
   } catch (err: any) {
     assert(err.message.includes('Nota Fiscal Eletrônica'), 'Rejeitou XML sem tags de NF-e')
   }
+
+  // 7. Teste de cálculo de Custo Efetivo com rateio de frete e fechamento de centavos
+  // Exemplo da nota real GMAD:
+  // Itens:
+  // Item 1: qtd=10, pu=6.313, pt=63.13
+  // Item 2: qtd=5, pu=66.986, pt=334.93
+  // Item 3: qtd=4, pu=66.985, pt=267.94
+  // Base total = 666.00
+  // Frete = 20.00, vNF = 686.00
+  const itensSimulados = [
+    { _draftId: 'd-1', quantidade: 10, preco_unitario: 6.313, preco_total: 63.13 },
+    { _draftId: 'd-2', quantidade: 5, preco_unitario: 66.986, preco_total: 334.93 },
+    { _draftId: 'd-3', quantidade: 4, preco_unitario: 66.985, preco_total: 267.94 },
+  ]
+  const totaisSimulados = {
+    valor_produtos: 666,
+    valor_frete: 20,
+    valor_ipi: 0,
+    valor_st: 0,
+    valor_total_nota: 686,
+  }
+
+  const mapaEfetivo = calcularCustosEfetivos(itensSimulados, totaisSimulados)
+  const item1Calc = mapaEfetivo.get('d-1')
+  const item2Calc = mapaEfetivo.get('d-2')
+  const item3Calc = mapaEfetivo.get('d-3')
+
+  assert(
+    item1Calc !== undefined && item2Calc !== undefined && item3Calc !== undefined,
+    'Itens calculados no mapa',
+  )
+  const somaTotaisEfetivos =
+    (item1Calc?.preco_total_efetivo || 0) +
+    (item2Calc?.preco_total_efetivo || 0) +
+    (item3Calc?.preco_total_efetivo || 0)
+
+  assert(
+    Math.abs(somaTotaisEfetivos - 686) < 0.001,
+    `Soma dos totais efetivos bate com vNF (${somaTotaisEfetivos} == 686)`,
+  )
+  assert(
+    (item1Calc?.acrescimo_rateado || 0) +
+      (item2Calc?.acrescimo_rateado || 0) +
+      (item3Calc?.acrescimo_rateado || 0) ===
+      20,
+    'Soma dos acréscimos bate exatamente com o frete de 20.00',
+  )
+  assert(
+    (item2Calc?.custo_efetivo_unitario || 0) > (item2Calc?.preco_unitario_liquido || 0),
+    'Custo efetivo unitário do item 2 é superior ao líquido devido ao frete',
+  )
+
+  // 8. Teste de fallback sem totais (notas antigas)
+  const mapaSemTotais = calcularCustosEfetivos(itensSimulados, null)
+  const item1Sem = mapaSemTotais.get('d-1')
+  assert(item1Sem?.custo_efetivo_unitario === 6.313, 'Sem totais: custo efetivo = unitário líquido')
 
   return { passed: allOk, results }
 }

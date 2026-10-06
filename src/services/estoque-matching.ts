@@ -5,6 +5,7 @@ import { normalizeDescription } from '@/lib/normalize'
 export const CONFIDENCE_THRESHOLD = 85
 
 export interface MatchedItem {
+  _draftId?: string
   produto: string
   quantidade: number
   preco_unitario: number
@@ -20,6 +21,177 @@ export interface MatchedItem {
   source: 'alias' | 'exact' | 'none' | 'manual'
   confianca: 'ALTA' | 'MEDIA' | 'BAIXA'
   score: number
+}
+
+export interface CustosEfetivosTotais {
+  valor_produtos?: number
+  valor_desconto?: number
+  valor_frete?: number
+  valor_seguro?: number
+  valor_outras_despesas?: number
+  valor_ipi?: number
+  valor_st?: number
+  valor_icms?: number
+  valor_total_nota?: number
+}
+
+export interface ItemCustoEfetivoResult {
+  _draftId?: string
+  preco_unitario_liquido: number
+  preco_total_liquido: number
+  acrescimo_rateado: number
+  preco_total_efetivo: number
+  custo_efetivo_unitario: number
+}
+
+/**
+ * Helper para rateio de frete, IPI, ST, seguro e outras despesas sobre o valor líquido dos itens.
+ * Fórmula:
+ * Acréscimos = vFrete + vIPI + vST + vSeguro + vOutrasDespesas − vDescGlobal (quando não houver vDesc por item);
+ * Fator_i = preco_total_liquido_i / BaseTotal;
+ * Acrescimo_Item_i = round(Acréscimos × Fator_i, 2);
+ * Total Efetivo_i = líquido_i + acréscimo_i;
+ * Custo efetivo unitário = Total Efetivo / quantidade.
+ * Fechar centavos ajustando a diferença no item de MAIOR valor, de modo que a soma bata com vNF.
+ *
+ * Regras:
+ * - Notas antigas sem totais: custo efetivo = líquido, sem erro.
+ */
+export function calcularCustosEfetivos(
+  itens: Array<{
+    _draftId?: string
+    preco_total?: number
+    preco_unitario?: number
+    quantidade?: number
+    desconto?: number
+  }>,
+  totais?: CustosEfetivosTotais | null,
+): Map<string | number, ItemCustoEfetivoResult> {
+  const result = new Map<string | number, ItemCustoEfetivoResult>()
+  if (!itens || itens.length === 0) return result
+
+  // Itens normalizados com valor líquido
+  const itensCalculados = itens.map((it, idx) => {
+    const qtd = Number(it.quantidade) || 1
+    const pu = Number(it.preco_unitario) || 0
+    const ptLiq =
+      it.preco_total !== undefined ? Number(it.preco_total) : Math.round(qtd * pu * 100) / 100
+    const key = it._draftId || idx
+    return {
+      key,
+      _draftId: it._draftId,
+      quantidade: qtd,
+      preco_unitario_liquido: pu,
+      preco_total_liquido: ptLiq,
+      hasDescontoItem: it.desconto !== undefined && Number(it.desconto) > 0,
+    }
+  })
+
+  // Se totais não foram informados ou não há acréscimos/totais
+  if (
+    !totais ||
+    (!totais.valor_total_nota && !totais.valor_frete && !totais.valor_ipi && !totais.valor_st)
+  ) {
+    itensCalculados.forEach((item) => {
+      const puEfetivo =
+        item.quantidade > 0
+          ? Math.round((item.preco_total_liquido / item.quantidade) * 10000) / 10000
+          : item.preco_unitario_liquido
+      result.set(item.key, {
+        _draftId: item._draftId,
+        preco_unitario_liquido: item.preco_unitario_liquido,
+        preco_total_liquido: item.preco_total_liquido,
+        acrescimo_rateado: 0,
+        preco_total_efetivo: item.preco_total_liquido,
+        custo_efetivo_unitario: puEfetivo,
+      })
+    })
+    return result
+  }
+
+  const vFrete = Number(totais.valor_frete) || 0
+  const vIPI = Number(totais.valor_ipi) || 0
+  const vST = Number(totais.valor_st) || 0
+  const vSeguro = Number(totais.valor_seguro) || 0
+  const vOutrasDespesas = Number(totais.valor_outras_despesas) || 0
+
+  // Se os itens NÃO têm desconto discriminado, mas o cabeçalho tem vDesc, abate vDescGlobal
+  const temDescontoNosItens = itensCalculados.some((it) => it.hasDescontoItem)
+  const vDescGlobal = !temDescontoNosItens ? Number(totais.valor_desconto) || 0 : 0
+
+  const acrescimosTotais =
+    Math.round((vFrete + vIPI + vST + vSeguro + vOutrasDespesas - vDescGlobal) * 100) / 100
+
+  const baseTotal = itensCalculados.reduce((acc, it) => acc + it.preco_total_liquido, 0)
+
+  // Se não há acréscimos ou a base total é 0
+  if (acrescimosTotais === 0 || baseTotal <= 0) {
+    itensCalculados.forEach((item) => {
+      const puEfetivo =
+        item.quantidade > 0
+          ? Math.round((item.preco_total_liquido / item.quantidade) * 10000) / 10000
+          : item.preco_unitario_liquido
+      result.set(item.key, {
+        _draftId: item._draftId,
+        preco_unitario_liquido: item.preco_unitario_liquido,
+        preco_total_liquido: item.preco_total_liquido,
+        acrescimo_rateado: 0,
+        preco_total_efetivo: item.preco_total_liquido,
+        custo_efetivo_unitario: puEfetivo,
+      })
+    })
+    return result
+  }
+
+  // 1. Rateio proporcional
+  let somaAcrescimosCalculados = 0
+  const parciais = itensCalculados.map((item) => {
+    const fator = item.preco_total_liquido / baseTotal
+    const acrescimoItem = Math.round(acrescimosTotais * fator * 100) / 100
+    somaAcrescimosCalculados += acrescimoItem
+    return {
+      ...item,
+      acrescimoItem,
+    }
+  })
+
+  // 2. Fechar centavos ajustando a diferença no item de MAIOR valor
+  const diffCentavos = Math.round((acrescimosTotais - somaAcrescimosCalculados) * 100) / 100
+  if (Math.abs(diffCentavos) > 0.0001 && parciais.length > 0) {
+    let maiorIdx = 0
+    let maiorValor = parciais[0].preco_total_liquido
+    for (let i = 1; i < parciais.length; i++) {
+      if (parciais[i].preco_total_liquido > maiorValor) {
+        maiorValor = parciais[i].preco_total_liquido
+        maiorIdx = i
+      }
+    }
+    parciais[maiorIdx].acrescimoItem =
+      Math.round((parciais[maiorIdx].acrescimoItem + diffCentavos) * 100) / 100
+  }
+
+  // 3. Montar resultado final
+  parciais.forEach((item) => {
+    const totalEfetivo = Math.max(
+      0,
+      Math.round((item.preco_total_liquido + item.acrescimoItem) * 100) / 100,
+    )
+    const custoEfetivoUnitario =
+      item.quantidade > 0
+        ? Math.round((totalEfetivo / item.quantidade) * 10000) / 10000
+        : totalEfetivo
+
+    result.set(item.key, {
+      _draftId: item._draftId,
+      preco_unitario_liquido: item.preco_unitario_liquido,
+      preco_total_liquido: item.preco_total_liquido,
+      acrescimo_rateado: item.acrescimoItem,
+      preco_total_efetivo: totalEfetivo,
+      custo_efetivo_unitario: custoEfetivoUnitario,
+    })
+  })
+
+  return result
 }
 
 function normalizeString(s: string | null | undefined): string {
@@ -159,8 +331,14 @@ export async function matchInvoiceItems(
         : Math.round(qtd * precoUnitario * 100) / 100
     const unidade = item.unidade || meta?.unidade || 'un'
     const categoria = item.categoria || meta?.categoria || ''
+    const draftId =
+      item._draftId ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
 
     const base = {
+      _draftId: draftId,
       produto: nome,
       quantidade: qtd,
       preco_unitario: precoUnitario,

@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import { MatchedItem } from '@/services/estoque-matching'
+import { MatchedItem, calcularCustosEfetivos } from '@/services/estoque-matching'
 import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
@@ -93,6 +93,25 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
     })
   }
 
+  // Callback de atualização otimista imediata para itens resolvidos
+  const handleItemResolvedOptimistic = (draftId?: string, matchedEstoqueItemId?: string) => {
+    if (draftId) {
+      setDraftItens((prev) =>
+        prev.map((it) =>
+          it._draftId === draftId
+            ? {
+                ...it,
+                status: 'matched',
+                item_id: matchedEstoqueItemId || it.item_id,
+              }
+            : it,
+        ),
+      )
+    }
+    // Dispara também o onResolved para sincronização
+    onResolved()
+  }
+
   useEffect(() => {
     const rawItens: any[] = nota.dados_ocr?.itens || []
     setDraftItens(parseItensToDraft(rawItens))
@@ -154,6 +173,11 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       somaDescontosItens: Math.round(somaDescontosItens * 100) / 100,
     }
   }, [nota.dados_ocr, draftItens, originalTotal])
+
+  // Mapa de custos efetivos com rateio de frete/IPI/ST/seguro/outras despesas
+  const custosEfetivosMap = useMemo(() => {
+    return calcularCustosEfetivos(draftItens, totaisXml)
+  }, [draftItens, totaisXml])
 
   // Manipulação de itens no rascunho local por _draftId ou índice
   const handleItemChange = (target: number | string, updated: Partial<MatchedItem>) => {
@@ -420,11 +444,19 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 if (estItem) {
                   const updatedQty = Math.max(0, Number(estItem.quantidade) + diff)
                   const unitarioLiquido = Number(dItem.preco_unitario) || 0
+                  const custoCalc = custosEfetivosMap.get(dItem._draftId || i)
+                  const custoEfetivoFinal =
+                    custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
+                      ? custoCalc.custo_efetivo_unitario
+                      : unitarioLiquido > 0
+                        ? unitarioLiquido
+                        : undefined
+
                   await supabase
                     .from('estoque_itens')
                     .update({
                       quantidade: updatedQty,
-                      valor_unitario: unitarioLiquido > 0 ? unitarioLiquido : undefined,
+                      valor_unitario: custoEfetivoFinal,
                       fornecedor: nota.fornecedor || undefined,
                       atualizado_em: new Date().toISOString(),
                     })
@@ -475,11 +507,19 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
 
               if (newEstItem) {
                 const unitarioLiquido = Number(dItem.preco_unitario) || 0
+                const custoCalc = custosEfetivosMap.get(dItem._draftId || i)
+                const custoEfetivoFinal =
+                  custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
+                    ? custoCalc.custo_efetivo_unitario
+                    : unitarioLiquido > 0
+                      ? unitarioLiquido
+                      : undefined
+
                 await supabase
                   .from('estoque_itens')
                   .update({
                     quantidade: Number(newEstItem.quantidade) + newQty,
-                    valor_unitario: unitarioLiquido > 0 ? unitarioLiquido : undefined,
+                    valor_unitario: custoEfetivoFinal,
                     fornecedor: nota.fornecedor || undefined,
                     atualizado_em: new Date().toISOString(),
                   })
@@ -693,6 +733,11 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
             const linkedEstoque = item.item_id
               ? estoqueItems.find((e) => e.id === item.item_id)
               : null
+            const custoItem = custosEfetivosMap.get(item._draftId || idx)
+            const temAcrescimoEfetivo =
+              custoItem?.custo_efetivo_unitario &&
+              Math.abs(custoItem.custo_efetivo_unitario - (Number(item.preco_unitario) || 0)) >
+                0.005
 
             return (
               <div
@@ -785,6 +830,13 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                     {hasItemDesconto && (
                       <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 text-[11px]">
                         Desconto aplicado: {formatBRL(Number(item.desconto))}
+                      </span>
+                    )}
+                    {temAcrescimoEfetivo && custoItem && (
+                      <span className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]">
+                        Líquido: {formatBRL(Number(item.preco_unitario) || 0)} · Custo efetivo no
+                        estoque: <strong>{formatBRL(custoItem.custo_efetivo_unitario)}</strong> c/
+                        impostos e frete
                       </span>
                     )}
                     {item.metadados_normalizados?.marca && (
@@ -920,19 +972,25 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
               Itens Aguardando Verificação ({pendingEntries.length})
             </span>
           </div>
-          {pendingEntries.map(({ item, idx }) => (
-            <NotaReviewItemCard
-              key={item._draftId || `pending-${idx}`}
-              item={item}
-              realIdx={idx}
-              notaId={nota.id}
-              notaFornecedor={nota.fornecedor}
-              estoqueItems={estoqueItems}
-              onResolved={onResolved}
-              onItemChange={handleItemChange}
-              onItemDelete={handleItemDelete}
-            />
-          ))}
+          {pendingEntries.map(({ item, idx }) => {
+            const custoItem = custosEfetivosMap.get(item._draftId || idx)
+            return (
+              <NotaReviewItemCard
+                key={item._draftId || `pending-${idx}`}
+                item={item}
+                realIdx={idx}
+                notaId={nota.id}
+                notaFornecedor={nota.fornecedor}
+                estoqueItems={estoqueItems}
+                onResolved={onResolved}
+                onItemResolved={handleItemResolvedOptimistic}
+                custoEfetivoUnitario={custoItem?.custo_efetivo_unitario}
+                acrescimoRateado={custoItem?.acrescimo_rateado}
+                onItemChange={handleItemChange}
+                onItemDelete={handleItemDelete}
+              />
+            )
+          })}
         </div>
       ) : (
         matchedEntries.length === 0 && (
@@ -1049,9 +1107,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         </div>
 
         <p className="text-[11px] text-slate-400 mt-2.5">
-          * Os custos unitários de estoque e alocação utilizam o{' '}
-          <strong>valor líquido do item</strong> (vProd − vDesc), garantindo que descontos
-          comerciais não inflem o custo do projeto.
+          * Os custos unitários gravados no estoque incorporam o{' '}
+          <strong>custo efetivo unitário</strong> com rateio proporcional de frete, IPI e
+          substituição tributária (ST), garantindo precisão contábil e orçamentária dos projetos.
         </p>
       </div>
 
@@ -1062,9 +1120,9 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
           mode="create"
           notaId={nota.id}
           notaFornecedor={nota.fornecedor}
-          onSaved={() => {
+          onSaved={(draftId, matchedId) => {
             setShowAddModal(false)
-            onResolved()
+            handleItemResolvedOptimistic(draftId, matchedId)
           }}
         />
       )}

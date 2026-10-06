@@ -23,9 +23,9 @@ interface UnifiedItemModalProps {
   mode: 'create' | 'edit'
   notaId: string
   notaFornecedor?: string
-  ocrItem?: MatchedItem | null
+  ocrItem?: (MatchedItem & { _draftId?: string }) | null
   realIdx?: number
-  onSaved: () => void
+  onSaved?: (draftId?: string, matchedEstoqueItemId?: string) => void
 }
 
 const EMPTY_FORM: UnifiedItemData = {
@@ -111,6 +111,7 @@ export function UnifiedItemModal({
         notaId,
         mode,
         realIdx,
+        _draftId: ocrItem?._draftId,
         ocrProduto: ocrItem?.produto,
         lembrar,
         userId: user?.id,
@@ -122,7 +123,7 @@ export function UnifiedItemModal({
         title: mode === 'edit' ? 'Item cadastrado e associado!' : 'Item adicionado com sucesso!',
         description: 'Estoque e nota fiscal atualizados.',
       })
-      onSaved()
+      onSaved?.(ocrItem?._draftId)
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     } finally {

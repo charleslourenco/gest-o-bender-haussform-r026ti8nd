@@ -281,6 +281,9 @@ export function ComprasOCR() {
         .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
       const existingItems = allItems || []
 
+      // Totais estruturados fiscais (garantir que totais do OCR sejam persistidos no dados_ocr)
+      const totaisFiscais = extractedData?.totais || undefined
+
       // 1. Criar a nota_fiscal primeiro para obter seu ID (necessário para FK de estoque_movimentacoes e itens_nota_fiscal)
       const {
         data: { user: currentUser },
@@ -292,7 +295,7 @@ export function ComprasOCR() {
           fornecedor: extractedData?.fornecedor || 'Desconhecido',
           valor_total: extractedData?.valor || 0,
           data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
-          dados_ocr: { ...extractedData, itens: [] },
+          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: [] },
           status_reconciliacao: 'pendente_revisao',
           numero_nota: extractedData?.numero_nota || `OCR-${Math.floor(Math.random() * 10000)}`,
           arquivo_url: arquivoUrl,
@@ -310,6 +313,7 @@ export function ComprasOCR() {
 
       if (hasItens) {
         matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {
           const item = matchedItems[i]
@@ -320,16 +324,23 @@ export function ComprasOCR() {
           if (isEligible && item.item_id) {
             const existing = existingItems.find((it) => it.id === item.item_id)
             if (existing) {
+              const custoCalc = custosEfetivosMap.get(item._draftId || i)
+              const valorParaEstoque =
+                custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
+                  ? custoCalc.custo_efetivo_unitario
+                  : item.preco_unitario > 0
+                    ? item.preco_unitario
+                    : undefined
+
               const { error: updateItemErr } = await supabase
                 .from('estoque_itens')
                 .update({
                   quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  valor_unitario: valorParaEstoque,
                   fornecedor: extractedData?.fornecedor || 'Desconhecido',
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existing.id)
-
               if (updateItemErr) {
                 console.error(
                   `Erro ao atualizar estoque para o item ${item.produto}:`,
@@ -397,15 +408,14 @@ export function ComprasOCR() {
             ? 'pendente_revisao'
             : 'conciliado'
 
-      // Atualizar dados_ocr e status da nota criada
+      // Atualizar dados_ocr e status da nota criada (incluindo totais)
       const { error: updateNotaErr } = await supabase
         .from('notas_fiscais')
         .update({
-          dados_ocr: { ...extractedData, itens: matchedItems },
+          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
           status_reconciliacao: notaStatus,
         })
         .eq('id', notaId)
-
       if (updateNotaErr) {
         console.error('Erro ao atualizar status final da nota:', updateNotaErr.message)
       }
@@ -533,6 +543,7 @@ export function ComprasOCR() {
         .from('estoque_itens')
         .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
       const existingItems = allItems || []
+      const totaisFiscais = extractedData?.totais || undefined
 
       let matchedItems: MatchedItem[] = []
       let inventoryInserted = 0
@@ -543,6 +554,7 @@ export function ComprasOCR() {
 
       if (hasItens) {
         matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {
           const item = matchedItems[i]
@@ -553,16 +565,23 @@ export function ComprasOCR() {
           if (isEligible && item.item_id) {
             const existing = existingItems.find((it) => it.id === item.item_id)
             if (existing) {
+              const custoCalc = custosEfetivosMap.get(item._draftId || i)
+              const valorParaEstoque =
+                custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
+                  ? custoCalc.custo_efetivo_unitario
+                  : item.preco_unitario > 0
+                    ? item.preco_unitario
+                    : undefined
+
               const { error: updateItemErr } = await supabase
                 .from('estoque_itens')
                 .update({
                   quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  valor_unitario: valorParaEstoque,
                   fornecedor: extractedData?.fornecedor || nota.fornecedor || 'Desconhecido',
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existing.id)
-
               if (updateItemErr) {
                 matchedItems[i] = { ...item, status: 'pendente_revisao' }
                 continue
@@ -613,11 +632,10 @@ export function ComprasOCR() {
           fornecedor: extractedData?.fornecedor || nota.fornecedor,
           valor_total: extractedData?.valor || nota.valor_total,
           data_emissao: extractedData?.data_emissao || nota.data_emissao,
-          dados_ocr: { ...extractedData, itens: matchedItems },
+          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
           status_reconciliacao: notaStatus,
         })
         .eq('id', nota.id)
-
       if (updateNotaErr) throw updateNotaErr
 
       if (matchedItems.length > 0) {
@@ -709,6 +727,7 @@ export function ComprasOCR() {
         .from('estoque_itens')
         .select('id, nome, quantidade, marca, cor, espessura_mm, largura_mm')
       const existingItems = allItems || []
+      const totaisFiscais = extractedData?.totais || undefined
 
       let matchedItems: MatchedItem[] = []
       let inventoryInserted = 0
@@ -719,6 +738,7 @@ export function ComprasOCR() {
 
       if (hasItens) {
         matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {
           const item = matchedItems[i]
@@ -729,16 +749,23 @@ export function ComprasOCR() {
           if (isEligible && item.item_id) {
             const existing = existingItems.find((it) => it.id === item.item_id)
             if (existing) {
+              const custoCalc = custosEfetivosMap.get(item._draftId || i)
+              const valorParaEstoque =
+                custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
+                  ? custoCalc.custo_efetivo_unitario
+                  : item.preco_unitario > 0
+                    ? item.preco_unitario
+                    : undefined
+
               const { error: updateItemErr } = await supabase
                 .from('estoque_itens')
                 .update({
                   quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                  valor_unitario: item.preco_unitario > 0 ? item.preco_unitario : undefined,
+                  valor_unitario: valorParaEstoque,
                   fornecedor: extractedData?.fornecedor || target.fornecedor || 'Desconhecido',
                   atualizado_em: new Date().toISOString(),
                 })
                 .eq('id', existing.id)
-
               if (updateItemErr) {
                 matchedItems[i] = { ...item, status: 'pendente_revisao' }
                 continue
@@ -789,11 +816,10 @@ export function ComprasOCR() {
           fornecedor: extractedData?.fornecedor || target.fornecedor,
           valor_total: extractedData?.valor || target.valor_total,
           data_emissao: extractedData?.data_emissao || target.data_emissao,
-          dados_ocr: { ...extractedData, itens: matchedItems },
+          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
           status_reconciliacao: notaStatus,
         })
         .eq('id', target.id)
-
       if (updateNotaErr) throw updateNotaErr
 
       if (matchedItems.length > 0) {

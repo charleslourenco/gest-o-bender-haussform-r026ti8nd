@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       const userContent: any[] = [
         {
           type: 'text',
-          text: 'Extraia os dados deste documento (Nota Fiscal, Romaneio ou Pedido). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados e os valores totais.',
+          text: 'Extraia os dados deste documento (Nota Fiscal DANFE, Romaneio ou Pedido). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados e a seção "CÁLCULO DO IMPOSTO" com os totais fiscais (vProd, vDesc, vFrete, vIPI, vST, vICMS, vNF, etc).',
         },
       ]
 
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
         userContent.push({ type: 'text', text: `Conteúdo extraído do PDF:\n${pdfText}` })
       }
 
-      const systemContent = `Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor", "cnpj_fornecedor", "valor", "data_emissao", "numero_nota", e "itens".
+      const systemContent = `Você é a Zenaide Zelosa, mestre de estoque e compras da Bender Haussform. Extraia as informações e retorne APENAS um JSON com as chaves: "fornecedor", "cnpj_fornecedor", "valor", "data_emissao", "numero_nota", "itens" e "totais".
 
 CAMPO "fornecedor" (CRÍTICO — LEIA COM ATENÇÃO):
 - DEVE ser SEMPRE o EMITENTE da nota fiscal — a razão social/nome do VENDEDOR/FORNECEDOR que EMITIU a nota.
@@ -193,10 +193,33 @@ Exemplo 4 — Nota com cabeçalho "NOTA FISCAL DE SAÍDA":
   → Use sempre o emitente.
 
 CAMPO "cnpj_fornecedor": CNPJ do emitente/vendedor se houver, senão null.
-CAMPO "valor": número float, valor total da nota.
+CAMPO "valor": número float, valor total da nota (vNF).
 CAMPO "data_emissao": string YYYY-MM-DD.
 CAMPO "numero_nota": string, usar se for NF ou romaneio.
-CAMPO "itens": array de objetos com "produto", "marca", "quantidade" (numero), "preco_unitario" (numero), "preco_total" (numero), "categoria" (string, DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação, Colas/Adesivos/Solventes, Insumos, Material elétrico, Uniformes e EPIs, móveis soltos, brocas/fresas/serras, Parafusos).
+CAMPO "itens": array de objetos com:
+  - "produto": string com a descrição completa do produto
+  - "marca": string opcional
+  - "quantidade": número float
+  - "preco_unitario": número float (líquido de desconto)
+  - "preco_total": número float (líquido)
+  - "preco_bruto": número float opcional (vProd do item)
+  - "desconto": número float opcional (vDesc do item)
+  - "valor_unitario_bruto": número float opcional (vUnCom)
+  - "unidade": string (UN, M, M2, RL, CX, etc.)
+  - "categoria": string (DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação, Colas/Adesivos/Solventes, Insumos, Material elétrico, Uniformes e EPIs, móveis soltos, brocas/fresas/serras, Parafusos)
+
+CAMPO "totais" (SEÇÃO "CÁLCULO DO IMPOSTO" DO DANFE):
+Objeto contendo exatamente os valores numéricos (float, 0 caso não exista ou seja 0):
+  - "valor_produtos": VALOR TOTAL DOS PRODUTOS (vProd)
+  - "valor_desconto": DESCONTO (vDesc)
+  - "valor_frete": VALOR DO FRETE (vFrete)
+  - "valor_seguro": VALOR DO SEGURO (vSeg)
+  - "valor_outras_despesas": OUTRAS DESPESAS ACESSÓRIAS (vOutro)
+  - "valor_ipi": VALOR DO IPI (vIPI)
+  - "valor_st": VALOR DO ICMS DE SUBSTITUIÇÃO / ICMS-ST (vST)
+  - "valor_icms": VALOR DO ICMS (vICMS)
+  - "valor_total_nota": VALOR TOTAL DA NOTA (vNF)
+
 Dicas de classificação: EPI, Bota, Luva, Capacete, Óculos -> Uniformes e EPIs. Parafuso, Bucha, Pregos -> Parafusos. Broca, Serra, Fresa, Disco de corte -> brocas/fresas/serras. Cadeira, Mesa, Sofá -> móveis soltos. Solvente, Cola, Adesivo -> Colas/Adesivos/Solventes.`
 
       const messages: any[] = [

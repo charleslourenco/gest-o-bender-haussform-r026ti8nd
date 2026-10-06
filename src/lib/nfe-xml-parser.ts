@@ -13,6 +13,7 @@
 import { maskCnpj } from '@/lib/cnpj'
 
 export interface NFeItemParsed {
+  _draftId?: string
   produto: string
   marca?: string
   quantidade: number
@@ -355,7 +356,13 @@ export function parseNFeXml(xmlString: string): NFeParsedData {
         : precoLiquidoTotal
 
     if (xProd) {
+      const draftId =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
       itens.push({
+        _draftId: draftId,
         produto: xProd,
         quantidade,
         preco_unitario: precoUnitarioLiquido, // Líquido para o estoque
