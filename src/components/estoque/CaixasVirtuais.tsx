@@ -17,6 +17,8 @@ import {
   Calendar,
   Layers,
   ShieldCheck,
+  AlertTriangle,
+  Archive,
 } from 'lucide-react'
 import { maskCpf } from '@/lib/cpf'
 import {
@@ -96,6 +98,11 @@ export function CaixasVirtuais() {
   )
   const [fechandoLoading, setFechandoLoading] = useState(false)
 
+  // Diálogo de Confirmação: Arquivar sem Assinatura
+  const [isArquivarDialogOpen, setIsArquivarDialogOpen] = useState(false)
+  const [caixaParaArquivar, setCaixaParaArquivar] = useState<CaixaData | null>(null)
+  const [arquivandoLoading, setArquivandoLoading] = useState(false)
+
   const [novaCaixa, setNovaCaixa] = useState({ nome: '', cliente_id: '' })
   const [novoItem, setNovoItem] = useState<{
     item_id: string
@@ -132,7 +139,9 @@ export function CaixasVirtuais() {
     if (data) setClientes(data)
   }
 
-  // Caixas abertas (em separação) vs Entregues (histórico)
+  // Caixas abertas (em separação ou aguardando assinatura) vs Entregues (histórico)
+  // Conforme requisito: caixas com status 'aguardando_assinatura' permanecem em Abertas com badge de pendência,
+  // indo ao Histórico apenas quando assinadas ou explicitamente arquivadas (status 'entregue').
   const caixasAbertas = useMemo(() => caixas.filter((c) => c.status !== 'entregue'), [caixas])
   const caixasEntregues = useMemo(() => caixas.filter((c) => c.status === 'entregue'), [caixas])
 
@@ -267,6 +276,47 @@ export function CaixasVirtuais() {
     setIsFecharDialogOpen(true)
   }
 
+  function abrirDialogoArquivar(caixa: CaixaData) {
+    setCaixaParaArquivar(caixa)
+    setIsArquivarDialogOpen(true)
+  }
+
+  async function executarArquivarSemAssinatura() {
+    if (!caixaParaArquivar) return
+    setArquivandoLoading(true)
+    const caixaId = caixaParaArquivar.id
+    try {
+      const nowIso = new Date().toISOString()
+      const { error } = await supabase
+        .from('estoque_caixas' as any)
+        .update({
+          status: 'entregue',
+          atualizado_em: nowIso,
+        })
+        .eq('id', caixaId)
+
+      if (error) throw error
+
+      toast({
+        title: 'Caixa arquivada no histórico',
+        description: 'A caixa foi movida para o histórico (Entregues) sem assinatura de recebedor.',
+      })
+
+      setIsArquivarDialogOpen(false)
+      setCaixaParaArquivar(null)
+      await fetchCaixas()
+    } catch (err: any) {
+      console.error('Erro ao arquivar caixa:', err)
+      toast({
+        title: 'Erro ao arquivar caixa',
+        description: err.message || 'Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setArquivandoLoading(false)
+    }
+  }
+
   async function executarFechamentoCaixa(
     modoAssinatura: 'pular' | 'copiar_link' | 'assinar_agora',
   ) {
@@ -320,11 +370,16 @@ export function CaixasVirtuais() {
         if (movErr) throw movErr
       }
 
-      // Atualiza a caixa para 'entregue' e salva o destino escolhido
+      // Novo status conforme modo:
+      // "copiar_link" ou "pular" -> 'aguardando_assinatura' (permanece em Abertas com badge de pendência)
+      // "assinar_agora" -> 'aguardando_assinatura' enquanto abre a tela /recebimento-caixa/:id.
+      // Quando a assinatura for finalizada pelo recebedor na tela, a edge function promove para 'entregue'.
+      const novoStatus = 'aguardando_assinatura'
+
       const { error: caixaErr } = await supabase
         .from('estoque_caixas' as any)
         .update({
-          status: 'entregue',
+          status: novoStatus,
           destino: fecharDestino,
           atualizado_em: nowIso,
         })
@@ -339,7 +394,8 @@ export function CaixasVirtuais() {
           await navigator.clipboard.writeText(linkAssinatura)
           toast({
             title: 'Caixa fechada e link copiado!',
-            description: 'A baixa foi gerada com sucesso e o link de assinatura foi copiado.',
+            description:
+              'A baixa no estoque foi concluída com custo congelado. A caixa permanecerá em Abertas (Pendente de assinatura) até ser assinada.',
           })
         } catch {
           toast({
@@ -350,14 +406,15 @@ export function CaixasVirtuais() {
       } else if (modoAssinatura === 'assinar_agora') {
         toast({
           title: 'Caixa fechada!',
-          description: 'Abrindo tela de assinatura para o recebedor...',
+          description:
+            'A baixa no estoque foi concluída. Abrindo tela para o recebedor assinar agora...',
         })
         window.open(linkAssinatura, '_blank')
       } else {
         toast({
-          title: 'Caixa fechada e entregue!',
+          title: 'Caixa fechada com sucesso!',
           description:
-            'A baixa no estoque foi concluída com custo congelado. A assinatura pode ser feita no histórico a qualquer momento.',
+            'A baixa no estoque foi concluída com custo congelado. A caixa fica em Abertas com pendência de assinatura até o recebedor assinar ou ser arquivada.',
         })
       }
 
@@ -474,6 +531,7 @@ export function CaixasVirtuais() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {caixasAbertas.map((caixa) => {
                 const isExpanded = !!expandedCaixas[caixa.id]
+                const isAguardandoAssinatura = caixa.status === 'aguardando_assinatura'
                 const totalItens = (caixa.itens || []).length
                 const totalQtd = (caixa.itens || []).reduce(
                   (acc, i) => acc + Number(i.quantidade || 0),
@@ -484,12 +542,16 @@ export function CaixasVirtuais() {
                   <Card
                     key={caixa.id}
                     className={`transition-all duration-200 border-2 rounded-xl shadow-sm ${
-                      isExpanded
-                        ? 'border-amber-400 bg-amber-50/20 dark:border-amber-600/60 dark:bg-amber-950/20 shadow-md ring-1 ring-amber-400/30'
-                        : 'border-slate-200 hover:border-amber-300 dark:border-slate-800 dark:hover:border-amber-700 bg-card'
+                      isAguardandoAssinatura
+                        ? isExpanded
+                          ? 'border-amber-500 bg-amber-50/40 dark:border-amber-600 dark:bg-amber-950/30 shadow-md ring-2 ring-amber-400/40'
+                          : 'border-amber-400/80 bg-amber-50/20 dark:border-amber-700/70 dark:bg-amber-950/15 hover:border-amber-500'
+                        : isExpanded
+                          ? 'border-amber-400 bg-amber-50/20 dark:border-amber-600/60 dark:bg-amber-950/20 shadow-md ring-1 ring-amber-400/30'
+                          : 'border-slate-200 hover:border-amber-300 dark:border-slate-800 dark:hover:border-amber-700 bg-card'
                     }`}
                   >
-                    {/* Header estilo Caixa Aberta: Ícone de caixa de papelão aberta em destaque + Nome do Cliente na frente + Identificação */}
+                    {/* Header: Caixa de papelão (aberta ou lacrada c/ pendência) + Nome do Cliente na frente + Identificação */}
                     <div
                       role="button"
                       tabIndex={0}
@@ -505,13 +567,32 @@ export function CaixasVirtuais() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-3 min-w-0">
-                          {/* Ícone de caixa aberta com visual destacado em âmbar */}
-                          <div className="relative shrink-0 flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100/90 border border-amber-300/90 dark:bg-amber-950/60 dark:border-amber-800 shadow-inner group">
-                            <CaixaPapelaoAbertaSvg
-                              size={32}
-                              className="transform group-hover:scale-105 transition-transform drop-shadow-xs"
+                          {/* Ícone de caixa com visual destacado */}
+                          <div
+                            className={`relative shrink-0 flex items-center justify-center w-12 h-12 rounded-xl border shadow-inner group ${
+                              isAguardandoAssinatura
+                                ? 'bg-amber-100 border-amber-400 dark:bg-amber-950/80 dark:border-amber-700'
+                                : 'bg-amber-100/90 border-amber-300/90 dark:bg-amber-950/60 dark:border-amber-800'
+                            }`}
+                          >
+                            {isAguardandoAssinatura ? (
+                              <CaixaPapelaoLacradaSvg
+                                size={30}
+                                className="transform group-hover:scale-105 transition-transform drop-shadow-xs"
+                              />
+                            ) : (
+                              <CaixaPapelaoAbertaSvg
+                                size={32}
+                                className="transform group-hover:scale-105 transition-transform drop-shadow-xs"
+                              />
+                            )}
+                            <span
+                              className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 ${
+                                isAguardandoAssinatura
+                                  ? 'bg-amber-600 animate-bounce'
+                                  : 'bg-amber-500 animate-pulse'
+                              }`}
                             />
-                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
                           </div>
 
                           <div className="min-w-0">
@@ -537,12 +618,23 @@ export function CaixasVirtuais() {
 
                         {/* Badges e Chevron de expansão */}
                         <div className="flex flex-col items-end gap-1.5 shrink-0">
-                          <Badge
-                            variant="secondary"
-                            className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-semibold text-[11px]"
-                          >
-                            EM SEPARAÇÃO
-                          </Badge>
+                          {isAguardandoAssinatura ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border-2 border-amber-400 dark:border-amber-700 font-bold text-[11px] shadow-xs flex items-center gap-1"
+                            >
+                              <span>⚠️</span>
+                              <span>Pendente de assinatura</span>
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-semibold text-[11px]"
+                            >
+                              EM SEPARAÇÃO
+                            </Badge>
+                          )}
+
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <span>
                               {totalItens} {totalItens === 1 ? 'item' : 'itens'}
@@ -556,8 +648,21 @@ export function CaixasVirtuais() {
                         </div>
                       </div>
 
-                      {/* Resumo compacto quando fechada */}
-                      {!isExpanded && (
+                      {/* Aviso rápido no card fechado caso aguarde assinatura */}
+                      {isAguardandoAssinatura && !isExpanded && (
+                        <div className="mt-2.5 px-2.5 py-1.5 rounded-md bg-amber-100/70 dark:bg-amber-950/50 border border-amber-300/80 dark:border-amber-900/60 flex items-center justify-between text-[11px] text-amber-900 dark:text-amber-200">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span className="truncate">Baixada do estoque · Aguarda recebedor</span>
+                          </span>
+                          <span className="font-semibold text-amber-800 dark:text-amber-300 hover:underline shrink-0 ml-2">
+                            Assinar / Detalhes →
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Resumo compacto quando fechada (modo normal) */}
+                      {!isAguardandoAssinatura && !isExpanded && (
                         <div className="mt-3 pt-2.5 border-t border-dashed border-border/80 flex items-center justify-between text-xs text-muted-foreground">
                           <span className="truncate">
                             {totalItens > 0
@@ -578,7 +683,9 @@ export function CaixasVirtuais() {
                         <div className="px-4 py-2 bg-muted/30 border-b border-border/50 flex items-center justify-between text-xs">
                           <span className="text-muted-foreground font-medium flex items-center gap-1.5">
                             <Boxes className="w-3.5 h-3.5 text-steel-blue" />
-                            Itens dentro da caixa:
+                            {isAguardandoAssinatura
+                              ? 'Itens baixados (na caixa):'
+                              : 'Itens dentro da caixa:'}
                           </span>
                           <div className="flex items-center gap-1">
                             <Button
@@ -600,21 +707,103 @@ export function CaixasVirtuais() {
                               <Link2 className="w-3.5 h-3.5 mr-1" />
                               Link
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDeletarCaixa(caixa.id)
-                              }}
-                              title="Apagar caixa e retornar itens livres ao estoque"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              Apagar
-                            </Button>
+                            {!isAguardandoAssinatura && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeletarCaixa(caixa.id)
+                                }}
+                                title="Apagar caixa e retornar itens livres ao estoque"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                Apagar
+                              </Button>
+                            )}
                           </div>
                         </div>
+
+                        {/* Banner Informativo quando Status = aguardando_assinatura */}
+                        {isAguardandoAssinatura && (
+                          <div className="p-3 mx-4 mt-3 rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50/90 dark:bg-amber-950/50 space-y-2">
+                            <div className="flex items-start gap-2">
+                              <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                                  Caixa fechada e baixada do estoque
+                                </p>
+                                <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-0.5">
+                                  {caixa.destino && (
+                                    <>
+                                      Destino:{' '}
+                                      <strong>
+                                        {caixa.destino === 'consumo_interno'
+                                          ? 'Consumo Interno / Produção'
+                                          : 'Cliente'}
+                                      </strong>
+                                      {' · '}
+                                    </>
+                                  )}
+                                  Aguardando assinatura do recebedor (comprovante em PDF). Ao
+                                  assinar, a caixa migrará automaticamente para o Histórico.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Botões de Ação para Aguardando Assinatura */}
+                            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-200/80 dark:border-amber-900/60">
+                              <Button
+                                size="sm"
+                                className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                                  window.open(link, '_blank')
+                                }}
+                                title="Abrir página para o recebedor assinar agora"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                                Assinar agora
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 hover:bg-amber-100/70"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const link = `${window.location.origin}/recebimento-caixa/${caixa.id}`
+                                  navigator.clipboard.writeText(link)
+                                  toast({
+                                    title: 'Link copiado!',
+                                    description:
+                                      'Link de assinatura copiado para a área de transferência.',
+                                  })
+                                }}
+                                title="Copiar link de assinatura para enviar por WhatsApp"
+                              >
+                                <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                                Copiar link
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 ml-auto"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  abrirDialogoArquivar(caixa)
+                                }}
+                                title="Arquivar a caixa no histórico mesmo sem assinatura do recebedor"
+                              >
+                                <Archive className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                                Arquivar sem assinatura
+                              </Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Lista de Itens */}
                         <CardContent className="pt-3 pb-3 px-4">
@@ -623,18 +812,20 @@ export function CaixasVirtuais() {
                               <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
                                 Conteúdo ({totalItens})
                               </h4>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs px-2.5 text-steel-blue hover:text-dark-denim border-steel-blue/30 dark:text-blue-400"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedCaixa(caixa)
-                                  setIsItemModalOpen(true)
-                                }}
-                              >
-                                <Plus className="w-3 h-3 mr-1" /> Adicionar Item
-                              </Button>
+                              {!isAguardandoAssinatura && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs px-2.5 text-steel-blue hover:text-dark-denim border-steel-blue/30 dark:text-blue-400"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedCaixa(caixa)
+                                    setIsItemModalOpen(true)
+                                  }}
+                                >
+                                  <Plus className="w-3 h-3 mr-1" /> Adicionar Item
+                                </Button>
+                              )}
                             </div>
 
                             {totalItens === 0 ? (
@@ -671,19 +862,21 @@ export function CaixasVirtuais() {
                           </div>
                         </CardContent>
 
-                        {/* Botão Fechar e Entregar: abre diálogo com destino e opções de assinatura */}
-                        <CardFooter className="pt-2 pb-4 px-4 border-t border-border/60 bg-muted/20">
-                          <Button
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-medium"
-                            disabled={totalItens === 0}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              abrirDialogoFecharCaixa(caixa)
-                            }}
-                          >
-                            <Check className="w-4 h-4 mr-2" /> Fechar e Entregar Caixa
-                          </Button>
-                        </CardFooter>
+                        {/* Botão Fechar e Entregar (somente se ainda NÃO estiver aguardando assinatura) */}
+                        {!isAguardandoAssinatura && (
+                          <CardFooter className="pt-2 pb-4 px-4 border-t border-border/60 bg-muted/20">
+                            <Button
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-medium"
+                              disabled={totalItens === 0}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                abrirDialogoFecharCaixa(caixa)
+                              }}
+                            >
+                              <Check className="w-4 h-4 mr-2" /> Fechar e Entregar Caixa
+                            </Button>
+                          </CardFooter>
+                        )}
                       </div>
                     )}
                   </Card>
@@ -1076,6 +1269,90 @@ export function CaixasVirtuais() {
               }}
             >
               Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIÁLOGO: ARQUIVAR CAIXA SEM ASSINATURA */}
+      <Dialog
+        open={isArquivarDialogOpen}
+        onOpenChange={(open) => {
+          if (!arquivandoLoading) {
+            setIsArquivarDialogOpen(open)
+            if (!open) setCaixaParaArquivar(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
+              <Archive className="w-5 h-5 text-amber-600" />
+              <span>Arquivar sem Assinatura</span>
+            </DialogTitle>
+            <DialogDescription>
+              A caixa será movida para a sub-aba Histórico/Entregues sem a necessidade de coletar a
+              assinatura do recebedor.
+            </DialogDescription>
+          </DialogHeader>
+
+          {caixaParaArquivar && (
+            <div className="space-y-3 py-2 text-sm">
+              <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/30 space-y-1">
+                <p className="font-bold text-slate-900 dark:text-slate-100">
+                  {caixaParaArquivar.nome}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Cliente:{' '}
+                  <strong className="text-foreground">
+                    {caixaParaArquivar.cliente?.nome || 'Não especificado'}
+                  </strong>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Destino da baixa:{' '}
+                  <strong className="text-foreground">
+                    {caixaParaArquivar.destino === 'consumo_interno'
+                      ? 'Consumo Interno / Produção'
+                      : 'Cliente'}
+                  </strong>
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg border border-border bg-muted/40 space-y-1 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  Atenção sobre o comprovante
+                </p>
+                <p>
+                  A baixa dos materiais já foi efetuada no estoque com valor congelado. Ao arquivar
+                  sem assinatura, a caixa constará no Histórico como entregue, porém sem o
+                  comprovante assinado em PDF.
+                </p>
+                <p className="pt-1">
+                  Se necessário no futuro, o link de assinatura ainda poderá ser acessado pelo
+                  histórico.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-2 border-t border-border flex sm:justify-between items-center gap-2">
+            <Button
+              variant="outline"
+              disabled={arquivandoLoading}
+              onClick={() => {
+                setIsArquivarDialogOpen(false)
+                setCaixaParaArquivar(null)
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
+              disabled={arquivandoLoading}
+              onClick={executarArquivarSemAssinatura}
+            >
+              {arquivandoLoading ? 'Arquivando...' : 'Confirmar e Arquivar'}
             </Button>
           </DialogFooter>
         </DialogContent>

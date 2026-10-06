@@ -145,12 +145,18 @@ export default function RecebimentoCaixa() {
                     variant={caixa.status === 'entregue' ? 'outline' : 'secondary'}
                     className={
                       caixa.status === 'entregue'
-                        ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
-                        : 'bg-blue-100 text-blue-700'
+                        ? 'text-emerald-600 border-emerald-200 bg-emerald-50 font-bold'
+                        : caixa.status === 'aguardando_assinatura'
+                          ? 'text-amber-800 border-amber-300 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 font-bold'
+                          : 'bg-blue-100 text-blue-700 font-bold'
                     }
                   >
-                    {caixa.status?.toUpperCase()}
-                  </Badge>
+                    {caixa.status === 'aguardando_assinatura'
+                      ? 'AGUARDANDO ASSINATURA'
+                      : caixa.status === 'entregue'
+                        ? 'ENTREGUE'
+                        : caixa.status?.toUpperCase()}
+                  </Badge>{' '}
                 </p>
               </div>
               {caixa.assinado_em && (
