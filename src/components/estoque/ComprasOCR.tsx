@@ -312,7 +312,16 @@ export function ComprasOCR() {
       let inventoryInserted = 0
 
       if (hasItens) {
-        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        // Garantir _draftId em todos os itens retornados antes de qualquer processamento
+        const itensWithDraftId = (extractedData.itens || []).map((it: any, idx: number) => ({
+          ...it,
+          _draftId:
+            it._draftId ||
+            (typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `item-${Date.now()}-${idx}`),
+        }))
+        matchedItems = await matchInvoiceItems(itensWithDraftId, existingItems)
         const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {
@@ -553,7 +562,15 @@ export function ComprasOCR() {
       } = await supabase.auth.getUser()
 
       if (hasItens) {
-        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        const itensWithDraftId = (extractedData.itens || []).map((it: any, idx: number) => ({
+          ...it,
+          _draftId:
+            it._draftId ||
+            (typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `item-${Date.now()}-${idx}`),
+        }))
+        matchedItems = await matchInvoiceItems(itensWithDraftId, existingItems)
         const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {
@@ -737,7 +754,15 @@ export function ComprasOCR() {
       } = await supabase.auth.getUser()
 
       if (hasItens) {
-        matchedItems = await matchInvoiceItems(extractedData.itens, existingItems)
+        const itensWithDraftId = (extractedData.itens || []).map((it: any, idx: number) => ({
+          ...it,
+          _draftId:
+            it._draftId ||
+            (typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `item-${Date.now()}-${idx}`),
+        }))
+        matchedItems = await matchInvoiceItems(itensWithDraftId, existingItems)
         const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
 
         for (let i = 0; i < matchedItems.length; i++) {

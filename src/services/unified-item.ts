@@ -218,7 +218,11 @@ export async function saveUnifiedItem(
       .single()
 
     if (notaData?.dados_ocr) {
-      const itens: any[] = [...(notaData.dados_ocr.itens || [])]
+      // Normalizar para garantir que cada item existente tenha _draftId persistido
+      const itens: any[] = [...(notaData.dados_ocr.itens || [])].map((it: any, i: number) => ({
+        ...it,
+        _draftId: it._draftId || it.id || `item-legacy-${Date.now()}-${i}`,
+      }))
       const targetDraftId = params._draftId
 
       let targetIndex = -1
@@ -229,11 +233,18 @@ export async function saveUnifiedItem(
         if (targetIndex === -1 && realIdx !== undefined && realIdx >= 0 && realIdx < itens.length) {
           targetIndex = realIdx
         }
+        if (targetIndex === -1 && ocrProduto) {
+          targetIndex = itens.findIndex(
+            (it: any) =>
+              it.produto === ocrProduto && (!it.item_id || it.status === 'pendente_revisao'),
+          )
+        }
       }
 
       if (mode === 'edit' && targetIndex >= 0 && targetIndex < itens.length) {
         itens[targetIndex] = {
           ...itens[targetIndex],
+          _draftId: targetDraftId || itens[targetIndex]._draftId,
           status: 'matched',
           item_id: itemId,
           source: 'manual',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   AlertTriangle,
+  AlertCircle,
   PlusCircle,
   CheckCircle2,
   Trash2,
@@ -9,6 +10,8 @@ import {
   RotateCcw,
   Loader2,
   Tag,
+  RefreshCw,
+  FileSearch,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +25,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import { MatchedItem, calcularCustosEfetivos } from '@/services/estoque-matching'
+import { MatchedItem, calcularCustosEfetivos, matchInvoiceItems } from '@/services/estoque-matching'
 import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
@@ -31,14 +34,16 @@ import { UnifiedItemModal } from './UnifiedItemModal'
 interface NotaReviewPanelProps {
   nota: any
   onResolved: () => void
+  onReprocess?: (notaId: string) => Promise<void> | void
 }
 
-export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
+export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPanelProps) {
   const { toast } = useToast()
   const [estoqueItems, setEstoqueItems] = useState<any[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [draftItens, setDraftItens] = useState<(MatchedItem & { _draftId: string })[]>([])
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [isReprocessing, setIsReprocessing] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [editingMatchedIdx, setEditingMatchedIdx] = useState<number | null>(null)
 
@@ -62,7 +67,12 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
   }
 
   const parseItensToDraft = (rawItens: any[]): (MatchedItem & { _draftId: string })[] => {
-    return (rawItens || []).map((item) => {
+    let hadMissingDraftId = false
+    const parsed = (rawItens || []).map((item) => {
+      if (!item._draftId && !item.id) {
+        hadMissingDraftId = true
+      }
+      const draftId = item._draftId || item.id || generateItemId()
       const qtd = Number(item.quantidade) || 1
       const pu = Number(item.preco_unitario) || 0
       const desc = item.desconto !== undefined ? Number(item.desconto) : undefined
@@ -73,7 +83,7 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       const pt =
         item.preco_total !== undefined ? Number(item.preco_total) : Math.round(qtd * pu * 100) / 100
       return {
-        _draftId: item._draftId || item.id || generateItemId(),
+        _draftId: draftId,
         produto: item.produto || item.nome || '',
         quantidade: qtd,
         preco_unitario: pu,
@@ -91,6 +101,32 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         score: item.score || 0,
       }
     })
+
+    // Se encontramos itens antigos sem _draftId persistido no JSONB, sincronizamos em background
+    // para que a associação item<->estoque e reconciliação funcionem retroativamente
+    if (hadMissingDraftId && parsed.length > 0 && nota?.id) {
+      const updatedDadosOcr = {
+        ...(nota.dados_ocr || {}),
+        itens: parsed,
+      }
+      supabase
+        .from('notas_fiscais')
+        .update({ dados_ocr: updatedDadosOcr })
+        .eq('id', nota.id)
+        .then(({ error }) => {
+          if (error) {
+            console.warn(
+              '[parseItensToDraft] Falha ao persistir _draftId gerados na nota:',
+              error.message,
+            )
+          } else {
+            console.info('[parseItensToDraft] _draftId persistidos na nota', nota.id)
+          }
+        })
+        .catch((e) => console.warn('[parseItensToDraft] Erro assíncrono ao persistir _draftId:', e))
+    }
+
+    return parsed
   }
 
   // Callback de atualização otimista imediata para itens resolvidos
@@ -250,6 +286,119 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
       description:
         'Agora você pode pesquisar e associar a outro item do estoque. Ao confirmar, o estoque antigo será devolvido.',
     })
+  }
+
+  const handleReprocessInvoice = async () => {
+    if (onReprocess) {
+      setIsReprocessing(true)
+      try {
+        await onReprocess(nota.id)
+      } finally {
+        setIsReprocessing(false)
+      }
+      return
+    }
+
+    if (!nota.arquivo_url) {
+      toast({
+        title: 'Arquivo original não disponível',
+        description:
+          'Esta nota não possui o PDF ou imagem original arquivado no storage para reprocessamento.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsReprocessing(true)
+    try {
+      toast({
+        title: 'Reprocessando nota com IA...',
+        description: 'Baixando documento original e reexecutando leitura OCR.',
+      })
+
+      // Download do arquivo do storage
+      const filePath =
+        nota.arquivo_url.split('/storage/v1/object/public/documentos/')[1] || nota.arquivo_url
+      const { data: fileBlob, error: downloadErr } = await supabase.storage
+        .from('documentos')
+        .download(filePath)
+
+      if (downloadErr || !fileBlob) {
+        throw new Error(downloadErr?.message || 'Não foi possível baixar o arquivo do storage')
+      }
+
+      // Preparar payload base64 / formData para a edge function financeiro-ai
+      const arrayBuffer = await fileBlob.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      let binary = ''
+      const len = uint8Array.byteLength
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(uint8Array[i])
+      }
+      const base64 = btoa(binary)
+      const mimeType = fileBlob.type || 'application/pdf'
+
+      const { data: aiRes, error: fnErr } = await supabase.functions.invoke('financeiro-ai', {
+        body: {
+          action: 'ocr_compras',
+          fileBase64: base64,
+          mimeType,
+          fileName: nota.numero_nota ? `NF_${nota.numero_nota}.pdf` : 'nota_fiscal.pdf',
+        },
+      })
+
+      if (fnErr) throw fnErr
+      if (!aiRes || !aiRes.data) {
+        throw new Error(aiRes?.error || 'A IA não retornou dados estruturados da nota fiscal')
+      }
+
+      const extracted = aiRes.data
+      const rawExtractedItens = extracted.itens || []
+      const itensWithDraft = rawExtractedItens.map((it: any, idx: number) => ({
+        ...it,
+        _draftId: it._draftId || generateItemId(),
+      }))
+
+      // Executar matching inicial contra o estoque
+      const matched = await matchInvoiceItems(itensWithDraft, estoqueItems)
+
+      const updatedDadosOcr = {
+        ...(nota.dados_ocr || {}),
+        ...extracted,
+        itens: matched,
+      }
+
+      const { error: updateErr } = await supabase
+        .from('notas_fiscais')
+        .update({
+          dados_ocr: updatedDadosOcr,
+          valor_total: extracted.valor_total || nota.valor_total,
+          fornecedor: extracted.fornecedor || nota.fornecedor,
+          numero_nota: extracted.numero_nota || nota.numero_nota,
+          status_reconciliacao: matched.length > 0 ? 'pendente_revisao' : 'pendente_revisao',
+        })
+        .eq('id', nota.id)
+
+      if (updateErr) throw updateErr
+
+      setDraftItens(parseItensToDraft(matched))
+      setHasChanges(false)
+
+      toast({
+        title: 'Reprocessamento concluído!',
+        description: `${matched.length} item(ns) identificados na leitura.`,
+      })
+      onResolved()
+    } catch (e: any) {
+      console.error('[handleReprocessInvoice] Erro:', e)
+      toast({
+        title: 'Falha no reprocessamento',
+        description: e.message || 'Não foi possível reprocessar a nota via IA.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsReprocessing(false)
+    }
   }
 
   const handleAddNewBlankItem = () => {
@@ -648,17 +797,34 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleResetChanges}
-                disabled={isSavingDraft}
+                disabled={isSavingDraft || isReprocessing}
                 className="text-slate-600 dark:text-slate-300"
               >
                 <RotateCcw className="w-3.5 h-3.5 mr-1" />
                 Descartar Edições
               </Button>
             )}
+            {(nota.arquivo_url || onReprocess) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReprocessInvoice}
+                disabled={isSavingDraft || isReprocessing}
+                title="Reprocessar leitura OCR do PDF original via IA"
+                className="text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950/40"
+              >
+                {isReprocessing ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                )}
+                Reprocessar com IA
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={handleConfirmAndSave}
-              disabled={isSavingDraft}
+              disabled={isSavingDraft || isReprocessing}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
             >
               {isSavingDraft ? (
@@ -965,7 +1131,49 @@ export function NotaReviewPanel({ nota, onResolved }: NotaReviewPanelProps) {
         </div>
       )}
 
-      {hasPending ? (
+      {draftItens.length === 0 ? (
+        <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border-2 border-dashed border-amber-300 dark:border-amber-800 rounded-lg text-center space-y-3">
+          <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <h5 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+              Nenhum item foi lido nesta nota fiscal
+            </h5>
+            <p className="text-xs text-amber-700 dark:text-amber-300 max-w-md mx-auto mt-1">
+              Notas escaneadas ou com layout incomum podem vir da IA sem a extração automática da
+              tabela de itens. Você pode tentar reprocessar com IA ou adicionar os itens
+              manualmente.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+            {(nota.arquivo_url || onReprocess) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReprocessInvoice}
+                disabled={isReprocessing}
+                className="bg-white dark:bg-slate-900 border-amber-300 text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:border-amber-700"
+              >
+                {isReprocessing ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                )}
+                Reprocessar com IA
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleAddNewBlankItem}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <PlusCircle className="w-4 h-4 mr-1.5" />
+              Adicionar Item Manualmente
+            </Button>
+          </div>
+        </div>
+      ) : hasPending ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">

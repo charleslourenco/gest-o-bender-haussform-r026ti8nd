@@ -163,15 +163,32 @@ export function NotaReviewItemCard({
       if (fetchNotaErr) throw fetchNotaErr
 
       if (notaData?.dados_ocr) {
-        const itens = [...(notaData.dados_ocr.itens || [])]
-        // Localizar o item alvo EXCLUSIVAMENTE por _draftId
-        const targetIndex = item._draftId
+        // Garantir que cada item tenha _draftId para que a busca e persistência não falhem
+        const itens = [...(notaData.dados_ocr.itens || [])].map((it: any, i: number) => ({
+          ...it,
+          _draftId: it._draftId || it.id || `item-legacy-${Date.now()}-${i}`,
+        }))
+
+        // Localizar o item alvo por _draftId com fallback seguro
+        let targetIndex = item._draftId
           ? itens.findIndex((it: any) => it._draftId === item._draftId)
           : -1
+
+        // Fallback para notas antigas sem _draftId salvo no JSONB remoto
+        if (targetIndex === -1 && realIdx !== undefined && realIdx >= 0 && realIdx < itens.length) {
+          targetIndex = realIdx
+        }
+        if (targetIndex === -1 && item.produto) {
+          targetIndex = itens.findIndex(
+            (it: any) =>
+              it.produto === item.produto && (!it.item_id || it.status === 'pendente_revisao'),
+          )
+        }
 
         if (targetIndex >= 0 && targetIndex < itens.length) {
           itens[targetIndex] = {
             ...itens[targetIndex],
+            _draftId: item._draftId || itens[targetIndex]._draftId,
             status: 'matched',
             item_id: selectedItemId,
             source: 'manual',
