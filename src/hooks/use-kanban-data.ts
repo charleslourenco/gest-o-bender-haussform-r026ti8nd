@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 
 export interface KanbanItem {
   id: string
@@ -197,15 +198,16 @@ export function useKanbanData(
 
   const fetchPriorityItems = useCallback(async (): Promise<KanbanItem[]> => {
     if (!priorityColumnId) return []
-    let pq = supabase
-      .from('produtos_servicos_projeto')
-      .select(ITEM_SELECT)
-      .eq('status_analise', priorityColumnId)
-    pq = applyFilters(pq)
-    const { data: pData, error: pErr } = await pq
-      .order('criado_em', { ascending: false })
-      .limit(500)
-    if (pErr) throw pErr
+    const res = await runWithAuthRecovery<any[]>(() => {
+      let pq = supabase
+        .from('produtos_servicos_projeto')
+        .select(ITEM_SELECT)
+        .eq('status_analise', priorityColumnId)
+      pq = applyFilters(pq)
+      return pq.order('criado_em', { ascending: false }).limit(500)
+    })
+    if (res.error) throw res.error
+    const pData = res.data
     return (Array.isArray(pData) ? (pData as unknown as KanbanItem[]) : []).map(normalizeItem)
   }, [priorityColumnId, archiveFlag, excluidoFlag])
 
@@ -230,18 +232,26 @@ export function useKanbanData(
 
         if (fetchMontadores && !isLoadMore) {
           const [montRes, cltRes, pjRes, alocRes] = await Promise.all([
-            supabase.from('montadores').select('*, alocacao_montagem(card_id)'),
-            supabase
-              .from('equipe_clt')
-              .select('id, nome_completo, telefone, areas_atuacao, montador_id'),
-            supabase
-              .from('parceiros_pj')
-              .select('id, razao_social, socio_nome, telefone, areas_atuacao, montador_id'),
-            supabase
-              .from('alocacao_montagem')
-              .select(
-                'card_id, montador_id, pessoa_id, tipo_origem, produtos_servicos_projeto(cliente_id)',
-              ),
+            runWithAuthRecovery<any[]>(() =>
+              supabase.from('montadores').select('*, alocacao_montagem(card_id)'),
+            ),
+            runWithAuthRecovery<any[]>(() =>
+              supabase
+                .from('equipe_clt')
+                .select('id, nome_completo, telefone, areas_atuacao, montador_id'),
+            ),
+            runWithAuthRecovery<any[]>(() =>
+              supabase
+                .from('parceiros_pj')
+                .select('id, razao_social, socio_nome, telefone, areas_atuacao, montador_id'),
+            ),
+            runWithAuthRecovery<any[]>(() =>
+              supabase
+                .from('alocacao_montagem')
+                .select(
+                  'card_id, montador_id, pessoa_id, tipo_origem, produtos_servicos_projeto(cliente_id)',
+                ),
+            ),
           ])
 
           const alocacoesList = Array.isArray(alocRes.data) ? alocRes.data : []
@@ -331,16 +341,24 @@ export function useKanbanData(
           setAllEquipe(membros)
         }
 
-        let query = supabase
-          .from('produtos_servicos_projeto')
-          .select(ITEM_SELECT, { count: 'exact' })
-        if (paginatedColumnIds.length > 0) {
-          query = query.in('status_analise', paginatedColumnIds)
-        }
-        query = applyFilters(query)
-        query = query.order('criado_em', { ascending: false }).range(from, to)
-        const { data, count, error: err } = await query
-        if (err) throw err
+        const itemsRes = await runWithAuthRecovery<{ data: any[]; count: number | null }>(
+          async () => {
+            let query = supabase
+              .from('produtos_servicos_projeto')
+              .select(ITEM_SELECT, { count: 'exact' })
+            if (paginatedColumnIds.length > 0) {
+              query = query.in('status_analise', paginatedColumnIds)
+            }
+            query = applyFilters(query)
+            query = query.order('criado_em', { ascending: false }).range(from, to)
+            const { data, count, error: err } = await query
+            return { data: { data: data || [], count }, error: err }
+          },
+        )
+        if (itemsRes.error) throw itemsRes.error
+
+        const data = itemsRes.data?.data || []
+        const count = itemsRes.data?.count ?? null
 
         const validItems = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
           normalizeItem,
@@ -386,15 +404,16 @@ export function useKanbanData(
       const priorityItems = await fetchPriorityItems()
 
       const limit = (pageRef.current + 1) * PAGE_SIZE
-      let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
-      if (paginatedColumnIds.length > 0) query = query.in('status_analise', paginatedColumnIds)
-      query = applyFilters(query)
-      query = query.order('criado_em', { ascending: false }).limit(Math.max(limit, PAGE_SIZE))
-      const { data, error: err } = await query
-      if (!err && data) {
-        const normalized = (Array.isArray(data) ? (data as unknown as KanbanItem[]) : []).map(
-          normalizeItem,
-        )
+      const refreshRes = await runWithAuthRecovery<any[]>(() => {
+        let query = supabase.from('produtos_servicos_projeto').select(ITEM_SELECT)
+        if (paginatedColumnIds.length > 0) query = query.in('status_analise', paginatedColumnIds)
+        query = applyFilters(query)
+        return query.order('criado_em', { ascending: false }).limit(Math.max(limit, PAGE_SIZE))
+      })
+      if (!refreshRes.error && refreshRes.data) {
+        const normalized = (
+          Array.isArray(refreshRes.data) ? (refreshRes.data as unknown as KanbanItem[]) : []
+        ).map(normalizeItem)
         const merged = [...priorityItems, ...normalized]
         setItems(merged)
       }
@@ -428,27 +447,32 @@ export function useKanbanData(
       })
       .subscribe()
     const handleUpdate = () => refreshItems()
+    const handleAuthRestored = () => {
+      console.info('[useKanbanData] auth_session_restored detectado. Recarregando itens...')
+      refreshItems().catch((e) => console.error('Auth restored refresh error:', e))
+    }
+
     window.addEventListener('kanban_updated', handleUpdate)
+    window.addEventListener('auth_session_restored', handleAuthRestored)
     return () => {
       supabase.removeChannel(channel)
       window.removeEventListener('kanban_updated', handleUpdate)
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
   }, [fetchItems, refreshItems, channelName])
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('id, nome, foto_perfil')
-        .eq('status', true)
-        .order('nome')
-      if (Array.isArray(data)) {
+      const res = await runWithAuthRecovery<any[]>(() =>
+        supabase.from('users').select('id, nome, foto_perfil').eq('status', true).order('nome'),
+      )
+      if (Array.isArray(res.data)) {
         const map: Record<string, any> = {}
-        data.forEach((u) => {
+        res.data.forEach((u) => {
           map[u.id] = u
         })
         setUsersMap(map)
-        setAllUsers(data)
+        setAllUsers(res.data)
       }
     }
     fetchUsers()

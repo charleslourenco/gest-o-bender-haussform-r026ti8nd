@@ -463,11 +463,21 @@ export function KanbanAtendimentos({
       },
     )
 
+    const handleAuthRestored = () => {
+      console.info(
+        '[KanbanAtendimentos] auth_session_restored detectado. Recarregando atendimentos...',
+      )
+      if (isMounted) loadData(true)
+    }
+
+    window.addEventListener('auth_session_restored', handleAuthRestored)
+
     return () => {
       isMounted = false
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       unsubscribeLeads()
       unsubscribeMsgs()
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
   }, [aba.id])
 

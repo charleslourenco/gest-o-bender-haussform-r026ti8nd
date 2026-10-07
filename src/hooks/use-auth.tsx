@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
+import { notifySessionExpired } from '@/lib/supabase/auth-recovery'
 
 interface AuthContextType {
   user: User | null
@@ -93,6 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, sessionObj) => {
+      // Sync only inside onAuthStateChange callback
       handleSession(sessionObj)
     })
 
@@ -100,7 +102,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       handleSession(sessionObj)
     })
 
-    return () => subscription.unsubscribe()
+    // Listener para visibilitychange e focus:
+    // Ao voltar para a aba ou janela após hibernação/troca de abas,
+    // verifica se a sessão expirou ou está perto de expirar (< 60s).
+    // Se necessário, renova o token via supabase.auth.refreshSession()
+    // e emite 'auth_session_restored' ou 'auth_session_expired'.
+    let isRefreshing = false
+    let lastCheckTime = Date.now()
+
+    const checkAndRefreshSessionOnWake = async () => {
+      // Não executar se estiver em background
+      if (typeof document !== 'undefined' && document.hidden) return
+
+      // Evita disparos múltiplos muito rápidos (< 2s)
+      const now = Date.now()
+      if (now - lastCheckTime < 2000 || isRefreshing) return
+      lastCheckTime = now
+
+      try {
+        const { data, error } = await supabase.auth.getSession()
+        if (error) {
+          console.warn('[use-auth] Erro ao obter sessão ao voltar para a aba:', error)
+          notifySessionExpired()
+          return
+        }
+
+        const currentSess = data?.session
+        if (!currentSess) {
+          // Usuário não tem sessão ativa; se havia estado de sessão antes, alertar
+          return
+        }
+
+        const expiresAtSec = currentSess.expires_at || 0
+        const nowSec = Math.floor(Date.now() / 1000)
+        // Se já expirou ou expira nos próximos 60 segundos
+        const needsRefresh = expiresAtSec <= nowSec + 60
+
+        if (needsRefresh) {
+          isRefreshing = true
+          console.info(
+            '[use-auth] Token expirado ou próximo de expirar ao reativar aba. Renovando...',
+          )
+          const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession()
+
+          if (refreshErr || !refreshData.session) {
+            console.error('[use-auth] Falha na renovação automática do token:', refreshErr)
+            notifySessionExpired()
+          } else {
+            console.info('[use-auth] Sessão restaurada com sucesso.')
+            handleSession(refreshData.session)
+            window.dispatchEvent(
+              new CustomEvent('auth_session_restored', {
+                detail: { session: refreshData.session },
+              }),
+            )
+          }
+        }
+      } catch (wakeErr) {
+        console.warn('[use-auth] Erro inesperado ao checar sessão ao voltar para a aba:', wakeErr)
+      } finally {
+        isRefreshing = false
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        checkAndRefreshSessionOnWake()
+      }
+    }
+
+    const handleWindowFocus = () => {
+      checkAndRefreshSessionOnWake()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleWindowFocus)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleWindowFocus)
+    }
   }, [])
 
   const signUp = async (email: string, password: string, name: string) => {

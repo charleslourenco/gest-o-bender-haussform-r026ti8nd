@@ -204,6 +204,25 @@ export async function runWithAuthRecovery<T>(
 /**
  * Redireciona o usuário para /login preservando a rota de retorno via sessionStorage ou state
  */
+export function notifySessionExpired(customReturnTo?: string): void {
+  const currentPath = customReturnTo || `${window.location.pathname}${window.location.search}`
+  try {
+    sessionStorage.setItem('auth_return_to', currentPath)
+  } catch (e) {
+    // ignore
+  }
+
+  // Notificar componentes interessados (como SessionExpiredAlert)
+  window.dispatchEvent(
+    new CustomEvent('auth_session_expired', {
+      detail: { returnTo: currentPath },
+    }),
+  )
+}
+
+/**
+ * Redireciona o usuário para /login preservando a rota de retorno via sessionStorage ou state
+ */
 export function redirectToLogin(customReturnTo?: string): void {
   const currentPath = customReturnTo || `${window.location.pathname}${window.location.search}`
   try {
@@ -213,11 +232,7 @@ export function redirectToLogin(customReturnTo?: string): void {
   }
 
   // Notificar componentes interessados
-  window.dispatchEvent(
-    new CustomEvent('auth_session_expired', {
-      detail: { returnTo: currentPath },
-    }),
-  )
+  notifySessionExpired(currentPath)
 
   const loginUrl = `/login?returnTo=${encodeURIComponent(currentPath)}`
   window.location.href = loginUrl

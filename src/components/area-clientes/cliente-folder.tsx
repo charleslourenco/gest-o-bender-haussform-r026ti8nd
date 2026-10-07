@@ -12,6 +12,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { createNewSaleForClient } from '@/services/vendas'
+import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
+import { AlertTriangle, RefreshCw, LogIn } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ComercialFormDados } from '@/components/comercial/form/ComercialFormDados'
 import { ClienteDocumentos } from './cliente-documentos'
@@ -55,6 +57,9 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   const [creatingSale, setCreatingSale] = useState(false)
   const creatingSaleRef = useRef(false)
   const [clientWithoutDossie, setClientWithoutDossie] = useState<any>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const { isAdmin } = useAuth()
 
   const handleTabChange = (value: string) => {
@@ -66,61 +71,103 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
 
   const load = async () => {
     setLoading(true)
+    setErrorMessage(null)
+    setIsSessionExpired(false)
     setClientWithoutDossie(null)
     try {
-      // Load the selected dossiê (by id or cliente_id fallback)
-      const { data } = await supabase
-        .from('dossies')
-        .select(`
-          *,
-          cliente:clientes(*),
-          formulario:formulario_comercial(*)
-        `)
-        .or(`id.eq.${dossieId},cliente_id.eq.${dossieId}`)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      // Load the selected dossiê with auth recovery
+      const dossieRes = await runWithAuthRecovery<any>(() =>
+        supabase
+          .from('dossies')
+          .select(`
+            *,
+            cliente:clientes(*),
+            formulario:formulario_comercial(*)
+          `)
+          .or(`id.eq.${dossieId},cliente_id.eq.${dossieId}`)
+          .order('criado_em', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      )
 
+      if (dossieRes.error) {
+        console.error('Erro ao carregar dossiê:', dossieRes.error)
+        const msg = dossieRes.sessionExpired
+          ? 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.'
+          : dossieRes.error?.message || 'Falha ao carregar dossiê do cliente.'
+        setErrorMessage(msg)
+        setIsSessionExpired(dossieRes.sessionExpired)
+        return
+      }
+
+      const data = dossieRes.data
       if (data) {
         let vendedor = '-'
         if (data.user_id) {
-          const { data: uData } = await supabase
-            .from('users')
-            .select('nome')
-            .eq('id', data.user_id)
-            .single()
-          if (uData) vendedor = uData.nome
+          const userRes = await runWithAuthRecovery<any>(() =>
+            supabase.from('users').select('nome').eq('id', data.user_id).single(),
+          )
+          if (userRes.data) vendedor = userRes.data.nome
         }
         ;(data as any).vendedorNome = vendedor
         setDossie(data)
 
         // Load ALL sales (dossiês + formulários) for this client
-        const { data: allDossies } = await supabase
-          .from('dossies')
-          .select(`
-            id, criado_em, status, formulario_comercial_id,
-            formulario:formulario_comercial(id, valor_total, desconto, produtos_servicos, datas, criado_em)
-          `)
-          .eq('cliente_id', data.cliente_id)
-          .order('criado_em', { ascending: false })
+        const salesRes = await runWithAuthRecovery<any[]>(() =>
+          supabase
+            .from('dossies')
+            .select(`
+              id, criado_em, status, formulario_comercial_id,
+              formulario:formulario_comercial(id, valor_total, desconto, produtos_servicos, datas, criado_em)
+            `)
+            .eq('cliente_id', data.cliente_id)
+            .order('criado_em', { ascending: false }),
+        )
 
-        setSales((allDossies as any[]) || [])
+        setSales((salesRes.data as any[]) || [])
       } else {
-        const { data: clientData } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('id', dossieId)
-          .eq('excluido', false)
-          .maybeSingle()
-        setClientWithoutDossie(clientData || null)
+        const clientRes = await runWithAuthRecovery<any>(() =>
+          supabase
+            .from('clientes')
+            .select('*')
+            .eq('id', dossieId)
+            .eq('excluido', false)
+            .maybeSingle(),
+        )
+
+        if (clientRes.error) {
+          const msg = clientRes.sessionExpired
+            ? 'Sua sessão expirou. Por favor, faça login novamente.'
+            : clientRes.error?.message || 'Falha ao carregar dados do cliente.'
+          setErrorMessage(msg)
+          setIsSessionExpired(clientRes.sessionExpired)
+          return
+        }
+
+        setClientWithoutDossie(clientRes.data || null)
       }
+    } catch (err: any) {
+      console.error('Erro inesperado em load() ClienteFolder:', err)
+      setErrorMessage(err?.message || 'Erro inesperado ao carregar cliente.')
     } finally {
       setLoading(false)
+      setIsRetrying(false)
     }
   }
 
   useEffect(() => {
     load()
+
+    // Recarregar automaticamente se a sessão for restaurada (p.ex. volta da hibernação)
+    const handleAuthRestored = () => {
+      console.info('[ClienteFolder] auth_session_restored detectado. Recarregando dados...')
+      load()
+    }
+
+    window.addEventListener('auth_session_restored', handleAuthRestored)
+    return () => {
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
+    }
   }, [dossieId])
 
   const handleNovaVenda = async () => {
@@ -154,6 +201,51 @@ export function ClienteFolder({ dossieId, onBack }: { dossieId: string; onBack: 
   }
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando...</div>
+
+  if (errorMessage) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background min-h-[360px]">
+        <div className="max-w-md w-full p-6 bg-card border border-border rounded-xl shadow-sm flex flex-col items-center animate-in fade-in duration-200">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-base text-foreground mb-1">
+            {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar Dossiê'}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">{errorMessage}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <Button
+              onClick={() => {
+                setIsRetrying(true)
+                load()
+              }}
+              disabled={isRetrying}
+              size="sm"
+              className="gap-2 text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
+            </Button>
+            {isSessionExpired && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => redirectToLogin(`/clientes/${dossieId}`)}
+                className="gap-2 text-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Fazer login novamente
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onBack} className="text-xs">
+              Voltar
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!dossie) {
     if (clientWithoutDossie) {
       return (

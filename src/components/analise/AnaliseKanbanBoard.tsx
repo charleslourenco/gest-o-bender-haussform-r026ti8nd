@@ -7,8 +7,9 @@ import { CriarCardAvulsoModal } from './CriarCardAvulsoModal'
 import { CriarSubcardModal } from './CriarSubcardModal'
 import { OutsourcedCheckModal } from './OutsourcedCheckModal'
 import { Button } from '@/components/ui/button'
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus, Sparkles, AlertTriangle, RefreshCw, LogIn } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
 import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
 import {
   Dialog,
@@ -46,6 +47,9 @@ export function AnaliseKanbanBoard({
   const [avulsoCardToUpdate, setAvulsoCardToUpdate] = useState<any | null>(null)
   const [subcardModalParent, setSubcardModalParent] = useState<any | null>(null)
   const [listaMateriaisAlert, setListaMateriaisAlert] = useState<any | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const navigate = useNavigate()
 
   const topScrollRef = useRef<HTMLDivElement>(null)
@@ -130,25 +134,56 @@ export function AnaliseKanbanBoard({
   }
 
   const loadCards = async () => {
-    let query = supabase
-      .from('produtos_servicos_projeto')
-      .select(
-        '*, clientes(nome), users(nome), project_item_names, formulario_comercial(leads(kanban_ativo))',
-      )
-      .eq('arquivado_analise', false)
-      .eq('excluido_analise' as any, false)
+    setLoading(true)
+    setErrorMessage(null)
+    setIsSessionExpired(false)
+    try {
+      const result = await runWithAuthRecovery<any[]>(() => {
+        let query = supabase
+          .from('produtos_servicos_projeto')
+          .select(
+            '*, clientes(nome), users(nome), project_item_names, formulario_comercial(leads(kanban_ativo))',
+          )
+          .eq('arquivado_analise', false)
+          .eq('excluido_analise' as any, false)
 
-    if (formularioComercialId) {
-      query = query.eq('formulario_comercial_id', formularioComercialId)
+        if (formularioComercialId) {
+          query = query.eq('formulario_comercial_id', formularioComercialId)
+        }
+        return query
+      })
+
+      if (result.error) {
+        console.error('Erro ao carregar cards da análise técnica:', result.error)
+        const msg = result.sessionExpired
+          ? 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.'
+          : result.error?.message || 'Falha ao carregar os ambientes da análise técnica.'
+        setErrorMessage(msg)
+        setIsSessionExpired(result.sessionExpired)
+        setCards([])
+        return
+      }
+
+      setCards(result.data || [])
+    } catch (err: any) {
+      console.error('Erro inesperado em loadCards AnaliseKanbanBoard:', err)
+      setErrorMessage(err?.message || 'Erro inesperado ao carregar cards.')
+      setCards([])
+    } finally {
+      setLoading(false)
+      setIsRetrying(false)
     }
-
-    const { data } = await query
-    if (data) setCards(data)
-    setLoading(false)
   }
 
   useEffect(() => {
     loadCards()
+
+    // Recarregar automaticamente ao restabelecer sessão
+    const handleAuthRestored = () => {
+      console.info('[AnaliseKanbanBoard] auth_session_restored detectado. Recarregando...')
+      loadCards()
+    }
+    window.addEventListener('auth_session_restored', handleAuthRestored)
     const sub = supabase
       .channel('psp_changes_analise')
       .on(
@@ -194,6 +229,7 @@ export function AnaliseKanbanBoard({
       window.removeEventListener('analise_detalhe_filters', handleFilters)
       window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
       window.removeEventListener('open_criar_card_avulso', handleOpenAvulso)
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
   }, [formularioComercialId])
 
@@ -459,6 +495,53 @@ export function AnaliseKanbanBoard({
   })
 
   if (loading) return <div className="p-8 text-muted-foreground">Carregando...</div>
+
+  if (errorMessage) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-background min-h-[360px]">
+        <div className="max-w-md w-full p-6 bg-card border border-border rounded-xl shadow-sm flex flex-col items-center animate-in fade-in duration-200">
+          <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-base text-foreground mb-1">
+            {isSessionExpired ? 'Sessão Expirada' : 'Erro ao Carregar Ambientes'}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">{errorMessage}</p>
+          <div className="flex flex-wrap items-center justify-center gap-2.5">
+            <Button
+              onClick={() => {
+                setIsRetrying(true)
+                loadCards()
+              }}
+              disabled={isRetrying}
+              size="sm"
+              className="gap-2 text-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Tentando novamente...' : 'Tentar novamente'}
+            </Button>
+            {isSessionExpired && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  redirectToLogin(
+                    formularioComercialId
+                      ? `/pcp/analise-tecnica/${formularioComercialId}`
+                      : '/pcp/analise-tecnica',
+                  )
+                }
+                className="gap-2 text-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Fazer login novamente
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-hidden flex flex-col h-full w-full bg-background">

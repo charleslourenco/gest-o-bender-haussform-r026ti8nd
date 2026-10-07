@@ -74,10 +74,17 @@ export function KanbanBoard({ toolbarPortal, isActive = true }: KanbanBoardProps
         loadData(true)
       }, 400)
     })
+    const handleAuthRestored = () => {
+      console.info('[KanbanBoard] auth_session_restored detectado. Recarregando...')
+      if (isMounted) loadData(true)
+    }
+    window.addEventListener('auth_session_restored', handleAuthRestored)
+
     return () => {
       isMounted = false
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
       unsubscribe()
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
   }, [])
 

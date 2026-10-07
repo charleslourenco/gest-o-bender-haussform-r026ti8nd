@@ -33,6 +33,7 @@ import RecebimentoItemCliente from './pages/RecebimentoItemCliente'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ThemeProvider } from './components/theme-provider'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { SessionExpiredAlert } from './components/SessionExpiredAlert'
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -42,6 +43,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner position="top-center" duration={5000} />
+            <SessionExpiredAlert />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />

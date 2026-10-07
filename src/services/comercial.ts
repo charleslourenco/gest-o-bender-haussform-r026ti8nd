@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
-import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
+import { phoneSearchVariants } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import type { Lead } from '@/types'
 export type { Lead }
 
@@ -165,22 +166,20 @@ export function normalizeLead(raw: any) {
 }
 
 export const fetchLeads = async () => {
-  const { data, error } = await supabase
-    .from('leads')
-    .select(KANBAN_LEAD_COLUMNS)
-    .order('criado_em', { ascending: false })
-  if (error) throw error
-  return Array.isArray(data) ? data.map(normalizeLead) : []
+  const result = await runWithAuthRecovery<any[]>(() =>
+    supabase.from('leads').select(KANBAN_LEAD_COLUMNS).order('criado_em', { ascending: false }),
+  )
+  if (result.error) throw result.error
+  return Array.isArray(result.data) ? result.data.map(normalizeLead) : []
 }
 
 export const fetchLeadById = async (id: string) => {
   if (!id) return null
-  const { data, error } = await supabase
-    .from('leads')
-    .select(KANBAN_LEAD_COLUMNS)
-    .eq('id', id)
-    .maybeSingle()
-  if (error) throw error
+  const result = await runWithAuthRecovery<any>(() =>
+    supabase.from('leads').select(KANBAN_LEAD_COLUMNS).eq('id', id).maybeSingle(),
+  )
+  if (result.error) throw result.error
+  const data = result.data
   return data ? normalizeLead(data) : null
 }
 
@@ -195,11 +194,14 @@ export interface ComercialUserOption {
 
 export const fetchUsers = async (): Promise<ComercialUserOption[]> => {
   // Inclui usuários ativos (status=true) OU ex-colaboradores (ex_colaborador=true)
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, nome, foto_perfil, eh_consultor, ex_colaborador, status')
-    .or('status.eq.true,ex_colaborador.eq.true')
-  if (error) throw error
+  const result = await runWithAuthRecovery<any[]>(() =>
+    supabase
+      .from('users')
+      .select('id, nome, foto_perfil, eh_consultor, ex_colaborador, status')
+      .or('status.eq.true,ex_colaborador.eq.true'),
+  )
+  if (result.error) throw result.error
+  const data = result.data
   return Array.isArray(data)
     ? data
         .filter((u) => u && typeof u === 'object' && typeof u.id === 'string' && u.id.trim() !== '')
@@ -215,19 +217,19 @@ export const fetchUsers = async (): Promise<ComercialUserOption[]> => {
 }
 
 export const createLead = async (leadData: any) => {
-  const { data, error } = await supabase.from('leads').insert(leadData).select().single()
-  if (error) throw error
-  return data
+  const res = await runWithAuthRecovery<any>(() =>
+    supabase.from('leads').insert(leadData).select().single(),
+  )
+  if (res.error) throw res.error
+  return res.data
 }
 
 export const updateLead = async (id: string, leadData: any) => {
-  const { data, error } = await supabase
-    .from('leads')
-    .update(leadData)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
+  const res = await runWithAuthRecovery<any>(() =>
+    supabase.from('leads').update(leadData).eq('id', id).select().single(),
+  )
+  if (res.error) throw res.error
+  const data = res.data
 
   // Disparo de evento de fase APÓS a mudança já ter acontecido no banco (pós-processamento não bloqueante)
   if (leadData?.status) {
@@ -246,11 +248,13 @@ export const updateLead = async (id: string, leadData: any) => {
 }
 
 export const deleteLead = async (id: string) => {
-  const { error } = await supabase
-    .from('leads')
-    .update({ excluido: true } as any)
-    .eq('id', id)
-  if (error) throw error
+  const res = await runWithAuthRecovery<any>(() =>
+    supabase
+      .from('leads')
+      .update({ excluido: true } as any)
+      .eq('id', id),
+  )
+  if (res.error) throw res.error
 }
 
 export const sendWhatsAppMessage = async (leadId: string, phone: string, message: string) => {

@@ -11,6 +11,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
@@ -197,12 +198,16 @@ export function ClientesList({ onSelect }: ClientesListProps) {
     const fetchFilterOptions = async () => {
       try {
         const [clientesRes, consultoresRes] = await Promise.all([
-          supabase
-            .from('clientes')
-            .select('id, nome')
-            .eq('excluido' as any, false)
-            .order('nome'),
-          supabase.from('users').select('id, nome').eq('status', true).order('nome'),
+          runWithAuthRecovery<any[]>(() =>
+            supabase
+              .from('clientes')
+              .select('id, nome')
+              .eq('excluido' as any, false)
+              .order('nome'),
+          ),
+          runWithAuthRecovery<any[]>(() =>
+            supabase.from('users').select('id, nome').eq('status', true).order('nome'),
+          ),
         ])
         if (clientesRes.error) throw clientesRes.error
         if (consultoresRes.error) throw consultoresRes.error
@@ -220,27 +225,31 @@ export function ClientesList({ onSelect }: ClientesListProps) {
       setLoading(true)
       setSummaryLoading(true)
       try {
-        let query = supabase.from('clientes').select(`
-            id, nome, email, telefone,
-            leads!lead_id(
-              id, consultor_id,
-              consultor:users!leads_consultor_id_fkey(id, nome),
-              formulario_comercial!lead_id(id, valor_total, datas)
-            ),
-            dossies(id, status, criado_em)
-          `)
+        const result = await runWithAuthRecovery<any[]>(() => {
+          let query = supabase.from('clientes').select(`
+              id, nome, email, telefone,
+              leads!lead_id(
+                id, consultor_id,
+                consultor:users!leads_consultor_id_fkey(id, nome),
+                formulario_comercial!lead_id(id, valor_total, datas)
+              ),
+              dossies(id, status, criado_em)
+            `)
 
-        query = query.eq('excluido' as any, false)
+          query = query.eq('excluido' as any, false)
 
-        if (clienteFilter !== 'all') {
-          query = query.eq('id', clienteFilter)
-        }
-        if (consultorFilter !== 'all') {
-          query = query.eq('leads.consultor_id', consultorFilter)
-        }
+          if (clienteFilter !== 'all') {
+            query = query.eq('id', clienteFilter)
+          }
+          if (consultorFilter !== 'all') {
+            query = query.eq('leads.consultor_id', consultorFilter)
+          }
 
-        const { data, error } = await query.order('nome')
-        if (error) throw error
+          return query.order('nome')
+        })
+
+        if (result.error) throw result.error
+        const data = result.data
 
         const rawData = (data as any[]) || []
 
@@ -294,6 +303,17 @@ export function ClientesList({ onSelect }: ClientesListProps) {
     }
     fetchFilteredData()
   }, [clienteFilter, consultorFilter, dataVendaDe, dataVendaAte, refreshTrigger])
+
+  useEffect(() => {
+    const handleAuthRestored = () => {
+      console.info('[ClientesList] auth_session_restored detectado. Recarregando lista...')
+      setRefreshTrigger((prev) => prev + 1)
+    }
+    window.addEventListener('auth_session_restored', handleAuthRestored)
+    return () => {
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
+    }
+  }, [])
 
   const handleApplyPreset = (preset: PeriodPreset) => {
     const range = preset.getRange()

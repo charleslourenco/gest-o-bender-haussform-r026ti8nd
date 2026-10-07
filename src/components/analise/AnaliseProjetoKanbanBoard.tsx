@@ -147,8 +147,14 @@ export function AnaliseProjetoKanbanBoard() {
         setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
       }
     }
+    const handleAuthRestored = () => {
+      console.info('[AnaliseProjetoKanbanBoard] auth_session_restored detectado. Recarregando...')
+      if (isMounted) loadProjects()
+    }
+
     window.addEventListener('kanban_search_change', handleSearch)
     window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+    window.addEventListener('auth_session_restored', handleAuthRestored)
 
     return () => {
       isMounted = false
@@ -166,6 +172,7 @@ export function AnaliseProjetoKanbanBoard() {
       }
       window.removeEventListener('kanban_search_change', handleSearch)
       window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
+      window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
   }, [])
 
