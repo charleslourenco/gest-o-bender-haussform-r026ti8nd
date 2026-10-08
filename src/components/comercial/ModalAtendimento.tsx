@@ -473,10 +473,9 @@ export function ModalAtendimento({
     }
   }
 
-  if (!lead) return null
-
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users
   const consultorNome = useMemo(() => {
+    if (!lead) return undefined
     let name: string | undefined
     let isEx = false
     if (Array.isArray(consultorRaw)) {
@@ -497,10 +496,11 @@ export function ModalAtendimento({
       isEx = Boolean(u?.ex_colaborador)
     }
     return name ? formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx }) : undefined
-  }, [consultorRaw, lead?.consultor_id, safeUsers])
+  }, [lead, consultorRaw, safeUsers])
 
   const consultorSecundarioRaw = (lead as any)?.consultor_secundario
   const consultorSecundarioNome = useMemo(() => {
+    if (!lead) return undefined
     let name: string | undefined
     let isEx = false
     if (Array.isArray(consultorSecundarioRaw)) {
@@ -521,7 +521,9 @@ export function ModalAtendimento({
       isEx = Boolean(u?.ex_colaborador)
     }
     return name ? formatConsultorOptionLabel({ nome: name, ex_colaborador: isEx }) : undefined
-  }, [consultorSecundarioRaw, lead?.consultor_id_secundario, safeUsers])
+  }, [lead, consultorSecundarioRaw, safeUsers])
+
+  if (!lead) return null
 
   const colunas = Array.isArray(currentAba?.colunas) ? currentAba.colunas : []
 

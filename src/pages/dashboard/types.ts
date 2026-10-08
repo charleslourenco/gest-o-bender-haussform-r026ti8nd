@@ -97,6 +97,21 @@ export interface OrigemDespachoPerdaItem {
   taxa_perda: number
 }
 
+export interface OrigemDespachoPerdaComparativoItem extends OrigemDespachoPerdaItem {
+  // Dados do período anterior equivalente
+  prev_total_leads?: number
+  prev_despachados?: number
+  prev_taxa_despacho?: number
+  prev_perdidos?: number
+  prev_taxa_perda?: number
+  // Variações absolutas e percentuais
+  delta_total_leads?: number
+  delta_despachados?: number
+  delta_taxa_despacho?: number // pp (pontos percentuais)
+  delta_perdidos?: number
+  delta_taxa_perda?: number // pp (pontos percentuais)
+}
+
 export interface NovoContatoMetrics {
   total: number
   criados_no_periodo: number

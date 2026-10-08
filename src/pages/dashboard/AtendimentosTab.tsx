@@ -8,9 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Users,
   Target,
   TrendingUp,
+  TrendingDown,
+  Minus,
   CalendarDays,
   Clock,
   Sparkles,
@@ -33,6 +42,7 @@ import {
   MessageSquare,
   Calculator,
   Briefcase,
+  UserCheck,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -63,6 +73,7 @@ import type {
   TempoColunaItem,
   TempoColunasMetrics,
   OrigemDespachoPerdaItem,
+  OrigemDespachoPerdaComparativoItem,
 } from './types'
 
 const ORIGIN_COLORS = [
@@ -141,41 +152,166 @@ export function AtendimentosTab({
   >('visao_geral')
 
   // Estado local para Origens: Despacho e Perda
-  const [origensDespachoPerda, setOrigensDespachoPerda] = useState<OrigemDespachoPerdaItem[]>([])
+  const [origensDespachoPerda, setOrigensDespachoPerda] = useState<
+    OrigemDespachoPerdaComparativoItem[]
+  >([])
   const [loadingDespachoPerda, setLoadingDespachoPerda] = useState<boolean>(true)
   const [errorDespachoPerda, setErrorDespachoPerda] = useState<string | null>(null)
+
+  // Filtro por consultor na seção Origens: Despacho e Perda
+  const [selectedConsultorId, setSelectedConsultorId] = useState<string>('todos')
+  const [consultoresList, setConsultoresList] = useState<{ id: string; nome: string }[]>([])
+
+  // Carregar lista de consultores para o filtro
+  useEffect(() => {
+    let isMounted = true
+    const carregarConsultores = async () => {
+      try {
+        const { data: usersData, error } = await supabase
+          .from('users')
+          .select('id, nome, eh_consultor, status')
+          .or('eh_consultor.eq.true,status.eq.true')
+          .order('nome', { ascending: true })
+
+        if (error) {
+          console.error('[AtendimentosTab] Erro ao carregar consultores:', error)
+          return
+        }
+
+        if (isMounted && usersData) {
+          // Filtrar usuários que são consultores ou têm papel comercial
+          const consultores = usersData
+            .filter((u) => u.id && u.nome)
+            .map((u) => ({ id: u.id, nome: u.nome.trim() }))
+          setConsultoresList(consultores)
+        }
+      } catch (err) {
+        console.error('[AtendimentosTab] Exceção ao carregar consultores:', err)
+      }
+    }
+
+    carregarConsultores()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const fetchDespachoPerda = useCallback(async () => {
     setLoadingDespachoPerda(true)
     setErrorDespachoPerda(null)
     try {
-      const result = await runWithAuthRecovery<OrigemDespachoPerdaItem[]>(() =>
-        supabase.rpc('get_origens_despacho_perda', {
-          p_start_date: dateRange?.from ?? null,
-          p_end_date: dateRange?.to ?? null,
-        }),
-      )
+      const consultorParam =
+        selectedConsultorId && selectedConsultorId !== 'todos' ? selectedConsultorId : null
 
-      if (result.error) {
-        console.error('[AtendimentosTab] Erro ao carregar origens_despacho_perda:', result.error)
+      // Calcular período anterior equivalente
+      let prevStartDate: string | null = null
+      let prevEndDate: string | null = null
+
+      if (dateRange?.from && dateRange?.to) {
+        const currentStart = new Date(dateRange.from).getTime()
+        const currentEnd = new Date(dateRange.to).getTime()
+        const durationMs = Math.max(0, currentEnd - currentStart)
+
+        const prevEndMs = currentStart - 1
+        const prevStartMs = prevEndMs - durationMs
+
+        prevStartDate = new Date(prevStartMs).toISOString()
+        prevEndDate = new Date(prevEndMs).toISOString()
+      } else if (dateRange?.from && !dateRange?.to) {
+        const currentStart = new Date(dateRange.from).getTime()
+        const nowMs = Date.now()
+        const durationMs = Math.max(0, nowMs - currentStart)
+
+        const prevEndMs = currentStart - 1
+        const prevStartMs = prevEndMs - durationMs
+
+        prevStartDate = new Date(prevStartMs).toISOString()
+        prevEndDate = new Date(prevEndMs).toISOString()
+      }
+
+      // Buscar período atual e período anterior em paralelo com runWithAuthRecovery
+      const [resAtual, resAnterior] = await Promise.all([
+        runWithAuthRecovery<OrigemDespachoPerdaItem[]>(() =>
+          supabase.rpc('get_origens_despacho_perda_consultor', {
+            p_start_date: dateRange?.from ?? null,
+            p_end_date: dateRange?.to ?? null,
+            p_consultor_id: consultorParam,
+          }),
+        ),
+        prevStartDate
+          ? runWithAuthRecovery<OrigemDespachoPerdaItem[]>(() =>
+              supabase.rpc('get_origens_despacho_perda_consultor', {
+                p_start_date: prevStartDate,
+                p_end_date: prevEndDate,
+                p_consultor_id: consultorParam,
+              }),
+            )
+          : Promise.resolve({ data: [] as OrigemDespachoPerdaItem[], error: null }),
+      ])
+
+      if (resAtual.error) {
+        console.error(
+          '[AtendimentosTab] Erro ao carregar origens_despacho_perda_consultor:',
+          resAtual.error,
+        )
         setErrorDespachoPerda(
-          result.error?.message ||
+          resAtual.error?.message ||
             'Não foi possível carregar as métricas de despacho e perda por origem.',
         )
-      } else if (result.data) {
-        setOrigensDespachoPerda(Array.isArray(result.data) ? result.data : [])
       } else {
-        setOrigensDespachoPerda([])
+        const dadosAtuais: OrigemDespachoPerdaItem[] = Array.isArray(resAtual.data)
+          ? resAtual.data
+          : []
+        const dadosAnteriores: OrigemDespachoPerdaItem[] = Array.isArray(resAnterior.data)
+          ? resAnterior.data
+          : []
+
+        // Mapear dados anteriores por nome de origem para merge rápido
+        const prevMap = new Map<string, OrigemDespachoPerdaItem>()
+        dadosAnteriores.forEach((item) => {
+          if (item?.origem) {
+            prevMap.set(item.origem.toLowerCase().trim(), item)
+          }
+        })
+
+        // Combinar dados atuais com o período anterior
+        const comparativo: OrigemDespachoPerdaComparativoItem[] = dadosAtuais.map((item) => {
+          const prev = prevMap.get((item.origem || '').toLowerCase().trim())
+          const prevTotal = prev ? prev.total_leads : 0
+          const prevDespachados = prev ? prev.despachados : 0
+          const prevTaxaDespacho = prev ? prev.taxa_despacho : 0
+          const prevPerdidos = prev ? prev.perdidos : 0
+          const prevTaxaPerda = prev ? prev.taxa_perda : 0
+
+          return {
+            ...item,
+            prev_total_leads: prevTotal,
+            prev_despachados: prevDespachados,
+            prev_taxa_despacho: prevTaxaDespacho,
+            prev_perdidos: prevPerdidos,
+            prev_taxa_perda: prevTaxaPerda,
+            delta_total_leads: item.total_leads - prevTotal,
+            delta_despachados: item.despachados - prevDespachados,
+            delta_taxa_despacho: Number((item.taxa_despacho - prevTaxaDespacho).toFixed(1)),
+            delta_perdidos: item.perdidos - prevPerdidos,
+            delta_taxa_perda: Number((item.taxa_perda - prevTaxaPerda).toFixed(1)),
+          }
+        })
+
+        setOrigensDespachoPerda(comparativo)
       }
     } catch (err: any) {
-      console.error('[AtendimentosTab] Exceção ao consultar get_origens_despacho_perda:', err)
+      console.error(
+        '[AtendimentosTab] Exceção ao consultar get_origens_despacho_perda_consultor:',
+        err,
+      )
       setErrorDespachoPerda(
         err?.message || 'Erro inesperado ao consultar dados de despacho e perda.',
       )
     } finally {
       setLoadingDespachoPerda(false)
     }
-  }, [dateRange?.from, dateRange?.to])
+  }, [dateRange?.from, dateRange?.to, selectedConsultorId])
 
   useEffect(() => {
     fetchDespachoPerda()
@@ -1193,16 +1329,37 @@ export function AtendimentosTab({
 
           {/* Bloco Origens: Despacho e Perda */}
           <Card className="border-border shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
               <div>
                 <CardTitle className="text-base font-bold flex items-center gap-2">
                   <Send className="h-4 w-4 text-primary" />
                   Origens: Despacho e Perda
                 </CardTitle>
                 <CardDescription>
-                  Volume de leads triados no período, despacho para esteiras comerciais avançadas e
-                  perdas acumuladas
+                  Volume de leads triados no período, despacho para esteiras comerciais avançadas,
+                  perdas acumuladas e evolução vs. período anterior
                 </CardDescription>
+              </div>
+
+              {/* Filtro por Consultor Responsável */}
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  value={selectedConsultorId}
+                  onValueChange={(val) => setSelectedConsultorId(val)}
+                >
+                  <SelectTrigger className="w-[200px] h-8 text-xs font-medium bg-background border-border">
+                    <SelectValue placeholder="Todos os consultores" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os consultores</SelectItem>
+                    {consultoresList.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent className="pt-2">
@@ -1237,7 +1394,8 @@ export function AtendimentosTab({
                 </div>
               ) : origensDespachoPerda.length === 0 ? (
                 <div className="py-10 text-center text-sm text-muted-foreground">
-                  Nenhum lead encontrado para o período selecionado.
+                  Nenhum lead encontrado para o período{' '}
+                  {selectedConsultorId !== 'todos' ? 'e consultor selecionados' : 'selecionado'}.
                 </div>
               ) : (
                 (() => {
@@ -1253,10 +1411,51 @@ export function AtendimentosTab({
                     (acc, cur) => acc + (cur.perdidos || 0),
                     0,
                   )
-                  const taxaGlobalDespacho =
-                    somaTotal > 0 ? ((somaDespachados / somaTotal) * 100).toFixed(1) : '0,0'
-                  const taxaGlobalPerda =
-                    somaTotal > 0 ? ((somaPerdidos / somaTotal) * 100).toFixed(1) : '0,0'
+                  const somaPrevTotal = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.prev_total_leads || 0),
+                    0,
+                  )
+                  const somaPrevDespachados = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.prev_despachados || 0),
+                    0,
+                  )
+                  const somaPrevPerdidos = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.prev_perdidos || 0),
+                    0,
+                  )
+
+                  const taxaGlobalDespachoNum =
+                    somaTotal > 0 ? (somaDespachados / somaTotal) * 100 : 0
+                  const taxaGlobalPerdaNum = somaTotal > 0 ? (somaPerdidos / somaTotal) * 100 : 0
+                  const prevTaxaGlobalDespachoNum =
+                    somaPrevTotal > 0 ? (somaPrevDespachados / somaPrevTotal) * 100 : 0
+                  const prevTaxaGlobalPerdaNum =
+                    somaPrevTotal > 0 ? (somaPrevPerdidos / somaPrevTotal) * 100 : 0
+
+                  const deltaTotalGlobal = somaTotal - somaPrevTotal
+                  const deltaTaxaDespachoGlobal = Number(
+                    (taxaGlobalDespachoNum - prevTaxaGlobalDespachoNum).toFixed(1),
+                  )
+                  const deltaTaxaPerdaGlobal = Number(
+                    (taxaGlobalPerdaNum - prevTaxaGlobalPerdaNum).toFixed(1),
+                  )
+
+                  const formatDeltaPp = (delta: number | undefined) => {
+                    if (delta === undefined || isNaN(delta)) return null
+                    const sinal =
+                      delta > 0
+                        ? `+${delta.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
+                        : delta.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          })
+                    return `${sinal} pp`
+                  }
+
+                  const formatDeltaCount = (delta: number | undefined) => {
+                    if (delta === undefined || isNaN(delta)) return null
+                    return delta > 0 ? `+${delta}` : `${delta}`
+                  }
 
                   return (
                     <div className="space-y-3">
@@ -1264,85 +1463,315 @@ export function AtendimentosTab({
                         <table className="w-full text-xs text-left">
                           <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
                             <tr>
-                              <th className="py-2.5 px-3 font-semibold">Origem</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Total</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Despachados</th>
-                              <th className="py-2.5 px-3 text-right font-semibold">Perdidos</th>
+                              <th className="py-2.5 px-3 font-semibold min-w-[130px]">Origem</th>
+                              <th className="py-2.5 px-3 text-right font-semibold min-w-[90px]">
+                                Total (vs ant.)
+                              </th>
+                              <th className="py-2.5 px-3 text-right font-semibold min-w-[200px]">
+                                Despachados / Taxa
+                              </th>
+                              <th className="py-2.5 px-3 text-right font-semibold min-w-[200px]">
+                                Perdidos / Taxa
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border bg-card">
-                            {origensDespachoPerda.map((item, idx) => (
-                              <tr
-                                key={item.origem || `origem-${idx}`}
-                                className="hover:bg-muted/30 transition-colors"
-                              >
-                                <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
-                                  <span
-                                    className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                                    style={{ backgroundColor: getOriginColor(item.origem, idx) }}
-                                  />
-                                  <span className="truncate">{item.origem}</span>
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-medium text-foreground">
-                                  {item.total_leads}
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-medium">
-                                  <div className="inline-flex items-center gap-1.5 justify-end">
-                                    <span className="text-foreground">{item.despachados}</span>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] py-0 px-1.5 font-semibold text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/40"
-                                    >
-                                      {item.taxa_despacho.toLocaleString('pt-BR', {
-                                        minimumFractionDigits: 1,
-                                        maximumFractionDigits: 1,
-                                      })}
-                                      %
-                                    </Badge>
-                                  </div>
-                                </td>
-                                <td className="py-2.5 px-3 text-right font-medium">
-                                  <div className="inline-flex items-center gap-1.5 justify-end">
-                                    <span className="text-foreground">{item.perdidos}</span>
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] py-0 px-1.5 font-semibold text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40"
-                                    >
-                                      {item.taxa_perda.toLocaleString('pt-BR', {
-                                        minimumFractionDigits: 1,
-                                        maximumFractionDigits: 1,
-                                      })}
-                                      %
-                                    </Badge>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
+                            {origensDespachoPerda.map((item, idx) => {
+                              const pctDespachoClamped = Math.min(
+                                100,
+                                Math.max(0, item.taxa_despacho || 0),
+                              )
+                              const pctPerdaClamped = Math.min(
+                                100,
+                                Math.max(0, item.taxa_perda || 0),
+                              )
+
+                              // Variação de Despacho (mais despacho = melhor, verde; menos = pior, vermelho)
+                              const deltaDesp = item.delta_taxa_despacho ?? 0
+                              const deltaDespColor =
+                                deltaDesp > 0
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : deltaDesp < 0
+                                    ? 'text-rose-600 dark:text-rose-400'
+                                    : 'text-muted-foreground'
+
+                              // Variação de Perda (mais perda = PIOR, vermelho; menos perda = MELHOR, verde)
+                              const deltaPerda = item.delta_taxa_perda ?? 0
+                              const deltaPerdaColor =
+                                deltaPerda > 0
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : deltaPerda < 0
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-muted-foreground'
+
+                              return (
+                                <tr
+                                  key={item.origem || `origem-${idx}`}
+                                  className="hover:bg-muted/30 transition-colors"
+                                >
+                                  {/* Coluna Origem */}
+                                  <td className="py-2.5 px-3 font-semibold text-foreground">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                                        style={{
+                                          backgroundColor: getOriginColor(item.origem, idx),
+                                        }}
+                                      />
+                                      <span className="truncate">{item.origem}</span>
+                                    </div>
+                                  </td>
+
+                                  {/* Coluna Total Leads com evolução */}
+                                  <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                                    <div className="flex flex-col items-end">
+                                      <span className="font-bold">{item.total_leads}</span>
+                                      {item.prev_total_leads !== undefined && (
+                                        <span
+                                          className={`text-[10px] inline-flex items-center gap-0.5 ${
+                                            (item.delta_total_leads ?? 0) > 0
+                                              ? 'text-emerald-600 dark:text-emerald-400'
+                                              : (item.delta_total_leads ?? 0) < 0
+                                                ? 'text-rose-600 dark:text-rose-400'
+                                                : 'text-muted-foreground'
+                                          }`}
+                                          title={`Período anterior: ${item.prev_total_leads} leads`}
+                                        >
+                                          {(item.delta_total_leads ?? 0) > 0 ? (
+                                            <TrendingUp className="w-2.5 h-2.5 inline" />
+                                          ) : (item.delta_total_leads ?? 0) < 0 ? (
+                                            <TrendingDown className="w-2.5 h-2.5 inline" />
+                                          ) : (
+                                            <Minus className="w-2.5 h-2.5 inline" />
+                                          )}
+                                          {formatDeltaCount(item.delta_total_leads)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* Coluna Despachados com Mini-Barra Visual e Evolução */}
+                                  <td className="py-2.5 px-3 text-right font-medium">
+                                    <div className="flex flex-col items-end gap-1.5">
+                                      <div className="inline-flex items-center gap-1.5 justify-end">
+                                        <span className="text-foreground">{item.despachados}</span>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[10px] py-0 px-1.5 font-semibold text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/40"
+                                        >
+                                          {item.taxa_despacho.toLocaleString('pt-BR', {
+                                            minimumFractionDigits: 1,
+                                            maximumFractionDigits: 1,
+                                          })}
+                                          %
+                                        </Badge>
+                                        {/* Evolução vs período anterior */}
+                                        {item.prev_taxa_despacho !== undefined && (
+                                          <span
+                                            className={`text-[10px] font-semibold inline-flex items-center gap-0.5 ${deltaDespColor}`}
+                                            title={`Período anterior: ${item.prev_taxa_despacho}% (${item.prev_despachados} despachados)`}
+                                          >
+                                            {deltaDesp > 0 ? (
+                                              <TrendingUp className="w-2.5 h-2.5 inline" />
+                                            ) : deltaDesp < 0 ? (
+                                              <TrendingDown className="w-2.5 h-2.5 inline" />
+                                            ) : (
+                                              <Minus className="w-2.5 h-2.5 inline" />
+                                            )}
+                                            {formatDeltaPp(item.delta_taxa_despacho)}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Mini-barra visual horizontal proporcional */}
+                                      <div
+                                        className="w-full h-1.5 bg-muted/70 rounded-full overflow-hidden"
+                                        title={`Taxa de despacho: ${item.taxa_despacho}%`}
+                                      >
+                                        <div
+                                          className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-300"
+                                          style={{ width: `${pctDespachoClamped}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Coluna Perdidos com Mini-Barra Visual e Evolução */}
+                                  <td className="py-2.5 px-3 text-right font-medium">
+                                    <div className="flex flex-col items-end gap-1.5">
+                                      <div className="inline-flex items-center gap-1.5 justify-end">
+                                        <span className="text-foreground">{item.perdidos}</span>
+                                        <Badge
+                                          variant="outline"
+                                          className={`text-[10px] py-0 px-1.5 font-semibold ${
+                                            pctPerdaClamped >= 30
+                                              ? 'text-rose-700 dark:text-rose-200 border-rose-400 dark:border-rose-600 bg-rose-100/80 dark:bg-rose-950/70 font-bold'
+                                              : 'text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40'
+                                          }`}
+                                        >
+                                          {item.taxa_perda.toLocaleString('pt-BR', {
+                                            minimumFractionDigits: 1,
+                                            maximumFractionDigits: 1,
+                                          })}
+                                          %
+                                        </Badge>
+                                        {/* Evolução vs período anterior */}
+                                        {item.prev_taxa_perda !== undefined && (
+                                          <span
+                                            className={`text-[10px] font-semibold inline-flex items-center gap-0.5 ${deltaPerdaColor}`}
+                                            title={`Período anterior: ${item.prev_taxa_perda}% (${item.prev_perdidos} perdidos)`}
+                                          >
+                                            {deltaPerda > 0 ? (
+                                              <TrendingUp className="w-2.5 h-2.5 inline" />
+                                            ) : deltaPerda < 0 ? (
+                                              <TrendingDown className="w-2.5 h-2.5 inline" />
+                                            ) : (
+                                              <Minus className="w-2.5 h-2.5 inline" />
+                                            )}
+                                            {formatDeltaPp(item.delta_taxa_perda)}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* Mini-barra visual horizontal proporcional */}
+                                      <div
+                                        className="w-full h-1.5 bg-muted/70 rounded-full overflow-hidden"
+                                        title={`Taxa de perda: ${item.taxa_perda}%`}
+                                      >
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-300 ${
+                                            pctPerdaClamped >= 30
+                                              ? 'bg-rose-600 dark:bg-rose-500'
+                                              : 'bg-rose-500/80 dark:bg-rose-400'
+                                          }`}
+                                          style={{ width: `${pctPerdaClamped}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
                           </tbody>
                           <tfoot className="border-t border-border bg-muted/40 font-semibold text-foreground">
                             <tr>
                               <td className="py-2.5 px-3 font-bold">Total Consolidado</td>
-                              <td className="py-2.5 px-3 text-right font-bold">{somaTotal}</td>
                               <td className="py-2.5 px-3 text-right font-bold">
-                                <div className="inline-flex items-center gap-1.5 justify-end">
-                                  <span>{somaDespachados}</span>
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] py-0 px-1.5 font-bold text-blue-800 dark:text-blue-200 border-blue-400 dark:border-blue-700 bg-blue-100/60 dark:bg-blue-900/40"
-                                  >
-                                    {taxaGlobalDespacho}%
-                                  </Badge>
+                                <div className="flex flex-col items-end">
+                                  <span>{somaTotal}</span>
+                                  {somaPrevTotal > 0 && (
+                                    <span
+                                      className={`text-[10px] inline-flex items-center gap-0.5 font-bold ${
+                                        deltaTotalGlobal > 0
+                                          ? 'text-emerald-600 dark:text-emerald-400'
+                                          : deltaTotalGlobal < 0
+                                            ? 'text-rose-600 dark:text-rose-400'
+                                            : 'text-muted-foreground'
+                                      }`}
+                                      title={`Período anterior: ${somaPrevTotal} leads totais`}
+                                    >
+                                      {deltaTotalGlobal > 0 ? (
+                                        <TrendingUp className="w-2.5 h-2.5 inline" />
+                                      ) : deltaTotalGlobal < 0 ? (
+                                        <TrendingDown className="w-2.5 h-2.5 inline" />
+                                      ) : (
+                                        <Minus className="w-2.5 h-2.5 inline" />
+                                      )}
+                                      {formatDeltaCount(deltaTotalGlobal)}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                               <td className="py-2.5 px-3 text-right font-bold">
-                                <div className="inline-flex items-center gap-1.5 justify-end">
-                                  <span>{somaPerdidos}</span>
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] py-0 px-1.5 font-bold text-rose-800 dark:text-rose-200 border-rose-400 dark:border-rose-700 bg-rose-100/60 dark:bg-rose-900/40"
-                                  >
-                                    {taxaGlobalPerda}%
-                                  </Badge>
+                                <div className="flex flex-col items-end gap-1.5">
+                                  <div className="inline-flex items-center gap-1.5 justify-end">
+                                    <span>{somaDespachados}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] py-0 px-1.5 font-bold text-blue-800 dark:text-blue-200 border-blue-400 dark:border-blue-700 bg-blue-100/60 dark:bg-blue-900/40"
+                                    >
+                                      {taxaGlobalDespachoNum.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 1,
+                                        maximumFractionDigits: 1,
+                                      })}
+                                      %
+                                    </Badge>
+                                    {somaPrevTotal > 0 && (
+                                      <span
+                                        className={`text-[10px] font-bold inline-flex items-center gap-0.5 ${
+                                          deltaTaxaDespachoGlobal > 0
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : deltaTaxaDespachoGlobal < 0
+                                              ? 'text-rose-600 dark:text-rose-400'
+                                              : 'text-muted-foreground'
+                                        }`}
+                                        title={`Período anterior: ${prevTaxaGlobalDespachoNum.toFixed(1)}%`}
+                                      >
+                                        {deltaTaxaDespachoGlobal > 0 ? (
+                                          <TrendingUp className="w-2.5 h-2.5 inline" />
+                                        ) : deltaTaxaDespachoGlobal < 0 ? (
+                                          <TrendingDown className="w-2.5 h-2.5 inline" />
+                                        ) : (
+                                          <Minus className="w-2.5 h-2.5 inline" />
+                                        )}
+                                        {formatDeltaPp(deltaTaxaDespachoGlobal)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="w-full h-1.5 bg-muted/70 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-blue-700 dark:bg-blue-400 rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${Math.min(100, Math.max(0, taxaGlobalDespachoNum))}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold">
+                                <div className="flex flex-col items-end gap-1.5">
+                                  <div className="inline-flex items-center gap-1.5 justify-end">
+                                    <span>{somaPerdidos}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] py-0 px-1.5 font-bold text-rose-800 dark:text-rose-200 border-rose-400 dark:border-rose-700 bg-rose-100/60 dark:bg-rose-900/40"
+                                    >
+                                      {taxaGlobalPerdaNum.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 1,
+                                        maximumFractionDigits: 1,
+                                      })}
+                                      %
+                                    </Badge>
+                                    {somaPrevTotal > 0 && (
+                                      <span
+                                        className={`text-[10px] font-bold inline-flex items-center gap-0.5 ${
+                                          deltaTaxaPerdaGlobal > 0
+                                            ? 'text-rose-600 dark:text-rose-400'
+                                            : deltaTaxaPerdaGlobal < 0
+                                              ? 'text-emerald-600 dark:text-emerald-400'
+                                              : 'text-muted-foreground'
+                                        }`}
+                                        title={`Período anterior: ${prevTaxaGlobalPerdaNum.toFixed(1)}%`}
+                                      >
+                                        {deltaTaxaPerdaGlobal > 0 ? (
+                                          <TrendingUp className="w-2.5 h-2.5 inline" />
+                                        ) : deltaTaxaPerdaGlobal < 0 ? (
+                                          <TrendingDown className="w-2.5 h-2.5 inline" />
+                                        ) : (
+                                          <Minus className="w-2.5 h-2.5 inline" />
+                                        )}
+                                        {formatDeltaPp(deltaTaxaPerdaGlobal)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="w-full h-1.5 bg-muted/70 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-rose-700 dark:bg-rose-400 rounded-full transition-all duration-300"
+                                      style={{
+                                        width: `${Math.min(100, Math.max(0, taxaGlobalPerdaNum))}%`,
+                                      }}
+                                    />
+                                  </div>
                                 </div>
                               </td>
                             </tr>
@@ -1350,12 +1779,17 @@ export function AtendimentosTab({
                         </table>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
-                        <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        <span>
-                          Nota: Um lead pode ter sido despachado e posteriormente marcado como
-                          perdido — as duas taxas são independentes e não se somam.
-                        </span>
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-muted-foreground pt-1">
+                        <div className="flex items-center gap-1.5">
+                          <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span>
+                            Nota: Um lead pode ter sido despachado e posteriormente marcado como
+                            perdido — as duas taxas são independentes e não se somam.
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground shrink-0">
+                          Comparações vs. período anterior equivalente
+                        </div>
                       </div>
                     </div>
                   )
