@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
+import { baixarSobra } from '@/services/estoque-sobras'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { AlertCircle, CheckCircle2, Scissors } from 'lucide-react'
 
 export default function BaixaRetalho() {
   const { id } = useParams()
+  const { user } = useAuth()
   const [retalho, setRetalho] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -34,17 +37,26 @@ export default function BaixaRetalho() {
   }, [id])
 
   async function handleBaixa() {
+    if (!id) return
     setBaixaLoading(true)
-    const { error } = await supabase
-      .from('estoque_sobras' as any)
-      .update({ status: 'usado', usado_em: new Date().toISOString() })
-      .eq('id', id)
+    const agora = new Date().toISOString()
+    const { error: baixaError } = await baixarSobra({
+      sobraId: id,
+      canal: 'qr',
+      usuarioId: user?.id || null,
+    })
 
-    if (error) {
+    if (baixaError) {
       setError('Erro ao dar baixa. Tente novamente.')
     } else {
       setSuccess(true)
-      setRetalho({ ...retalho, status: 'usado', usado_em: new Date().toISOString() })
+      setRetalho({
+        ...retalho,
+        status: 'usado',
+        usado_em: agora,
+        canal_baixa: 'qr',
+        baixado_por: user?.id || null,
+      })
     }
     setBaixaLoading(false)
   }
