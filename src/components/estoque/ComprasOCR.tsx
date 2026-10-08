@@ -494,18 +494,35 @@ export function ComprasOCR() {
     })
 
     try {
-      // 1. Baixar o arquivo do Supabase Storage
-      const { data: fileBlob, error: downloadErr } = await supabase.storage
-        .from('comprovantes')
-        .download(nota.arquivo_url)
+      // 1. Baixar o arquivo do Supabase Storage tentando o bucket correto
+      let fileBlob: Blob | null = null
+      let downloadErr: any = null
 
-      if (downloadErr || !fileBlob) {
+      const cleanPath = nota.arquivo_url
+        .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/[^/]+\//, '')
+        .replace(/^\/+/, '')
+
+      // Tentar no bucket notas-fiscais primeiro
+      const tryBuckets = ['notas-fiscais', 'documentos', 'comprovantes']
+      for (const b of tryBuckets) {
+        const pathCandidate = cleanPath.startsWith(`${b}/`)
+          ? cleanPath.replace(`${b}/`, '')
+          : cleanPath
+        const res = await supabase.storage.from(b).download(pathCandidate)
+        if (res.data) {
+          fileBlob = res.data
+          break
+        }
+        downloadErr = res.error
+      }
+
+      if (!fileBlob) {
         throw new Error(
           downloadErr?.message || 'Não foi possível baixar o arquivo do armazenamento.',
         )
       }
 
-      const fileName = nota.arquivo_url.split('/').pop() || 'nota.pdf'
+      const fileName = cleanPath.split('/').pop() || 'nota.pdf'
       const file = new File([fileBlob], fileName, { type: fileBlob.type })
 
       const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)

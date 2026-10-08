@@ -46,6 +46,12 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
   const [isReprocessing, setIsReprocessing] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [editingMatchedIdx, setEditingMatchedIdx] = useState<number | null>(null)
+  const [showManualForm, setShowManualForm] = useState(false)
+  const [manualDescricao, setManualDescricao] = useState('')
+  const [manualQuantidade, setManualQuantidade] = useState<number | string>(1)
+  const [manualValorUnitario, setManualValorUnitario] = useState<number | string>(0)
+  const [manualUnidade, setManualUnidade] = useState('un')
+  const [manualCategoria, setManualCategoria] = useState('')
 
   useEffect(() => {
     fetchEstoque()
@@ -97,7 +103,13 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
         status: item.item_id ? item.status || 'matched' : 'pendente_revisao',
         item_id: item.item_id || null,
         source: item.source || 'none',
-        confianca: item.confianca || 'BAIXA',
+        confianca:
+          item.confianca ||
+          (item.score && item.score >= 85
+            ? 'ALTA'
+            : item.score && item.score >= 60
+              ? 'MEDIA'
+              : 'BAIXA'),
         score: item.score || 0,
       }
     })
@@ -150,9 +162,49 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
 
   useEffect(() => {
     const rawItens: any[] = nota.dados_ocr?.itens || []
-    setDraftItens(parseItensToDraft(rawItens))
+    const parsed = parseItensToDraft(rawItens)
+
+    // Se temos itens e estoque disponível, caso algum item pendente ainda não tenha item_id
+    // mas o algoritmo de matching local encontre uma correspondência boa (score >= 60),
+    // sugerimos o item_id no rascunho para que o card já acorde pré-selecionado (B1)
+    if (parsed.length > 0 && estoqueItems.length > 0) {
+      let changedAny = false
+      const enhanced = parsed.map((it) => {
+        if (!it.item_id && it.status === 'pendente_revisao') {
+          const ranked = estoqueItems
+            .map((ei) => ({
+              ei,
+              score:
+                it.produto && ei.nome
+                  ? it.produto.toLowerCase().includes(ei.nome.toLowerCase()) ||
+                    ei.nome.toLowerCase().includes(it.produto.toLowerCase())
+                    ? 70
+                    : 0
+                  : 0,
+            }))
+            .filter((r) => r.score >= 60)
+            .sort((a, b) => b.score - a.score)
+
+          if (ranked.length > 0) {
+            changedAny = true
+            return {
+              ...it,
+              item_id: ranked[0].ei.id,
+              score: ranked[0].score,
+              confianca: (ranked[0].score >= 85 ? 'ALTA' : 'MEDIA') as any,
+            }
+          }
+        }
+        return it
+      })
+      setDraftItens(changedAny ? enhanced : parsed)
+    } else {
+      setDraftItens(parsed)
+    }
+
     setHasChanges(false)
-  }, [nota.id, nota.dados_ocr])
+    setEditingMatchedIdx(null)
+  }, [nota.id, nota.dados_ocr, estoqueItems])
 
   const originalTotal = useMemo(() => {
     return Number(nota.valor_total) || 0
@@ -316,38 +368,69 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
         description: 'Baixando documento original e reexecutando leitura OCR.',
       })
 
-      // Download do arquivo do storage
-      const filePath =
-        nota.arquivo_url.split('/storage/v1/object/public/documentos/')[1] || nota.arquivo_url
-      const { data: fileBlob, error: downloadErr } = await supabase.storage
-        .from('documentos')
-        .download(filePath)
+      // Download do arquivo do storage com busca nos buckets possíveis (notas-fiscais, documentos, comprovantes)
+      let fileBlob: Blob | null = null
+      let downloadErr: any = null
 
-      if (downloadErr || !fileBlob) {
+      const cleanPath = nota.arquivo_url
+        .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/[^/]+\//, '')
+        .replace(/^\/+/, '')
+
+      const tryBuckets = ['notas-fiscais', 'documentos', 'comprovantes']
+      for (const b of tryBuckets) {
+        const pathCandidate = cleanPath.startsWith(`${b}/`)
+          ? cleanPath.replace(`${b}/`, '')
+          : cleanPath
+        const res = await supabase.storage.from(b).download(pathCandidate)
+        if (res.data) {
+          fileBlob = res.data
+          break
+        }
+        downloadErr = res.error
+      }
+
+      if (!fileBlob) {
         throw new Error(downloadErr?.message || 'Não foi possível baixar o arquivo do storage')
       }
 
-      // Preparar payload base64 / formData para a edge function financeiro-ai
-      const arrayBuffer = await fileBlob.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
-      let binary = ''
-      const len = uint8Array.byteLength
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(uint8Array[i])
+      const fileName =
+        cleanPath.split('/').pop() || (nota.numero_nota ? `NF_${nota.numero_nota}.pdf` : 'nota.pdf')
+      const file = new File([fileBlob], fileName, { type: fileBlob.type || 'application/pdf' })
+
+      const { prepareInvoiceForOcr } = await import('@/services/notas-fiscais-storage')
+      const { convertPdfToImages } = await import('@/lib/pdf-to-images')
+      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
+
+      let payload: any = null
+      let aiRes: any = null
+      if (prepared.isXml) {
+        const { parseNFeXml } = await import('@/lib/nfe-xml-parser')
+        const parsedXml = parseNFeXml(prepared.xmlContent || '')
+        aiRes = { data: parsedXml }
+      } else {
+        if (prepared.isPdf) {
+          if (prepared.images && prepared.images.length > 0) {
+            payload = { images: prepared.images, isPdf: true }
+          } else {
+            payload = { imageBase64: prepared.imageBase64, isPdf: true }
+          }
+        } else {
+          payload = { imageBase64: prepared.imageBase64, isPdf: false }
+        }
+
+        const fnRes = await supabase.functions.invoke('financeiro-ai', {
+          body: {
+            action: 'ocr_compras',
+            payload,
+            fileBase64: prepared.imageBase64,
+            mimeType: fileBlob.type || 'application/pdf',
+            fileName: file.name,
+          },
+        })
+        if (fnRes.error) throw fnRes.error
+        aiRes = fnRes
       }
-      const base64 = btoa(binary)
-      const mimeType = fileBlob.type || 'application/pdf'
 
-      const { data: aiRes, error: fnErr } = await supabase.functions.invoke('financeiro-ai', {
-        body: {
-          action: 'ocr_compras',
-          fileBase64: base64,
-          mimeType,
-          fileName: nota.numero_nota ? `NF_${nota.numero_nota}.pdf` : 'nota_fiscal.pdf',
-        },
-      })
-
-      if (fnErr) throw fnErr
       if (!aiRes || !aiRes.data) {
         throw new Error(aiRes?.error || 'A IA não retornou dados estruturados da nota fiscal')
       }
@@ -1132,46 +1215,196 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       )}
 
       {draftItens.length === 0 ? (
-        <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border-2 border-dashed border-amber-300 dark:border-amber-800 rounded-lg text-center space-y-3">
+        <div className="p-6 bg-amber-50 dark:bg-amber-950/30 border-2 border-dashed border-amber-300 dark:border-amber-800 rounded-lg text-center space-y-4">
           <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center">
             <AlertCircle className="w-6 h-6" />
           </div>
           <div>
-            <h5 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+            <h5 className="text-base font-bold text-amber-900 dark:text-amber-200">
               Nenhum item foi lido nesta nota fiscal
             </h5>
             <p className="text-xs text-amber-700 dark:text-amber-300 max-w-md mx-auto mt-1">
               Notas escaneadas ou com layout incomum podem vir da IA sem a extração automática da
-              tabela de itens. Você pode tentar reprocessar com IA ou adicionar os itens
-              manualmente.
+              tabela de itens. Você pode reprocessar com IA usando a leitura reforçada ou adicionar
+              os itens diretamente abaixo para associá-los ao estoque.
             </p>
           </div>
-          <div className="flex items-center justify-center gap-2 pt-1 flex-wrap">
+
+          <div className="flex items-center justify-center gap-3 pt-1 flex-wrap">
             {(nota.arquivo_url || onReprocess) && (
               <Button
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={handleReprocessInvoice}
                 disabled={isReprocessing}
-                className="bg-white dark:bg-slate-900 border-amber-300 text-amber-800 hover:bg-amber-100 dark:text-amber-200 dark:border-amber-700"
+                className="bg-white dark:bg-slate-900 border-blue-400 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 font-medium px-4 shadow-xs"
               >
                 {isReprocessing ? (
-                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                  <RefreshCw className="w-4 h-4 mr-2 text-blue-600" />
                 )}
-                Reprocessar com IA
+                Reprocessar com IA (Leitura Reforçada)
               </Button>
             )}
             <Button
-              size="sm"
-              onClick={handleAddNewBlankItem}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              size="default"
+              onClick={() => setShowManualForm((prev) => !prev)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 shadow-xs text-sm"
             >
-              <PlusCircle className="w-4 h-4 mr-1.5" />
-              Adicionar Item Manualmente
+              <PlusCircle className="w-4 h-4 mr-2" />
+              {showManualForm ? 'Fechar Entrada Manual' : 'Adicionar Itens Manualmente'}
             </Button>
           </div>
+
+          {/* Formulário de entrada manual em destaque dentro do quadro de aviso */}
+          {showManualForm && (
+            <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg border-2 border-emerald-500/40 text-left shadow-sm space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                  Novo Item da Nota
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  O item entrará no rascunho com _draftId e poderá ser associado ao estoque
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                    Descrição do Produto / Material *
+                  </label>
+                  <Input
+                    placeholder="Ex: MDF Branco TX 15mm 2 Faces"
+                    value={manualDescricao}
+                    onChange={(e) => setManualDescricao(e.target.value)}
+                    className="h-8 text-xs"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                    Categoria
+                  </label>
+                  <Select value={manualCategoria} onValueChange={setManualCategoria}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Selecione categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {CATEGORIAS_ESTOQUE.map((cat) => (
+                        <SelectItem key={cat} value={cat} className="text-xs">
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                    Quantidade *
+                  </label>
+                  <Input
+                    type="number"
+                    min="0.001"
+                    step="any"
+                    value={manualQuantidade}
+                    onChange={(e) => setManualQuantidade(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                    Unidade
+                  </label>
+                  <Input
+                    placeholder="un, m², chapa, barra..."
+                    value={manualUnidade}
+                    onChange={(e) => setManualUnidade(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+                    Valor Unitário Líquido (R$)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={manualValorUnitario}
+                    onChange={(e) => setManualValorUnitario(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowManualForm(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const desc = manualDescricao.trim()
+                    if (!desc) {
+                      toast({
+                        title: 'Descrição obrigatória',
+                        description: 'Informe a descrição do produto.',
+                        variant: 'destructive',
+                      })
+                      return
+                    }
+                    const qtd = Number(manualQuantidade) || 1
+                    const pu = Number(manualValorUnitario) || 0
+                    const pt = Math.round(qtd * pu * 100) / 100
+
+                    const newItem: MatchedItem & { _draftId: string } = {
+                      _draftId: generateItemId(),
+                      produto: desc,
+                      quantidade: qtd,
+                      preco_unitario: pu,
+                      preco_total: pt,
+                      preco_bruto: pt,
+                      desconto: 0,
+                      unidade: manualUnidade || 'un',
+                      categoria: manualCategoria || '',
+                      metadados_normalizados: {},
+                      status: 'pendente_revisao',
+                      item_id: null,
+                      source: 'manual',
+                      confianca: 'BAIXA',
+                      score: 0,
+                    }
+
+                    setDraftItens((prev) => [newItem, ...prev])
+                    setHasChanges(true)
+                    setShowManualForm(false)
+                    setManualDescricao('')
+                    setManualQuantidade(1)
+                    setManualValorUnitario(0)
+                    setManualUnidade('un')
+                    setManualCategoria('')
+                    toast({
+                      title: 'Item adicionado à nota!',
+                      description: 'Você já pode vinculá-lo a um item do estoque abaixo.',
+                    })
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 mr-1.5" />
+                  Incluir no Rascunho
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ) : hasPending ? (
         <div className="space-y-4">

@@ -13,7 +13,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const { action, payload } = await req.json()
+    const requestJson = await req.json()
+    const action = requestJson.action
+    // Suportar tanto body: { action, payload: {...} } quanto body: { action, ...payloadFields }
+    const payload = requestJson.payload || requestJson
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openaiKey) throw new Error('Chave da OpenAI não configurada.')
     const openai = new OpenAI({ apiKey: openaiKey })
@@ -80,8 +83,16 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'ocr_compras') {
-      const { imageBase64, isPdf, images, rawText } = payload
-      let pdfText = typeof rawText === 'string' ? rawText.trim().substring(0, 15000) : ''
+      const p = payload || {}
+      const fileBase64 = p.fileBase64 || (p.imageBase64 && !p.isPdf ? p.imageBase64 : '')
+      const imageBase64 = p.imageBase64 || fileBase64
+      const mimeType = (p.mimeType || '').toLowerCase()
+      const isPdf =
+        p.isPdf ?? (mimeType.includes('pdf') || (p.fileName || '').toLowerCase().endsWith('.pdf'))
+      const images = p.images
+      const rawText = p.rawText
+
+      let pdfText = typeof rawText === 'string' ? rawText.trim().substring(0, 20000) : ''
       let isScannedPdf = false
 
       // Suporte a múltiplas imagens (ex: páginas de PDF convertidas para imagem) ou imagem única
@@ -97,20 +108,25 @@ Deno.serve(async (req) => {
       // Se for PDF e NÃO recebemos imagens pré-convertidas para visão, tentamos extrair texto
       if (isPdf && imageList.length === 0) {
         try {
-          const base64Data = (imageBase64 || '').split(',')[1] || imageBase64 || ''
-          const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
-          const data = await pdf(buffer)
-          pdfText = data.text.trim().substring(0, 15000)
-          if (!pdfText || pdfText.length < 10) {
+          const rawB64 = imageBase64 || fileBase64 || ''
+          const base64Data = rawB64.split(',')[1] || rawB64
+          if (base64Data) {
+            const buffer = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+            const data = await pdf(buffer)
+            pdfText = data.text.trim().substring(0, 20000)
+            if (!pdfText || pdfText.length < 10) {
+              isScannedPdf = true
+            }
+          } else {
             isScannedPdf = true
           }
         } catch (e) {
           console.error('PDF Parse Error', e)
-          throw new Error('Falha ao ler PDF. O arquivo pode estar protegido ou corrompido.')
+          isScannedPdf = true
         }
       }
 
-      if (isScannedPdf && imageList.length === 0) {
+      if (isScannedPdf && imageList.length === 0 && !pdfText) {
         throw new Error(
           'O PDF parece ser escaneado (sem texto legível) e não pôde ser convertido para imagem. Por favor, tire um print/foto da nota e faça o upload como imagem (JPG/PNG).',
         )
@@ -119,7 +135,7 @@ Deno.serve(async (req) => {
       const userContent: any[] = [
         {
           type: 'text',
-          text: 'Extraia os dados deste documento (Nota Fiscal DANFE, Romaneio ou Pedido). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados e a seção "CÁLCULO DO IMPOSTO" com os totais fiscais (vProd, vDesc, vFrete, vIPI, vST, vICMS, vNF, etc).',
+          text: 'Extraia os dados deste documento fiscal (Nota Fiscal DANFE, Romaneio, Pedido ou Espelho de NF). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados linha a linha na tabela de produtos/serviços, e a seção "CÁLCULO DO IMPOSTO" com os totais fiscais (vProd, vDesc, vFrete, vIPI, vST, vICMS, vNF, etc). Se o documento for escaneado, inclinado, com texto contínuo ou tabelado, transcreva rigorosamente cada linha da grade de produtos no array "itens".',
         },
       ]
 
@@ -196,16 +212,19 @@ CAMPO "cnpj_fornecedor": CNPJ do emitente/vendedor se houver, senão null.
 CAMPO "valor": número float, valor total da nota (vNF).
 CAMPO "data_emissao": string YYYY-MM-DD.
 CAMPO "numero_nota": string, usar se for NF ou romaneio.
-CAMPO "itens": array de objetos com:
-  - "produto": string com a descrição completa do produto
+CAMPO "itens" (CRÍTICO — TABELA DE PRODUTOS / SERVIÇOS OBRIGATÓRIA):
+- TRANSCREVA rigorosamente CADA linha da tabela de produtos/mercadorias da nota. Mesmo em documentos escaneados, rotacionados ou com texto corrido, encontre e transcreva todas as linhas de produtos.
+- O array "itens" NUNCA deve vir vazio se houver mercadorias discriminadas no documento.
+- Cada objeto no array "itens" DEVE conter:
+  - "produto": string com a descrição completa e legível do produto/material
   - "marca": string opcional
-  - "quantidade": número float
-  - "preco_unitario": número float (líquido de desconto)
-  - "preco_total": número float (líquido)
+  - "quantidade": número float (se não conseguir ler, adote 1)
+  - "preco_unitario": número float (valor unitário líquido de desconto)
+  - "preco_total": número float (valor total líquido da linha)
   - "preco_bruto": número float opcional (vProd do item)
-  - "desconto": número float opcional (vDesc do item)
-  - "valor_unitario_bruto": número float opcional (vUnCom)
-  - "unidade": string (UN, M, M2, RL, CX, etc.)
+  - "desconto": número float opcional (vDesc do item, 0 se não houver)
+  - "valor_unitario_bruto": número float opcional (vUnCom antes do desconto)
+  - "unidade": string (UN, M, M2, RL, CX, PC, KG, etc. Default 'un')
   - "categoria": string (DEVE SER exatamente uma das opções: Ferragens, Chapas, Acessórios, Fitas de borda, Sistemas de fixação, Serralheria, Estofaria, Portas de alumínio e vidro, Espelhos, Perfil puxador/puxador, Iluminação, Colas/Adesivos/Solventes, Insumos, Material elétrico, Uniformes e EPIs, móveis soltos, brocas/fresas/serras, Parafusos)
 
 CAMPO "totais" (SEÇÃO "CÁLCULO DO IMPOSTO" DO DANFE):

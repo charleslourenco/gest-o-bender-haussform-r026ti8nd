@@ -50,9 +50,47 @@ export function NotaReviewItemCard({
   const [search, setSearch] = useState('')
   const [resolving, setResolving] = useState(false)
   const [lembrar, setLembrar] = useState(true)
-  const [selectedItemId, setSelectedItemId] = useState('')
+
+  // (B1) PRÉ-SELEÇÃO INTELIGENTE:
+  // Se o item já tiver item_id sugerido (seja via matchInvoiceItems com score >= 60/85 ou alias ou status matched),
+  // e esse ID existir no estoque, inicializar como selecionado para que o card acorde pré-selecionado
+  const initialPreselectedId = useMemo(() => {
+    if (item.item_id && estoqueItems.some((ei) => ei.id === item.item_id)) {
+      return item.item_id
+    }
+    return ''
+  }, [item.item_id, estoqueItems])
+
+  const [selectedItemId, setSelectedItemId] = useState(initialPreselectedId)
   const [showRegister, setShowRegister] = useState(false)
   const [isEditingInline, setIsEditingInline] = useState(false)
+
+  // Atualizar seleção caso o item receba um item_id externamente ou estoque carregue
+  useEffect(() => {
+    if (!selectedItemId && item.item_id && estoqueItems.some((ei) => ei.id === item.item_id)) {
+      const match = estoqueItems.find((ei) => ei.id === item.item_id)
+      setSelectedItemId(item.item_id)
+      if (match?.nome && onItemChange) {
+        onItemChange(item._draftId || realIdx, { produto: match.nome })
+      }
+    }
+  }, [item.item_id, estoqueItems, selectedItemId, item._draftId, realIdx, onItemChange])
+
+  // Obter o objeto do item do estoque atualmente selecionado
+  const selectedEstoqueItem = useMemo(() => {
+    if (!selectedItemId) return null
+    return estoqueItems.find((ei) => ei.id === selectedItemId) || null
+  }, [selectedItemId, estoqueItems])
+
+  // Função ao clicar/selecionar um item do estoque na lista
+  const handleSelectEstoqueItem = (estoqueItem: any) => {
+    setSelectedItemId(estoqueItem.id)
+    // (D) CÓPIA DA DESCRIÇÃO OFICIAL:
+    // Copiar o nome oficial do estoque para o campo produto do item da nota no rascunho
+    if (estoqueItem.nome && onItemChange) {
+      onItemChange(item._draftId || realIdx, { produto: estoqueItem.nome })
+    }
+  }
 
   const filteredEstoque = useMemo(() => {
     if (!search.trim()) return estoqueItems
@@ -472,22 +510,64 @@ export function NotaReviewItemCard({
             Nenhum item encontrado. Considere cadastrar um novo.
           </p>
         ) : (
-          filteredEstoque.slice(0, 100).map((ei) => (
-            <div
-              key={ei.id}
-              onClick={() => setSelectedItemId(ei.id)}
-              className={`px-2 py-1.5 cursor-pointer text-xs flex items-center justify-between border-b dark:border-slate-700/50 last:border-0 ${selectedItemId === ei.id ? 'bg-emerald-50 dark:bg-emerald-950/30 font-medium' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
-            >
-              <span className="truncate">
-                {ei.nome} {ei.marca ? `(${ei.marca})` : ''}
-              </span>
-              <span className="text-slate-400 shrink-0 ml-2">Estq: {ei.quantidade}</span>
-            </div>
-          ))
+          filteredEstoque.slice(0, 100).map((ei) => {
+            const isSelected = selectedItemId === ei.id
+            return (
+              <div
+                key={ei.id}
+                onClick={() => handleSelectEstoqueItem(ei)}
+                className={`px-2.5 py-2 cursor-pointer text-xs flex items-center justify-between border-b transition-colors last:border-0 ${
+                  isSelected
+                    ? 'bg-emerald-100/90 dark:bg-emerald-950/70 border-emerald-400 dark:border-emerald-600 font-semibold text-emerald-950 dark:text-emerald-100 shadow-xs'
+                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-slate-100 dark:border-slate-800'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {isSelected ? (
+                    <span className="h-4 w-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </span>
+                  ) : (
+                    <span className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {ei.nome} {ei.marca ? `(${ei.marca})` : ''}
+                  </span>
+                </div>
+                <span
+                  className={`shrink-0 ml-2 text-[11px] ${
+                    isSelected
+                      ? 'text-emerald-800 dark:text-emerald-300 font-bold'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  Estq: {ei.quantidade}
+                </span>
+              </div>
+            )
+          })
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      {/* (C) Selo/texto fixo no card quando houver item selecionado */}
+      {selectedEstoqueItem && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-700/80 rounded-md p-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded">
+              Selecionado
+            </span>
+            <p className="text-xs font-semibold text-emerald-950 dark:text-emerald-100 truncate">
+              {selectedEstoqueItem.nome}{' '}
+              {selectedEstoqueItem.marca ? `(${selectedEstoqueItem.marca})` : ''}
+            </p>
+          </div>
+          <span className="text-[11px] text-emerald-700 dark:text-emerald-400 shrink-0 font-medium">
+            Saldo: {selectedEstoqueItem.quantidade} {selectedEstoqueItem.unidade || 'un'}
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2 flex-wrap pt-1">
         <label className="flex items-center gap-2 cursor-pointer">
           <Checkbox checked={lembrar} onCheckedChange={(c) => setLembrar(!!c)} />
           <span className="text-xs text-slate-600 dark:text-slate-400">
@@ -508,14 +588,21 @@ export function NotaReviewItemCard({
             size="sm"
             onClick={handleResolve}
             disabled={resolving || !selectedItemId}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs max-w-[280px] sm:max-w-[340px]"
+            title={
+              selectedEstoqueItem
+                ? `Confirmar associação com: ${selectedEstoqueItem.nome}`
+                : 'Selecione um item do estoque acima para confirmar'
+            }
           >
             {resolving ? (
-              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin shrink-0" />
             ) : (
-              <Check className="w-3.5 h-3.5 mr-1" />
+              <Check className="w-3.5 h-3.5 mr-1 shrink-0" />
             )}
-            Confirmar
+            <span className="truncate">
+              {selectedEstoqueItem ? `Confirmar: ${selectedEstoqueItem.nome}` : 'Confirmar'}
+            </span>
           </Button>
         </div>
       </div>
