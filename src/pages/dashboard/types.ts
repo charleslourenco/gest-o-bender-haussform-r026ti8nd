@@ -88,6 +88,15 @@ export interface OrigemContagemItem {
   qtd: number
 }
 
+export interface OrigemDespachoPerdaItem {
+  origem: string
+  total_leads: number
+  despachados: number
+  taxa_despacho: number
+  perdidos: number
+  taxa_perda: number
+}
+
 export interface NovoContatoMetrics {
   total: number
   criados_no_periodo: number
@@ -95,6 +104,7 @@ export interface NovoContatoMetrics {
   por_status: StatusContagemItem[]
   por_origem: OrigemContagemItem[]
   taxa_despacho: number
+  origens_despacho_perda?: OrigemDespachoPerdaItem[]
 }
 
 export interface ConsultoriaMetrics {

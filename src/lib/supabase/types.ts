@@ -1638,6 +1638,8 @@ export type Database = {
         Row: {
           altura: number
           area: number
+          baixado_por: string | null
+          canal_baixa: string | null
           cliente_nome: string | null
           comprimento: number | null
           criado_em: string
@@ -1647,6 +1649,8 @@ export type Database = {
           largura: number
           marca: string | null
           nome: string
+          restaurado_em: string | null
+          restaurado_por: string | null
           status: string
           tipo: string | null
           usado_em: string | null
@@ -1654,6 +1658,8 @@ export type Database = {
         Insert: {
           altura: number
           area: number
+          baixado_por?: string | null
+          canal_baixa?: string | null
           cliente_nome?: string | null
           comprimento?: number | null
           criado_em?: string
@@ -1663,6 +1669,8 @@ export type Database = {
           largura: number
           marca?: string | null
           nome: string
+          restaurado_em?: string | null
+          restaurado_por?: string | null
           status?: string
           tipo?: string | null
           usado_em?: string | null
@@ -1670,6 +1678,8 @@ export type Database = {
         Update: {
           altura?: number
           area?: number
+          baixado_por?: string | null
+          canal_baixa?: string | null
           cliente_nome?: string | null
           comprimento?: number | null
           criado_em?: string
@@ -1679,16 +1689,32 @@ export type Database = {
           largura?: number
           marca?: string | null
           nome?: string
+          restaurado_em?: string | null
+          restaurado_por?: string | null
           status?: string
           tipo?: string | null
           usado_em?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: 'estoque_sobras_baixado_por_fkey'
+            columns: ['baixado_por']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'estoque_sobras_item_id_fkey'
             columns: ['item_id']
             isOneToOne: false
             referencedRelation: 'estoque_itens'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'estoque_sobras_restaurado_por_fkey'
+            columns: ['restaurado_por']
+            isOneToOne: false
+            referencedRelation: 'users'
             referencedColumns: ['id']
           },
         ]
@@ -3000,6 +3026,51 @@ export type Database = {
           telefone?: string | null
         }
         Relationships: []
+      }
+      sobras_historico: {
+        Row: {
+          acao: string
+          canal: string | null
+          criado_em: string
+          id: string
+          observacao: string | null
+          sobra_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          canal?: string | null
+          criado_em?: string
+          id?: string
+          observacao?: string | null
+          sobra_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          canal?: string | null
+          criado_em?: string
+          id?: string
+          observacao?: string | null
+          sobra_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'sobras_historico_sobra_id_fkey'
+            columns: ['sobra_id']
+            isOneToOne: false
+            referencedRelation: 'estoque_sobras'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'sobras_historico_usuario_id_fkey'
+            columns: ['usuario_id']
+            isOneToOne: false
+            referencedRelation: 'users'
+            referencedColumns: ['id']
+          },
+        ]
       }
       solicitacoes_compra: {
         Row: {
