@@ -1,5 +1,6 @@
 -- Migration: Criar RPC public.get_origens_despacho_perda_consultor
 -- Retorna distribuição de leads por origem com despachados, taxa_despacho, perdidos e taxa_perda
+-- (verificada no QA da versão 0.0.1044)
 -- Aceita filtro opcional por consultor (p_consultor_id uuid).
 -- Regra de negócio: leads perdidos MANTÊM atribuição de consultor (consultor_id preservado).
 -- Considera tanto consultor_id quanto consultor_id_secundario quando filtrado por consultor.

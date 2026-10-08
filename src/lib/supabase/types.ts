@@ -3444,7 +3444,11 @@ export type Database = {
         Returns: Json
       }
       get_origens_despacho_perda_consultor: {
-        Args: { p_consultor_id?: string; p_end_date?: string; p_start_date?: string }
+        Args: {
+          p_consultor_id?: string
+          p_end_date?: string
+          p_start_date?: string
+        }
         Returns: Json
       }
       get_timeline_eventos: {

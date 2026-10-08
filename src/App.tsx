@@ -24,14 +24,14 @@ const EstoqueCompras = lazy(() => import('./pages/EstoqueCompras'))
 const GestaoPessoas = lazy(() => import('./pages/GestaoPessoas'))
 import { AppProvider } from './stores/main'
 import { AuthProvider } from './hooks/use-auth'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import AssinaturaPage from './pages/AssinaturaPage'
-import AssinarEnvelopePage from './pages/AssinarEnvelopePage'
-import BaixaRetalho from './pages/BaixaRetalho'
-import BaixaAlocacao from './pages/BaixaAlocacao'
-import RecebimentoCaixa from './pages/RecebimentoCaixa'
-import RecebimentoItemCliente from './pages/RecebimentoItemCliente'
+const Login = lazy(() => import('./pages/Login'))
+const Signup = lazy(() => import('./pages/Signup'))
+const AssinaturaPage = lazy(() => import('./pages/AssinaturaPage'))
+const AssinarEnvelopePage = lazy(() => import('./pages/AssinarEnvelopePage'))
+const BaixaRetalho = lazy(() => import('./pages/BaixaRetalho'))
+const BaixaAlocacao = lazy(() => import('./pages/BaixaAlocacao'))
+const RecebimentoCaixa = lazy(() => import('./pages/RecebimentoCaixa'))
+const RecebimentoItemCliente = lazy(() => import('./pages/RecebimentoItemCliente'))
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ThemeProvider } from './components/theme-provider'
 import { ErrorBoundary } from './components/ErrorBoundary'
