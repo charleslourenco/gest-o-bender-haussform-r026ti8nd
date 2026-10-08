@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Users,
   Target,
@@ -59,6 +62,7 @@ import type {
   ConsultoriaMetrics,
   TempoColunaItem,
   TempoColunasMetrics,
+  OrigemDespachoPerdaItem,
 } from './types'
 
 const ORIGIN_COLORS = [
@@ -120,10 +124,62 @@ const STATUS_LABELS: Record<string, { label: string; badge: string }> = {
   },
 }
 
-export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
+export interface DateRangeProps {
+  from: string | null
+  to: string | null
+}
+
+export function AtendimentosTab({
+  data,
+  dateRange,
+}: {
+  data: AtendimentosMetrics
+  dateRange?: DateRangeProps
+}) {
   const [activeSubTab, setActiveSubTab] = useState<
     'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos'
   >('visao_geral')
+
+  // Estado local para Origens: Despacho e Perda
+  const [origensDespachoPerda, setOrigensDespachoPerda] = useState<OrigemDespachoPerdaItem[]>([])
+  const [loadingDespachoPerda, setLoadingDespachoPerda] = useState<boolean>(true)
+  const [errorDespachoPerda, setErrorDespachoPerda] = useState<string | null>(null)
+
+  const fetchDespachoPerda = useCallback(async () => {
+    setLoadingDespachoPerda(true)
+    setErrorDespachoPerda(null)
+    try {
+      const result = await runWithAuthRecovery<OrigemDespachoPerdaItem[]>(() =>
+        supabase.rpc('get_origens_despacho_perda', {
+          p_start_date: dateRange?.from ?? null,
+          p_end_date: dateRange?.to ?? null,
+        }),
+      )
+
+      if (result.error) {
+        console.error('[AtendimentosTab] Erro ao carregar origens_despacho_perda:', result.error)
+        setErrorDespachoPerda(
+          result.error?.message ||
+            'Não foi possível carregar as métricas de despacho e perda por origem.',
+        )
+      } else if (result.data) {
+        setOrigensDespachoPerda(Array.isArray(result.data) ? result.data : [])
+      } else {
+        setOrigensDespachoPerda([])
+      }
+    } catch (err: any) {
+      console.error('[AtendimentosTab] Exceção ao consultar get_origens_despacho_perda:', err)
+      setErrorDespachoPerda(
+        err?.message || 'Erro inesperado ao consultar dados de despacho e perda.',
+      )
+    } finally {
+      setLoadingDespachoPerda(false)
+    }
+  }, [dateRange?.from, dateRange?.to])
+
+  useEffect(() => {
+    fetchDespachoPerda()
+  }, [fetchDespachoPerda])
 
   const {
     total_leads,
@@ -1134,6 +1190,179 @@ export function AtendimentosTab({ data }: { data: AtendimentosMetrics }) {
               </CardContent>
             </Card>
           </div>
+
+          {/* Bloco Origens: Despacho e Perda */}
+          <Card className="border-border shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Send className="h-4 w-4 text-primary" />
+                  Origens: Despacho e Perda
+                </CardTitle>
+                <CardDescription>
+                  Volume de leads triados no período, despacho para esteiras comerciais avançadas e
+                  perdas acumuladas
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {loadingDespachoPerda ? (
+                <div className="space-y-2 py-4">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : errorDespachoPerda ? (
+                <div className="p-4 rounded-xl border border-destructive/30 bg-destructive/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 my-2">
+                  <div className="flex items-center gap-2.5">
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-destructive">
+                        Erro ao carregar dados de despacho e perda
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {errorDespachoPerda}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchDespachoPerda}
+                    className="text-xs font-medium shrink-0 self-end sm:self-auto"
+                  >
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : origensDespachoPerda.length === 0 ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  Nenhum lead encontrado para o período selecionado.
+                </div>
+              ) : (
+                (() => {
+                  const somaTotal = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.total_leads || 0),
+                    0,
+                  )
+                  const somaDespachados = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.despachados || 0),
+                    0,
+                  )
+                  const somaPerdidos = origensDespachoPerda.reduce(
+                    (acc, cur) => acc + (cur.perdidos || 0),
+                    0,
+                  )
+                  const taxaGlobalDespacho =
+                    somaTotal > 0 ? ((somaDespachados / somaTotal) * 100).toFixed(1) : '0,0'
+                  const taxaGlobalPerda =
+                    somaTotal > 0 ? ((somaPerdidos / somaTotal) * 100).toFixed(1) : '0,0'
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="overflow-x-auto rounded-lg border border-border">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
+                            <tr>
+                              <th className="py-2.5 px-3 font-semibold">Origem</th>
+                              <th className="py-2.5 px-3 text-right font-semibold">Total</th>
+                              <th className="py-2.5 px-3 text-right font-semibold">Despachados</th>
+                              <th className="py-2.5 px-3 text-right font-semibold">Perdidos</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border bg-card">
+                            {origensDespachoPerda.map((item, idx) => (
+                              <tr
+                                key={item.origem || `origem-${idx}`}
+                                className="hover:bg-muted/30 transition-colors"
+                              >
+                                <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-2">
+                                  <span
+                                    className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+                                    style={{ backgroundColor: getOriginColor(item.origem, idx) }}
+                                  />
+                                  <span className="truncate">{item.origem}</span>
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-medium text-foreground">
+                                  {item.total_leads}
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-medium">
+                                  <div className="inline-flex items-center gap-1.5 justify-end">
+                                    <span className="text-foreground">{item.despachados}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] py-0 px-1.5 font-semibold text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/40"
+                                    >
+                                      {item.taxa_despacho.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 1,
+                                        maximumFractionDigits: 1,
+                                      })}
+                                      %
+                                    </Badge>
+                                  </div>
+                                </td>
+                                <td className="py-2.5 px-3 text-right font-medium">
+                                  <div className="inline-flex items-center gap-1.5 justify-end">
+                                    <span className="text-foreground">{item.perdidos}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] py-0 px-1.5 font-semibold text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40"
+                                    >
+                                      {item.taxa_perda.toLocaleString('pt-BR', {
+                                        minimumFractionDigits: 1,
+                                        maximumFractionDigits: 1,
+                                      })}
+                                      %
+                                    </Badge>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="border-t border-border bg-muted/40 font-semibold text-foreground">
+                            <tr>
+                              <td className="py-2.5 px-3 font-bold">Total Consolidado</td>
+                              <td className="py-2.5 px-3 text-right font-bold">{somaTotal}</td>
+                              <td className="py-2.5 px-3 text-right font-bold">
+                                <div className="inline-flex items-center gap-1.5 justify-end">
+                                  <span>{somaDespachados}</span>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] py-0 px-1.5 font-bold text-blue-800 dark:text-blue-200 border-blue-400 dark:border-blue-700 bg-blue-100/60 dark:bg-blue-900/40"
+                                  >
+                                    {taxaGlobalDespacho}%
+                                  </Badge>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold">
+                                <div className="inline-flex items-center gap-1.5 justify-end">
+                                  <span>{somaPerdidos}</span>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] py-0 px-1.5 font-bold text-rose-800 dark:text-rose-200 border-rose-400 dark:border-rose-700 bg-rose-100/60 dark:bg-rose-900/40"
+                                  >
+                                    {taxaGlobalPerda}%
+                                  </Badge>
+                                </div>
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1">
+                        <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span>
+                          Nota: Um lead pode ter sido despachado e posteriormente marcado como
+                          perdido — as duas taxas são independentes e não se somam.
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })()
+              )}
+            </CardContent>
+          </Card>
 
           {/* Bloco Ciclo Médio de Vendas */}
           <Card className="border-border shadow-sm">

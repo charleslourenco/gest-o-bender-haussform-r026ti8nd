@@ -313,7 +313,13 @@ export default function Dashboard() {
             <>
               {/* Aba 1: Atendimentos (Leads) */}
               <TabsContent value="atendimentos" className="mt-0 focus-visible:outline-none">
-                <AtendimentosTab data={metrics.atendimentos} />
+                <AtendimentosTab
+                  data={metrics.atendimentos}
+                  dateRange={{
+                    from: date?.from ? date.from.toISOString() : null,
+                    to: date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : null,
+                  }}
+                />
               </TabsContent>
 
               {/* Aba 2: Clientes */}

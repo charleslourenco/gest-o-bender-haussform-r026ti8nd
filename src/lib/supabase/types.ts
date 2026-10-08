@@ -3439,6 +3439,10 @@ export type Database = {
         Returns: Json
       }
       get_edge_auth_headers: { Args: never; Returns: Json }
+      get_origens_despacho_perda: {
+        Args: { p_end_date?: string; p_start_date?: string }
+        Returns: Json
+      }
       get_timeline_eventos: {
         Args: {
           p_cliente_id: string
