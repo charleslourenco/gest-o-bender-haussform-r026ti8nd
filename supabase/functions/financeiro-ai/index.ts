@@ -132,10 +132,16 @@ Deno.serve(async (req) => {
         )
       }
 
+      const isReforco = !!(p.reforco || p.passada === 2 || p.focoItens)
+
+      const userPromptText = isReforco
+        ? 'ATENÇÃO MÁXIMA — SEGUNDA PASSADA DE AUTO-REFORÇO (FOCO ESTRITO NA GRADE/TABELA DE ITENS E PRODUTOS): A primeira leitura não encontrou itens. Examine MINUCIOSAMENTE todas as páginas anexadas em alta resolução (inclusive páginas 2 a 6 que frequentemente trazem a continuação da grade de produtos e mercadorias do DANFE/Romaneio). Mesmo que as colunas estejam densas, sem bordas evidentes, compactadas, inclinadas, escaneadas ou rotacionadas, localize a tabela de produtos/serviços e TRANSCREVA CADA UMA DAS LINHAS no array "itens" com descrição (produto), quantidade, preco_unitario, preco_total e unidade. Além disso, identifique rigorosamente o EMITENTE (fornecedor real — NUNCA a compradora Bender) e os totais fiscais do documento.'
+        : 'Extraia os dados deste documento fiscal (Nota Fiscal DANFE, Romaneio, Pedido ou Espelho de NF). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados linha a linha na tabela de produtos/serviços, e a seção "CÁLCULO DO IMPOSTO" com os totais fiscais (vProd, vDesc, vFrete, vIPI, vST, vICMS, vNF, etc). Se o documento for escaneado, inclinado, com texto contínuo ou tabelado, transcreva rigorosamente cada linha da grade de produtos no array "itens".'
+
       const userContent: any[] = [
         {
           type: 'text',
-          text: 'Extraia os dados deste documento fiscal (Nota Fiscal DANFE, Romaneio, Pedido ou Espelho de NF). Analise atentamente o cabeçalho para identificar o EMITENTE (fornecedor real) e o DESTINATÁRIO (comprador), os itens discriminados linha a linha na tabela de produtos/serviços, e a seção "CÁLCULO DO IMPOSTO" com os totais fiscais (vProd, vDesc, vFrete, vIPI, vST, vICMS, vNF, etc). Se o documento for escaneado, inclinado, com texto contínuo ou tabelado, transcreva rigorosamente cada linha da grade de produtos no array "itens".',
+          text: userPromptText,
         },
       ]
 

@@ -397,45 +397,28 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
         cleanPath.split('/').pop() || (nota.numero_nota ? `NF_${nota.numero_nota}.pdf` : 'nota.pdf')
       const file = new File([fileBlob], fileName, { type: fileBlob.type || 'application/pdf' })
 
-      const { prepareInvoiceForOcr } = await import('@/services/notas-fiscais-storage')
-      const { convertPdfToImages } = await import('@/lib/pdf-to-images')
-      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
+      const { processInvoiceWithAutoReforco } = await import('@/services/compras-ocr-pipeline')
+      const pipelineRes = await processInvoiceWithAutoReforco(file, {
+        forceReforco: true,
+        onProgress: (msg) => {
+          toast({
+            title: 'Reprocessando nota...',
+            description: msg,
+          })
+        },
+      })
 
-      let payload: any = null
-      let aiRes: any = null
-      if (prepared.isXml) {
-        const { parseNFeXml } = await import('@/lib/nfe-xml-parser')
-        const parsedXml = parseNFeXml(prepared.xmlContent || '')
-        aiRes = { data: parsedXml }
-      } else {
-        if (prepared.isPdf) {
-          if (prepared.images && prepared.images.length > 0) {
-            payload = { images: prepared.images, isPdf: true }
-          } else {
-            payload = { imageBase64: prepared.imageBase64, isPdf: true }
-          }
-        } else {
-          payload = { imageBase64: prepared.imageBase64, isPdf: false }
-        }
+      if (!pipelineRes || !pipelineRes.data) {
+        throw new Error('A IA não retornou dados estruturados da nota fiscal')
+      }
 
-        const fnRes = await supabase.functions.invoke('financeiro-ai', {
-          body: {
-            action: 'ocr_compras',
-            payload,
-            fileBase64: prepared.imageBase64,
-            mimeType: fileBlob.type || 'application/pdf',
-            fileName: file.name,
-          },
+      const extracted = pipelineRes.data
+      if (pipelineRes.itensRecuperadosNoReforco) {
+        toast({
+          title: 'Auto-Reforço Concluído!',
+          description: 'Itens recuperados com sucesso na leitura reforçada em alta resolução.',
         })
-        if (fnRes.error) throw fnRes.error
-        aiRes = fnRes
       }
-
-      if (!aiRes || !aiRes.data) {
-        throw new Error(aiRes?.error || 'A IA não retornou dados estruturados da nota fiscal')
-      }
-
-      const extracted = aiRes.data
       const rawExtractedItens = extracted.itens || []
       const itensWithDraft = rawExtractedItens.map((it: any, idx: number) => ({
         ...it,

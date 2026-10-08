@@ -137,6 +137,12 @@ export interface PrepareInvoiceForOcrResult {
   conversionFallback?: boolean
 }
 
+export interface PrepareInvoiceOptions {
+  maxPages?: number
+  maxDimension?: number
+  quality?: number
+}
+
 /**
  * Prepara o arquivo de nota fiscal para extração (XML parsing ou Visão GPT-4o).
  * No caso de PDF: converte as páginas em imagens JPEG via `convertPdfToImages`
@@ -147,6 +153,7 @@ export interface PrepareInvoiceForOcrResult {
 export async function prepareInvoiceForOcr(
   file: File,
   convertPdfFn?: typeof import('@/lib/pdf-to-images').convertPdfToImages,
+  options?: PrepareInvoiceOptions,
 ): Promise<PrepareInvoiceForOcrResult> {
   const isXml = isXmlInvoiceFile(file)
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
@@ -160,9 +167,9 @@ export async function prepareInvoiceForOcr(
     try {
       const convertFn = convertPdfFn || (await import('@/lib/pdf-to-images')).convertPdfToImages
       const images = await convertFn(file, {
-        maxPages: 3,
-        maxDimension: 1600,
-        quality: 0.85,
+        maxPages: options?.maxPages ?? 6,
+        maxDimension: options?.maxDimension ?? 2200,
+        quality: options?.quality ?? 0.85,
       })
       if (images && images.length > 0) {
         return { isXml: false, isPdf: true, images }

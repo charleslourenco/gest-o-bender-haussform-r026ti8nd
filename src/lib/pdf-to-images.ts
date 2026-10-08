@@ -70,9 +70,9 @@ async function getPdfJs(): Promise<any> {
 }
 
 export interface ConvertPdfOptions {
-  /** Número máximo de páginas a converter (DANFEs raramente passam de 3 páginas). Padrão: 3 */
+  /** Número máximo de páginas a converter (DANFEs e romaneios com tabela longa). Padrão: 6 */
   maxPages?: number
-  /** Largura alvo máxima em pixels (ideal para GPT-4o Vision). Padrão: 1600 */
+  /** Largura alvo máxima em pixels (ideal para GPT-4o Vision com alta legibilidade). Padrão: 2200 */
   maxDimension?: number
   /** Qualidade JPEG (0.1 a 1.0). Padrão: 0.85 */
   quality?: number
@@ -86,7 +86,7 @@ export async function convertPdfToImages(
   fileOrBuffer: File | Blob | ArrayBuffer | Uint8Array,
   options: ConvertPdfOptions = {},
 ): Promise<string[]> {
-  const { maxPages = 3, maxDimension = 1600, quality = 0.85 } = options
+  const { maxPages = 6, maxDimension = 2200, quality = 0.85 } = options
 
   let arrayBuffer: ArrayBuffer
   if (fileOrBuffer instanceof ArrayBuffer) {

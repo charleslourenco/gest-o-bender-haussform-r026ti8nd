@@ -38,7 +38,7 @@ import {
 } from '@/services/notas-fiscais-storage'
 import { openStorageFileInNewTab } from '@/lib/file-viewer'
 import { parseNFeXml } from '@/lib/nfe-xml-parser'
-import { convertPdfToImages } from '@/lib/pdf-to-images'
+import { processInvoiceWithAutoReforco } from '@/services/compras-ocr-pipeline'
 
 export function ComprasOCR() {
   const [isDragging, setIsDragging] = useState(false)
@@ -193,66 +193,29 @@ export function ComprasOCR() {
       }
       const arquivoUrl = uploadResult.path
 
-      // Preparação unificada de arquivo via helper de serviço (PDF->Visão com fallback, XML, ou JPG/PNG)
-      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
-      const isXml = prepared.isXml
+      // Pipeline com Auto-Reforço Inteligente (R1 + R2: até 6 páginas, 2200px, 2ª passada automática se itens vier vazio)
+      toast({
+        title: 'Zenaide: Processando Documento...',
+        description: 'Lendo nota fiscal e normalizando itens com visão de alta resolução.',
+      })
 
-      let extractedData: any = null
-
-      if (isXml) {
-        // TAREFA B: FLUXO DETERMINÍSTICO (Sem IA): XML da NF-e
-        toast({
-          title: 'Processando XML da NF-e...',
-          description: 'Lendo dados estruturados da SEFAZ com precisão direta.',
-        })
-
-        extractedData = parseNFeXml(prepared.xmlContent || '')
-      } else {
-        // TAREFA A: FLUXO DE IMAGEM / PDF COM VISÃO DO GPT-4O
-        let payload: any = null
-
-        if (prepared.isPdf) {
-          if (prepared.images && prepared.images.length > 0) {
-            toast({
-              title: 'Zenaide: Lendo Nota Fiscal em PDF...',
-              description: 'Renderizando layout visual do DANFE para visão de alta precisão.',
-            })
-            payload = { images: prepared.images, isPdf: true }
-          } else {
-            toast({
-              title: 'Zenaide: Lendo Nota Fiscal...',
-              description: 'Processando documento via inteligência artificial.',
-            })
-            payload = { imageBase64: prepared.imageBase64, isPdf: true }
-          }
-        } else {
-          // Imagem direta (JPG/PNG)
+      const ocrPipelineResult = await processInvoiceWithAutoReforco(file, {
+        onProgress: (msg) => {
           toast({
-            title: 'Zenaide: Processando Documento...',
-            description: 'A IA está lendo a nota fiscal e normalizando os itens.',
+            title: 'Zenaide: Leitura de Nota',
+            description: msg,
           })
-          payload = { imageBase64: prepared.imageBase64, isPdf: false }
-        }
+        },
+      })
 
-        const response = await supabase.functions.invoke('financeiro-ai', {
-          body: { action: 'ocr_compras', payload },
+      const isXml = ocrPipelineResult.isXml
+      const extractedData: any = ocrPipelineResult.data
+
+      if (ocrPipelineResult.itensRecuperadosNoReforco) {
+        toast({
+          title: 'Auto-Reforço com Sucesso!',
+          description: 'Itens recuperados com sucesso na 2ª passada em alta resolução.',
         })
-
-        if (response.error) {
-          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
-        }
-
-        extractedData = response.data
-        if (typeof extractedData === 'string') {
-          if (extractedData === '[object Object]') {
-            throw new Error('Falha ao interpretar dados do OCR (recebido object).')
-          }
-          try {
-            extractedData = JSON.parse(extractedData)
-          } catch {
-            throw new Error('Falha ao interpretar dados do OCR.')
-          }
-        }
       }
 
       // Verificação de duplicação por número da nota
@@ -525,41 +488,24 @@ export function ComprasOCR() {
       const fileName = cleanPath.split('/').pop() || 'nota.pdf'
       const file = new File([fileBlob], fileName, { type: fileBlob.type })
 
-      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
-      const isXml = prepared.isXml
+      // Leitura com auto-reforço automático (6 páginas @ 2200px + 2ª passada se itens vazios)
+      const ocrPipelineResult = await processInvoiceWithAutoReforco(file, {
+        onProgress: (msg) => {
+          toast({
+            title: 'Reprocessando Nota...',
+            description: msg,
+          })
+        },
+      })
 
-      let extractedData: any = null
+      const isXml = ocrPipelineResult.isXml
+      const extractedData: any = ocrPipelineResult.data
 
-      if (isXml) {
-        extractedData = parseNFeXml(prepared.xmlContent || '')
-      } else {
-        let payload: any = null
-        if (prepared.isPdf) {
-          if (prepared.images && prepared.images.length > 0) {
-            payload = { images: prepared.images, isPdf: true }
-          } else {
-            payload = { imageBase64: prepared.imageBase64, isPdf: true }
-          }
-        } else {
-          payload = { imageBase64: prepared.imageBase64, isPdf: false }
-        }
-
-        const response = await supabase.functions.invoke('financeiro-ai', {
-          body: { action: 'ocr_compras', payload },
+      if (ocrPipelineResult.itensRecuperadosNoReforco) {
+        toast({
+          title: 'Auto-Reforço Concluído!',
+          description: 'Itens identificados com sucesso após leitura reforçada.',
         })
-
-        if (response.error) {
-          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
-        }
-
-        extractedData = response.data
-        if (typeof extractedData === 'string') {
-          try {
-            extractedData = JSON.parse(extractedData)
-          } catch {
-            throw new Error('Falha ao interpretar dados do OCR.')
-          }
-        }
       }
 
       const hasItens =
@@ -717,41 +663,24 @@ export function ComprasOCR() {
         throw new Error(attachErr || 'Falha ao anexar arquivo.')
       }
 
-      const prepared = await prepareInvoiceForOcr(file, convertPdfToImages)
-      const isXml = prepared.isXml
+      // Leitura do novo arquivo anexado com pipeline auto-reforçado
+      const ocrPipelineResult = await processInvoiceWithAutoReforco(file, {
+        onProgress: (msg) => {
+          toast({
+            title: 'Processando arquivo...',
+            description: msg,
+          })
+        },
+      })
 
-      let extractedData: any = null
+      const isXml = ocrPipelineResult.isXml
+      const extractedData: any = ocrPipelineResult.data
 
-      if (isXml) {
-        extractedData = parseNFeXml(prepared.xmlContent || '')
-      } else {
-        let payload: any = null
-        if (prepared.isPdf) {
-          if (prepared.images && prepared.images.length > 0) {
-            payload = { images: prepared.images, isPdf: true }
-          } else {
-            payload = { imageBase64: prepared.imageBase64, isPdf: true }
-          }
-        } else {
-          payload = { imageBase64: prepared.imageBase64, isPdf: false }
-        }
-
-        const response = await supabase.functions.invoke('financeiro-ai', {
-          body: { action: 'ocr_compras', payload },
+      if (ocrPipelineResult.itensRecuperadosNoReforco) {
+        toast({
+          title: 'Auto-Reforço Concluído!',
+          description: 'Itens identificados com sucesso na 2ª passada em alta resolução.',
         })
-
-        if (response.error) {
-          throw new Error(response.error.message || 'Falha ao comunicar com a inteligência.')
-        }
-
-        extractedData = response.data
-        if (typeof extractedData === 'string') {
-          try {
-            extractedData = JSON.parse(extractedData)
-          } catch {
-            throw new Error('Falha ao interpretar dados do OCR.')
-          }
-        }
       }
 
       const hasItens =
