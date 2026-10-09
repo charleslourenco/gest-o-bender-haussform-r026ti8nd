@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 import {
   FormState,
   ProdutoForm,
@@ -894,6 +895,8 @@ export function SectionPagamento({ data, update }: Props) {
 }
 
 export function SectionDatas({ data, update }: Props) {
+  const hojeLocal = format(new Date(), 'yyyy-MM-dd')
+
   const handleAcessoChange = (val: string) => {
     update('data_acesso_imovel', val)
     if (val) {
@@ -917,12 +920,14 @@ export function SectionDatas({ data, update }: Props) {
       <h2 className="font-bold text-[18px] mb-[12px]">SEÇÃO 7 — DATAS</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[16px]">
         <div>
-          <label className="block text-[14px] font-semibold mb-[4px]">Data da venda</label>
+          <label className="block text-[14px] font-semibold mb-[4px]">Data da venda *</label>
           <input
             type="date"
-            readOnly
-            className={inputClass + ' opacity-50 cursor-not-allowed'}
+            className={inputClass}
             value={data.data_venda}
+            onChange={(e) => update('data_venda', e.target.value)}
+            max={hojeLocal}
+            required
           />
         </div>
         <div>

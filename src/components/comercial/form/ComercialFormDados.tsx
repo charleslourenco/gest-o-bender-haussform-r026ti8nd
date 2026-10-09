@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { maskCpfCnpj, isValidCpfCnpj, detectTipoPessoa } from '@/lib/cpf-cnpj'
@@ -138,7 +139,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
         data_venda:
           (form.datas as any)?.data_venda ||
           dossie.criado_em?.split('T')[0] ||
-          new Date().toISOString().split('T')[0],
+          format(new Date(), 'yyyy-MM-dd'),
         data_acesso_imovel: (form.datas as any)?.data_acesso_imovel || '',
         data_medicao_final: (form.datas as any)?.data_medicao_final || '',
         data_entrega_minima: (form.datas as any)?.data_entrega_minima || '',
@@ -187,6 +188,11 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
 
     if (data.telefone.replace(/\D/g, '').length < 10) {
       toast.error('Preencha um telefone válido.')
+      return
+    }
+
+    if (!data.data_venda || !data.data_venda.trim()) {
+      toast.error('Informe a data da venda.')
       return
     }
 
@@ -405,7 +411,7 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
             ? data.pagamento_parcelado
             : [
                 {
-                  data: data.data_venda || new Date().toISOString().split('T')[0],
+                  data: data.data_venda || format(new Date(), 'yyyy-MM-dd'),
                   valor: valorTotal,
                   meio: data.pagamento_a_vista_meio || 'PIX',
                 },

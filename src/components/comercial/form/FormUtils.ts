@@ -1,3 +1,5 @@
+import { format } from 'date-fns'
+
 export type TipoItemProduto =
   | 'Sob medida'
   | 'Móveis soltos'
@@ -170,7 +172,7 @@ export const defaultState: FormState = {
     },
   ],
 
-  data_venda: new Date().toISOString().split('T')[0],
+  data_venda: format(new Date(), 'yyyy-MM-dd'),
   data_acesso_imovel: '',
   data_medicao_final: '',
   data_entrega_minima: '',
