@@ -19,7 +19,8 @@ export function ComercialList() {
   const loadData = async () => {
     try {
       const data = await fetchLeads()
-      setLeads(data || [])
+      const filteredData = (data || []).filter((lead: any) => lead?.excluido !== true)
+      setLeads(filteredData)
     } catch (error) {
       console.error('Erro ao buscar leads:', error)
       setLeads([])
@@ -35,7 +36,9 @@ export function ComercialList() {
   // Memoização e formatação prévia dos leads da lista
   const safeLeads = useMemo(() => {
     if (!Array.isArray(leads)) return []
-    return leads.filter((l): l is NonNullable<typeof l> => Boolean(l && l.id))
+    return leads.filter((l): l is NonNullable<typeof l> =>
+      Boolean(l && l.id && l.excluido !== true),
+    )
   }, [leads])
 
   if (loading) {

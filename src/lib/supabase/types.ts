@@ -3693,6 +3693,7 @@ export type Database = {
         Args: { p_fim: string; p_inicio: string }
         Returns: Json
       }
+      painel_pendencias_listas: { Args: never; Returns: Json }
       project_item_names: {
         Args: {
           psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
