@@ -26,7 +26,6 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { MatchedItem, calcularCustosEfetivos, matchInvoiceItems } from '@/services/estoque-matching'
-import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
 import { UnifiedItemModal } from './UnifiedItemModal'
