@@ -1512,6 +1512,61 @@ export function KanbanAtendimentos({
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
       )}
 
+      {/* Modal de aviso de telefone repetido (confirmação antes de criar o lead) */}
+      {pendingQuickLead && (
+        <Dialog
+          open={Boolean(pendingQuickLead)}
+          onOpenChange={(open) => {
+            if (!open) setPendingQuickLead(null)
+          }}
+        >
+          <DialogContent className="max-w-lg bg-background border shadow-xl">
+            <DialogHeader className="space-y-1.5">
+              <DialogTitle className="text-lg font-bold text-foreground">
+                Já existe cadastro com este telefone
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Encontramos os cadastros abaixo com o mesmo DDD + número de telefone. Confirme se
+                deseja criar um novo cadastro para este cliente.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-border/70 divide-y divide-border/60">
+              {pendingQuickLead.duplicates.map((d) => (
+                <div key={d.id} className="px-3 py-2 text-xs flex flex-col gap-0.5">
+                  <span className="font-semibold text-foreground">{d.nome || 'Sem nome'}</span>
+                  <span className="text-muted-foreground">
+                    Status: {d.status || '—'} · Criado em: {safeFormatDatePtBr(d.criado_em)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => setPendingQuickLead(null)}
+                disabled={isConfirmingQuickLead}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={handleConfirmDuplicateLead}
+                disabled={isConfirmingQuickLead}
+              >
+                {isConfirmingQuickLead ? 'Criando...' : 'Criar mesmo assim'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
       {/* Modal de Motivo de Perda (interceptação obrigatória antes de persistir status Perdido) */}
       {pendingPerda && (
         <MotivoPerdaModal
