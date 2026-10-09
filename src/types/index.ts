@@ -32,6 +32,10 @@ export interface Lead {
   status_atendimento?: string
   motivo_perda?: string | null
   etapa_perda?: string | null
+  excluido?: boolean | null
+  arquivado_comercial?: boolean | null
+  data_venda?: string | null
+  notas_pessoais?: string | null
 }
 
 export interface Client {

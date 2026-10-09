@@ -18,11 +18,14 @@ import {
   getRotuloNomePessoa,
   isStatusPerdido,
   isStatusVendido,
+  isAbaComercial,
+  isCardEmAberto,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
+import { SaidaDoQuadroModal, MotivoSaidaQuadro } from './SaidaDoQuadroModal'
 import { MotivoPerdaModal, MotivoPerdaConfirmData } from './MotivoPerdaModal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -139,6 +142,7 @@ export function KanbanAtendimentos({
     }
   } | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
+  const [leadForSaida, setLeadForSaida] = useState<Lead | null>(null)
   const [pendingPerda, setPendingPerda] = useState<{
     lead: Lead
     targetStatus: string
@@ -863,6 +867,15 @@ export function KanbanAtendimentos({
   const handleArchiveLead = async (id: string) => {
     const lead = leads.find((l) => l.id === id)
     if (!lead) return
+
+    // Bloqueio de arquivamento para cards comerciais em aberto
+    if (isAbaComercial(safeAba.id) && isCardEmAberto(lead.status)) {
+      toast.error(
+        'Este atendimento ainda está em aberto. Para tirar do quadro, marque como Perdido (com motivo) ou use a lixeira se não for um lead.',
+      )
+      return
+    }
+
     try {
       const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
       const currentArquivamentos = Array.isArray(meta.arquivamentos) ? [...meta.arquivamentos] : []
@@ -889,7 +902,16 @@ export function KanbanAtendimentos({
     }
   }
 
-  // Deletar (somente na aba atual via notas_pessoais)
+  // Deletar lead (clique na lixeira)
+  const handleClickDeleteLead = (lead: Lead) => {
+    if (isAbaComercial(safeAba.id) && isCardEmAberto(lead.status)) {
+      setLeadForSaida(lead)
+    } else {
+      setLeadToDelete(lead)
+    }
+  }
+
+  // Deletar simples (outras abas ou cards não em aberto) via notas_pessoais da aba
   const handleConfirmDelete = async () => {
     if (!leadToDelete) return
     const id = leadToDelete.id
@@ -917,6 +939,65 @@ export function KanbanAtendimentos({
       toast.success(`Lead excluído da aba "${safeAba.titulo}"!`)
     } catch (err: any) {
       toast.error('Erro ao excluir: ' + (err?.message || 'Falha ao excluir'))
+    }
+  }
+
+  // Desfecho escolhido no SaidaDoQuadroModal
+  const handleSelectSaidaOption = async (option: MotivoSaidaQuadro) => {
+    const lead = leadForSaida
+    if (!lead) return
+
+    if (option === 'perdido') {
+      // Fecha a janela de saída e abre o fluxo de perda com motivo obrigatório
+      setLeadForSaida(null)
+      const colunaPerdido =
+        safeAba.colunas.find((c) => isStatusPerdido(c)) ||
+        (safeAba.id === 'novo-contato' ? 'SDR: Perdido' : 'Perdido')
+      setPendingPerda({
+        lead,
+        targetStatus: colunaPerdido,
+        etapaAnterior: lead.status || safeAba.colunas[0] || 'Novo contato',
+      })
+      return
+    }
+
+    // Opções: "Não é lead (engano, spam ou outro assunto)", "Cadastro repetido", "Teste"
+    // Regra: gravar leads.excluido = true, manter meta.exclusoes da aba e gravar meta.exclusao_motivo
+    try {
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+      const currentExclusoes = Array.isArray(meta.exclusoes) ? [...meta.exclusoes] : []
+      if (!currentExclusoes.some((e) => e.aba === safeAba.id)) {
+        currentExclusoes.push({
+          aba: safeAba.id,
+          data: new Date().toISOString(),
+        })
+      }
+      const newMeta: LeadMetadados = {
+        ...meta,
+        exclusoes: currentExclusoes,
+        exclusao_motivo: option,
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      // Atualização imediata no banco: excluido = true + meta com exclusão e motivo
+      const { error: updErr } = await supabase
+        .from('leads')
+        .update({
+          excluido: true,
+          notas_pessoais: newNotasPessoais,
+        } as any)
+        .eq('id', lead.id)
+
+      if (updErr) throw updErr
+
+      // Remover o card do quadro local imediatamente
+      setLeads((prev) => prev.filter((l) => l.id !== lead.id))
+      if (selectedLeadForModal?.id === lead.id) setSelectedLeadForModal(null)
+      setLeadForSaida(null)
+      toast.success(`Atendimento retirado do quadro: ${option}`)
+    } catch (err: any) {
+      console.error('Erro ao retirar atendimento do quadro:', err)
+      toast.error('Erro ao retirar atendimento: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
@@ -1704,7 +1785,7 @@ export function KanbanAtendimentos({
                             }}
                             onUpdateLead={handleUpdateLead}
                             onArchive={handleArchiveLead}
-                            onDelete={() => setLeadToDelete(lead)}
+                            onDelete={() => handleClickDeleteLead(lead)}
                             onForward={handleForwardLead}
                             onMoveTo={(targetAbaId, targetColuna) =>
                               handleMoveToAbaColuna(lead, targetAbaId, targetColuna)
@@ -1792,9 +1873,19 @@ export function KanbanAtendimentos({
         />
       )}
 
-      {/* Modal de Exclusão de Lead */}
+      {/* Modal de Exclusão de Lead (confirmação simples para outras abas / cards fechados) */}
       {leadToDelete && (
         <DeleteLeadModal onClose={() => setLeadToDelete(null)} onConfirm={handleConfirmDelete} />
+      )}
+
+      {/* Modal de Saída do Quadro (para cards comerciais em aberto) */}
+      {leadForSaida && (
+        <SaidaDoQuadroModal
+          open={Boolean(leadForSaida)}
+          lead={leadForSaida}
+          onClose={() => setLeadForSaida(null)}
+          onSelectOption={handleSelectSaidaOption}
+        />
       )}
 
       {/* Modal de aviso de telefone repetido (confirmação antes de criar o lead) */}
