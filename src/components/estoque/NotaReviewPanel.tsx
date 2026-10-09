@@ -52,6 +52,11 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
   const [manualValorUnitario, setManualValorUnitario] = useState<number | string>(0)
   const [manualUnidade, setManualUnidade] = useState('un')
   const [manualCategoria, setManualCategoria] = useState('')
+  const [pendingConfirmDivergence, setPendingConfirmDivergence] = useState<{
+    diff: number
+    totalItens: number
+    totalNota: number
+  } | null>(null)
 
   useEffect(() => {
     fetchEstoque()
@@ -204,11 +209,22 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
 
     setHasChanges(false)
     setEditingMatchedIdx(null)
-  }, [nota.id, nota.dados_ocr, estoqueItems])
+    // Regra 3: draftItens é a ÚNICA fonte de verdade; depende apenas de nota.id (e estoqueItems para sugestões)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nota.id, estoqueItems.length > 0])
 
   const originalTotal = useMemo(() => {
-    return Number(nota.valor_total) || 0
-  }, [nota.valor_total])
+    // Regra 5: priorizar dados_ocr_original.totais.valor_total_nota, fallback dados_ocr/valor_total
+    const origTotais = (nota as any).dados_ocr_original?.totais
+    if (origTotais?.valor_total_nota !== undefined && !isNaN(Number(origTotais.valor_total_nota))) {
+      return Number(origTotais.valor_total_nota)
+    }
+    const ocrTotais = nota.dados_ocr?.totais
+    if (ocrTotais?.valor_total_nota !== undefined && !isNaN(Number(ocrTotais.valor_total_nota))) {
+      return Number(ocrTotais.valor_total_nota)
+    }
+    return Number(nota.dados_ocr?.valor || nota.dados_ocr?.valor_total || nota.valor_total || 0)
+  }, [nota])
 
   const recalculatedTotal = useMemo(() => {
     return draftItens.reduce((acc, curr) => {
@@ -501,7 +517,7 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
     toast({ title: 'Alterações descartadas' })
   }
 
-  const handleConfirmAndSave = async () => {
+  const handleConfirmAndSave = async (skipDivergenceCheck: boolean = false) => {
     // Validações explícitas com toast visível
     if (!draftItens || draftItens.length === 0) {
       toast({
@@ -542,253 +558,83 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       }
     }
 
+    // Regra 5: Antes de finalizar, comparar soma (quantidade x valor_unitario) dos drafts com o total lido.
+    // Diferença > R$ 1,00 → pedir confirmação explícita antes de salvar.
+    const diff = Math.abs(recalculatedTotal - originalTotal)
+    if (!skipDivergenceCheck && originalTotal > 0 && diff > 1.0) {
+      setPendingConfirmDivergence({
+        diff,
+        totalItens: recalculatedTotal,
+        totalNota: originalTotal,
+      })
+      return
+    }
+
     setIsSavingDraft(true)
     try {
-      // 1. Buscar a versão mais recente da nota para evitar sobrescrita concorrente
-      const { data: latestNota, error: fetchErr } = await supabase
-        .from('notas_fiscais')
-        .select('dados_ocr, valor_total')
-        .eq('id', nota.id)
-        .single()
+      // Regra 4: Chamar a RPC supabase.rpc('salvar_itens_nota', { p_nota_id, p_itens })
+      // p_itens: array de { produto_id, nome_produto, quantidade, unidade, valor_unitario }
+      const payloadRpc = draftItens.map((d) => ({
+        produto_id: d.item_id || null,
+        nome_produto: (d.produto || '').trim(),
+        quantidade: Number(d.quantidade) || 0,
+        unidade: (d.unidade || 'UN').trim(),
+        valor_unitario: Number(d.preco_unitario) || 0,
+      }))
 
-      if (fetchErr) {
-        throw new Error(`Falha ao verificar nota no servidor: ${fetchErr.message}`)
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('salvar_itens_nota', {
+        p_nota_id: nota.id,
+        p_itens: payloadRpc,
+      })
+
+      if (rpcError) {
+        toast({
+          title: 'Erro ao salvar itens da nota',
+          description: rpcError.message || 'Falha na validação transacional dos itens.',
+          variant: 'destructive',
+        })
+        return
       }
 
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      const remoteItens: any[] = latestNota?.dados_ocr?.itens || []
-
-      // (1) ROLLBACK E COERÊNCIA DE ESTOQUE:
-      // A. Itens que existiam como matched no remote e foram EXCLUÍDOS ou alterados para sem vínculo
-      // B. Itens matched cuja QUANTIDADE foi alterada
-      // C. Itens que tiveram o VÍNCULO (item_id) alterado
-
-      // Processar cada item do remote para verificar exclusões ou desvinculações
-      for (const rItem of remoteItens) {
-        if (rItem.status === 'matched' && rItem.item_id) {
-          const rQty = Number(rItem.quantidade) || 0
-          // Procurar no draftItens
-          const draftMatch = draftItens.find(
-            (d) =>
-              (rItem._draftId && d._draftId === rItem._draftId) ||
-              (d.item_id === rItem.item_id && d.produto === rItem.produto),
-          )
-
-          if (!draftMatch) {
-            // ITEM EXCLUÍDO DA NOTA: Devolver quantidade ao estoque
-            const { data: estItem } = await supabase
-              .from('estoque_itens')
-              .select('quantidade')
-              .eq('id', rItem.item_id)
-              .single()
-
-            if (estItem) {
-              await supabase
-                .from('estoque_itens')
-                .update({
-                  quantidade: Math.max(0, Number(estItem.quantidade) - rQty),
-                  atualizado_em: new Date().toISOString(),
-                })
-                .eq('id', rItem.item_id)
-
-              await supabase.from('estoque_movimentacoes').insert({
-                item_id: rItem.item_id,
-                nota_fiscal_id: nota.id,
-                tipo: 'saida',
-                quantidade: rQty,
-                usuario_id: currentUser?.id || null,
-              })
-            }
-          } else if (draftMatch.status !== 'matched' || !draftMatch.item_id) {
-            // ITEM TEVE VÍNCULO REMOVIDO / RETORNADO PARA REVISÃO: Devolver quantidade do antigo
-            const { data: estItem } = await supabase
-              .from('estoque_itens')
-              .select('quantidade')
-              .eq('id', rItem.item_id)
-              .single()
-
-            if (estItem) {
-              await supabase
-                .from('estoque_itens')
-                .update({
-                  quantidade: Math.max(0, Number(estItem.quantidade) - rQty),
-                  atualizado_em: new Date().toISOString(),
-                })
-                .eq('id', rItem.item_id)
-
-              await supabase.from('estoque_movimentacoes').insert({
-                item_id: rItem.item_id,
-                nota_fiscal_id: nota.id,
-                tipo: 'saida',
-                quantidade: rQty,
-                usuario_id: currentUser?.id || null,
-              })
-            }
-          }
-        }
-      }
-
-      // Processar cada item do draftItens para ajustes de quantidade e novos vínculos
-      const finalItens = [...draftItens]
-      for (let i = 0; i < finalItens.length; i++) {
-        const dItem = finalItens[i]
-        const remoteMatch =
-          remoteItens.find((r) => r._draftId && r._draftId === dItem._draftId) ||
-          (dItem.item_id ? remoteItens.find((r) => r.item_id === dItem.item_id) : null)
-
-        if (dItem.status === 'matched' && dItem.item_id) {
-          const newQty = Number(dItem.quantidade) || 0
-
-          if (remoteMatch && remoteMatch.status === 'matched' && remoteMatch.item_id) {
-            const oldQty = Number(remoteMatch.quantidade) || 0
-            const oldItemId = remoteMatch.item_id
-
-            if (oldItemId === dItem.item_id) {
-              // Mesmo item: verificar diferença de quantidade
-              const diff = newQty - oldQty
-              if (Math.abs(diff) > 0.0001) {
-                const { data: estItem } = await supabase
-                  .from('estoque_itens')
-                  .select('quantidade')
-                  .eq('id', dItem.item_id)
-                  .single()
-
-                if (estItem) {
-                  const updatedQty = Math.max(0, Number(estItem.quantidade) + diff)
-                  const unitarioLiquido = Number(dItem.preco_unitario) || 0
-                  const custoCalc = custosEfetivosMap.get(dItem._draftId || i)
-                  const custoEfetivoFinal =
-                    custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
-                      ? custoCalc.custo_efetivo_unitario
-                      : unitarioLiquido > 0
-                        ? unitarioLiquido
-                        : undefined
-
-                  await supabase
-                    .from('estoque_itens')
-                    .update({
-                      quantidade: updatedQty,
-                      valor_unitario: custoEfetivoFinal,
-                      fornecedor: nota.fornecedor || undefined,
-                      atualizado_em: new Date().toISOString(),
-                    })
-                    .eq('id', dItem.item_id)
-
-                  await supabase.from('estoque_movimentacoes').insert({
-                    item_id: dItem.item_id,
-                    nota_fiscal_id: nota.id,
-                    tipo: diff > 0 ? 'entrada' : 'saida',
-                    quantidade: Math.abs(diff),
-                    usuario_id: currentUser?.id || null,
-                  })
-                }
-              }
-            } else {
-              // O vínculo mudou de um item antigo para um novo:
-              // Devolver a quantidade antiga do oldItemId
-              const { data: oldEstItem } = await supabase
-                .from('estoque_itens')
-                .select('quantidade')
-                .eq('id', oldItemId)
-                .single()
-
-              if (oldEstItem) {
-                await supabase
-                  .from('estoque_itens')
-                  .update({
-                    quantidade: Math.max(0, Number(oldEstItem.quantidade) - oldQty),
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq('id', oldItemId)
-
-                await supabase.from('estoque_movimentacoes').insert({
-                  item_id: oldItemId,
-                  nota_fiscal_id: nota.id,
-                  tipo: 'saida',
-                  quantidade: oldQty,
-                  usuario_id: currentUser?.id || null,
-                })
-              }
-
-              // Somar a nova quantidade no novo item
-              const { data: newEstItem } = await supabase
-                .from('estoque_itens')
-                .select('quantidade')
-                .eq('id', dItem.item_id)
-                .single()
-
-              if (newEstItem) {
-                const unitarioLiquido = Number(dItem.preco_unitario) || 0
-                const custoCalc = custosEfetivosMap.get(dItem._draftId || i)
-                const custoEfetivoFinal =
-                  custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
-                    ? custoCalc.custo_efetivo_unitario
-                    : unitarioLiquido > 0
-                      ? unitarioLiquido
-                      : undefined
-
-                await supabase
-                  .from('estoque_itens')
-                  .update({
-                    quantidade: Number(newEstItem.quantidade) + newQty,
-                    valor_unitario: custoEfetivoFinal,
-                    fornecedor: nota.fornecedor || undefined,
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq('id', dItem.item_id)
-
-                await supabase.from('estoque_movimentacoes').insert({
-                  item_id: dItem.item_id,
-                  nota_fiscal_id: nota.id,
-                  tipo: 'entrada',
-                  quantidade: newQty,
-                  usuario_id: currentUser?.id || null,
-                })
-              }
-            }
-          }
-        }
-      }
-
-      const pendingCount = finalItens.filter((i) => i.status === 'pendente_revisao').length
+      // Regra 5 e 6: Gravar notas_fiscais.valor_total com o total da NOTA (com frete e impostos), NÃO a soma dos itens!
+      // NUNCA sobrescrever notas_fiscais.dados_ocr com estado da tela se puder corromper; dados_ocr_original fica intocado.
+      // dados_ocr guarda apenas o estado da revisão.
+      const valorTotalNotaFinal = originalTotal > 0 ? originalTotal : recalculatedTotal
+      const pendingCount = draftItens.filter((i) => i.status === 'pendente_revisao').length
       const novoStatus =
-        finalItens.length === 0 ? 'pendente' : pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
+        draftItens.length === 0 ? 'pendente' : pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
 
+      // Manter a integridade de dados_ocr gravando itens revisados e metadados de conciliação
       const updatedDadosOcr = {
-        ...(latestNota?.dados_ocr || nota.dados_ocr || {}),
-        itens: finalItens,
-        valor: recalculatedTotal,
+        ...(nota.dados_ocr || {}),
+        itens: draftItens,
       }
 
-      const { error } = await supabase
+      const { error: updateNotaErr } = await supabase
         .from('notas_fiscais')
         .update({
-          valor_total: recalculatedTotal,
+          valor_total: valorTotalNotaFinal,
           dados_ocr: updatedDadosOcr,
           status_reconciliacao: novoStatus,
         })
         .eq('id', nota.id)
 
-      if (error) throw error
-
-      // Sincronizar tabela itens_nota_fiscal
-      await syncItensNotaFiscal(nota.id, finalItens)
+      if (updateNotaErr) {
+        console.warn('[NotaReviewPanel] Aviso ao atualizar dados_ocr da nota:', updateNotaErr)
+      }
 
       toast({
-        title: 'Revisão gravada com sucesso!',
-        description: `Total atualizado para ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(recalculatedTotal)} com ${finalItens.length} itens.`,
+        title: 'Itens da nota fiscal salvos!',
+        description: `${payloadRpc.length} itens gravados com sucesso no banco de dados. Total da nota: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotalNotaFinal)}.`,
       })
-      setDraftItens(finalItens)
       setHasChanges(false)
       setEditingMatchedIdx(null)
+      setPendingConfirmDivergence(null)
       onResolved()
     } catch (e: any) {
       toast({
-        title: 'Erro ao salvar alterações da nota',
-        description: e.message || 'Ocorreu uma falha inesperada ao tentar gravar a revisão.',
+        title: 'Erro inesperado ao salvar nota',
+        description: e.message || 'Ocorreu uma falha ao tentar gravar a revisão.',
         variant: 'destructive',
       })
     } finally {
@@ -1549,6 +1395,58 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
             handleItemResolvedOptimistic(draftId, matchedId)
           }}
         />
+      )}
+
+      {/* Diálogo de confirmação explícita de divergência > R$ 1,00 */}
+      {pendingConfirmDivergence && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-lg p-6 max-w-md w-full shadow-xl border dark:border-slate-800 space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <AlertTriangle className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Confirmar Divergência de Valores
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              A soma dos itens calculados (
+              <strong>{formatBRL(pendingConfirmDivergence.totalItens)}</strong>) diverge do total
+              lido da nota fiscal (<strong>{formatBRL(pendingConfirmDivergence.totalNota)}</strong>)
+              em{' '}
+              <strong className="text-orange-600">
+                {formatBRL(pendingConfirmDivergence.diff)}
+              </strong>
+              .
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              O valor total da nota será mantido como{' '}
+              <strong>{formatBRL(pendingConfirmDivergence.totalNota)}</strong> (incluindo impostos e
+              frete). Deseja prosseguir com a gravação dos itens?
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t dark:border-slate-800">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPendingConfirmDivergence(null)}
+                disabled={isSavingDraft}
+              >
+                Cancelar e Revisar Itens
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => handleConfirmAndSave(true)}
+                disabled={isSavingDraft}
+              >
+                {isSavingDraft ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Confirmar e Gravar Mesmo Assim
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

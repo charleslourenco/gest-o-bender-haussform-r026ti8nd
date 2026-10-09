@@ -678,6 +678,13 @@ export type Database = {
             referencedRelation: 'notas_fiscais'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'contas_pagar_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'vw_notas_fiscais_conferencia'
+            referencedColumns: ['id']
+          },
         ]
       }
       contas_pagar_divisoes: {
@@ -1626,6 +1633,13 @@ export type Database = {
             referencedColumns: ['id']
           },
           {
+            foreignKeyName: 'estoque_movimentacoes_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'vw_notas_fiscais_conferencia'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'estoque_movimentacoes_pedido_id_fkey'
             columns: ['pedido_id']
             isOneToOne: false
@@ -2023,6 +2037,13 @@ export type Database = {
             columns: ['nota_fiscal_id']
             isOneToOne: false
             referencedRelation: 'notas_fiscais'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'itens_nota_fiscal_nota_fiscal_id_fkey'
+            columns: ['nota_fiscal_id']
+            isOneToOne: false
+            referencedRelation: 'vw_notas_fiscais_conferencia'
             referencedColumns: ['id']
           },
           {
@@ -2460,6 +2481,7 @@ export type Database = {
           arquivo_url: string | null
           criado_em: string
           dados_ocr: Json | null
+          dados_ocr_original: Json | null
           data_emissao: string | null
           fornecedor: string
           id: string
@@ -2472,6 +2494,7 @@ export type Database = {
           arquivo_url?: string | null
           criado_em?: string
           dados_ocr?: Json | null
+          dados_ocr_original?: Json | null
           data_emissao?: string | null
           fornecedor: string
           id?: string
@@ -2484,6 +2507,7 @@ export type Database = {
           arquivo_url?: string | null
           criado_em?: string
           dados_ocr?: Json | null
+          dados_ocr_original?: Json | null
           data_emissao?: string | null
           fornecedor?: string
           id?: string
@@ -3584,7 +3608,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_notas_fiscais_conferencia: {
+        Row: {
+          criado_em: string | null
+          data_emissao: string | null
+          diferenca: number | null
+          fornecedor: string | null
+          id: string | null
+          movimentacoes_estoque: number | null
+          numero_nota: string | null
+          qtd_itens: number | null
+          situacao: string | null
+          soma_itens: number | null
+          total_lido_ia: number | null
+          valor_total: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       gerar_codigo_acompanhamento: { Args: { p_nome: string }; Returns: string }
@@ -3718,6 +3758,25 @@ export type Database = {
           r_cliente_id: string
           r_formulario_comercial_id: string
         }[]
+      }
+      salvar_itens_nota: {
+        Args: { p_itens: Json; p_nota_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          nome_produto: string
+          nota_fiscal_id: string | null
+          produto_id: string | null
+          quantidade: number
+          unidade: string
+          valor_unitario: number
+        }[]
+        SetofOptions: {
+          from: '*'
+          to: 'itens_nota_fiscal'
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       try_finalize_signature: {
         Args: {

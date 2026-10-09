@@ -15,7 +15,6 @@ import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { saveAlias } from '@/services/estoque-aliases'
 import { MatchedItem } from '@/services/estoque-matching'
-import { syncItensNotaFiscal } from '@/services/itens-nota-fiscal'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { UnifiedItemModal } from './UnifiedItemModal'
 
@@ -64,17 +63,6 @@ export function NotaReviewItemCard({
   const [selectedItemId, setSelectedItemId] = useState(initialPreselectedId)
   const [showRegister, setShowRegister] = useState(false)
   const [isEditingInline, setIsEditingInline] = useState(false)
-
-  // Atualizar seleção caso o item receba um item_id externamente ou estoque carregue
-  useEffect(() => {
-    if (!selectedItemId && item.item_id && estoqueItems.some((ei) => ei.id === item.item_id)) {
-      const match = estoqueItems.find((ei) => ei.id === item.item_id)
-      setSelectedItemId(item.item_id)
-      if (match?.nome && onItemChange) {
-        onItemChange(item._draftId || realIdx, { produto: match.nome })
-      }
-    }
-  }, [item.item_id, estoqueItems, selectedItemId, item._draftId, realIdx, onItemChange])
 
   // Obter o objeto do item do estoque atualmente selecionado
   const selectedEstoqueItem = useMemo(() => {
@@ -192,60 +180,58 @@ export function NotaReviewItemCard({
         await saveAlias(item.produto, selectedItemId, userData.user?.id)
       }
 
-      const { data: notaData, error: fetchNotaErr } = await supabase
-        .from('notas_fiscais')
-        .select('dados_ocr')
-        .eq('id', notaId)
-        .single()
+      // Upsert pontual do item na tabela itens_nota_fiscal (SOMENTE este item)
+      // Se já houver registro com id prévio, atualizamos; caso contrário inserimos
+      const itemNome = (item.produto || estItem.nome || 'Item sem nome').trim()
+      const itemQtd = Number(item.quantidade) || 0
+      const itemUnidade = (item.unidade || 'UN').trim()
+      const itemValorUnit = Number(item.preco_unitario) || 0
 
-      if (fetchNotaErr) throw fetchNotaErr
+      // Se item.id for um uuid válido, podemos verificar/atualizar pontualmente
+      if (
+        item.id &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id)
+      ) {
+        await supabase.from('itens_nota_fiscal').upsert({
+          id: item.id,
+          nota_fiscal_id: notaId,
+          produto_id: selectedItemId,
+          nome_produto: itemNome,
+          quantidade: itemQtd,
+          unidade: itemUnidade,
+          valor_unitario: itemValorUnit,
+        })
+      } else {
+        // Tentar encontrar por nota_fiscal_id e nome_produto existente ou inserir
+        const { data: existingRows } = await supabase
+          .from('itens_nota_fiscal')
+          .select('id')
+          .eq('nota_fiscal_id', notaId)
+          .eq('nome_produto', itemNome)
+          .limit(1)
 
-      if (notaData?.dados_ocr) {
-        // Garantir que cada item tenha _draftId para que a busca e persistência não falhem
-        const itens = [...(notaData.dados_ocr.itens || [])].map((it: any, i: number) => ({
-          ...it,
-          _draftId: it._draftId || it.id || `item-legacy-${Date.now()}-${i}`,
-        }))
-
-        // Localizar o item alvo por _draftId com fallback seguro
-        let targetIndex = item._draftId
-          ? itens.findIndex((it: any) => it._draftId === item._draftId)
-          : -1
-
-        // Fallback para notas antigas sem _draftId salvo no JSONB remoto
-        if (targetIndex === -1 && realIdx !== undefined && realIdx >= 0 && realIdx < itens.length) {
-          targetIndex = realIdx
+        if (existingRows && existingRows.length > 0) {
+          await supabase
+            .from('itens_nota_fiscal')
+            .update({
+              produto_id: selectedItemId,
+              quantidade: itemQtd,
+              unidade: itemUnidade,
+              valor_unitario: itemValorUnit,
+            })
+            .eq('id', existingRows[0].id)
+        } else {
+          await supabase.from('itens_nota_fiscal').insert({
+            nota_fiscal_id: notaId,
+            produto_id: selectedItemId,
+            nome_produto: itemNome,
+            quantidade: itemQtd,
+            unidade: itemUnidade,
+            valor_unitario: itemValorUnit,
+          })
         }
-        if (targetIndex === -1 && item.produto) {
-          targetIndex = itens.findIndex(
-            (it: any) =>
-              it.produto === item.produto && (!it.item_id || it.status === 'pendente_revisao'),
-          )
-        }
-
-        if (targetIndex >= 0 && targetIndex < itens.length) {
-          itens[targetIndex] = {
-            ...itens[targetIndex],
-            _draftId: item._draftId || itens[targetIndex]._draftId,
-            status: 'matched',
-            item_id: selectedItemId,
-            source: 'manual',
-          }
-        }
-        const stillPending = itens.filter(
-          (i: MatchedItem) => i.status === 'pendente_revisao',
-        ).length
-        const novoStatus = stillPending === 0 ? 'conciliado' : 'pendente_revisao'
-        const { error: updateNotaErr } = await supabase
-          .from('notas_fiscais')
-          .update({ dados_ocr: { ...notaData.dados_ocr, itens }, status_reconciliacao: novoStatus })
-          .eq('id', notaId)
-
-        if (updateNotaErr) throw updateNotaErr
-
-        // Sincronizar itens_nota_fiscal
-        await syncItensNotaFiscal(notaId, itens)
       }
+
       toast({ title: 'Item associado!', description: 'Estoque atualizado com sucesso.' })
       onItemResolved?.(item._draftId, selectedItemId)
       onResolved()
