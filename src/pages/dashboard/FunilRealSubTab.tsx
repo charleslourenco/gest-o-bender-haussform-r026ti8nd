@@ -19,11 +19,11 @@ import {
   Users,
   Calendar,
   Layers,
-  CheckCircle2,
   AlertCircle,
   HelpCircle,
 } from 'lucide-react'
 import type { DateRangeProps } from './AtendimentosTab'
+import { PendenciasCadastro } from './PendenciasCadastro'
 
 export interface FunilRealTriagem {
   chegaram: number
@@ -310,10 +310,7 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
     perdas,
     origens = [],
     consultores = [],
-    pendencias_hoje,
   } = data
-
-  const temErrosRegistro = (pendencias_hoje?.erros_de_registro ?? 0) > 0
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -347,6 +344,9 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
           </div>
         </div>
       )}
+
+      {/* BLOCO: PENDÊNCIAS DE CADASTRO (RPC painel_pendencias_listas) */}
+      <PendenciasCadastro />
 
       {/* 2. TRÊS CARDS GRANDES LADO A LADO */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -1114,128 +1114,6 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
                   )}
                 </tbody>
               </table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 7. BLOCO PENDÊNCIAS DE CADASTRO (HOJE) */}
-      <Card
-        className={`border-border shadow-sm ${
-          temErrosRegistro ? 'border-destructive/60 bg-destructive/5' : ''
-        }`}
-      >
-        <CardHeader className="pb-3 border-b border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <AlertTriangle
-                  className={`h-4 w-4 ${temErrosRegistro ? 'text-destructive' : 'text-amber-500'}`}
-                />
-                Pendências de cadastro (hoje)
-              </CardTitle>
-              <CardDescription className="text-xs mt-0.5">
-                Inconsistências cadastrais que afetam a integridade das métricas do funil
-              </CardDescription>
-            </div>
-            {temErrosRegistro ? (
-              <Badge
-                variant="destructive"
-                className="text-xs font-bold self-start sm:self-auto uppercase tracking-wide"
-              >
-                {pendencias_hoje?.erros_de_registro} erros de registro
-              </Badge>
-            ) : (
-              <Badge
-                variant="outline"
-                className="text-xs font-semibold text-emerald-600 border-emerald-300 self-start sm:self-auto flex items-center gap-1"
-              >
-                <CheckCircle2 className="h-3 w-3" />
-                Sem erros críticos de registro
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Vendido sem contrato
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.vendido_sem_contrato)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Contrato sem status vendido
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.contrato_sem_status_vendido)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Contrato em cadastro excluído
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.contrato_em_cadastro_excluido)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Consultoria no quadro sem resp.
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.consultoria_no_quadro_sem_responsavel)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Sem desfecho fora do quadro
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.sem_desfecho_fora_do_quadro)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Comercial no quadro sem origem
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.comercial_no_quadro_sem_origem)}
-              </span>
-            </div>
-
-            <div className="p-3 rounded-lg border border-border bg-card">
-              <span className="text-xs text-muted-foreground font-medium block">
-                Perdidos sem data da perda
-              </span>
-              <span className="text-xl font-extrabold text-foreground mt-1 block">
-                {formatNumero(pendencias_hoje?.perdidos_sem_data_da_perda)}
-              </span>
-            </div>
-
-            <div
-              className={`p-3 rounded-lg border ${
-                temErrosRegistro
-                  ? 'border-destructive bg-destructive/10 text-destructive'
-                  : 'border-border bg-card'
-              }`}
-            >
-              <span className="text-xs font-semibold block">Erros de registro</span>
-              <span
-                className={`text-xl font-extrabold mt-1 block ${
-                  temErrosRegistro ? 'text-destructive font-black' : 'text-foreground'
-                }`}
-              >
-                {formatNumero(pendencias_hoje?.erros_de_registro)}
-              </span>
             </div>
           </div>
         </CardContent>
