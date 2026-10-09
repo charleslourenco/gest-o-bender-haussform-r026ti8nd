@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
-import { fetchLeads, fetchUsers, createLead, updateLead, deleteLead } from '@/services/comercial'
-import { arquivarLead } from '@/services/arquivamento'
+import { fetchLeads, fetchUsers, createLead, updateLead } from '@/services/comercial'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 import {
@@ -25,7 +24,6 @@ import { ModalAtendimento } from './ModalAtendimento'
 import { ConfirmSellModal } from './ConfirmSellModal'
 import { DeleteLeadModal } from './DeleteLeadModal'
 import { MotivoPerdaModal, MotivoPerdaConfirmData } from './MotivoPerdaModal'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -36,23 +34,46 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Plus,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Phone,
-  Inbox,
-  Share2,
-  Bell,
-  Filter,
-} from 'lucide-react'
-import { Switch } from '@/components/ui/switch'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Plus, Search, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/use-auth'
+import { format, parseISO } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+
+interface DuplicateLeadInfo {
+  id: string
+  nome: string | null
+  status: string | null
+  criado_em: string | null
+}
+
+interface PendingQuickLeadPayload {
+  nome: string
+  telefone: string
+  origem: string
+  origem_pessoa: string | null
+  duplicates: DuplicateLeadInfo[]
+}
+
+function safeFormatDatePtBr(dateStr?: string | null): string {
+  if (!dateStr) return '—'
+  try {
+    const d = parseISO(dateStr)
+    return format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR })
+  } catch {
+    return dateStr
+  }
+}
 
 export interface KanbanAtendimentosProps {
   aba: AtendimentoAbaConfig
@@ -126,11 +147,33 @@ export function KanbanAtendimentos({
   } | null>(null)
 
   // Novo Lead rápido
+  const isComercialTab = useMemo(() => {
+    return (
+      safeAba.id === 'novo-contato' ||
+      safeAba.id === 'lead-consultoria' ||
+      safeAba.id === 'lead-orcamentos' ||
+      safeAba.categoriaPadrao === 'Comercial' ||
+      safeAba.categoriaPadrao === 'Orçamento'
+    )
+  }, [safeAba.id, safeAba.categoriaPadrao])
+
   const [isCreatingQuickLead, setIsCreatingQuickLead] = useState(false)
   const [quickNome, setQuickNome] = useState('')
   const [quickTelefone, setQuickTelefone] = useState('')
-  const [quickOrigem, setQuickOrigem] = useState<string>('Instagram')
+  const [quickOrigem, setQuickOrigem] = useState<string>('')
   const [quickOrigemPessoa, setQuickOrigemPessoa] = useState('')
+  const [pendingQuickLead, setPendingQuickLead] = useState<PendingQuickLeadPayload | null>(null)
+  const [isConfirmingQuickLead, setIsConfirmingQuickLead] = useState(false)
+
+  // Reset/ajusta origem default ao mudar de aba ou abrir criação rápida
+  useEffect(() => {
+    if (isComercialTab) {
+      setQuickOrigem('')
+    } else {
+      setQuickOrigem('A definir')
+    }
+    setQuickOrigemPessoa('')
+  }, [isComercialTab, safeAba.id])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const leadsRef = useRef<Lead[]>([])
@@ -750,6 +793,64 @@ export function KanbanAtendimentos({
     }
   }
 
+  const resetQuickLeadForm = () => {
+    setQuickNome('')
+    setQuickTelefone('')
+    setQuickOrigem(isComercialTab ? '' : 'A definir')
+    setQuickOrigemPessoa('')
+    setIsCreatingQuickLead(false)
+    setPendingQuickLead(null)
+  }
+
+  // Executa a criação real do lead no banco
+  const executeCreateLead = async (payload: {
+    nome: string
+    telefone: string
+    origem: string
+    origem_pessoa: string | null
+  }) => {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const currentAuthUser = user || sessionData?.session?.user
+    const userName =
+      currentAuthUser?.user_metadata?.nome || currentAuthUser?.email?.split('@')[0] || 'Sistema'
+
+    const initialStatus = safeAba.colunas[0] || 'Novo contato'
+    const initialCategoria = safeAba.categoriaPadrao || 'Comercial'
+
+    await createLead({
+      nome: payload.nome,
+      telefone: payload.telefone,
+      origem: payload.origem || 'A definir',
+      origem_pessoa: payload.origem_pessoa,
+      status: initialStatus,
+      categoria: initialCategoria,
+      criado_por_nome: userName,
+      kanban_ativo: true,
+    })
+
+    resetQuickLeadForm()
+    toast.success('Lead adicionado com sucesso!')
+    loadData(true)
+  }
+
+  const handleConfirmDuplicateLead = async () => {
+    if (!pendingQuickLead) return
+    setIsConfirmingQuickLead(true)
+    try {
+      await executeCreateLead({
+        nome: pendingQuickLead.nome,
+        telefone: pendingQuickLead.telefone,
+        origem: pendingQuickLead.origem,
+        origem_pessoa: pendingQuickLead.origem_pessoa,
+      })
+    } catch (err: any) {
+      toast.error('Erro ao criar lead: ' + (err?.message || 'Falha na criação'))
+    } finally {
+      setIsConfirmingQuickLead(false)
+      setPendingQuickLead(null)
+    }
+  }
+
   // Criar Novo Lead Rápido
   const handleCreateQuickLead = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -758,47 +859,103 @@ export function KanbanAtendimentos({
       return
     }
 
+    // Regra 1: seletor de origem começa vazio nas abas comerciais com bloqueio "Selecione a origem do lead"
+    if (isComercialTab && (!quickOrigem || !quickOrigem.trim())) {
+      toast.error('Selecione a origem do lead')
+      return
+    }
+
     if (exigeNomePessoa(quickOrigem) && !quickOrigemPessoa.trim()) {
       toast.error('Informe o nome da pessoa para a origem selecionada')
       return
     }
 
+    // Regra 2: validação de telefone (12–13 dígitos começando com 55, mensagem "Telefone inválido. Use DDD + número.")
+    let phoneDigits = quickTelefone.replace(/\D/g, '')
+    if (phoneDigits.length === 10) {
+      phoneDigits = '55' + phoneDigits.slice(0, 2) + '9' + phoneDigits.slice(2)
+    } else if (phoneDigits.length === 11) {
+      phoneDigits = '55' + phoneDigits
+    } else if (phoneDigits.length === 12 && phoneDigits.startsWith('55')) {
+      phoneDigits = '55' + phoneDigits.slice(2, 4) + '9' + phoneDigits.slice(4)
+    }
+
+    if ((phoneDigits.length !== 12 && phoneDigits.length !== 13) || !phoneDigits.startsWith('55')) {
+      toast.error('Telefone inválido. Use DDD + número.')
+      return
+    }
+
+    const payloadData = {
+      nome: quickNome.trim(),
+      telefone: phoneDigits,
+      origem: quickOrigem.trim() || 'A definir',
+      origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() : null,
+    }
+
     try {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const currentAuthUser = user || sessionData?.session?.user
-      const userName =
-        currentAuthUser?.user_metadata?.nome || currentAuthUser?.email?.split('@')[0] || 'Sistema'
+      // Regra 3: aviso de telefone repetido com janela "Já existe cadastro com este telefone" listando nome/status/data
+      // Buscar leads existentes com o mesmo telefone (tanto no estado quanto no banco)
+      const currentDuplicates: DuplicateLeadInfo[] = []
+      const seenIds = new Set<string>()
 
-      let phoneDigits = quickTelefone.replace(/\D/g, '')
-      if (phoneDigits.length === 10)
-        phoneDigits = '55' + phoneDigits.slice(0, 2) + '9' + phoneDigits.slice(2)
-      else if (phoneDigits.length === 11) phoneDigits = '55' + phoneDigits
-      else if (phoneDigits.length === 12 && phoneDigits.startsWith('55'))
-        phoneDigits = '55' + phoneDigits.slice(2, 4) + '9' + phoneDigits.slice(4)
+      if (Array.isArray(leads)) {
+        for (const l of leads) {
+          if (l && l.telefone) {
+            let lDigits = String(l.telefone).replace(/\D/g, '')
+            if (lDigits.length === 10) lDigits = '55' + lDigits.slice(0, 2) + '9' + lDigits.slice(2)
+            else if (lDigits.length === 11) lDigits = '55' + lDigits
+            else if (lDigits.length === 12 && lDigits.startsWith('55'))
+              lDigits = '55' + lDigits.slice(2, 4) + '9' + lDigits.slice(4)
 
-      const initialStatus = safeAba.colunas[0] || 'Novo contato'
-      const initialCategoria = safeAba.categoriaPadrao || 'Comercial'
+            if (lDigits === phoneDigits && !seenIds.has(l.id)) {
+              seenIds.add(l.id)
+              currentDuplicates.push({
+                id: l.id,
+                nome: l.nome || null,
+                status: l.status || null,
+                criado_em: (l as any).criado_em || null,
+              })
+            }
+          }
+        }
+      }
 
-      await createLead({
-        nome: quickNome.trim(),
-        telefone: phoneDigits,
-        origem: quickOrigem || 'A definir',
-        origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() : null,
-        status: initialStatus,
-        categoria: initialCategoria,
-        criado_por_nome: userName,
-        kanban_ativo: true,
-      })
+      // Consulta complementar ao banco para telefones exatos ou equivalentes
+      try {
+        const { data: dbDups } = await supabase
+          .from('leads')
+          .select('id, nome, status, criado_em, telefone')
+          .or(`telefone.eq.${phoneDigits},telefone.eq.${phoneDigits.replace(/^55/, '')}`)
+          .limit(10)
 
-      setQuickNome('')
-      setQuickTelefone('')
-      setQuickOrigem('Instagram')
-      setQuickOrigemPessoa('')
-      setIsCreatingQuickLead(false)
-      toast.success('Lead adicionado com sucesso!')
-      loadData(true)
+        if (Array.isArray(dbDups)) {
+          for (const d of dbDups) {
+            if (d && !seenIds.has(d.id)) {
+              seenIds.add(d.id)
+              currentDuplicates.push({
+                id: d.id,
+                nome: d.nome || null,
+                status: d.status || null,
+                criado_em: d.criado_em || null,
+              })
+            }
+          }
+        }
+      } catch (checkErr) {
+        console.warn('Erro ao verificar duplicidade de telefone no banco:', checkErr)
+      }
+
+      if (currentDuplicates.length > 0) {
+        setPendingQuickLead({
+          ...payloadData,
+          duplicates: currentDuplicates,
+        })
+        return
+      }
+
+      await executeCreateLead(payloadData)
     } catch (err: any) {
-      toast.error('Erro ao criar lead: ' + err.message)
+      toast.error('Erro ao criar lead: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
@@ -1269,12 +1426,17 @@ export function KanbanAtendimentos({
               onChange={(e) => setQuickTelefone(e.target.value)}
               className="h-8 text-xs w-40"
             />
-            <div className="w-36">
+            <div className="w-40">
               <Select value={quickOrigem} onValueChange={(v) => setQuickOrigem(v)}>
                 <SelectTrigger className="h-8 text-xs bg-background">
-                  <SelectValue placeholder="Origem *" />
+                  <SelectValue placeholder="Origem do lead *" />
                 </SelectTrigger>
                 <SelectContent>
+                  {!isComercialTab && (
+                    <SelectItem value="A definir" className="text-xs">
+                      A definir
+                    </SelectItem>
+                  )}
                   {ORIGENS_LEAD.map((orig) => (
                     <SelectItem key={orig} value={orig} className="text-xs">
                       {orig}
@@ -1300,11 +1462,7 @@ export function KanbanAtendimentos({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setIsCreatingQuickLead(false)
-                  setQuickOrigem('Instagram')
-                  setQuickOrigemPessoa('')
-                }}
+                onClick={resetQuickLeadForm}
                 className="h-8 text-xs"
               >
                 Cancelar
