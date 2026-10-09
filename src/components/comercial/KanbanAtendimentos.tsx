@@ -65,6 +65,7 @@ interface PendingQuickLeadPayload {
   duplicates: DuplicateLeadInfo[]
 }
 
+// Helper para formatação de data segura no padrão pt-BR
 function safeFormatDatePtBr(dateStr?: string | null): string {
   if (!dateStr) return '—'
   try {
