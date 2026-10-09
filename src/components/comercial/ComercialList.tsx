@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fetchLeads, updateLead } from '@/services/comercial'
+import { fetchLeads } from '@/services/comercial'
 import {
   Table,
   TableBody,
@@ -11,23 +11,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { format } from 'date-fns'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
-import { COLUMNS, isStatusVendido } from './constants'
-import { ConfirmSellModal } from './ConfirmSellModal'
-import { Lead } from '@/types'
 
 export function ComercialList() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [pendingSellLead, setPendingSellLead] = useState<Lead | null>(null)
-  const { toast } = useToast()
 
   const loadData = async () => {
     try {
@@ -50,33 +37,6 @@ export function ComercialList() {
     if (!Array.isArray(leads)) return []
     return leads.filter((l): l is NonNullable<typeof l> => Boolean(l && l.id))
   }, [leads])
-
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    const currentLead = leads.find((l) => l.id === id)
-    if (!currentLead || currentLead.status === newStatus) return
-
-    // Se o novo status for "Vendido", NÃO salvar direto no banco e NÃO fazer atualização otimista.
-    // Interceptar e abrir o ConfirmSellModal.
-    if (isStatusVendido(newStatus) && !isStatusVendido(currentLead.status)) {
-      setPendingSellLead(currentLead)
-      return
-    }
-
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l)))
-    try {
-      await updateLead(id, { status: newStatus })
-      toast({
-        description: 'Status atualizado com sucesso!',
-        className: 'bg-dark-denim text-off-white border-none',
-      })
-    } catch (e: any) {
-      toast({
-        description: 'Erro ao atualizar status',
-        variant: 'destructive',
-      })
-      loadData()
-    }
-  }
 
   if (loading) {
     return (
@@ -103,6 +63,9 @@ export function ComercialList() {
 
   return (
     <>
+      <div className="px-4 py-2 text-xs text-muted-foreground">
+        Para mudar o status de um atendimento, use o quadro.
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -125,29 +88,18 @@ export function ComercialList() {
                 : typeof consultorRaw === 'string'
                   ? consultorRaw
                   : undefined
+            const currentStatus = lead.status || 'Novo Lead'
             return (
               <TableRow key={lead.id} className="hover:bg-slate-50 transition-colors">
                 <TableCell className="font-medium text-midnight-navy">{lead.nome || '-'}</TableCell>
                 <TableCell className="text-gray-600">{lead.email || '-'}</TableCell>
                 <TableCell className="text-gray-600">{lead.telefone || '-'}</TableCell>
                 <TableCell>
-                  <Select
-                    value={lead.status || 'Novo Lead'}
-                    onValueChange={(val) => handleStatusChange(lead.id, val)}
+                  <Badge
+                    className={`text-xs font-semibold border-none hover:bg-opacity-90 ${getStatusColor(lead.status || '')}`}
                   >
-                    <SelectTrigger
-                      className={`h-8 text-xs font-semibold border-none ${getStatusColor(lead.status || '')}`}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COLUMNS.map((c) => (
-                        <SelectItem key={c} value={c} className="text-xs font-medium">
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {currentStatus}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge variant="outline" className="text-gray-600 font-normal border-gray-300">
@@ -180,18 +132,6 @@ export function ComercialList() {
           )}
         </TableBody>
       </Table>
-
-      {pendingSellLead && (
-        <ConfirmSellModal
-          lead={pendingSellLead}
-          onSuccess={() => {
-            loadData()
-          }}
-          onClose={() => {
-            setPendingSellLead(null)
-          }}
-        />
-      )}
     </>
   )
 }
