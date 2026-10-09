@@ -147,6 +147,19 @@ export function KanbanAtendimentos({
     targetCategoria?: string
   } | null>(null)
 
+  // Estado para exigir origem do lead no momento do despacho (da aba novo-contato para consultoria ou orçamentos)
+  const [pendingDespachoOrigem, setPendingDespachoOrigem] = useState<{
+    lead: Lead
+    targetAbaId: string
+    targetColuna: string
+    targetCategoria: string
+    origemAbaId: string
+    tipoAcao: 'forward' | 'moveTo'
+  } | null>(null)
+  const [despachoOrigem, setDespachoOrigem] = useState<string>('')
+  const [despachoOrigemPessoa, setDespachoOrigemPessoa] = useState<string>('')
+  const [isSubmittingDespachoOrigem, setIsSubmittingDespachoOrigem] = useState<boolean>(false)
+
   // Novo Lead rápido
   const isComercialTab = useMemo(() => {
     return (
@@ -636,6 +649,31 @@ export function KanbanAtendimentos({
     }
   }
 
+  // Helper: checa se precisa exigir origem do lead no momento do despacho
+  const checkPrecisaOrigemDespacho = (
+    lead: Lead,
+    targetAbaId: string,
+    targetColuna: string,
+  ): boolean => {
+    // Apenas quando o card parte da aba novo-contato
+    if (safeAba.id !== 'novo-contato') return false
+
+    // Destino deve ser lead-consultoria ou lead-orcamentos
+    if (targetAbaId !== 'lead-consultoria' && targetAbaId !== 'lead-orcamentos') return false
+
+    // NÃO aplicar a regra quando o destino for coluna de perdido
+    if (isStatusPerdido(targetColuna)) return false
+
+    // NÃO aplicar se for coluna "SDR: Não é lead"
+    const tColLower = (targetColuna || '').trim().toLowerCase()
+    if (tColLower === 'sdr: não é lead' || tColLower === 'sdr: nao e lead') return false
+
+    // Verificar origem atual do lead
+    const orig = (lead.origem || '').trim().toLowerCase()
+    const semOrigem = !orig || orig === 'a definir' || orig === 'sem origem'
+    return semOrigem
+  }
+
   // Mover card para outra aba e coluna específica via Dropdown de 2 níveis
   const handleMoveToAbaColuna = async (lead: Lead, targetAbaId: string, targetColuna: string) => {
     if (!lead || !lead.id) return
@@ -676,6 +714,21 @@ export function KanbanAtendimentos({
       return
     }
 
+    // Regra PARTE B: Exigir origem do lead no despacho da aba novo-contato para consultoria/orçamentos
+    if (checkPrecisaOrigemDespacho(lead, targetAbaId, targetColuna)) {
+      setPendingDespachoOrigem({
+        lead,
+        targetAbaId,
+        targetColuna,
+        targetCategoria: targetAba.categoriaPadrao,
+        origemAbaId: safeAba.id,
+        tipoAcao: 'moveTo',
+      })
+      setDespachoOrigem('')
+      setDespachoOrigemPessoa('')
+      return
+    }
+
     try {
       const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
       const newMeta: LeadMetadados = {
@@ -707,6 +760,23 @@ export function KanbanAtendimentos({
     const destinoAba = ATENDIMENTO_ABAS.find((a) => a.id === destinoAbaId)
     if (!destinoAba) return
 
+    const targetCol = destinoAba.colunas[0] || 'Novo contato'
+
+    // Regra PARTE B: Exigir origem do lead no despacho da aba novo-contato para consultoria/orçamentos
+    if (checkPrecisaOrigemDespacho(lead, destinoAbaId, targetCol)) {
+      setPendingDespachoOrigem({
+        lead,
+        targetAbaId: destinoAbaId,
+        targetColuna: targetCol,
+        targetCategoria: destinoAba.categoriaPadrao,
+        origemAbaId: safeAba.id,
+        tipoAcao: 'forward',
+      })
+      setDespachoOrigem('')
+      setDespachoOrigemPessoa('')
+      return
+    }
+
     try {
       const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
       const newMeta: LeadMetadados = {
@@ -718,8 +788,6 @@ export function KanbanAtendimentos({
       const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
 
       // Ao encaminhar para uma aba de destino, o lead assume a primeira coluna da aba de destino e SAI da triagem
-      const targetCol = destinoAba.colunas[0] || 'Novo contato'
-
       await handleUpdateLead(leadId, {
         status: targetCol,
         categoria: destinoAba.categoriaPadrao,
@@ -730,6 +798,64 @@ export function KanbanAtendimentos({
     } catch (err: any) {
       console.error('Erro ao encaminhar card:', err)
       toast.error('Erro ao encaminhar lead')
+    }
+  }
+
+  // Confirmação do despacho com a origem obrigatória preenchida
+  const handleConfirmDespachoOrigem = async () => {
+    if (!pendingDespachoOrigem) return
+    const { lead, targetAbaId, targetColuna, targetCategoria, origemAbaId, tipoAcao } =
+      pendingDespachoOrigem
+
+    if (!despachoOrigem || !despachoOrigem.trim()) {
+      toast.error('Selecione a origem do lead')
+      return
+    }
+
+    if (exigeNomePessoa(despachoOrigem) && !despachoOrigemPessoa.trim()) {
+      toast.error(`Informe o ${getRotuloNomePessoa(despachoOrigem).toLowerCase()}`)
+      return
+    }
+
+    setIsSubmittingDespachoOrigem(true)
+    try {
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+      const newMeta: LeadMetadados = {
+        ...meta,
+        origem_aba: origemAbaId,
+        encaminhado_para_aba: targetAbaId,
+        encaminhado_em: new Date().toISOString(),
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === targetAbaId)
+      const nomePessoaFinal = exigeNomePessoa(despachoOrigem) ? despachoOrigemPessoa.trim() : null
+
+      await handleUpdateLead(lead.id, {
+        origem: despachoOrigem.trim(),
+        origem_pessoa: nomePessoaFinal,
+        status: targetColuna,
+        categoria: targetCategoria,
+        notas_pessoais: newNotasPessoais,
+      } as any)
+
+      if (tipoAcao === 'forward') {
+        toast.success(`Card encaminhado com sucesso para "${targetAba?.titulo || targetAbaId}"!`)
+      } else {
+        toast.success(
+          `Card movido para "${targetAba?.titulo || targetAbaId} > ${cleanColumnTitle(targetColuna)}"`,
+        )
+      }
+
+      setPendingDespachoOrigem(null)
+      setDespachoOrigem('')
+      setDespachoOrigemPessoa('')
+      await loadData(true)
+    } catch (err: any) {
+      console.error('Erro ao despachar lead com origem:', err)
+      toast.error('Erro ao despachar lead')
+    } finally {
+      setIsSubmittingDespachoOrigem(false)
     }
   }
 
@@ -1736,6 +1862,114 @@ export function KanbanAtendimentos({
           onClose={() => setPendingPerda(null)}
           onConfirm={handleConfirmPerda}
         />
+      )}
+
+      {/* Modal: "De onde veio este cliente?" (origem obrigatória ao despachar de novo-contato) */}
+      {pendingDespachoOrigem && (
+        <Dialog
+          open={Boolean(pendingDespachoOrigem)}
+          onOpenChange={(open) => {
+            if (!open && !isSubmittingDespachoOrigem) {
+              setPendingDespachoOrigem(null)
+              setDespachoOrigem('')
+              setDespachoOrigemPessoa('')
+            }
+          }}
+        >
+          <DialogContent className="max-w-md bg-background border shadow-xl">
+            <DialogHeader className="space-y-1.5">
+              <DialogTitle className="text-lg font-bold text-foreground">
+                De onde veio este cliente?
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Para despachar este lead da triagem para atendimento comercial, selecione a origem
+                de captação.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2">
+              <div className="text-xs font-semibold text-foreground/90">
+                Cliente:{' '}
+                <span className="font-normal">{pendingDespachoOrigem.lead.nome || 'Sem nome'}</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Origem do lead <span className="text-destructive">*</span>
+                </label>
+                <Select
+                  value={despachoOrigem}
+                  onValueChange={(val) => {
+                    setDespachoOrigem(val)
+                    if (!exigeNomePessoa(val)) {
+                      setDespachoOrigemPessoa('')
+                    }
+                  }}
+                  disabled={isSubmittingDespachoOrigem}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Selecione a origem do lead *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORIGENS_LEAD.filter((orig) => orig !== 'A definir').map((orig) => (
+                      <SelectItem key={orig} value={orig} className="text-xs">
+                        {orig}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {exigeNomePessoa(despachoOrigem) && (
+                <div className="space-y-1.5 animate-in fade-in duration-150">
+                  <label className="text-xs font-medium text-foreground">
+                    {getRotuloNomePessoa(despachoOrigem)}{' '}
+                    <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    required
+                    placeholder={`${getRotuloNomePessoa(despachoOrigem)} *`}
+                    value={despachoOrigemPessoa}
+                    onChange={(e) => setDespachoOrigemPessoa(e.target.value)}
+                    className="h-9 text-xs"
+                    disabled={isSubmittingDespachoOrigem}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  setPendingDespachoOrigem(null)
+                  setDespachoOrigem('')
+                  setDespachoOrigemPessoa('')
+                }}
+                disabled={isSubmittingDespachoOrigem}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={handleConfirmDespachoOrigem}
+                disabled={
+                  isSubmittingDespachoOrigem ||
+                  !despachoOrigem ||
+                  (exigeNomePessoa(despachoOrigem) && !despachoOrigemPessoa.trim())
+                }
+              >
+                {isSubmittingDespachoOrigem ? 'Despachando...' : 'Confirmar e despachar'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )
