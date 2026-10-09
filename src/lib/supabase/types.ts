@@ -2069,6 +2069,160 @@ export type Database = {
           },
         ]
       }
+      lead_eventos: {
+        Row: {
+          autor_id: string | null
+          autor_nome: string | null
+          criado_em: string
+          de: string | null
+          id: number
+          lead_id: string
+          para: string | null
+          tipo: string
+          via: string
+        }
+        Insert: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          criado_em?: string
+          de?: string | null
+          id?: never
+          lead_id: string
+          para?: string | null
+          tipo: string
+          via?: string
+        }
+        Update: {
+          autor_id?: string | null
+          autor_nome?: string | null
+          criado_em?: string
+          de?: string | null
+          id?: never
+          lead_id?: string
+          para?: string | null
+          tipo?: string
+          via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lead_eventos_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      lead_eventos_erros: {
+        Row: {
+          criado_em: string
+          erro: string | null
+          id: number
+          lead_id: string | null
+          origem: string | null
+        }
+        Insert: {
+          criado_em?: string
+          erro?: string | null
+          id?: never
+          lead_id?: string | null
+          origem?: string | null
+        }
+        Update: {
+          criado_em?: string
+          erro?: string | null
+          id?: never
+          lead_id?: string | null
+          origem?: string | null
+        }
+        Relationships: []
+      }
+      lead_fatos: {
+        Row: {
+          atualizado_em: string
+          despachado_em: string | null
+          despacho_destino: string | null
+          despacho_fonte: string | null
+          entrou_pela_triagem: boolean | null
+          fase_atual: string | null
+          fora_do_funil: boolean
+          fora_do_funil_motivo: string | null
+          lead_id: string
+          perda_fase: string | null
+          perda_fonte: string | null
+          perda_motivo: string | null
+          perdido_em: string | null
+          porta_entrada: string | null
+          sdr_id: string | null
+          situacao: string | null
+          situacao_em: string | null
+          tem_formulario: boolean
+          ultima_movimentacao_em: string | null
+          ultima_movimentacao_fonte: string | null
+          venda: boolean
+          venda_data: string | null
+          venda_valor: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          despachado_em?: string | null
+          despacho_destino?: string | null
+          despacho_fonte?: string | null
+          entrou_pela_triagem?: boolean | null
+          fase_atual?: string | null
+          fora_do_funil?: boolean
+          fora_do_funil_motivo?: string | null
+          lead_id: string
+          perda_fase?: string | null
+          perda_fonte?: string | null
+          perda_motivo?: string | null
+          perdido_em?: string | null
+          porta_entrada?: string | null
+          sdr_id?: string | null
+          situacao?: string | null
+          situacao_em?: string | null
+          tem_formulario?: boolean
+          ultima_movimentacao_em?: string | null
+          ultima_movimentacao_fonte?: string | null
+          venda?: boolean
+          venda_data?: string | null
+          venda_valor?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          despachado_em?: string | null
+          despacho_destino?: string | null
+          despacho_fonte?: string | null
+          entrou_pela_triagem?: boolean | null
+          fase_atual?: string | null
+          fora_do_funil?: boolean
+          fora_do_funil_motivo?: string | null
+          lead_id?: string
+          perda_fase?: string | null
+          perda_fonte?: string | null
+          perda_motivo?: string | null
+          perdido_em?: string | null
+          porta_entrada?: string | null
+          sdr_id?: string | null
+          situacao?: string | null
+          situacao_em?: string | null
+          tem_formulario?: boolean
+          ultima_movimentacao_em?: string | null
+          ultima_movimentacao_fonte?: string | null
+          venda?: boolean
+          venda_data?: string | null
+          venda_valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lead_fatos_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: true
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       leads: {
         Row: {
           arquivado_comercial: boolean
@@ -3505,6 +3659,23 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_signature_completed: { Args: { p_status: string }; Returns: boolean }
+      lead_data_segura: { Args: { p: string }; Returns: string }
+      lead_fase: {
+        Args: { p_categoria: string; p_meta: Json; p_status: string }
+        Returns: string
+      }
+      lead_meta: { Args: { p_notas: string }; Returns: Json }
+      lead_situacao: {
+        Args: {
+          p_arquivado: boolean
+          p_excluido: boolean
+          p_fase: string
+          p_meta: Json
+        }
+        Returns: string
+      }
+      lead_status_perdido: { Args: { p_status: string }; Returns: boolean }
+      lead_ts_seguro: { Args: { p: string }; Returns: string }
       project_item_names: {
         Args: {
           psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
