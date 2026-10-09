@@ -413,10 +413,39 @@ export interface LeadMetadados {
   encaminhado_em?: string
   exclusoes?: AbaAcaoRegistro[]
   arquivamentos?: AbaAcaoRegistro[]
+  exclusao_motivo?: string
   montador_ids?: string[]
   necessidades?: string[]
   objetivo_imovel?: string
   [key: string]: any
+}
+
+/**
+ * Identifica se uma aba é considerada comercial pelo módulo de Atendimentos.
+ * Abas comerciais: novo-contato, lead-consultoria, lead-orcamentos, lead-followup.
+ */
+export function isAbaComercial(abaId?: string | null): boolean {
+  if (!abaId || typeof abaId !== 'string') return false
+  const id = abaId.trim().toLowerCase()
+  return (
+    id === 'novo-contato' ||
+    id === 'lead-consultoria' ||
+    id === 'lead-orcamentos' ||
+    id === 'lead-followup'
+  )
+}
+
+/**
+ * Card em aberto: status que NÃO é "Vendido", NÃO é de perdido (isStatusPerdido)
+ * e NÃO é "SDR: Não é lead".
+ */
+export function isCardEmAberto(status?: string | null): boolean {
+  if (!status || typeof status !== 'string') return true
+  const s = status.trim().toLowerCase()
+  if (isStatusVendido(status)) return false
+  if (isStatusPerdido(status)) return false
+  if (s === 'sdr: não é lead' || s === 'sdr: nao e lead') return false
+  return true
 }
 
 const META_PREFIX = '___META_JSON___:'
