@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import { phoneSearchVariants } from '@/services/vendas'
+import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import type { Lead } from '@/types'
@@ -408,6 +408,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
   }
 
   // Passo 2: Se o cliente ainda não existir, criar um novo cliente
+  let isBrandNewClient = false
   if (!novo_cliente_id) {
     const safeNome = (lead.nome ?? '').trim() || 'Cliente sem nome'
     const safeEmail = (lead.email ?? '').trim()
@@ -427,21 +428,35 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
       .single()
     if (err1) throw new Error('Falha ao criar cliente: ' + err1.message)
     novo_cliente_id = newClient.id
+    isBrandNewClient = true
   }
 
-  // Passo 3: Criar/reutilizar venda independente (formulário + dossiê + pasta storage)
-  const { dossieId: novo_dossie_id } = await ensureSaleForLead({
-    leadId: lead.id,
-    clienteId: novo_cliente_id,
-    userId,
-  })
+  // Passo 3 e 4: Criar venda independente e atualizar lead para "Vendido"
+  // Se o cliente foi recém-criado nesta chamada e o Passo 3 ou 4 falhar, marcar como excluido = true para não deixar cliente órfão/sem contrato.
+  try {
+    // Passo 3: Criar/reutilizar venda independente (formulário + dossiê + pasta storage)
+    const { dossieId: novo_dossie_id } = await ensureSaleForLead({
+      leadId: lead.id,
+      clienteId: novo_cliente_id,
+      userId,
+    })
 
-  // Passo 4: Atualizar o lead para "Vendido"
-  const { error: err2 } = await supabase
-    .from('leads')
-    .update({ status: 'Vendido' })
-    .eq('id', lead.id)
-  if (err2) throw new Error('Falha ao atualizar lead: ' + err2.message)
+    // Passo 4: Atualizar o lead para "Vendido"
+    const { error: err2 } = await supabase
+      .from('leads')
+      .update({ status: 'Vendido' })
+      .eq('id', lead.id)
+    if (err2) throw new Error('Falha ao atualizar lead: ' + err2.message)
 
-  return novo_dossie_id
+    return novo_dossie_id
+  } catch (err) {
+    if (isBrandNewClient && novo_cliente_id) {
+      try {
+        await supabase.from('clientes').update({ excluido: true }).eq('id', novo_cliente_id)
+      } catch (cleanupErr) {
+        console.warn('[moveLeadToClient] Falha ao marcar cliente órfão como excluído:', cleanupErr)
+      }
+    }
+    throw err
+  }
 }

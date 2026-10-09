@@ -3689,6 +3689,10 @@ export type Database = {
       }
       lead_status_perdido: { Args: { p_status: string }; Returns: boolean }
       lead_ts_seguro: { Args: { p: string }; Returns: string }
+      painel_funil_real: {
+        Args: { p_fim: string; p_inicio: string }
+        Returns: Json
+      }
       project_item_names: {
         Args: {
           psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
