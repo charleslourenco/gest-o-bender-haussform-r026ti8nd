@@ -65,6 +65,7 @@ import {
 } from 'recharts'
 import { cleanColumnTitle, ATENDIMENTO_ABAS } from '@/components/comercial/constants'
 import { CoorteConversaoTab } from './CoorteConversaoTab'
+import { FunilRealSubTab } from './FunilRealSubTab'
 import type {
   AtendimentosMetrics,
   NovoContatoMetrics,
@@ -148,8 +149,8 @@ export function AtendimentosTab({
   dateRange?: DateRangeProps
 }) {
   const [activeSubTab, setActiveSubTab] = useState<
-    'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos'
-  >('visao_geral')
+    'funil_real' | 'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos'
+  >('funil_real')
 
   // Estado local para Origens: Despacho e Perda
   const [origensDespachoPerda, setOrigensDespachoPerda] = useState<
@@ -432,11 +433,20 @@ export function AtendimentosTab({
         <Tabs
           value={activeSubTab}
           onValueChange={(val) =>
-            setActiveSubTab(val as 'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos')
+            setActiveSubTab(
+              val as 'funil_real' | 'visao_geral' | 'novo_contato' | 'consultoria' | 'orcamentos',
+            )
           }
           className="w-full sm:w-auto"
         >
-          <TabsList className="bg-muted p-1 rounded-lg border border-border h-10 w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 sm:flex">
+          <TabsList className="bg-muted p-1 rounded-lg border border-border h-10 w-full sm:w-auto grid grid-cols-2 sm:grid-cols-5 sm:flex">
+            <TabsTrigger
+              value="funil_real"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3.5"
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              Funil real
+            </TabsTrigger>
             <TabsTrigger
               value="visao_geral"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground text-xs font-semibold gap-1.5 px-3.5"
@@ -469,6 +479,9 @@ export function AtendimentosTab({
         </Tabs>
 
         <div className="text-xs text-muted-foreground flex items-center gap-1.5 self-end sm:self-auto">
+          {activeSubTab === 'funil_real' && (
+            <span className="font-medium">Funil analítico real calculado pelo banco de dados</span>
+          )}
           {activeSubTab === 'visao_geral' && (
             <span className="font-medium">Métricas consolidadas com origem comercial válida</span>
           )}
@@ -483,6 +496,9 @@ export function AtendimentosTab({
           )}
         </div>
       </div>
+
+      {/* SUB-ABA 0: FUNIL REAL */}
+      {activeSubTab === 'funil_real' && <FunilRealSubTab dateRange={dateRange} />}
 
       {/* SUB-ABA 1: VISÃO GERAL (CONTEÚDO EXISTENTE INTOCADO) */}
       {activeSubTab === 'visao_geral' && (
