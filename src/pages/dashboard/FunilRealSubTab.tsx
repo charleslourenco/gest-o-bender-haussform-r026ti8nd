@@ -617,6 +617,12 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
                 </span>
               </li>
               <li className="py-2 flex items-center justify-between font-medium">
+                <span className="text-muted-foreground">Orçamento concluído sem desfecho</span>
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  {formatNumero(orcamento?.orcamento_concluido_sem_desfecho)}
+                </span>
+              </li>
+              <li className="py-2 flex items-center justify-between font-medium">
                 <span className="text-muted-foreground">Sem desfecho fora do quadro</span>
                 <span className="font-semibold text-amber-600 dark:text-amber-400">
                   {formatNumero(orcamento?.sem_desfecho_fora_do_quadro)}
@@ -836,7 +842,7 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
       {/* 5. TABELA ORIGENS E TABELA CONSULTORES */}
       <div className="grid gap-6 lg:grid-cols-2 items-start">
         {/* Tabela Origens */}
-        <Card className="border-border shadow-sm">
+        <Card className="border-border shadow-sm min-w-0">
           <CardHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
@@ -855,15 +861,25 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
           </CardHeader>
           <CardContent className="pt-3">
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[540px] text-xs text-left">
                 <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
                   <tr>
-                    <th className="py-2.5 px-3 font-semibold">Origem</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Chegaram</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Despachados</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Tx. Despacho</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Vendas</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Valor</th>
+                    <th className="py-2.5 px-3 font-semibold whitespace-nowrap">Origem</th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Chegaram
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Despachados
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Tx. despacho
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Vendas
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Valor
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border bg-card">
@@ -876,19 +892,19 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
                   ) : (
                     origens.map((item) => (
                       <tr key={item.origem} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[130px]">
+                        <td className="py-2 px-3 font-semibold text-foreground whitespace-nowrap">
                           {item.origem || 'A definir'}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium text-foreground">
+                        <td className="py-2 px-3 text-right font-medium text-foreground whitespace-nowrap">
                           {item.chegaram}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium text-foreground">
+                        <td className="py-2 px-3 text-right font-medium text-foreground whitespace-nowrap">
                           {item.despachados}
                         </td>
-                        <td className="py-2 px-3 text-right font-bold text-foreground">
+                        <td className="py-2 px-3 text-right font-bold text-foreground whitespace-nowrap">
                           {formatTaxa(item.taxa_despacho)}
                         </td>
-                        <td className="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                           {item.vendas}
                         </td>
                         <td className="py-2 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
@@ -904,7 +920,7 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
         </Card>
 
         {/* Tabela Consultores */}
-        <Card className="border-border shadow-sm">
+        <Card className="border-border shadow-sm min-w-0">
           <CardHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div>
@@ -923,17 +939,29 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
           </CardHeader>
           <CardContent className="pt-3">
             <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-xs text-left">
+              <table className="w-full min-w-[640px] text-xs text-left">
                 <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px] tracking-wider border-b border-border">
                   <tr>
-                    <th className="py-2.5 px-3 font-semibold">Consultor</th>
-                    <th className="py-2.5 px-3 font-semibold">Caminho</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Entraram</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Vendidos</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Perdidos</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Em Aberto</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Tx. Conv.</th>
-                    <th className="py-2.5 px-3 text-right font-semibold">Valor</th>
+                    <th className="py-2.5 px-3 font-semibold whitespace-nowrap">Consultor</th>
+                    <th className="py-2.5 px-3 font-semibold whitespace-nowrap">Caminho</th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Entraram
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Vendidos
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Perdidos
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Em aberto
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Valor
+                    </th>
+                    <th className="py-2.5 px-3 text-right font-semibold whitespace-nowrap">
+                      Tx. conversão
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border bg-card">
@@ -949,10 +977,10 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
                         key={`${c.consultor}-${c.caminho}-${idx}`}
                         className="hover:bg-muted/30 transition-colors"
                       >
-                        <td className="py-2 px-3 font-semibold text-foreground truncate max-w-[130px]">
+                        <td className="py-2 px-3 font-semibold text-foreground whitespace-nowrap">
                           {c.consultor || 'Não atribuído'}
                         </td>
-                        <td className="py-2 px-3">
+                        <td className="py-2 px-3 whitespace-nowrap">
                           <Badge
                             variant="outline"
                             className="text-[10px] py-0 px-1 font-semibold uppercase"
@@ -960,23 +988,23 @@ export function FunilRealSubTab({ dateRange }: { dateRange?: DateRangeProps }) {
                             {c.caminho}
                           </Badge>
                         </td>
-                        <td className="py-2 px-3 text-right font-medium text-foreground">
+                        <td className="py-2 px-3 text-right font-medium text-foreground whitespace-nowrap">
                           {c.entraram}
                         </td>
-                        <td className="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                           {c.vendidos}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium text-rose-600 dark:text-rose-400">
+                        <td className="py-2 px-3 text-right font-medium text-rose-600 dark:text-rose-400 whitespace-nowrap">
                           {c.perdidos}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium text-amber-600 dark:text-amber-400">
+                        <td className="py-2 px-3 text-right font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap">
                           {c.em_aberto}
-                        </td>
-                        <td className="py-2 px-3 text-right font-bold text-foreground">
-                          {formatTaxa(c.taxa_conversao)}
                         </td>
                         <td className="py-2 px-3 text-right font-medium text-muted-foreground whitespace-nowrap">
                           {formatCurrency(c.valor)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-bold text-foreground whitespace-nowrap">
+                          {formatTaxa(c.taxa_conversao)}
                         </td>
                       </tr>
                     ))
