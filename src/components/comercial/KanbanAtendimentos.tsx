@@ -18,6 +18,7 @@ import {
   exigeNomePessoa,
   getRotuloNomePessoa,
   isStatusPerdido,
+  isStatusVendido,
 } from './constants'
 import { CardAtendimento } from './CardAtendimento'
 import { ModalAtendimento } from './ModalAtendimento'
@@ -108,6 +109,13 @@ export function KanbanAtendimentos({
   // Modais
   const [selectedLeadForModal, setSelectedLeadForModal] = useState<Lead | null>(null)
   const [leadToSell, setLeadToSell] = useState<Lead | null>(null)
+  const [pendingVenda, setPendingVenda] = useState<{
+    lead: Lead
+    pendingUpdates?: {
+      categoria?: string
+      notas_pessoais?: string
+    }
+  } | null>(null)
   const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null)
   const [pendingPerda, setPendingPerda] = useState<{
     lead: Lead
@@ -486,6 +494,28 @@ export function KanbanAtendimentos({
     try {
       const currentLead = leads.find((l) => l.id === id)
 
+      // Regra de Venda: quando o destino for "Vendido" e o lead ainda não estiver "Vendido",
+      // NÃO gravar updateLead, NÃO fazer atualização otimista e NÃO gravar em leads_status_historico.
+      // Apenas guardar alterações pendentes e abrir o ConfirmSellModal.
+      if (
+        updates.status &&
+        isStatusVendido(updates.status) &&
+        !isStatusVendido(currentLead?.status)
+      ) {
+        if (currentLead) {
+          const pendingUpdates: { categoria?: string; notas_pessoais?: string } = {}
+          if (updates.categoria) pendingUpdates.categoria = updates.categoria
+          if ((updates as any).notas_pessoais !== undefined) {
+            pendingUpdates.notas_pessoais = (updates as any).notas_pessoais
+          }
+          setPendingVenda({
+            lead: currentLead,
+            pendingUpdates: Object.keys(pendingUpdates).length > 0 ? pendingUpdates : undefined,
+          })
+        }
+        return
+      }
+
       // Se o status estiver mudando e o NOVO status NÃO for Perdido, mas o lead TINHA motivo_perda/etapa_perda gravados
       // ou estava em Perdido, limpamos motivo_perda e etapa_perda conforme Requisito 5:
       // "Se o lead for retirado de Perdido (movido para outra coluna), limpar motivo_perda/etapa_perda para não carregar dados de perda antiga."
@@ -555,14 +585,6 @@ export function KanbanAtendimentos({
             console.warn('[leads_status_historico] Erro inesperado ao registrar transição:', err)
           })
       }
-
-      // Se moveu para vendido, acionar modal de venda
-      if (updates.status === 'Vendido') {
-        const leadObj = leads.find((l) => l.id === id)
-        if (leadObj) {
-          setLeadToSell({ ...leadObj, ...mergedUpdates, status: 'Vendido' })
-        }
-      }
     } catch (err: any) {
       console.error('Erro ao atualizar lead:', err)
       toast.error('Erro ao atualizar card')
@@ -585,6 +607,27 @@ export function KanbanAtendimentos({
         etapaAnterior: lead.status || safeAba.colunas[0] || 'Novo contato',
         targetAbaId,
         targetCategoria: targetAba.categoriaPadrao,
+      })
+      return
+    }
+
+    // Se o destino for uma coluna de Vendido e o lead ainda não estiver Vendido, interceptar com o ConfirmSellModal!
+    if (isStatusVendido(targetColuna) && !isStatusVendido(lead.status)) {
+      const { notas, meta } = parseLeadMetadados((lead as any)?.notas_pessoais)
+      const newMeta: LeadMetadados = {
+        ...meta,
+        origem_aba: safeAba.id,
+        encaminhado_para_aba: targetAbaId,
+        encaminhado_em: new Date().toISOString(),
+      }
+      const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
+
+      setPendingVenda({
+        lead,
+        pendingUpdates: {
+          categoria: targetAba.categoriaPadrao,
+          notas_pessoais: newNotasPessoais,
+        },
       })
       return
     }
@@ -793,7 +836,39 @@ export function KanbanAtendimentos({
       return
     }
 
+    // Se a coluna de destino for Vendido, interceptar com o modal de confirmação de venda!
+    // O status e a venda só persistem se o usuário concluir com sucesso no modal ("Preparar Pasta").
+    // Se cancelar ("Voltar" ou clique fora), nada é gravado e o card permanece onde estava.
+    if (isStatusVendido(targetCol)) {
+      setPendingVenda({
+        lead,
+      })
+      return
+    }
+
     await handleUpdateLead(id, { status: targetCol })
+  }
+
+  // Confirmação da Venda após sucesso no ConfirmSellModal
+  const handleConfirmVenda = async (
+    leadId: string,
+    pendingUpdates?: { categoria?: string; notas_pessoais?: string },
+  ) => {
+    if (
+      pendingUpdates &&
+      (pendingUpdates.categoria || pendingUpdates.notas_pessoais !== undefined)
+    ) {
+      try {
+        const payload: Partial<Lead> = {}
+        if (pendingUpdates.categoria) payload.categoria = pendingUpdates.categoria
+        if (pendingUpdates.notas_pessoais !== undefined)
+          (payload as any).notas_pessoais = pendingUpdates.notas_pessoais
+        await updateLead(leadId, payload)
+      } catch (err) {
+        console.warn('Erro ao atualizar categoria/notas pós-venda:', err)
+      }
+    }
+    await loadData(true)
   }
 
   // Confirmação do modal de Motivo de Perda
@@ -1402,19 +1477,32 @@ export function KanbanAtendimentos({
             onUpdateLead={handleUpdateLead}
             onTriggerSellModal={(l) => {
               setSelectedLeadForModal(null)
-              setLeadToSell(l)
+              setPendingVenda({
+                lead: l,
+              })
             }}
           />
         </ErrorBoundary>
       )}
 
       {/* Modal de Fechamento de Venda (Dossiê/Contrato) */}
-      {leadToSell && (
+      {(pendingVenda || leadToSell) && (
         <ConfirmSellModal
-          lead={leadToSell}
-          onClose={() => {
+          lead={(pendingVenda?.lead || leadToSell)!}
+          pendingUpdates={pendingVenda?.pendingUpdates}
+          onSuccess={async () => {
+            const currentPending = pendingVenda
+            setPendingVenda(null)
             setLeadToSell(null)
-            loadData(true)
+            if (currentPending?.lead?.id) {
+              await handleConfirmVenda(currentPending.lead.id, currentPending.pendingUpdates)
+            } else {
+              await loadData(true)
+            }
+          }}
+          onClose={() => {
+            setPendingVenda(null)
+            setLeadToSell(null)
           }}
         />
       )}

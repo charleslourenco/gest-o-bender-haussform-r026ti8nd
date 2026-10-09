@@ -8,11 +8,16 @@ import { supabase } from '@/lib/supabase/client'
 interface Props {
   lead: Lead
   onClose: () => void
+  pendingUpdates?: {
+    categoria?: string
+    notas_pessoais?: string
+  }
+  onSuccess?: () => void
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-export function ConfirmSellModal({ lead, onClose }: Props) {
+export function ConfirmSellModal({ lead, onClose, pendingUpdates, onSuccess }: Props) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
@@ -38,8 +43,31 @@ export function ConfirmSellModal({ lead, onClose }: Props) {
       }
 
       const id = await moveLeadToClient(lead, activeUserId)
+
+      // Gravar alterações pendentes (categoria e/ou notas_pessoais) se houverem
+      if (
+        pendingUpdates &&
+        (pendingUpdates.categoria || pendingUpdates.notas_pessoais !== undefined)
+      ) {
+        const updatesToPersist: Record<string, any> = {}
+        if (pendingUpdates.categoria) updatesToPersist.categoria = pendingUpdates.categoria
+        if (pendingUpdates.notas_pessoais !== undefined)
+          updatesToPersist.notas_pessoais = pendingUpdates.notas_pessoais
+        const { error: updErr } = await supabase
+          .from('leads')
+          .update(updatesToPersist)
+          .eq('id', lead.id)
+        if (updErr) {
+          console.warn(
+            '[ConfirmSellModal] Falha ao persistir alterações pendentes da venda:',
+            updErr,
+          )
+        }
+      }
+
       setDossieId(id)
       setIsLoading(false)
+      onSuccess?.()
     } catch (err: any) {
       setError(err?.message || 'Erro ao processar venda')
       setIsLoading(false)

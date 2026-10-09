@@ -362,6 +362,16 @@ export function isStatusPerdido(status?: string | null): boolean {
   return s === 'perdido' || s === 'sdr: perdido' || s === 'sdr:perdido'
 }
 
+/**
+ * Verifica se um determinado status/coluna representa a fase de "Vendido"
+ * (cobre 'Vendido' e variações case-insensitive).
+ */
+export function isStatusVendido(status?: string | null): boolean {
+  if (!status || typeof status !== 'string') return false
+  const s = status.trim().toLowerCase()
+  return s === 'vendido'
+}
+
 export const ORIGENS_LEAD = [
   'Instagram',
   'Google',

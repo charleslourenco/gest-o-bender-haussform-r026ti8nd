@@ -3665,6 +3665,19 @@ export type Database = {
         Returns: string
       }
       lead_meta: { Args: { p_notas: string }; Returns: Json }
+      lead_meta_marcar_aba: {
+        Args: {
+          p_aba: string
+          p_chave: string
+          p_notas: string
+          p_quando: string
+        }
+        Returns: string
+      }
+      lead_notas_com_meta: {
+        Args: { p_meta: Json; p_notas: string }
+        Returns: string
+      }
       lead_situacao: {
         Args: {
           p_arquivado: boolean
