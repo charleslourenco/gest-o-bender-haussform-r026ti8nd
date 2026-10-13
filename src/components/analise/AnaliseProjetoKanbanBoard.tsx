@@ -123,8 +123,9 @@ export function AnaliseProjetoKanbanBoard() {
 
     let sub: any = null
     try {
+      const channelName = `formulario_changes_${Date.now()}`
       sub = supabase
-        .channel('formulario_changes')
+        .channel(channelName)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'formulario_comercial' },
@@ -160,14 +161,9 @@ export function AnaliseProjetoKanbanBoard() {
       isMounted = false
       if (sub) {
         try {
-          sub.unsubscribe()
-        } catch (e) {
-          console.warn('Erro ao cancelar inscrição de sub formulario_changes:', e)
-        }
-        try {
           supabase.removeChannel(sub)
         } catch (e) {
-          console.warn('Erro ao remover sub formulario_changes:', e)
+          console.warn('Erro ao remover canal Realtime formulario_changes:', e)
         }
       }
       window.removeEventListener('kanban_search_change', handleSearch)

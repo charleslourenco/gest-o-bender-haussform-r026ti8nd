@@ -213,6 +213,13 @@ export function canResolvePendencia(
 }
 
 /**
+ * Verifica se o usuário atual é Gestor (ou Admin), usado no Dashboard e permissões gerenciais
+ */
+export function isUserGestor(user: any, permissions?: string[] | null, isAdmin?: boolean): boolean {
+  return canResolvePendencia(user, permissions, isAdmin)
+}
+
+/**
  * RPC / Ação: Marcar nota como conferida
  */
 export async function rpcMarcarNotaConferida(params: {

@@ -60,6 +60,7 @@ import { NotaReviewPanel } from './NotaReviewPanel'
 interface NotasPendenciasTabProps {
   alertas: AlertaNotaFiscal[]
   loading: boolean
+  error?: string | null
   onReload: () => Promise<void> | void
 }
 
@@ -72,7 +73,7 @@ const TIPO_ALERTA_LABELS: Record<TipoAlertaNota, string> = {
   SEM_CONTA_PAGAR: 'Sem conta a pagar',
 }
 
-export function NotasPendenciasTab({ alertas, loading, onReload }: NotasPendenciasTabProps) {
+export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasPendenciasTabProps) {
   const { user, permissions, isAdmin } = useAuth()
   const { toast } = useToast()
 
@@ -443,6 +444,28 @@ export function NotasPendenciasTab({ alertas, loading, onReload }: NotasPendenci
             <div className="py-16 text-center flex flex-col items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
               <p className="text-xs">Carregando notas pendentes...</p>
+            </div>
+          ) : error && filteredAlertas.length === 0 ? (
+            <div className="py-12 text-center flex flex-col items-center justify-center gap-3 px-4">
+              <AlertCircle className="w-8 h-8 text-amber-500" />
+              <div>
+                <p className="font-semibold text-sm text-foreground">
+                  Não foi possível obter o resumo de pendências
+                </p>
+                <p className="text-xs text-muted-foreground max-w-md mt-1">
+                  A visualização de pendências está temporariamente indisponível. Você ainda pode
+                  usar o Leitor de Notas e gerenciar o estoque normalmente.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onReload()}
+                className="text-xs gap-1.5 h-8 mt-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Tentar novamente
+              </Button>
             </div>
           ) : filteredAlertas.length === 0 ? (
             <div className="py-16 text-center flex flex-col items-center justify-center gap-2">

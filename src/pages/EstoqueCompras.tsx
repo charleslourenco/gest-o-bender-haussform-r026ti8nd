@@ -26,6 +26,7 @@ export default function EstoqueCompras() {
     alertas,
     resumo: resumoAlertas,
     loading: loadingAlertas,
+    error: errorAlertas,
     reload: reloadAlertas,
   } = useAlertasNotasFiscais()
 
@@ -142,6 +143,29 @@ export default function EstoqueCompras() {
 
   return (
     <div className="pt-0 pb-6 px-6 animate-in fade-in duration-300 h-full flex flex-col">
+      {/* Fallback elegante: aviso discreto se houver erro ao carregar os alertas da view */}
+      {errorAlertas && !loadingAlertas && (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-amber-200 dark:border-amber-800/40 bg-amber-50/70 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-2"
+        >
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              Não foi possível sincronizar o resumo de pendências das notas fiscais no momento. As
+              demais abas e operações de estoque continuam funcionando normalmente.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => reloadAlertas()}
+            className="text-xs font-semibold underline hover:no-underline shrink-0 cursor-pointer"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {/* BANNER FIXO NO TOPO: Se total = 0, o banner não aparece */}
       {resumoAlertas.total > 0 && (
         <aside
@@ -353,6 +377,7 @@ export default function EstoqueCompras() {
                 <NotasPendenciasTab
                   alertas={alertas}
                   loading={loadingAlertas}
+                  error={errorAlertas}
                   onReload={reloadAlertas}
                 />
               </TabsContent>

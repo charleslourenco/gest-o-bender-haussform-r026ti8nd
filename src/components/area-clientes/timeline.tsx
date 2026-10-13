@@ -47,8 +47,9 @@ export function Timeline({ clienteId, formularioId, saleCreatedAt }: TimelinePro
 
     fetchEvents()
 
+    const channelName = `timeline_changes_${clienteId || 'all'}_${Date.now()}`
     const sub = supabase
-      .channel('timeline_changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -64,7 +65,7 @@ export function Timeline({ clienteId, formularioId, saleCreatedAt }: TimelinePro
       .subscribe()
 
     return () => {
-      sub.unsubscribe()
+      supabase.removeChannel(sub)
     }
   }, [clienteId, formularioId, saleCreatedAt])
 
