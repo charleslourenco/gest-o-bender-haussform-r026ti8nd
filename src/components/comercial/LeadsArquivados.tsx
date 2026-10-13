@@ -86,7 +86,7 @@ export function LeadsArquivados() {
                   const arquivamentos = Array.isArray(meta?.arquivamentos) ? meta.arquivamentos : []
 
                   if (arquivamentos.length > 0) {
-                    // Encontrar a MAIOR data entre os itens
+                    // Encontrar a maior data entre os itens
                     let maxTime = -Infinity
                     let maxDateStr: string | null = null
 
