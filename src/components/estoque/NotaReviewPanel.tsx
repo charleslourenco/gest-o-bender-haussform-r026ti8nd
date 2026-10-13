@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
+import { triggerAlertasReload } from '@/hooks/use-alertas-notas-fiscais'
 import { MatchedItem, calcularCustosEfetivos, matchInvoiceItems } from '@/services/estoque-matching'
 import { CATEGORIAS_ESTOQUE } from './EstoqueLista'
 import { NotaReviewItemCard } from './NotaReviewItemCard'
@@ -629,6 +630,7 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       setHasChanges(false)
       setEditingMatchedIdx(null)
       setPendingConfirmDivergence(null)
+      triggerAlertasReload()
       onResolved()
     } catch (e: any) {
       toast({

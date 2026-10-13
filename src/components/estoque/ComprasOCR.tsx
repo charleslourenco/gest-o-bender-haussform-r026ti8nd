@@ -40,7 +40,7 @@ import {
 import { openStorageFileInNewTab } from '@/lib/file-viewer'
 import { parseNFeXml } from '@/lib/nfe-xml-parser'
 import { processInvoiceWithAutoReforco } from '@/services/compras-ocr-pipeline'
-import { useAlertasNotasFiscais } from '@/hooks/use-alertas-notas-fiscais'
+import { useAlertasNotasFiscais, triggerAlertasReload } from '@/hooks/use-alertas-notas-fiscais'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface ComprasOCRProps {
@@ -85,6 +85,7 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja apagar esta nota?')) return
     await supabase.from('notas_fiscais').delete().eq('id', id)
+    triggerAlertasReload()
     fetchNotas()
     toast({ title: 'Nota apagada' })
   }
@@ -174,6 +175,7 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
       if (error) throw error
       setNotas((prev) => prev.map((n) => (n.id === notaId ? { ...n, fornecedor: value } : n)))
       setEditingNotaId(null)
+      triggerAlertasReload()
       toast({ title: 'Fornecedor atualizado!' })
     } catch (e: any) {
       toast({
@@ -423,6 +425,7 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         })
       }
 
+      triggerAlertasReload()
       fetchNotas()
     } catch (error: any) {
       toast({
@@ -1181,7 +1184,13 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
                       </div>
                       {isExpanded && (
                         <div className="px-4 pb-4">
-                          <NotaReviewPanel nota={nota} onResolved={fetchNotas} />
+                          <NotaReviewPanel
+                            nota={nota}
+                            onResolved={() => {
+                              triggerAlertasReload()
+                              fetchNotas()
+                            }}
+                          />
                         </div>
                       )}
                     </div>
