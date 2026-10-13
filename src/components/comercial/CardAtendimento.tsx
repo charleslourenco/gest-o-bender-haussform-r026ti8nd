@@ -44,6 +44,7 @@ import {
   isStatusPerdido,
 } from './constants'
 import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
+import { toast } from '@/hooks/use-toast'
 
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 
@@ -179,9 +180,15 @@ function CardAtendimentoComponent({
       return
     }
     if (trimmed !== lead?.nome) {
-      await onUpdateLead(lead.id, { nome: trimmed })
+      try {
+        await onUpdateLead(lead.id, { nome: trimmed })
+        setIsEditingNome(false)
+      } catch (err: any) {
+        toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+      }
+    } else {
+      setIsEditingNome(false)
     }
-    setIsEditingNome(false)
   }
 
   const handleSaveTelefone = async () => {
@@ -192,9 +199,15 @@ function CardAtendimentoComponent({
       return
     }
     if (trimmed !== lead?.telefone) {
-      await onUpdateLead(lead.id, { telefone: trimmed })
+      try {
+        await onUpdateLead(lead.id, { telefone: trimmed })
+        setIsEditingTelefone(false)
+      } catch (err: any) {
+        toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+      }
+    } else {
+      setIsEditingTelefone(false)
     }
-    setIsEditingTelefone(false)
   }
 
   const handleSaveDescricao = async () => {
@@ -204,8 +217,12 @@ function CardAtendimentoComponent({
       descricao_projeto: descricaoValue.trim(),
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
-    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
-    setIsEditingDescricao(false)
+    try {
+      await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+      setIsEditingDescricao(false)
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   const handleUpdatePrioridade = async (prioridade: 'Alta' | 'Média' | 'Baixa') => {
@@ -215,7 +232,11 @@ function CardAtendimentoComponent({
       prioridade,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
-    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    try {
+      await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   const handleUpdatePrazo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -226,7 +247,11 @@ function CardAtendimentoComponent({
       prazo,
     }
     const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
-    await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    try {
+      await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   const handleToggleNecessidade = async (opcao: string) => {
@@ -252,8 +277,9 @@ function CardAtendimentoComponent({
       metaRef.current = updatedMeta
       const newNotasPessoais = stringifyLeadMetadados(currentNotas, updatedMeta)
       await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao atualizar necessidades:', err)
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
@@ -267,19 +293,28 @@ function CardAtendimentoComponent({
       metaRef.current = updatedMeta
       const newNotasPessoais = stringifyLeadMetadados(currentNotas, updatedMeta)
       await onUpdateLead(lead.id, { notas_pessoais: newNotasPessoais } as any)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao atualizar objetivo do imóvel:', err)
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
   const handleResponsavelChange = async (userId: string) => {
     const val = userId === 'unassigned' ? null : userId
-    await onUpdateLead(lead.id, { consultor_id: val })
+    try {
+      await onUpdateLead(lead.id, { consultor_id: val })
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   const handleSecundarioChange = async (userId: string) => {
     const val = userId === 'unassigned' ? null : userId
-    await onUpdateLead(lead.id, { consultor_id_secundario: val } as any)
+    try {
+      await onUpdateLead(lead.id, { consultor_id_secundario: val } as any)
+    } catch (err: any) {
+      toast.error('Erro ao salvar: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   const consultorRaw = (lead as any)?.consultor || (lead as any)?.users

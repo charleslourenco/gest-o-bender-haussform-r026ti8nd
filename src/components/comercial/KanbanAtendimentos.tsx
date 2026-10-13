@@ -221,7 +221,7 @@ export function KanbanAtendimentos({
       handleUpdateLead(lead.id, {
         status_atendimento: 'em_atendimento',
         atualizado_em: new Date().toISOString(),
-      } as any)
+      } as any).catch((err) => console.warn('Falha ao limpar pendência', err))
     }
     setSelectedLeadForModal(lead)
   }
@@ -625,32 +625,10 @@ export function KanbanAtendimentos({
       }
 
       await updateLead(id, finalPayload)
-
-      // Gravar histórico de movimentação de status de forma não-bloqueante (se falhar, ignorar silenciosamente)
-      if (updates.status && updates.status !== currentLead?.status) {
-        supabase
-          .from('leads_status_historico')
-          .insert({
-            lead_id: id,
-            status_anterior: currentLead?.status || null,
-            status_novo: updates.status,
-          })
-          .then(({ error }) => {
-            if (error) {
-              console.warn(
-                '[leads_status_historico] Falha não-bloqueante ao registrar transição:',
-                error,
-              )
-            }
-          })
-          .catch((err) => {
-            console.warn('[leads_status_historico] Erro inesperado ao registrar transição:', err)
-          })
-      }
     } catch (err: any) {
       console.error('Erro ao atualizar lead:', err)
-      toast.error('Erro ao atualizar card')
       loadData(true)
+      throw err
     }
   }
 
@@ -753,7 +731,7 @@ export function KanbanAtendimentos({
       toast.success(`Card movido para "${targetAba.titulo} > ${cleanColumnTitle(targetColuna)}"`)
     } catch (err: any) {
       console.error('Erro ao mover card:', err)
-      toast.error('Erro ao mover lead')
+      toast.error('Erro ao mover lead: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
@@ -802,7 +780,7 @@ export function KanbanAtendimentos({
       toast.success(`Card encaminhado com sucesso para "${destinoAba.titulo}"!`)
     } catch (err: any) {
       console.error('Erro ao encaminhar card:', err)
-      toast.error('Erro ao encaminhar lead')
+      toast.error('Erro ao encaminhar lead: ' + (err?.message || 'Falha ao salvar'))
     }
   }
 
@@ -860,7 +838,7 @@ export function KanbanAtendimentos({
       await loadData(true)
     } catch (err: any) {
       console.error('Erro ao despachar lead com origem:', err)
-      toast.error('Erro ao despachar lead')
+      toast.error('Erro ao despachar lead: ' + (err?.message || 'Falha ao salvar'))
     } finally {
       setIsSubmittingDespachoOrigem(false)
     }
@@ -1214,7 +1192,11 @@ export function KanbanAtendimentos({
       return
     }
 
-    await handleUpdateLead(id, { status: targetCol })
+    try {
+      await handleUpdateLead(id, { status: targetCol })
+    } catch (err: any) {
+      toast.error('Erro ao mover card: ' + (err?.message || 'Falha ao salvar'))
+    }
   }
 
   // Confirmação da Venda após sucesso no ConfirmSellModal
@@ -1276,7 +1258,8 @@ export function KanbanAtendimentos({
       setPendingPerda(null)
     } catch (err: any) {
       console.error('Erro ao registrar perda do lead:', err)
-      toast.error('Erro ao salvar motivo de perda')
+      toast.error('Erro ao salvar motivo de perda: ' + (err?.message || 'Falha ao salvar'))
+      throw err
     }
   }
 
