@@ -23,7 +23,10 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
+import { EditarItemClienteModal, ItemClienteData } from './EditarItemClienteModal'
 import { useTableScroll } from '@/hooks/use-table-scroll'
 import {
   Dialog,
@@ -58,6 +61,10 @@ export function ItensCliente() {
   const [selectedItem, setSelectedItem] = useState<ItemCliente | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [editingItem, setEditingItem] = useState<ItemCliente | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const { user, permissions } = useAuth()
   const { toast } = useToast()
   const { scrollRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight, checkScroll } =
     useTableScroll()
@@ -83,18 +90,66 @@ export function ItensCliente() {
 
   useEffect(() => {
     fetchItens()
-    checkAdmin()
+    checkAdminAndRole()
   }, [])
 
-  async function checkAdmin() {
+  async function checkAdminAndRole() {
     const {
-      data: { user },
+      data: { user: currentUser },
     } = await supabase.auth.getUser()
-    if (user) {
-      const { data } = await supabase.rpc('is_admin', { user_id: user.id })
-      setIsAdmin(!!data)
+    if (currentUser) {
+      const [{ data: adminData }, { data: dbUserData }] = await Promise.all([
+        supabase.rpc('is_admin', { user_id: currentUser.id }),
+        supabase.from('users').select('funcao').eq('id', currentUser.id).maybeSingle(),
+      ])
+      setIsAdmin(!!adminData)
+      if (dbUserData?.funcao) {
+        setUserRole(dbUserData.funcao)
+      }
     }
   }
+
+  // Permissão: Gestor, Compras e Produção podem editar; os demais veem o botão desabilitado (só visualização).
+  const canEdit = (() => {
+    if (isAdmin) return true
+
+    // 1. Papel direto em users.funcao ou metadata
+    const userRoleStr = (
+      userRole ||
+      user?.user_metadata?.role ||
+      user?.user_metadata?.funcao ||
+      (user as any)?.role ||
+      ''
+    ).toLowerCase()
+
+    if (
+      userRoleStr.includes('gestor') ||
+      userRoleStr.includes('gerente') ||
+      userRoleStr.includes('admin') ||
+      userRoleStr.includes('compras') ||
+      userRoleStr.includes('produção') ||
+      userRoleStr.includes('producao')
+    ) {
+      return true
+    }
+
+    // 2. Permissões de matriz por módulo
+    // Módulos relevantes: Estoque & Compras, Produção, Planejamento e Programação de Operações
+    const allowedLevels = ['Editor', 'Admin']
+    const modEstoque = permissions['Estoque & Compras']
+    const modProducao = permissions['Produção']
+    const modPcp = permissions['Planejamento e Programação de Operações']
+
+    if (
+      (modEstoque && allowedLevels.includes(modEstoque)) ||
+      (modProducao && allowedLevels.includes(modProducao)) ||
+      (modPcp && allowedLevels.includes(modPcp))
+    ) {
+      return true
+    }
+
+    return false
+  })()
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Tem certeza que deseja apagar este item?')) return
@@ -380,12 +435,31 @@ export function ItensCliente() {
                                 </DialogContent>
                               </Dialog>
                             )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingItem(item)
+                                setIsEditModalOpen(true)
+                              }}
+                              disabled={!canEdit}
+                              className="ml-2"
+                              title={
+                                canEdit
+                                  ? 'Editar item'
+                                  : 'Apenas Gestor, Compras e Produção podem editar este item'
+                              }
+                            >
+                              <Pencil className="h-4 w-4 mr-1.5" />
+                              Editar
+                            </Button>
+
                             {isAdmin && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleDelete(item.id)}
-                                className="ml-2 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
+                                className="ml-1 text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 h-8 w-8"
                                 title="Apagar"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -402,6 +476,17 @@ export function ItensCliente() {
           </div>
         </CardContent>
       </Card>
+
+      <EditarItemClienteModal
+        item={editingItem as ItemClienteData | null}
+        open={isEditModalOpen}
+        onOpenChange={(open) => {
+          setIsEditModalOpen(open)
+          if (!open) setEditingItem(null)
+        }}
+        onSaved={fetchItens}
+        currentUserId={user?.id}
+      />
     </div>
   )
 }
