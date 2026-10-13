@@ -115,11 +115,22 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
     return list
   }, [por_consultor, desempenhoSort])
 
-  // Identificar melhor taxa de conversão entre quem teve pelo menos 1 venda
-  const melhorConversaoVal = useMemo(() => {
-    const comVendas = por_consultor.filter((c) => c.vendidos > 0)
-    if (comVendas.length === 0) return 0
-    return Math.max(...comVendas.map((c) => c.taxa_conversao))
+  // Identificar consultor com melhor conversão:
+  // - Elegíveis: total_leads >= 5 e vendidos >= 1
+  // - Critério: maior taxa_conversao; desempate por mais vendidos
+  // - Apenas UM consultor recebe o selo
+  const melhorConversaoConsultor = useMemo(() => {
+    const elegiveis = por_consultor.filter((c) => c.total_leads >= 5 && c.vendidos >= 1)
+    if (elegiveis.length === 0) return null
+
+    const ordenados = [...elegiveis].sort((a, b) => {
+      if (b.taxa_conversao !== a.taxa_conversao) {
+        return b.taxa_conversao - a.taxa_conversao
+      }
+      return b.vendidos - a.vendidos
+    })
+
+    return ordenados[0] || null
   }, [por_consultor])
 
   const totalLeadsPeriodo = por_consultor.reduce((acc, c) => acc + c.total_leads, 0)
@@ -605,9 +616,8 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                 ) : (
                   sortedDesempenho.map((item, idx) => {
                     const isTopConversion =
-                      item.vendidos > 0 &&
-                      melhorConversaoVal > 0 &&
-                      item.taxa_conversao === melhorConversaoVal
+                      melhorConversaoConsultor !== null &&
+                      item.consultor === melhorConversaoConsultor.consultor
 
                     return (
                       <tr key={item.consultor} className="hover:bg-muted/40 transition-colors">
@@ -618,12 +628,23 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
                           <div className="flex items-center gap-2">
                             <span>{item.consultor}</span>
                             {isTopConversion && (
-                              <Badge
-                                variant="outline"
-                                className="border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] py-0 px-1.5 h-4 font-semibold"
-                              >
-                                Melhor conversão
-                              </Badge>
+                              <TooltipProvider>
+                                <UITooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="outline"
+                                      className="border-emerald-300 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 text-[10px] py-0 px-1.5 h-4 font-semibold cursor-default"
+                                    >
+                                      Melhor conversão
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs">
+                                    <p>
+                                      Maior taxa entre consultores com 5 leads ou mais no período
+                                    </p>
+                                  </TooltipContent>
+                                </UITooltip>
+                              </TooltipProvider>
                             )}
                           </div>
                         </td>

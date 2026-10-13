@@ -399,11 +399,8 @@ export function AtendimentosTab({
   const maxQtdEtapa =
     perdasPorEtapa.length > 0 ? Math.max(...perdasPorEtapa.map((e) => e.qtd_perdas)) : 0
 
-  // Achar melhor origem por conversão com pelo menos 1 lead (exceto 'A definir' para destacar canal real)
+  // Origens com pelo menos 1 lead para o gráfico donut
   const origensComLeads = origens.filter((o) => o.total > 0)
-  const origensOficiaisValidas = origensComLeads.filter((o) => o.origem !== 'A definir')
-  const melhorOrigem =
-    [...origensOficiaisValidas].sort((a, b) => b.taxa - a.taxa)[0] || origensComLeads[0]
 
   // Dados para o Alerta de Origem Não Registrada (prioriza metrics.leads_sem_origem com fallback seguro)
   const origemADefinir = origens.find((o) => o.origem === 'A definir')
