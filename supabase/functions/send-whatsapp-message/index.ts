@@ -2,10 +2,17 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-async function sendZapiMessage(phone: string, text: string): Promise<string | null> {
+type ZapiResult = { ok: boolean; messageId: string | null; error?: string }
+
+async function sendZapiMessage(phone: string, text: string): Promise<ZapiResult> {
   const zapiInstance = Deno.env.get('ZAPI_INSTANCE_ID')
   const zapiToken = Deno.env.get('ZAPI_TOKEN')
-  if (!zapiInstance || !zapiToken || !text) return null
+  if (!zapiInstance || !zapiToken) {
+    return { ok: false, messageId: null, error: 'Z-API não configurada' }
+  }
+  if (!text) {
+    return { ok: false, messageId: null, error: 'Mensagem vazia' }
+  }
 
   const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
   try {
@@ -18,16 +25,20 @@ async function sendZapiMessage(phone: string, text: string): Promise<string | nu
       body: JSON.stringify({ phone, message: text }),
     })
 
-    if (!res.ok) {
-      console.error('Z-API error:', res.status)
-      return null
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data?.error) {
+      console.error('Z-API error:', res.status, data)
+      return {
+        ok: false,
+        messageId: null,
+        error: `Z-API recusou o envio (HTTP ${res.status}${data?.error ? ': ' + data.error : ''})`,
+      }
     }
 
-    const data = await res.json().catch(() => ({}))
-    return data?.messageId || data?.zaapId || null
+    return { ok: true, messageId: data?.messageId || data?.zaapId || null }
   } catch (e) {
     console.error('Z-API network error:', e)
-    return null
+    return { ok: false, messageId: null, error: 'Falha de conexão com a Z-API' }
   }
 }
 
@@ -91,8 +102,17 @@ Deno.serve(async (req) => {
     const fallbackExternalId = `msg_manual_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
     // Send via Z-API first to capture messageId for webhook dedup
-    const zapiMessageId = await sendZapiMessage(String(phone), trimmedMessage)
-    const externalId = zapiMessageId || fallbackExternalId
+    const zapi = await sendZapiMessage(String(phone), trimmedMessage)
+    if (!zapi.ok) {
+      return new Response(
+        JSON.stringify({ error: zapi.error || 'Falha ao enviar pelo WhatsApp' }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+    const externalId = zapi.messageId || fallbackExternalId
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 

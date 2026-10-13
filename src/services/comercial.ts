@@ -261,7 +261,16 @@ export const sendWhatsAppMessage = async (leadId: string, phone: string, message
   const { data, error } = await supabase.functions.invoke('send-whatsapp-message', {
     body: { leadId, phone, message },
   })
-  if (error) throw error
+  if (error) {
+    let msg = error.message
+    try {
+      const body = await (error as any).context?.json?.()
+      if (body?.error) msg = body.error
+    } catch {
+      /* intentionally ignored */
+    }
+    throw new Error(msg)
+  }
   return data as { success: boolean; message: any }
 }
 
