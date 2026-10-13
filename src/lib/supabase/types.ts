@@ -3734,6 +3734,15 @@ export type Database = {
         Returns: Json
       }
       painel_pendencias_listas: { Args: never; Returns: Json }
+      pendencia_resolver: {
+        Args: {
+          p_acao: string
+          p_chave: string
+          p_dados: Json
+          p_lead_id: string
+        }
+        Returns: Json
+      }
       project_item_names: {
         Args: {
           psp: Database['public']['Tables']['produtos_servicos_projeto']['Row']
