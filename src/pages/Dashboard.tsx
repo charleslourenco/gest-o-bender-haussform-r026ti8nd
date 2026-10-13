@@ -1,6 +1,6 @@
 // test
-import { useState, useEffect, useCallback } from 'react'
-import { format, subMonths } from 'date-fns'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { format, subMonths, subDays, startOfDay, endOfDay } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   CalendarIcon,
@@ -57,8 +57,8 @@ export default function Dashboard() {
 
   // Padrão: Todo o histórico para visão completa da operação, ou ajustável pelo usuário
   const [date, setDate] = useState<DateRange | undefined>({
-    from: subMonths(new Date(), 6),
-    to: new Date(),
+    from: startOfDay(subMonths(new Date(), 6)),
+    to: endOfDay(new Date()),
   })
   const [activePreset, setActivePreset] = useState<string | null>(null)
   const [metrics, setMetrics] = useState<FullDashboardMetrics | null>(null)
@@ -67,13 +67,25 @@ export default function Dashboard() {
   const [isSessionExpired, setIsSessionExpired] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
 
+  const requestIdRef = useRef(0)
+
+  const dateRangeStrings = useMemo(() => {
+    const from = date?.from ? startOfDay(date.from).toISOString() : null
+    const to = date?.to
+      ? endOfDay(date.to).toISOString()
+      : date?.from
+        ? endOfDay(date.from).toISOString()
+        : null
+    return { from, to }
+  }, [date])
+
   const fetchMetrics = useCallback(async () => {
+    const currentRequestId = ++requestIdRef.current
     setLoading(true)
     setErrorMessage(null)
     setIsSessionExpired(false)
     try {
-      const from = date?.from ? date.from.toISOString() : null
-      const to = date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : null
+      const { from, to } = dateRangeStrings
 
       const result = await runWithAuthRecovery<FullDashboardMetrics>(() =>
         supabase.rpc('get_dashboard_metrics', {
@@ -81,6 +93,10 @@ export default function Dashboard() {
           p_end_date: to,
         }),
       )
+
+      if (currentRequestId !== requestIdRef.current) {
+        return
+      }
 
       if (result.error) {
         console.error('[Dashboard] Erro ao carregar métricas via RPC:', result.error)
@@ -101,15 +117,20 @@ export default function Dashboard() {
         setErrorMessage('Nenhum dado retornado para o período selecionado.')
       }
     } catch (err: any) {
+      if (currentRequestId !== requestIdRef.current) {
+        return
+      }
       console.error('[Dashboard] Exceção ao consultar get_dashboard_metrics:', err)
       setErrorMessage(
         err?.message || 'Ocorreu um erro inesperado ao carregar as métricas do painel.',
       )
     } finally {
-      setLoading(false)
-      setIsRetrying(false)
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false)
+        setIsRetrying(false)
+      }
     }
-  }, [date])
+  }, [dateRangeStrings])
 
   useEffect(() => {
     fetchMetrics()
@@ -120,10 +141,15 @@ export default function Dashboard() {
     if (preset.all) {
       setDate(undefined)
     } else if (preset.days) {
-      const from = new Date(new Date().setDate(new Date().getDate() - preset.days))
-      setDate({ from, to: new Date() })
+      setDate({
+        from: startOfDay(subDays(new Date(), preset.days)),
+        to: endOfDay(new Date()),
+      })
     } else if (preset.months) {
-      setDate({ from: subMonths(new Date(), preset.months), to: new Date() })
+      setDate({
+        from: startOfDay(subMonths(new Date(), preset.months)),
+        to: endOfDay(new Date()),
+      })
     }
   }
 
@@ -375,13 +401,7 @@ export default function Dashboard() {
             <>
               {/* Aba 1: Atendimentos (Leads) */}
               <TabsContent value="atendimentos" className="mt-0 focus-visible:outline-none">
-                <AtendimentosTab
-                  data={metrics.atendimentos}
-                  dateRange={{
-                    from: date?.from ? date.from.toISOString() : null,
-                    to: date?.to ? new Date(date.to.setHours(23, 59, 59, 999)).toISOString() : null,
-                  }}
-                />
+                <AtendimentosTab data={metrics.atendimentos} dateRange={dateRangeStrings} />
               </TabsContent>
 
               {/* Aba 2: Clientes */}
