@@ -31,6 +31,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/hooks/use-auth'
+import { isUserGestor } from '@/services/alertas-notas-fiscais'
+import { useAlertasNotasFiscais } from '@/hooks/use-alertas-notas-fiscais'
+import { FileWarning, ArrowRight } from 'lucide-react'
 
 import type { FullDashboardMetrics } from './dashboard/types'
 import { AtendimentosTab } from './dashboard/AtendimentosTab'
@@ -47,6 +51,10 @@ const PERIOD_PRESETS = [
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user, permissions, isAdmin } = useAuth()
+  const { resumo: resumoAlertas, loading: loadingAlertas } = useAlertasNotasFiscais()
+  const isGestor = isUserGestor(user, permissions, isAdmin)
+
   // Padrão: Todo o histórico para visão completa da operação, ou ajustável pelo usuário
   const [date, setDate] = useState<DateRange | undefined>({
     from: subMonths(new Date(), 6),
@@ -130,6 +138,60 @@ export default function Dashboard() {
 
   return (
     <div className="pt-0 pb-6 px-6 h-full flex flex-col animate-in fade-in duration-300">
+      {/* Card resumido de pendências de notas fiscais: visível APENAS para papel Gestor (isUserGestor) */}
+      {isGestor && !loadingAlertas && resumoAlertas.total > 0 && (
+        <section
+          aria-label="Pendências de notas fiscais"
+          className="mb-4 rounded-xl border border-rose-300 dark:border-rose-900/60 bg-linear-to-r from-rose-50 via-red-50/60 to-amber-50 dark:from-rose-950/40 dark:via-red-950/30 dark:to-amber-950/20 p-4 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0">
+              <FileWarning className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold text-foreground">Pendências em Notas Fiscais</h2>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-600 text-white shadow-xs">
+                  {resumoAlertas.total}{' '}
+                  {resumoAlertas.total === 1 ? 'nota pendente' : 'notas pendentes'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Existem notas fiscais com divergência de valores, falta de lançamento em estoque ou
+                sem itens vinculados.
+              </p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                {resumoAlertas.alta > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-600 text-white">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    {resumoAlertas.alta} alta gravidade
+                  </span>
+                )}
+                {resumoAlertas.media > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-500 text-white">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    {resumoAlertas.media} média
+                  </span>
+                )}
+                {resumoAlertas.baixa > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {resumoAlertas.baixa} baixa
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => navigate('/estoque-compras?tab=pendencias')}
+            className="bg-midnight-navy hover:bg-midnight-navy/90 text-off-white font-semibold text-xs gap-1.5 shadow-sm shrink-0 self-start md:self-auto"
+          >
+            <span>Resolver pendências</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </section>
+      )}
+
       <Tabs defaultValue="atendimentos" className="w-full flex-1 flex flex-col min-h-0 mt-0">
         {/* Barra Superior: Título dos Módulos + 4 Abas Exatas Solicitadas */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between w-full bg-card text-card-foreground px-4 py-3 rounded-xl border border-border shadow-sm mb-4 gap-4">

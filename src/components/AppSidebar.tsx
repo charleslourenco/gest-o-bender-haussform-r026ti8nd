@@ -24,6 +24,7 @@ import {
 import { useSidebar } from '@/components/ui/sidebar'
 import { useAuth } from '@/hooks/use-auth'
 import { usePendenciasCount } from '@/hooks/use-pendencias-count'
+import { useAlertasNotasFiscais } from '@/hooks/use-alertas-notas-fiscais'
 import { cn } from '@/lib/utils'
 
 const menuItems = [
@@ -57,6 +58,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { permissions, user } = useAuth()
   const { count: pendenciasCount } = usePendenciasCount()
+  const { resumo: resumoAlertas } = useAlertasNotasFiscais()
   const { resolvedTheme } = useTheme()
   const { open, setOpen } = useSidebar()
   const [mounted, setMounted] = useState(false)
@@ -161,6 +163,14 @@ export function AppSidebar() {
                           {pendenciasCount}
                         </span>
                       )}
+                      {item.module === 'Estoque & Compras' && resumoAlertas.total > 0 && (
+                        <span
+                          className="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full shadow-xs"
+                          title={`${resumoAlertas.total} nota(s) fiscal(is) com pendência`}
+                        >
+                          {resumoAlertas.total}
+                        </span>
+                      )}
                     </Link>
                   ) : (
                     <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm opacity-60 cursor-not-allowed text-sidebar-foreground">
@@ -172,6 +182,14 @@ export function AppSidebar() {
                           title={`${pendenciasCount} atendimento(s) aguardando resposta`}
                         >
                           {pendenciasCount}
+                        </span>
+                      )}
+                      {item.module === 'Estoque & Compras' && resumoAlertas.total > 0 && (
+                        <span
+                          className="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full shadow-xs mr-2"
+                          title={`${resumoAlertas.total} nota(s) fiscal(is) com pendência`}
+                        >
+                          {resumoAlertas.total}
                         </span>
                       )}
                       <Lock className="w-3 h-3 ml-auto shrink-0 text-sidebar-foreground/50" />
