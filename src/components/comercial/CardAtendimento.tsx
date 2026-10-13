@@ -44,7 +44,7 @@ import {
   isStatusPerdido,
 } from './constants'
 import { parseSafeDate, formatSafeDate, formatElapsedTime } from '@/lib/date-utils'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 
