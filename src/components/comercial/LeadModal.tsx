@@ -4,7 +4,13 @@ import { fetchLeadMessages } from '@/services/comercial'
 import { findExistingClient } from '@/services/vendas'
 import { useDebounce } from '@/hooks/use-debounce'
 import { MessageSquare, AlertTriangle } from 'lucide-react'
-import { ORIGENS_LEAD, exigeNomePessoa, getRotuloNomePessoa, isOrigemCorretor } from './constants'
+import {
+  ORIGENS_LEAD,
+  exigeNomePessoa,
+  nomePessoaObrigatorio,
+  getRotuloNomePessoa,
+  isOrigemCorretor,
+} from './constants'
 import { cn } from '@/lib/utils'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 
@@ -262,11 +268,13 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                 <div>
                   <label className="block text-foreground font-semibold text-[14px] mb-1.5">
                     {isOrigemCorretor(origem)
-                      ? 'Indicado por: (Nome do Corretor)'
-                      : `${getRotuloNomePessoa(origem)} *`}
+                      ? 'Indicado por: (Nome do Corretor) *'
+                      : nomePessoaObrigatorio(origem)
+                        ? `${getRotuloNomePessoa(origem)} *`
+                        : `${getRotuloNomePessoa(origem)} (opcional)`}
                   </label>
                   <input
-                    required
+                    required={nomePessoaObrigatorio(origem)}
                     type="text"
                     name="origem_pessoa"
                     value={origemPessoa}
@@ -274,7 +282,9 @@ export function LeadModal({ lead, users, onClose, onSave }: Props) {
                     placeholder={
                       isOrigemCorretor(origem)
                         ? 'Nome do corretor (ex: Carlos Andrade)'
-                        : getRotuloNomePessoa(origem)
+                        : `${getRotuloNomePessoa(origem)}${
+                            nomePessoaObrigatorio(origem) ? '' : ' (opcional)'
+                          }`
                     }
                     className="w-full bg-background border border-input text-foreground rounded-lg px-4 py-3 min-h-[44px] outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200"
                   />

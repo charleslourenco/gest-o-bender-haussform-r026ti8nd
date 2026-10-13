@@ -27,6 +27,7 @@ import {
   isCategoriaComercial,
   ORIGENS_LEAD,
   exigeNomePessoa,
+  nomePessoaObrigatorio,
   getRotuloNomePessoa,
 } from './constants'
 import {
@@ -810,12 +811,15 @@ export function ConversasView({ toolbarPortal, isActive = true }: ConversasViewP
               {exigeNomePessoa(selectedLead.origem) && (
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-muted-foreground uppercase">
-                    {getRotuloNomePessoa(selectedLead.origem)} *
+                    {getRotuloNomePessoa(selectedLead.origem)}
+                    {nomePessoaObrigatorio(selectedLead.origem) ? ' *' : ' (opcional)'}
                   </label>
                   <Input
                     disabled={updating}
                     value={selectedLead.origem_pessoa || ''}
-                    placeholder={getRotuloNomePessoa(selectedLead.origem)}
+                    placeholder={`${getRotuloNomePessoa(selectedLead.origem)}${
+                      nomePessoaObrigatorio(selectedLead.origem) ? '' : ' (opcional)'
+                    }`}
                     onChange={(e) =>
                       setSelectedLead((prev) =>
                         prev ? { ...prev, origem_pessoa: e.target.value } : null,

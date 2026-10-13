@@ -389,12 +389,20 @@ export const ORIGENS_LEAD = [
 
 export type OrigemLead = (typeof ORIGENS_LEAD)[number]
 
-// Origens que exigem o campo "Nome da pessoa" (Corretor, Bender Conecta, Arquiteto, Indicação)
+// Origens que exibem o campo "Nome da pessoa" (Corretor, Bender Conecta, Arquiteto, Indicação)
 export const ORIGENS_COM_PESSOA = ['Corretor', 'Bender Conecta', 'Arquiteto', 'Indicação'] as const
 
 export function exigeNomePessoa(origem?: string | null): boolean {
   if (!origem) return false
   return ORIGENS_COM_PESSOA.includes(origem as any)
+}
+
+// Origens onde o "Nome da pessoa" é OBRIGATÓRIO (para Indicação e Bender Conecta é opcional)
+export const ORIGENS_PESSOA_OBRIGATORIA = ['Corretor', 'Arquiteto'] as const
+
+export function nomePessoaObrigatorio(origem?: string | null): boolean {
+  if (!origem) return false
+  return ORIGENS_PESSOA_OBRIGATORIA.includes(origem as any)
 }
 
 export function getRotuloNomePessoa(origem?: string | null): string {

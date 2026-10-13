@@ -15,6 +15,7 @@ import {
   LeadMetadados,
   ORIGENS_LEAD,
   exigeNomePessoa,
+  nomePessoaObrigatorio,
   getRotuloNomePessoa,
   isStatusPerdido,
   isStatusVendido,
@@ -816,7 +817,7 @@ export function KanbanAtendimentos({
       return
     }
 
-    if (exigeNomePessoa(despachoOrigem) && !despachoOrigemPessoa.trim()) {
+    if (nomePessoaObrigatorio(despachoOrigem) && !despachoOrigemPessoa.trim()) {
       toast.error(`Informe o ${getRotuloNomePessoa(despachoOrigem).toLowerCase()}`)
       return
     }
@@ -833,7 +834,9 @@ export function KanbanAtendimentos({
       const newNotasPessoais = stringifyLeadMetadados(notas, newMeta)
 
       const targetAba = ATENDIMENTO_ABAS.find((a) => a.id === targetAbaId)
-      const nomePessoaFinal = exigeNomePessoa(despachoOrigem) ? despachoOrigemPessoa.trim() : null
+      const nomePessoaFinal = exigeNomePessoa(despachoOrigem)
+        ? despachoOrigemPessoa.trim() || null
+        : null
 
       await handleUpdateLead(lead.id, {
         origem: despachoOrigem.trim(),
@@ -1073,7 +1076,7 @@ export function KanbanAtendimentos({
       return
     }
 
-    if (exigeNomePessoa(quickOrigem) && !quickOrigemPessoa.trim()) {
+    if (nomePessoaObrigatorio(quickOrigem) && !quickOrigemPessoa.trim()) {
       toast.error('Informe o nome da pessoa para a origem selecionada')
       return
     }
@@ -1097,7 +1100,7 @@ export function KanbanAtendimentos({
       nome: quickNome.trim(),
       telefone: phoneDigits,
       origem: quickOrigem.trim() || 'A definir',
-      origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() : null,
+      origem_pessoa: exigeNomePessoa(quickOrigem) ? quickOrigemPessoa.trim() || null : null,
     }
 
     try {
@@ -1655,8 +1658,10 @@ export function KanbanAtendimentos({
             </div>
             {exigeNomePessoa(quickOrigem) && (
               <Input
-                required
-                placeholder={`${getRotuloNomePessoa(quickOrigem)} *`}
+                required={nomePessoaObrigatorio(quickOrigem)}
+                placeholder={`${getRotuloNomePessoa(quickOrigem)}${
+                  nomePessoaObrigatorio(quickOrigem) ? ' *' : ' (opcional)'
+                }`}
                 value={quickOrigemPessoa}
                 onChange={(e) => setQuickOrigemPessoa(e.target.value)}
                 className="h-8 text-xs w-48 border-amber-500/50 focus:border-amber-500"
@@ -2014,12 +2019,18 @@ export function KanbanAtendimentos({
               {exigeNomePessoa(despachoOrigem) && (
                 <div className="space-y-1.5 animate-in fade-in duration-150">
                   <label className="text-xs font-medium text-foreground">
-                    {getRotuloNomePessoa(despachoOrigem)}{' '}
-                    <span className="text-destructive">*</span>
+                    {getRotuloNomePessoa(despachoOrigem)}
+                    {nomePessoaObrigatorio(despachoOrigem) ? (
+                      <span className="text-destructive"> *</span>
+                    ) : (
+                      <span className="text-muted-foreground font-normal"> (opcional)</span>
+                    )}
                   </label>
                   <Input
-                    required
-                    placeholder={`${getRotuloNomePessoa(despachoOrigem)} *`}
+                    required={nomePessoaObrigatorio(despachoOrigem)}
+                    placeholder={`${getRotuloNomePessoa(despachoOrigem)}${
+                      nomePessoaObrigatorio(despachoOrigem) ? ' *' : ' (opcional)'
+                    }`}
                     value={despachoOrigemPessoa}
                     onChange={(e) => setDespachoOrigemPessoa(e.target.value)}
                     className="h-9 text-xs"
@@ -2053,7 +2064,7 @@ export function KanbanAtendimentos({
                 disabled={
                   isSubmittingDespachoOrigem ||
                   !despachoOrigem ||
-                  (exigeNomePessoa(despachoOrigem) && !despachoOrigemPessoa.trim())
+                  (nomePessoaObrigatorio(despachoOrigem) && !despachoOrigemPessoa.trim())
                 }
               >
                 {isSubmittingDespachoOrigem ? 'Despachando...' : 'Confirmar e despachar'}
