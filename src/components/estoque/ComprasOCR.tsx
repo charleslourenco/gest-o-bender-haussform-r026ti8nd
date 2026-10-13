@@ -40,8 +40,16 @@ import {
 import { openStorageFileInNewTab } from '@/lib/file-viewer'
 import { parseNFeXml } from '@/lib/nfe-xml-parser'
 import { processInvoiceWithAutoReforco } from '@/services/compras-ocr-pipeline'
+import { useAlertasNotasFiscais } from '@/hooks/use-alertas-notas-fiscais'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
-export function ComprasOCR() {
+interface ComprasOCRProps {
+  onSelectNotaForEdit?: (nota: any) => void
+  onNavigateToPendencias?: () => void
+}
+
+export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: ComprasOCRProps = {}) {
+  const { alertasMap } = useAlertasNotasFiscais()
   const [isDragging, setIsDragging] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [notas, setNotas] = useState<any[]>([])
@@ -1006,6 +1014,72 @@ export function ComprasOCR() {
                           </div>{' '}
                         </div>
                         <div className="flex items-center gap-2">
+                          {/* Ícone de alerta colorido pela gravidade nas notas que estiverem na view */}
+                          {(() => {
+                            const alerta = alertasMap.get(nota.id)
+                            if (!alerta) return null
+                            const isAlta = alerta.gravidade === 'alta'
+                            const isMedia = alerta.gravidade === 'media'
+                            const iconColor = isAlta
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : isMedia
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-slate-500 dark:text-slate-400'
+                            const bgColor = isAlta
+                              ? 'bg-rose-100 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800'
+                              : isMedia
+                                ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800'
+                                : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700'
+
+                            return (
+                              <div
+                                className="flex items-center gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-md border ${bgColor} cursor-help`}
+                                      >
+                                        <AlertTriangle className={`w-3.5 h-3.5 ${iconColor}`} />
+                                        <span className={`text-[11px] font-semibold ${iconColor}`}>
+                                          {isAlta
+                                            ? 'Pendência Alta'
+                                            : isMedia
+                                              ? 'Pendência Média'
+                                              : 'Pendência Baixa'}
+                                        </span>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs text-xs space-y-1">
+                                      <p className="font-semibold">{alerta.mensagem}</p>
+                                      {alerta.acao_sugerida && (
+                                        <p className="text-[11px] text-muted-foreground italic">
+                                          Sugestão: {alerta.acao_sugerida}
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (onSelectNotaForEdit) {
+                                      onSelectNotaForEdit(nota)
+                                    } else {
+                                      setExpandedNota(nota.id)
+                                    }
+                                  }}
+                                  className="h-7 px-2 text-[11px] font-medium bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
+                                  title="Resolver esta pendência"
+                                >
+                                  Resolver
+                                </Button>
+                              </div>
+                            )
+                          })()}
                           <div className="text-right">
                             <p className="font-bold text-sm">{formatCurrency(nota.valor_total)}</p>
                             <Badge
