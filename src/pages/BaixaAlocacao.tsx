@@ -70,70 +70,61 @@ export default function BaixaAlocacao() {
     setError('')
 
     try {
-      const nowIso = new Date().toISOString()
-      const unitVal =
-        alocacao.valor_unitario_congelado !== null &&
-        alocacao.valor_unitario_congelado !== undefined
-          ? Number(alocacao.valor_unitario_congelado)
-          : Number(alocacao.item?.valor_unitario ?? 0)
-      const totalVal =
-        alocacao.valor_total_congelado !== null && alocacao.valor_total_congelado !== undefined
-          ? Number(alocacao.valor_total_congelado)
-          : Math.round(Number(alocacao.quantidade || 0) * unitVal * 100) / 100
+      const { data, error: rpcError } = await (supabase.rpc as any)('baixar_alocacao', {
+        p_alocacao_id: alocacao.id,
+        p_baixado_por: 'QR etiqueta',
+      })
 
-      const updatePayload: Record<string, any> = {
-        status: 'baixado',
-        baixado_em: nowIso,
-      }
-      if (!alocacao.destino) {
-        updatePayload.destino = 'cliente'
-      }
-      if (
-        alocacao.valor_unitario_congelado === null ||
-        alocacao.valor_unitario_congelado === undefined
-      ) {
-        updatePayload.valor_unitario_congelado = unitVal
-      }
-      if (alocacao.valor_total_congelado === null || alocacao.valor_total_congelado === undefined) {
-        updatePayload.valor_total_congelado = totalVal
+      if (rpcError) {
+        setError(rpcError.message || 'Erro ao dar baixa na alocação.')
+        return
       }
 
-      const { error: updateErr } = await supabase
-        .from('estoque_alocacoes')
-        .update(updatePayload)
-        .eq('id', alocacao.id)
+      const result = data as { ok?: boolean; motivo?: string; baixado_em?: string } | null
 
-      if (updateErr) throw updateErr
-
-      if (alocacao.item_id) {
-        const { error: estoqueErr } = await supabase.rpc('deduct_estoque_alocacao', {
-          p_item_id: alocacao.item_id,
-          p_quantidade: alocacao.quantidade,
-        })
-
-        if (estoqueErr) {
-          // Fallback: direct update if rpc not available
-          const { error: directErr } = await supabase
-            .from('estoque_itens')
-            .update({
-              quantidade: Math.max(0, (alocacao.item?.quantidade ?? 0) - alocacao.quantidade),
-              atualizado_em: nowIso,
+      if (result && result.ok === false && result.motivo === 'ja_baixada') {
+        const dataStr = result.baixado_em
+          ? new Date(result.baixado_em).toLocaleString('pt-BR', {
+              timeZone: 'America/Sao_Paulo',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
             })
-            .eq('id', alocacao.item_id)
-          if (directErr) throw directErr
+          : ''
+        setError(`Esta etiqueta já foi baixada em ${dataStr}`)
+        if (result.baixado_em) {
+          setAlocacao((prev) =>
+            prev ? { ...prev, status: 'baixado', baixado_em: result.baixado_em } : null,
+          )
         }
-
-        await supabase.from('estoque_movimentacoes').insert({
-          item_id: alocacao.item_id,
-          tipo: 'saida',
-          quantidade: alocacao.quantidade,
-        })
+        return
       }
 
-      setSuccess(true)
-      setAlocacao({ ...alocacao, status: 'baixado', baixado_em: nowIso })
+      if (result?.ok === false) {
+        setError(
+          result.motivo
+            ? `Não foi possível baixar: ${result.motivo}`
+            : 'Não foi possível baixar a alocação.',
+        )
+        return
+      }
+
+      if (result?.ok === true) {
+        setSuccess(true)
+        setAlocacao((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'baixado',
+                baixado_em: result.baixado_em || new Date().toISOString(),
+              }
+            : null,
+        )
+      }
     } catch (e: any) {
-      setError('Erro ao dar baixa. Tente novamente. ' + (e?.message || ''))
+      setError(e?.message || 'Erro ao processar a baixa. Tente novamente.')
     } finally {
       setBaixaLoading(false)
     }
