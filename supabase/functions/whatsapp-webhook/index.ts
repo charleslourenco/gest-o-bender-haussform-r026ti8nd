@@ -441,19 +441,10 @@ Deno.serve(async (req) => {
       const initialLeadName =
         isValidRealName(senderName) && senderName !== 'Cliente' ? senderName : 'Cliente'
 
+      // Cria pelo banco com trava por telefone: duas mensagens seguidas de um contato novo
+      // chegam juntas e antes viravam dois cards (erro 1.5). Se o lead já existir, devolve ele.
       const { data: newLead, error } = await supabase
-        .from('leads')
-        .insert({
-          nome: initialLeadName,
-          telefone: phone,
-          email: null,
-          origem: 'A definir',
-          status: 'Novo contato',
-          notas: '',
-          atualizado_em: nowStr,
-          kanban_ativo: true,
-        })
-        .select('*')
+        .rpc('criar_lead_whatsapp', { p_nome: initialLeadName, p_telefone: phone })
         .single()
 
       if (error) {

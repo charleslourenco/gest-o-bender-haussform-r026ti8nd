@@ -34,13 +34,17 @@ function normalizePhoneNumber(raw: unknown): string {
   if (!digits) return ''
 
   let p = digits
+
+  // Só acrescenta o 9 em celular (número local começando com 6, 7, 8 ou 9); fixo fica como está
+  const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
+
   if (p.startsWith('55')) {
-    if (p.length === 12) {
+    if (p.length === 12 && isCelularSem9(p.substring(4))) {
       p = p.substring(0, 4) + '9' + p.substring(4)
     }
   } else {
     if (p.length === 10) {
-      p = '55' + p.substring(0, 2) + '9' + p.substring(2)
+      p = isCelularSem9(p.substring(2)) ? '55' + p.substring(0, 2) + '9' + p.substring(2) : '55' + p
     } else if (p.length === 11) {
       p = '55' + p
     }
@@ -274,6 +278,7 @@ Deno.serve(async (req: Request) => {
         'id, nome, telefone, origem, origem_pessoa, status, categoria, notas_pessoais, notas, excluido, arquivado_comercial',
       )
       .eq('telefone', telefone)
+      .order('criado_em', { ascending: false })
 
     if (searchErr) {
       console.error('[conecta-leads] Erro ao buscar leads candidatos:', searchErr)
@@ -308,6 +313,130 @@ Deno.serve(async (req: Request) => {
 
     const nowStr = new Date().toISOString()
 
+    // Indicação já anotada antes num card que não veio do Conecta: só registra o reenvio
+    let linkedLead: any = null
+    if (!existingLead && Array.isArray(candidateLeads)) {
+      linkedLead =
+        candidateLeads.find((cand: any) => {
+          const { meta } = parseLeadMetadados(cand.notas_pessoais)
+          return (
+            Array.isArray(meta?.conecta_indicacoes) &&
+            meta.conecta_indicacoes.some((i: any) => String(i?.conecta_lead_id) === conectaLeadId)
+          )
+        }) || null
+    }
+
+    // Cliente já em atendimento (card ativo, não vendido nem perdido): a indicação é anotada
+    // nele em vez de criar outro card (erro 1.5). Se o último card foi vendido ou perdido,
+    // segue o fluxo normal e cria card novo (recompra / nova oportunidade).
+    const isStatusEncerrado = (status: unknown) => {
+      const st = String(status || '')
+        .trim()
+        .toLowerCase()
+      return (
+        st === 'vendido' ||
+        st.includes('perdido') ||
+        st === 'sdr: não é lead' ||
+        st === 'sdr: nao e lead'
+      )
+    }
+    const CATEGORIAS_COMERCIAIS = ['Comercial', 'Orçamento', 'Follow up', 'Já é Cliente']
+    const activeLead =
+      !existingLead && !linkedLead && Array.isArray(candidateLeads)
+        ? candidateLeads.find(
+            (cand: any) =>
+              cand.excluido !== true &&
+              cand.arquivado_comercial !== true &&
+              CATEGORIAS_COMERCIAIS.includes(String(cand.categoria || 'Comercial').trim()) &&
+              !isStatusEncerrado(cand.status),
+          ) || null
+        : null
+
+    const targetLead = linkedLead || activeLead
+    if (targetLead) {
+      const { notas: notasP, meta } = parseLeadMetadados(targetLead.notas_pessoais)
+      const indicacoes = Array.isArray(meta.conecta_indicacoes) ? [...meta.conecta_indicacoes] : []
+      const jaAnotada = indicacoes.some((i: any) => String(i?.conecta_lead_id) === conectaLeadId)
+      if (!jaAnotada) {
+        indicacoes.push({
+          conecta_lead_id: conectaLeadId,
+          corretor: nomeCorretor || null,
+          nome_informado: nome,
+          data: nowStr,
+        })
+      }
+      // NÃO grava conecta_lead_id nem muda origem/origem_pessoa: o card continua com a origem
+      // que já tinha, e a sincronização de fases com o Conecta não vale para este cliente
+      const updateData: Record<string, any> = {
+        atualizado_em: nowStr,
+        notas_pessoais: stringifyLeadMetadados(notasP, { ...meta, conecta_indicacoes: indicacoes }),
+      }
+      if (!jaAnotada) {
+        const dataBR = new Date(nowStr).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'America/Sao_Paulo',
+        })
+        const linha = `[${dataBR}] Indicação do Bender Conecta (ID ${conectaLeadId})${
+          nomeCorretor ? ` pelo corretor ${nomeCorretor}` : ''
+        }: o cliente já estava em atendimento neste card, nenhum card novo foi criado.`
+        const notasAtuais = String(targetLead.notas || '').trim()
+        updateData.notas = notasAtuais ? `${notasAtuais}\n${linha}` : linha
+      }
+
+      const { data: linked, error: linkErr } = await supabase
+        .from('leads')
+        .update(updateData)
+        .eq('id', targetLead.id)
+        .select('id, nome, telefone, origem, origem_pessoa, status')
+        .single()
+
+      if (linkErr) {
+        console.error('[conecta-leads] Erro ao anotar indicação no card existente:', linkErr)
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Erro ao anotar indicação no card existente.',
+            details: linkErr.message,
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          },
+        )
+      }
+
+      console.log(
+        `[conecta-leads] Cliente já em atendimento: indicação ${conectaLeadId} anotada no card ${linked.id} sem criar card novo.`,
+      )
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          action: 'linked_existing',
+          deduplicated: true,
+          message:
+            'Cliente já está em atendimento na Bender. A indicação foi anotada no card existente.',
+          lead: {
+            id: linked.id,
+            nome: linked.nome,
+            telefone: linked.telefone,
+            origem: linked.origem,
+            origem_pessoa: linked.origem_pessoa,
+            status: linked.status,
+            conecta_lead_id: conectaLeadId,
+          },
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
     if (existingLead) {
       // Lead duplicado detectado (mesmo telefone + mesmo conecta_lead_id)
       console.log(
@@ -341,10 +470,7 @@ Deno.serve(async (req: Request) => {
         updateData.origem_pessoa = nomeCorretor
       }
 
-      // Se o lead estava excluído, reativa
-      if (existingLead.excluido === true) {
-        updateData.excluido = false
-      }
+      // Lead excluído (cadastro repetido, não é lead, teste) NÃO é reativado por reenvio do Conecta
 
       const { data: updatedLead, error: updateErr } = await supabase
         .from('leads')
