@@ -449,11 +449,32 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  /** Formata data de emissão como string pura dd/mm/aaaa sem conversão de fuso horário */
+  const formatDataEmissaoPura = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '-'
+    const trimmed = String(dateStr).trim()
+    const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, ano, mes, dia] = match
+      return `${dia}/${mes}/${ano}`
+    }
+    const matchBr = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+    if (matchBr) {
+      return matchBr[0]
+    }
+    return trimmed.split('T')[0]
+  }
+
   const getPendingCount = (nota: any): number => {
     const itens = nota.dados_ocr?.itens || []
     return itens.filter((i: MatchedItem) => i.status === 'pendente_revisao').length
   }
 
+  /**
+   * Reprocessa o arquivo da nota fiscal utilizando o novo pipeline em 3 camadas.
+   * Regra 8: Substitui `dados_ocr` (NUNCA `dados_ocr_original`), mantendo `itens_nota_fiscal`
+   * intacto até o usuário salvar a revisão.
+   */
   const handleReprocessExisting = async (nota: any) => {
     if (!nota.arquivo_url) {
       // Sem arquivo anexado: abre o file picker para selecionar o arquivo e reprocessar direto nesta nota
@@ -464,12 +485,12 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
 
     setReprocessingNotaId(nota.id)
     toast({
-      title: 'Reprocessando arquivo anexado...',
-      description: 'Baixando documento e executando leitura novamente.',
+      title: 'Reprocessando nota...',
+      description: 'Executando pipeline em 3 camadas (Camada 1: parser PDF eletrônico sem IA).',
     })
 
     try {
-      // 1. Baixar o arquivo do Supabase Storage tentando o bucket correto
+      // 1. Baixar o arquivo do Supabase Storage
       let fileBlob: Blob | null = null
       let downloadErr: any = null
 
@@ -477,7 +498,6 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/[^/]+\//, '')
         .replace(/^\/+/, '')
 
-      // Tentar no bucket notas-fiscais primeiro
       const tryBuckets = ['notas-fiscais', 'documentos', 'comprovantes']
       for (const b of tryBuckets) {
         const pathCandidate = cleanPath.startsWith(`${b}/`)
@@ -500,8 +520,9 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
       const fileName = cleanPath.split('/').pop() || 'nota.pdf'
       const file = new File([fileBlob], fileName, { type: fileBlob.type })
 
-      // Leitura com auto-reforço automático (6 páginas @ 2200px + 2ª passada se itens vazios)
+      // 2. Executar o pipeline de 3 camadas
       const ocrPipelineResult = await processInvoiceWithAutoReforco(file, {
+        notaId: nota.id,
         onProgress: (msg) => {
           toast({
             title: 'Reprocessando Nota...',
@@ -510,18 +531,9 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         },
       })
 
-      const isXml = ocrPipelineResult.isXml
       const extractedData: any = ocrPipelineResult.data
-
-      if (ocrPipelineResult.itensRecuperadosNoReforco) {
-        toast({
-          title: 'Auto-Reforço Concluído!',
-          description: 'Itens identificados com sucesso após leitura reforçada.',
-        })
-      }
-
-      const hasItens =
-        extractedData?.itens && Array.isArray(extractedData.itens) && extractedData.itens.length > 0
+      const rawItens = Array.isArray(extractedData?.itens) ? extractedData.itens : []
+      const rotaResolvida = ocrPipelineResult.camadaResolvida
 
       const { data: allItems } = await supabase
         .from('estoque_itens')
@@ -529,115 +541,67 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
       const existingItems = allItems || []
       const totaisFiscais = extractedData?.totais || undefined
 
+      // Normalizar itens com _draftId e matching contra estoque para sugestão visual
+      const itensWithDraftId = rawItens.map((it: any, idx: number) => ({
+        ...it,
+        _draftId:
+          it._draftId ||
+          (typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `reprocess-${Date.now()}-${idx}`),
+      }))
+
       let matchedItems: MatchedItem[] = []
-      let inventoryInserted = 0
-
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      if (hasItens) {
-        const itensWithDraftId = (extractedData.itens || []).map((it: any, idx: number) => ({
-          ...it,
-          _draftId:
-            it._draftId ||
-            (typeof crypto !== 'undefined' && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `item-${Date.now()}-${idx}`),
-        }))
+      if (itensWithDraftId.length > 0) {
         matchedItems = await matchInvoiceItems(itensWithDraftId, existingItems)
-        const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
-
-        for (let i = 0; i < matchedItems.length; i++) {
-          const item = matchedItems[i]
-          const isEligible =
-            (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
-            !!item.item_id
-
-          if (isEligible && item.item_id) {
-            const existing = existingItems.find((it) => it.id === item.item_id)
-            if (existing) {
-              const custoCalc = custosEfetivosMap.get(item._draftId || i)
-              const valorParaEstoque =
-                custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
-                  ? custoCalc.custo_efetivo_unitario
-                  : item.preco_unitario > 0
-                    ? item.preco_unitario
-                    : undefined
-
-              const { error: updateItemErr } = await supabase
-                .from('estoque_itens')
-                .update({
-                  quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                  valor_unitario: valorParaEstoque,
-                  fornecedor: extractedData?.fornecedor || nota.fornecedor || 'Desconhecido',
-                  atualizado_em: new Date().toISOString(),
-                })
-                .eq('id', existing.id)
-              if (updateItemErr) {
-                matchedItems[i] = { ...item, status: 'pendente_revisao' }
-                continue
-              }
-
-              const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
-                item_id: existing.id,
-                tipo: 'entrada',
-                quantidade: Number(item.quantidade),
-                nota_fiscal_id: nota.id,
-                usuario_id: currentUser?.id || null,
-              })
-
-              if (movErr) {
-                await supabase
-                  .from('estoque_itens')
-                  .update({
-                    quantidade: Number(existing.quantidade),
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq('id', existing.id)
-                matchedItems[i] = { ...item, status: 'pendente_revisao' }
-                continue
-              }
-
-              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
-              inventoryInserted++
-            } else {
-              matchedItems[i] = { ...item, status: 'pendente_revisao' }
-            }
-          }
-        }
-
-        await persistAutoMatchedAliases(matchedItems, currentUser?.id)
       }
 
-      const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
-      const notaStatus =
-        !hasItens || matchedItems.length === 0
-          ? 'pendente'
-          : pendingCount > 0
-            ? 'pendente_revisao'
-            : 'conciliado'
+      // Regra 8: Atualiza dados_ocr da nota fiscal SEM mexer na tabela itens_nota_fiscal
+      // e SEM alterar dados_ocr_original. Preserva data pura (YYYY-MM-DD).
+      const dataEmissaoPura = extractedData?.data_emissao || nota.data_emissao
+      const novoStatus = matchedItems.length === 0 ? 'pendente' : 'pendente_revisao'
+
+      const novoDadosOcr = {
+        ...(nota.dados_ocr || {}),
+        ...extractedData,
+        totais: totaisFiscais,
+        itens: matchedItems,
+        camada_resolvida: rotaResolvida,
+      }
 
       const { error: updateNotaErr } = await supabase
         .from('notas_fiscais')
         .update({
           fornecedor: extractedData?.fornecedor || nota.fornecedor,
           valor_total: extractedData?.valor || nota.valor_total,
-          data_emissao: extractedData?.data_emissao || nota.data_emissao,
-          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
-          status_reconciliacao: notaStatus,
+          data_emissao: dataEmissaoPura,
+          dados_ocr: novoDadosOcr,
+          status_reconciliacao: novoStatus,
         })
         .eq('id', nota.id)
+
       if (updateNotaErr) throw updateNotaErr
 
-      if (matchedItems.length > 0) {
-        await syncItensNotaFiscal(nota.id, matchedItems)
+      if (ocrPipelineResult.precisaDigitacaoManual) {
+        toast({
+          title: 'Camada 3: Lançamento Manual',
+          description:
+            'Não foi possível ler os itens com segurança. A revisão foi aberta para digitação manual.',
+          variant: 'default',
+        })
+      } else {
+        toast({
+          title: 'Nota reprocessada com sucesso!',
+          description: `${matchedItems.length} item(ns) identificados via ${
+            rotaResolvida === 'camada_1_texto_pdf'
+              ? 'Camada 1 (Parser PDF sem IA)'
+              : rotaResolvida === 'camada_2_ia_alta_resolucao'
+                ? 'Camada 2 (IA Alta Resolução)'
+                : 'Leitura SEFAZ'
+          }.`,
+        })
       }
 
-      toast({
-        title: 'Nota reprocessada!',
-        description: `${matchedItems.length} itens lidos, ${inventoryInserted} alocados.`,
-      })
       fetchNotas()
     } catch (err: any) {
       toast({
@@ -666,7 +630,7 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
     setReprocessingNotaId(target.id)
     toast({
       title: 'Enviando e processando arquivo...',
-      description: 'Anexando arquivo e realizando leitura da nota.',
+      description: 'Anexando arquivo e executando pipeline em 3 camadas.',
     })
 
     try {
@@ -675,8 +639,9 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         throw new Error(attachErr || 'Falha ao anexar arquivo.')
       }
 
-      // Leitura do novo arquivo anexado com pipeline auto-reforçado
+      // Executar novo pipeline em 3 camadas
       const ocrPipelineResult = await processInvoiceWithAutoReforco(file, {
+        notaId: target.id,
         onProgress: (msg) => {
           toast({
             title: 'Processando arquivo...',
@@ -685,18 +650,9 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         },
       })
 
-      const isXml = ocrPipelineResult.isXml
       const extractedData: any = ocrPipelineResult.data
-
-      if (ocrPipelineResult.itensRecuperadosNoReforco) {
-        toast({
-          title: 'Auto-Reforço Concluído!',
-          description: 'Itens identificados com sucesso na 2ª passada em alta resolução.',
-        })
-      }
-
-      const hasItens =
-        extractedData?.itens && Array.isArray(extractedData.itens) && extractedData.itens.length > 0
+      const rawItens = Array.isArray(extractedData?.itens) ? extractedData.itens : []
+      const rotaResolvida = ocrPipelineResult.camadaResolvida
 
       const { data: allItems } = await supabase
         .from('estoque_itens')
@@ -704,114 +660,47 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
       const existingItems = allItems || []
       const totaisFiscais = extractedData?.totais || undefined
 
+      const itensWithDraftId = rawItens.map((it: any, idx: number) => ({
+        ...it,
+        _draftId:
+          it._draftId ||
+          (typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `attach-${Date.now()}-${idx}`),
+      }))
+
       let matchedItems: MatchedItem[] = []
-      let inventoryInserted = 0
-
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser()
-
-      if (hasItens) {
-        const itensWithDraftId = (extractedData.itens || []).map((it: any, idx: number) => ({
-          ...it,
-          _draftId:
-            it._draftId ||
-            (typeof crypto !== 'undefined' && crypto.randomUUID
-              ? crypto.randomUUID()
-              : `item-${Date.now()}-${idx}`),
-        }))
+      if (itensWithDraftId.length > 0) {
         matchedItems = await matchInvoiceItems(itensWithDraftId, existingItems)
-        const custosEfetivosMap = calcularCustosEfetivos(matchedItems, totaisFiscais)
-
-        for (let i = 0; i < matchedItems.length; i++) {
-          const item = matchedItems[i]
-          const isEligible =
-            (item.status === 'matched' || (item.score !== undefined && item.score >= 85)) &&
-            !!item.item_id
-
-          if (isEligible && item.item_id) {
-            const existing = existingItems.find((it) => it.id === item.item_id)
-            if (existing) {
-              const custoCalc = custosEfetivosMap.get(item._draftId || i)
-              const valorParaEstoque =
-                custoCalc?.custo_efetivo_unitario && custoCalc.custo_efetivo_unitario > 0
-                  ? custoCalc.custo_efetivo_unitario
-                  : item.preco_unitario > 0
-                    ? item.preco_unitario
-                    : undefined
-
-              const { error: updateItemErr } = await supabase
-                .from('estoque_itens')
-                .update({
-                  quantidade: Number(existing.quantidade) + Number(item.quantidade),
-                  valor_unitario: valorParaEstoque,
-                  fornecedor: extractedData?.fornecedor || target.fornecedor || 'Desconhecido',
-                  atualizado_em: new Date().toISOString(),
-                })
-                .eq('id', existing.id)
-              if (updateItemErr) {
-                matchedItems[i] = { ...item, status: 'pendente_revisao' }
-                continue
-              }
-
-              const { error: movErr } = await supabase.from('estoque_movimentacoes').insert({
-                item_id: existing.id,
-                tipo: 'entrada',
-                quantidade: Number(item.quantidade),
-                nota_fiscal_id: target.id,
-                usuario_id: currentUser?.id || null,
-              })
-
-              if (movErr) {
-                await supabase
-                  .from('estoque_itens')
-                  .update({
-                    quantidade: Number(existing.quantidade),
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq('id', existing.id)
-                matchedItems[i] = { ...item, status: 'pendente_revisao' }
-                continue
-              }
-
-              existing.quantidade = Number(existing.quantidade) + Number(item.quantidade)
-              inventoryInserted++
-            } else {
-              matchedItems[i] = { ...item, status: 'pendente_revisao' }
-            }
-          }
-        }
-
-        await persistAutoMatchedAliases(matchedItems, currentUser?.id)
       }
 
-      const pendingCount = matchedItems.filter((i) => i.status === 'pendente_revisao').length
-      const notaStatus =
-        !hasItens || matchedItems.length === 0
-          ? 'pendente'
-          : pendingCount > 0
-            ? 'pendente_revisao'
-            : 'conciliado'
+      const dataEmissaoPura = extractedData?.data_emissao || target.data_emissao
+      const novoStatus = matchedItems.length === 0 ? 'pendente' : 'pendente_revisao'
+
+      const novoDadosOcr = {
+        ...(target.dados_ocr || {}),
+        ...extractedData,
+        totais: totaisFiscais,
+        itens: matchedItems,
+        camada_resolvida: rotaResolvida,
+      }
 
       const { error: updateNotaErr } = await supabase
         .from('notas_fiscais')
         .update({
           fornecedor: extractedData?.fornecedor || target.fornecedor,
           valor_total: extractedData?.valor || target.valor_total,
-          data_emissao: extractedData?.data_emissao || target.data_emissao,
-          dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
-          status_reconciliacao: notaStatus,
+          data_emissao: dataEmissaoPura,
+          dados_ocr: novoDadosOcr,
+          status_reconciliacao: novoStatus,
         })
         .eq('id', target.id)
-      if (updateNotaErr) throw updateNotaErr
 
-      if (matchedItems.length > 0) {
-        await syncItensNotaFiscal(target.id, matchedItems)
-      }
+      if (updateNotaErr) throw updateNotaErr
 
       toast({
         title: 'Arquivo processado!',
-        description: `${matchedItems.length} itens lidos e vinculados.`,
+        description: `${matchedItems.length} itens lidos e prontos para revisão.`,
       })
       fetchNotas()
     } catch (err: any) {
@@ -1010,9 +899,7 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
                             </div>
                             <p className="text-xs text-gray-500 dark:text-slate-400">
                               Nota: {nota.numero_nota} | Emissão:{' '}
-                              {nota.data_emissao
-                                ? new Date(nota.data_emissao).toLocaleDateString('pt-BR')
-                                : '-'}
+                              {formatDataEmissaoPura(nota.data_emissao)}
                             </p>
                           </div>{' '}
                         </div>

@@ -380,8 +380,9 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
     setIsReprocessing(true)
     try {
       toast({
-        title: 'Reprocessando nota com IA...',
-        description: 'Baixando documento original e reexecutando leitura OCR.',
+        title: 'Reprocessando nota...',
+        description:
+          'Baixando documento e executando pipeline em 3 camadas (Camada 1: parser PDF sem IA).',
       })
 
       // Download do arquivo do storage com busca nos buckets possíveis (notas-fiscais, documentos, comprovantes)
@@ -415,7 +416,7 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
 
       const { processInvoiceWithAutoReforco } = await import('@/services/compras-ocr-pipeline')
       const pipelineRes = await processInvoiceWithAutoReforco(file, {
-        forceReforco: true,
+        notaId: nota.id,
         onProgress: (msg) => {
           toast({
             title: 'Reprocessando nota...',
@@ -425,39 +426,41 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       })
 
       if (!pipelineRes || !pipelineRes.data) {
-        throw new Error('A IA não retornou dados estruturados da nota fiscal')
+        throw new Error('Falha ao obter dados estruturados da nota fiscal')
       }
 
       const extracted = pipelineRes.data
-      if (pipelineRes.itensRecuperadosNoReforco) {
-        toast({
-          title: 'Auto-Reforço Concluído!',
-          description: 'Itens recuperados com sucesso na leitura reforçada em alta resolução.',
-        })
-      }
-      const rawExtractedItens = extracted.itens || []
-      const itensWithDraft = rawExtractedItens.map((it: any, idx: number) => ({
+      const rawExtractedItens = Array.isArray(extracted.itens) ? extracted.itens : []
+      const itensWithDraft = rawExtractedItens.map((it: any) => ({
         ...it,
         _draftId: it._draftId || generateItemId(),
       }))
 
       // Executar matching inicial contra o estoque
-      const matched = await matchInvoiceItems(itensWithDraft, estoqueItems)
+      let matched: any[] = []
+      if (itensWithDraft.length > 0) {
+        matched = await matchInvoiceItems(itensWithDraft, estoqueItems)
+      }
 
+      // Regra 8: Substituir dados_ocr (NUNCA dados_ocr_original) sem mexer em itens_nota_fiscal
+      // Tratar data pura (YYYY-MM-DD)
+      const dataEmissaoPura = extracted.data_emissao || nota.data_emissao
       const updatedDadosOcr = {
         ...(nota.dados_ocr || {}),
         ...extracted,
         itens: matched,
+        camada_resolvida: pipelineRes.camadaResolvida,
       }
 
       const { error: updateErr } = await supabase
         .from('notas_fiscais')
         .update({
           dados_ocr: updatedDadosOcr,
-          valor_total: extracted.valor_total || nota.valor_total,
+          valor_total: extracted.valor_total || extracted.valor || nota.valor_total,
           fornecedor: extracted.fornecedor || nota.fornecedor,
           numero_nota: extracted.numero_nota || nota.numero_nota,
-          status_reconciliacao: matched.length > 0 ? 'pendente_revisao' : 'pendente_revisao',
+          data_emissao: dataEmissaoPura,
+          status_reconciliacao: matched.length > 0 ? 'pendente_revisao' : 'pendente',
         })
         .eq('id', nota.id)
 
@@ -466,16 +469,31 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       setDraftItens(parseItensToDraft(matched))
       setHasChanges(false)
 
-      toast({
-        title: 'Reprocessamento concluído!',
-        description: `${matched.length} item(ns) identificados na leitura.`,
-      })
+      if (pipelineRes.precisaDigitacaoManual) {
+        toast({
+          title: 'Camada 3: Digitação Manual',
+          description:
+            'Não foi possível ler os itens com segurança. A lista está aberta para digitação.',
+        })
+      } else {
+        toast({
+          title: 'Reprocessamento concluído!',
+          description: `${matched.length} item(ns) identificados via ${
+            pipelineRes.camadaResolvida === 'camada_1_texto_pdf'
+              ? 'Camada 1 (Parser PDF sem IA)'
+              : pipelineRes.camadaResolvida === 'camada_2_ia_alta_resolucao'
+                ? 'Camada 2 (IA Alta Resolução)'
+                : 'SEFAZ'
+          }.`,
+        })
+      }
+
       onResolved()
     } catch (e: any) {
       console.error('[handleReprocessInvoice] Erro:', e)
       toast({
         title: 'Falha no reprocessamento',
-        description: e.message || 'Não foi possível reprocessar a nota via IA.',
+        description: e.message || 'Não foi possível reprocessar a nota.',
         variant: 'destructive',
       })
     } finally {

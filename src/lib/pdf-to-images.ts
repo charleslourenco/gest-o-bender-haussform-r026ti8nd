@@ -72,10 +72,91 @@ async function getPdfJs(): Promise<any> {
 export interface ConvertPdfOptions {
   /** Número máximo de páginas a converter (DANFEs e romaneios com tabela longa). Padrão: 6 */
   maxPages?: number
-  /** Largura alvo máxima em pixels (ideal para GPT-4o Vision com alta legibilidade). Padrão: 2200 */
+  /** Largura alvo máxima em pixels (ideal para GPT-4o Vision com alta legibilidade). Padrão: 2200 ou 2500 */
   maxDimension?: number
   /** Qualidade JPEG (0.1 a 1.0). Padrão: 0.85 */
   quality?: number
+  /** Incluir também recorte da região da tabela de itens ("DADOS DO PRODUTO") se detectada */
+  includeItemsCrop?: boolean
+}
+
+/**
+ * Extrai o texto completo de um PDF preservando a ordem das linhas por coordenadas (Y descendente, X ascendente).
+ * Se o PDF for eletrônico (vetorial), devolve o texto com quebras de linha limpas.
+ */
+export async function extractTextFromPdf(
+  fileOrBuffer: File | Blob | ArrayBuffer | Uint8Array,
+  maxPages = 10,
+): Promise<string> {
+  let arrayBuffer: ArrayBuffer
+  if (fileOrBuffer instanceof ArrayBuffer) {
+    arrayBuffer = fileOrBuffer
+  } else if (ArrayBuffer.isView(fileOrBuffer)) {
+    const view = fileOrBuffer as ArrayBufferView
+    const copy = new Uint8Array(view.byteLength)
+    copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength))
+    arrayBuffer = copy.buffer as ArrayBuffer
+  } else {
+    arrayBuffer = await (fileOrBuffer as Blob).arrayBuffer()
+  }
+
+  const pdfjs = await getPdfJs()
+  const loadingTask = pdfjs.getDocument({
+    data: arrayBuffer.slice(0),
+    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+    cMapPacked: true,
+  })
+
+  const pdfDoc = await loadingTask.promise
+  const numPages = Math.min(pdfDoc.numPages, maxPages)
+  const fullTextParts: string[] = []
+
+  for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    const page = await pdfDoc.getPage(pageNum)
+    const textContent = await page.getTextContent()
+
+    // Ordenar itens por Y (topo para baixo) e X (esquerda para a direita)
+    // No PDF.js, transform[5] é a coordenada Y (cresce de baixo para cima) e transform[4] é X.
+    const items = (textContent.items || []).filter(
+      (item: any) => item.str && item.str.trim().length > 0,
+    )
+
+    // Agrupar itens com Y próximo na mesma linha (tolerância de ~3 unidades de coordenada)
+    items.sort((a: any, b: any) => {
+      const yDiff = b.transform[5] - a.transform[5] // Maior Y primeiro (topo)
+      if (Math.abs(yDiff) > 3) {
+        return yDiff
+      }
+      return a.transform[4] - b.transform[4] // Menor X primeiro (esquerda)
+    })
+
+    const lines: string[] = []
+    let currentLine: string[] = []
+    let currentY: number | null = null
+
+    for (const item of items) {
+      const itemY = item.transform[5]
+      if (currentY === null || Math.abs(currentY - itemY) > 3) {
+        if (currentLine.length > 0) {
+          lines.push(currentLine.join(' '))
+          currentLine = []
+        }
+        currentY = itemY
+      }
+      currentLine.push(item.str.trim())
+    }
+    if (currentLine.length > 0) {
+      lines.push(currentLine.join(' '))
+    }
+
+    fullTextParts.push(lines.join('\n'))
+
+    if (typeof page.cleanup === 'function') {
+      page.cleanup()
+    }
+  }
+
+  return fullTextParts.join('\n\n')
 }
 
 /**

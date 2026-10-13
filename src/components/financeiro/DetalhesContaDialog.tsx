@@ -353,7 +353,14 @@ export function DetalhesContaDialog({
                           <span className="font-medium">NF: {nf.numero_nota || 'S/N'}</span> —{' '}
                           {nf.fornecedor} — {formatCurrency(Number(nf.valor_total) || 0)}
                           {nf.data_emissao &&
-                            ` — ${new Date(nf.data_emissao).toLocaleDateString('pt-BR')}`}
+                            ` — ${(() => {
+                              const match = String(nf.data_emissao)
+                                .trim()
+                                .match(/^(\d{4})-(\d{2})-(\d{2})/)
+                              return match
+                                ? `${match[3]}/${match[2]}/${match[1]}`
+                                : String(nf.data_emissao).split('T')[0]
+                            })()}`}
                         </div>
                         {nf.arquivo_url && (
                           <Button
