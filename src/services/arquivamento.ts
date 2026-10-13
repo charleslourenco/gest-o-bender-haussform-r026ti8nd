@@ -12,7 +12,7 @@ export async function arquivarLead(id: string): Promise<void> {
 export async function desarquivarLead(id: string): Promise<void> {
   const { data: lead, error: fetchError } = await supabase
     .from('leads')
-    .select('arquivado_comercial, notas_pessoais')
+    .select('arquivado_comercial, notas_pessoais, excluido')
     .eq('id', id)
     .single()
 
@@ -26,8 +26,20 @@ export async function desarquivarLead(id: string): Promise<void> {
   }
 
   const { notas, meta } = parseLeadMetadados(lead?.notas_pessoais)
+  let notasAlteradas = false
+
   if (Array.isArray(meta?.arquivamentos) && meta.arquivamentos.length > 0) {
     delete meta.arquivamentos
+    notasAlteradas = true
+  }
+
+  if (lead?.excluido !== true && Array.isArray(meta?.exclusoes) && meta.exclusoes.length > 0) {
+    delete meta.exclusoes
+    delete meta.exclusao_motivo
+    notasAlteradas = true
+  }
+
+  if (notasAlteradas) {
     updatePayload.notas_pessoais = stringifyLeadMetadados(notas, meta)
   }
 
@@ -44,7 +56,7 @@ export async function desarquivarLead(id: string): Promise<void> {
 }
 
 export async function fetchLeadsArquivados() {
-  const [resA, resB] = await Promise.all([
+  const [resA, resB, resC] = await Promise.all([
     supabase
       .from('leads')
       .select('*, consultor:users!leads_consultor_id_fkey(nome)')
@@ -55,10 +67,16 @@ export async function fetchLeadsArquivados() {
       .select('*, consultor:users!leads_consultor_id_fkey(nome)')
       .eq('excluido' as any, false)
       .ilike('notas_pessoais' as any, '%"arquivamentos":[{%'),
+    supabase
+      .from('leads')
+      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+      .eq('excluido' as any, false)
+      .ilike('notas_pessoais' as any, '%"exclusoes":[{%'),
   ])
 
   if (resA.error) throw resA.error
   if (resB.error) throw resB.error
+  if (resC.error) throw resC.error
 
   const map = new Map<string, any>()
 
@@ -71,6 +89,13 @@ export async function fetchLeadsArquivados() {
 
   const listB = resB.data || []
   for (const item of listB) {
+    if (item?.id && !map.has(item.id)) {
+      map.set(item.id, item)
+    }
+  }
+
+  const listC = resC.data || []
+  for (const item of listC) {
     if (item?.id && !map.has(item.id)) {
       map.set(item.id, item)
     }

@@ -35,10 +35,14 @@ export function LeadsArquivados() {
     loadData()
   }, [])
 
-  const handleUnarchive = async (id: string) => {
+  const handleUnarchive = async (id: string, isSomenteExclusao: boolean) => {
     try {
       await desarquivarLead(id)
-      toast.success('Lead desarquivado com sucesso!')
+      if (isSomenteExclusao) {
+        toast.success('Lead restaurado na aba!')
+      } else {
+        toast.success('Lead desarquivado com sucesso!')
+      }
       loadData()
     } catch (e: any) {
       toast.error('Erro ao desarquivar: ' + e.message)
@@ -80,83 +84,109 @@ export function LeadsArquivados() {
                   {lead?.origem || '-'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-gray-600">
-                {(() => {
-                  const { meta } = parseLeadMetadados(lead?.notas_pessoais)
-                  const arquivamentos = Array.isArray(meta?.arquivamentos) ? meta.arquivamentos : []
+              {(() => {
+                const { meta } = parseLeadMetadados(lead?.notas_pessoais)
+                const arquivamentos = Array.isArray(meta?.arquivamentos) ? meta.arquivamentos : []
+                const exclusoes = Array.isArray(meta?.exclusoes) ? meta.exclusoes : []
+                const hasArquivamentos = arquivamentos.length > 0
+                const hasExclusoes = exclusoes.length > 0
+                const isSomenteExclusao =
+                  hasExclusoes && !lead?.arquivado_comercial && !hasArquivamentos
 
-                  if (arquivamentos.length > 0) {
-                    // Encontrar a maior data entre os itens
-                    let maxTime = -Infinity
-                    let maxDateStr: string | null = null
+                let formattedDate = '-'
+                let textoAbasArquivadas = ''
+                let textoAbasExcluidas = ''
 
-                    for (const item of arquivamentos) {
-                      if (item?.data) {
-                        const t = new Date(item.data).getTime()
-                        if (!isNaN(t) && t > maxTime) {
-                          maxTime = t
-                          maxDateStr = item.data
-                        }
+                if (hasArquivamentos || hasExclusoes) {
+                  const todosItens = [...arquivamentos, ...exclusoes]
+                  let maxTime = -Infinity
+                  let maxDateStr: string | null = null
+
+                  for (const item of todosItens) {
+                    if (item?.data) {
+                      const t = new Date(item.data).getTime()
+                      if (!isNaN(t) && t > maxTime) {
+                        maxTime = t
+                        maxDateStr = item.data
                       }
                     }
+                  }
 
-                    let formattedDate = '-'
-                    if (maxDateStr) {
-                      try {
-                        const d = new Date(maxDateStr)
-                        if (!isNaN(d.getTime())) {
-                          formattedDate = format(d, 'dd/MM/yyyy HH:mm')
-                        }
-                      } catch {
-                        formattedDate = '-'
+                  if (maxDateStr) {
+                    try {
+                      const d = new Date(maxDateStr)
+                      if (!isNaN(d.getTime())) {
+                        formattedDate = format(d, 'dd/MM/yyyy HH:mm')
                       }
+                    } catch {
+                      formattedDate = '-'
                     }
+                  }
 
-                    // Títulos das abas arquivadas
-                    const titulosAbas = arquivamentos
+                  if (hasArquivamentos) {
+                    const titulos = arquivamentos
                       .map((item) => {
                         const abaConfig = ATENDIMENTO_ABAS.find((a) => a.id === item.aba)
                         return abaConfig ? abaConfig.titulo : item.aba || '-'
                       })
                       .filter(Boolean)
+                    textoAbasArquivadas = titulos.join(', ')
+                  }
 
-                    const textoAbas = titulosAbas.join(', ')
+                  if (hasExclusoes) {
+                    const titulos = exclusoes
+                      .map((item) => {
+                        const abaConfig = ATENDIMENTO_ABAS.find((a) => a.id === item.aba)
+                        return abaConfig ? abaConfig.titulo : item.aba || '-'
+                      })
+                      .filter(Boolean)
+                    textoAbasExcluidas = titulos.join(', ')
+                  }
+                } else {
+                  const dt = lead?.atualizado_em || lead?.criado_em
+                  if (dt) {
+                    try {
+                      const d = new Date(dt)
+                      formattedDate = isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
+                    } catch {
+                      formattedDate = '-'
+                    }
+                  }
+                }
 
-                    return (
+                return (
+                  <>
+                    <TableCell className="text-gray-600">
                       <div className="flex flex-col">
                         <span>{formattedDate}</span>
-                        {textoAbas && (
+                        {textoAbasArquivadas && (
                           <span className="text-xs text-gray-500">
-                            Arquivado da aba {textoAbas}
+                            Arquivado da aba {textoAbasArquivadas}
+                          </span>
+                        )}
+                        {textoAbasExcluidas && (
+                          <span className="text-xs text-gray-500">
+                            Tirado da aba {textoAbasExcluidas} pela lixeira
                           </span>
                         )}
                       </div>
-                    )
-                  }
-
-                  const dt = lead?.atualizado_em || lead?.criado_em
-                  if (!dt) return '-'
-                  try {
-                    const d = new Date(dt)
-                    return isNaN(d.getTime()) ? '-' : format(d, 'dd/MM/yyyy HH:mm')
-                  } catch {
-                    return '-'
-                  }
-                })()}
-              </TableCell>
-              <TableCell className="text-right">
-                {lead?.id && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleUnarchive(lead.id)}
-                    className="text-steel-blue hover:text-steel-blue/80 hover:bg-steel-blue/5"
-                  >
-                    <RotateCcw className="w-4 h-4 mr-1" />
-                    Desarquivar
-                  </Button>
-                )}
-              </TableCell>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {lead?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnarchive(lead.id, isSomenteExclusao)}
+                          className="text-steel-blue hover:text-steel-blue/80 hover:bg-steel-blue/5"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          {isSomenteExclusao ? 'Restaurar' : 'Desarquivar'}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </>
+                )
+              })()}
             </TableRow>
           ))}
         {leads.length === 0 && (
