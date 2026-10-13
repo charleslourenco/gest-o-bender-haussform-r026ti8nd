@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { parseLeadMetadados } from '@/components/comercial/constants'
 import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
@@ -222,6 +223,33 @@ export const createLead = async (leadData: any) => {
   )
   if (res.error) throw res.error
   return res.data
+}
+
+// Grava só o que mudou nas notas do lead, em cima da versão atual do banco (erro 1.7).
+// antes = notas_pessoais que a tela tinha; depois = notas_pessoais que a tela quer gravar.
+export async function salvarNotasLead(
+  id: string,
+  antes: unknown,
+  depois: unknown,
+): Promise<string> {
+  const a = parseLeadMetadados(antes)
+  const d = parseLeadMetadados(depois)
+  const set: Record<string, any> = {}
+  for (const k of Object.keys(d.meta)) {
+    if (JSON.stringify(d.meta[k]) !== JSON.stringify((a.meta as any)[k]))
+      set[k] = (d.meta as any)[k]
+  }
+  const unset = Object.keys(a.meta).filter((k) => !(k in d.meta))
+  const alterarTexto = (a.notas || '').trimEnd() !== (d.notas || '').trimEnd()
+  const { data, error } = await supabase.rpc('atualizar_notas_lead' as any, {
+    p_lead_id: id,
+    p_set: set,
+    p_unset: unset,
+    p_alterar_texto: alterarTexto,
+    p_texto: alterarTexto ? d.notas : null,
+  })
+  if (error) throw error
+  return (data as string) ?? ''
 }
 
 export const updateLead = async (id: string, leadData: any) => {

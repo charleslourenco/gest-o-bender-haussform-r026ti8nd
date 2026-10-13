@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { ATENDIMENTO_ABAS, getLeadAba } from '@/components/comercial/constants'
 import { KanbanAtendimentos } from '@/components/comercial/KanbanAtendimentos'
 import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
-import { fetchUsers } from '@/services/comercial'
+import { fetchUsers, salvarNotasLead } from '@/services/comercial'
 import { ComercialList } from '@/components/comercial/ComercialList'
 import { LeadsArquivados } from '@/components/comercial/LeadsArquivados'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -73,10 +73,27 @@ export default function Comercial() {
 
   const handleUpdateGlobalLead = async (leadId: string, updates: any) => {
     try {
-      const { error } = await supabase.from('leads').update(updates).eq('id', leadId)
-      if (error) throw error
+      const { notas_pessoais: notasDepois, ...resto } = updates || {}
+      let notasGravadas: string | undefined
+      if (notasDepois !== undefined) {
+        notasGravadas = await salvarNotasLead(
+          leadId,
+          leadForGlobalModal?.notas_pessoais,
+          notasDepois,
+        )
+      }
+      if (Object.keys(resto).length > 0) {
+        const { error } = await supabase.from('leads').update(resto).eq('id', leadId)
+        if (error) throw error
+      }
       setLeadForGlobalModal((prev: any) =>
-        prev && prev.id === leadId ? { ...prev, ...updates } : prev,
+        prev && prev.id === leadId
+          ? {
+              ...prev,
+              ...updates,
+              ...(notasGravadas !== undefined ? { notas_pessoais: notasGravadas } : {}),
+            }
+          : prev,
       )
       if (updates?.status) {
         try {

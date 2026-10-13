@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercial/constants'
-import { fetchUsers, normalizeLead } from '@/services/comercial'
+import { fetchUsers, normalizeLead, salvarNotasLead } from '@/services/comercial'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
@@ -247,11 +247,28 @@ export default function LeadsSemOrigem() {
   // Atualização disparada pelo ModalAtendimento
   const handleModalUpdateLead = async (leadId: string, updates: any) => {
     try {
-      const { error } = await supabase.from('leads').update(updates).eq('id', leadId)
-      if (error) throw error
+      const { notas_pessoais: notasDepois, ...resto } = updates || {}
+      let notasGravadas: string | undefined
+      if (notasDepois !== undefined) {
+        notasGravadas = await salvarNotasLead(
+          leadId,
+          selectedLeadModal?.notas_pessoais,
+          notasDepois,
+        )
+      }
+      if (Object.keys(resto).length > 0) {
+        const { error } = await supabase.from('leads').update(resto).eq('id', leadId)
+        if (error) throw error
+      }
 
       setSelectedLeadModal((prev: any) =>
-        prev && prev.id === leadId ? { ...prev, ...updates } : prev,
+        prev && prev.id === leadId
+          ? {
+              ...prev,
+              ...updates,
+              ...(notasGravadas !== undefined ? { notas_pessoais: notasGravadas } : {}),
+            }
+          : prev,
       )
       // Re-fetch silencioso da lista local
       fetchLeads(true)

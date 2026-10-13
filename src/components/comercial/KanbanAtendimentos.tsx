@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
-import { fetchLeads, fetchUsers, createLead, updateLead } from '@/services/comercial'
+import {
+  fetchLeads,
+  fetchUsers,
+  createLead,
+  updateLead,
+  salvarNotasLead,
+} from '@/services/comercial'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 import {
@@ -624,7 +630,21 @@ export function KanbanAtendimentos({
         setSelectedLeadForModal((prev) => (prev ? { ...prev, ...mergedUpdates } : null))
       }
 
-      await updateLead(id, finalPayload)
+      const { notas_pessoais: notasDepois, ...restoPayload } = finalPayload as any
+      if (notasDepois !== undefined) {
+        const notasGravadas = await salvarNotasLead(id, currentLead?.notas_pessoais, notasDepois)
+        setLeads((prev) =>
+          prev.map((l) => (l.id === id ? ({ ...l, notas_pessoais: notasGravadas } as any) : l)),
+        )
+        if (selectedLeadForModal?.id === id) {
+          setSelectedLeadForModal((prev) =>
+            prev ? ({ ...prev, notas_pessoais: notasGravadas } as any) : null,
+          )
+        }
+      }
+      if (Object.keys(restoPayload).length > 0) {
+        await updateLead(id, restoPayload)
+      }
     } catch (err: any) {
       console.error('Erro ao atualizar lead:', err)
       loadData(true)
