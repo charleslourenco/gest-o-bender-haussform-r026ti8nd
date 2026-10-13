@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { parseLeadMetadados, stringifyLeadMetadados } from '@/components/comercial/constants'
 
 export async function arquivarLead(id: string): Promise<void> {
   const { error } = await supabase
@@ -9,22 +10,81 @@ export async function arquivarLead(id: string): Promise<void> {
 }
 
 export async function desarquivarLead(id: string): Promise<void> {
-  const { error } = await supabase
+  const { data: lead, error: fetchError } = await supabase
     .from('leads')
-    .update({ arquivado_comercial: false, kanban_ativo: true } as any)
+    .select('arquivado_comercial, notas_pessoais')
     .eq('id', id)
-  if (error) throw error
+    .single()
+
+  if (fetchError) throw fetchError
+
+  const updatePayload: Record<string, any> = {}
+
+  if (lead?.arquivado_comercial === true) {
+    updatePayload.arquivado_comercial = false
+    updatePayload.kanban_ativo = true
+  }
+
+  const { notas, meta } = parseLeadMetadados(lead?.notas_pessoais)
+  if (Array.isArray(meta?.arquivamentos) && meta.arquivamentos.length > 0) {
+    delete meta.arquivamentos
+    updatePayload.notas_pessoais = stringifyLeadMetadados(notas, meta)
+  }
+
+  if (Object.keys(updatePayload).length === 0) {
+    return
+  }
+
+  const { error: updateError } = await supabase
+    .from('leads')
+    .update(updatePayload as any)
+    .eq('id', id)
+
+  if (updateError) throw updateError
 }
 
 export async function fetchLeadsArquivados() {
-  const { data, error } = await supabase
-    .from('leads')
-    .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-    .eq('arquivado_comercial' as any, true)
-    .eq('excluido' as any, false)
-    .order('atualizado_em', { ascending: false })
-  if (error) throw error
-  return data
+  const [resA, resB] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+      .eq('arquivado_comercial' as any, true)
+      .eq('excluido' as any, false),
+    supabase
+      .from('leads')
+      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+      .eq('excluido' as any, false)
+      .ilike('notas_pessoais' as any, '%"arquivamentos":[{%'),
+  ])
+
+  if (resA.error) throw resA.error
+  if (resB.error) throw resB.error
+
+  const map = new Map<string, any>()
+
+  const listA = resA.data || []
+  for (const item of listA) {
+    if (item?.id) {
+      map.set(item.id, item)
+    }
+  }
+
+  const listB = resB.data || []
+  for (const item of listB) {
+    if (item?.id && !map.has(item.id)) {
+      map.set(item.id, item)
+    }
+  }
+
+  const combined = Array.from(map.values())
+
+  combined.sort((a, b) => {
+    const timeA = a.atualizado_em ? new Date(a.atualizado_em).getTime() : 0
+    const timeB = b.atualizado_em ? new Date(b.atualizado_em).getTime() : 0
+    return timeB - timeA
+  })
+
+  return combined
 }
 
 export async function arquivarProducao(id: string): Promise<void> {

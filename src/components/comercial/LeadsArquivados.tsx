@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchLeadsArquivados, desarquivarLead } from '@/services/arquivamento'
+import { parseLeadMetadados, ATENDIMENTO_ABAS } from '@/components/comercial/constants'
 import {
   Table,
   TableBody,
@@ -81,6 +82,58 @@ export function LeadsArquivados() {
               </TableCell>
               <TableCell className="text-gray-600">
                 {(() => {
+                  const { meta } = parseLeadMetadados(lead?.notas_pessoais)
+                  const arquivamentos = Array.isArray(meta?.arquivamentos) ? meta.arquivamentos : []
+
+                  if (arquivamentos.length > 0) {
+                    // Encontrar a MAIOR data entre os itens
+                    let maxTime = -Infinity
+                    let maxDateStr: string | null = null
+
+                    for (const item of arquivamentos) {
+                      if (item?.data) {
+                        const t = new Date(item.data).getTime()
+                        if (!isNaN(t) && t > maxTime) {
+                          maxTime = t
+                          maxDateStr = item.data
+                        }
+                      }
+                    }
+
+                    let formattedDate = '-'
+                    if (maxDateStr) {
+                      try {
+                        const d = new Date(maxDateStr)
+                        if (!isNaN(d.getTime())) {
+                          formattedDate = format(d, 'dd/MM/yyyy HH:mm')
+                        }
+                      } catch {
+                        formattedDate = '-'
+                      }
+                    }
+
+                    // Títulos das abas arquivadas
+                    const titulosAbas = arquivamentos
+                      .map((item) => {
+                        const abaConfig = ATENDIMENTO_ABAS.find((a) => a.id === item.aba)
+                        return abaConfig ? abaConfig.titulo : item.aba || '-'
+                      })
+                      .filter(Boolean)
+
+                    const textoAbas = titulosAbas.join(', ')
+
+                    return (
+                      <div className="flex flex-col">
+                        <span>{formattedDate}</span>
+                        {textoAbas && (
+                          <span className="text-xs text-gray-500">
+                            Arquivado da aba {textoAbas}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }
+
                   const dt = lead?.atualizado_em || lead?.criado_em
                   if (!dt) return '-'
                   try {
