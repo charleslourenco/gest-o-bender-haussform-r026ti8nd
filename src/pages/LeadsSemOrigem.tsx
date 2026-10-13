@@ -257,7 +257,7 @@ export default function LeadsSemOrigem() {
       fetchLeads(true)
     } catch (err: any) {
       console.warn('Erro ao atualizar lead do modal:', err)
-      toast.error('Erro ao salvar dados do lead')
+      throw err
     }
   }
 

@@ -73,7 +73,8 @@ export default function Comercial() {
 
   const handleUpdateGlobalLead = async (leadId: string, updates: any) => {
     try {
-      await supabase.from('leads').update(updates).eq('id', leadId)
+      const { error } = await supabase.from('leads').update(updates).eq('id', leadId)
+      if (error) throw error
       setLeadForGlobalModal((prev: any) =>
         prev && prev.id === leadId ? { ...prev, ...updates } : prev,
       )
@@ -91,6 +92,7 @@ export default function Comercial() {
       }
     } catch (err) {
       console.warn('Erro ao atualizar lead do modal global:', err)
+      throw err
     }
   }
 
