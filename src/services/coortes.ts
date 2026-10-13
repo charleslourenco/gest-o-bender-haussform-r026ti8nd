@@ -4,6 +4,7 @@ import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 export interface RawLeadCoorte {
   id: string
   criado_em: string
+  atualizado_em?: string | null
   data_venda: string | null
   status: string
   consultor_id: string | null
@@ -85,10 +86,48 @@ const COLUNAS_CONSULTORIA = new Set([
   'designar consultor',
 ])
 
-function diffInMonths(dateLater: Date, dateEarlier: Date): number {
-  const yDiff = dateLater.getUTCFullYear() - dateEarlier.getUTCFullYear()
-  const mDiff = dateLater.getUTCMonth() - dateEarlier.getUTCMonth()
-  return yDiff * 12 + mDiff
+const TIMEZONE_SP = 'America/Sao_Paulo'
+const SP_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIMEZONE_SP,
+  year: 'numeric',
+  month: '2-digit',
+})
+
+/**
+ * Retorna ano e mês no fuso America/Sao_Paulo.
+ * Ex: para "2023-09-30T22:30:00Z" retorna { ano: 2023, mes: 9, mesIso: "2023-09" }
+ */
+function getAnoMesSP(dateInput: string | Date): { ano: number; mes: number; mesIso: string } {
+  const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  const parts = SP_FORMATTER.formatToParts(d)
+  let yearStr = '1970'
+  let monthStr = '01'
+  for (const p of parts) {
+    if (p.type === 'year') yearStr = p.value
+    if (p.type === 'month') monthStr = p.value
+  }
+  const ano = parseInt(yearStr, 10)
+  const mes = parseInt(monthStr, 10)
+  const mesIso = `${yearStr}-${monthStr.padStart(2, '0')}`
+  return { ano, mes, mesIso }
+}
+
+/**
+ * Diferença em meses completos entre duas datas no fuso America/Sao_Paulo:
+ * ano/mês de dateLater - ano/mês de dateEarlier.
+ */
+function diffInMonthsSP(dateLater: string | Date, dateEarlier: string | Date): number {
+  const later = getAnoMesSP(dateLater)
+  const earlier = getAnoMesSP(dateEarlier)
+  return (later.ano - earlier.ano) * 12 + (later.mes - earlier.mes)
+}
+
+/**
+ * Retorna o primeiro instante do mês da safra no fuso America/Sao_Paulo (UTC Date correspondente)
+ */
+export function getDataInicioSafraSP(ano: number, mes: number): Date {
+  const mm = String(mes).padStart(2, '0')
+  return new Date(`${ano}-${mm}-01T00:00:00-03:00`)
 }
 
 function formatMesLabel(mesIso: string): string {
@@ -120,42 +159,93 @@ function calculateMedian(values: number[]): number | null {
 export async function fetchDadosCoorte(): Promise<{
   leads: RawLeadCoorte[]
   historicoMap: Set<string> // Set de lead_ids que têm evento de consultoria
+  historicoPerdasMap: Map<string, string> // lead_id -> criado_em da perda mais recente
 }> {
-  // 1. SELECT nos leads com hint obrigatório na FK do consultor titular
-  const leadsResult = await runWithAuthRecovery<RawLeadCoorte[]>(() =>
-    supabase
-      .from('leads')
-      .select(
-        'id, criado_em, data_venda, status, consultor_id, origem, excluido, motivo_perda, etapa_perda, categoria, consultor:users!leads_consultor_id_fkey(id, nome)',
-      )
-      .eq('excluido', false)
-      .order('criado_em', { ascending: false }),
-  )
+  const PAGE_SIZE = 1000
 
-  if (leadsResult.error) {
-    throw new Error(leadsResult.error.message || 'Erro ao consultar leads para coortes')
+  // 1. SELECT paginado de 1000 em 1000 em leads (excluindo categorias não-comerciais)
+  const allLeads: RawLeadCoorte[] = []
+  let leadsFrom = 0
+
+  while (true) {
+    const leadsTo = leadsFrom + PAGE_SIZE - 1
+    const res = await runWithAuthRecovery<RawLeadCoorte[]>(() =>
+      supabase
+        .from('leads')
+        .select(
+          'id, criado_em, atualizado_em, data_venda, status, consultor_id, origem, excluido, motivo_perda, etapa_perda, categoria, consultor:users!leads_consultor_id_fkey(id, nome)',
+        )
+        .eq('excluido', false)
+        .or(
+          'categoria.is.null,categoria.not.in.("Currículo","Fornecedor","Parceiro","Assistência","Outros Assuntos")',
+        )
+        .order('id', { ascending: true })
+        .range(leadsFrom, leadsTo),
+    )
+
+    if (res.error) {
+      throw new Error(res.error.message || 'Erro ao consultar leads para coortes')
+    }
+
+    const rows = res.data || []
+    allLeads.push(...rows)
+
+    if (rows.length < PAGE_SIZE) {
+      break
+    }
+    leadsFrom += PAGE_SIZE
   }
 
-  const rawLeads = leadsResult.data || []
-
-  // 2. SELECT no histórico de status para identificar transições para consultoria
-  const historicoResult = await runWithAuthRecovery<{ lead_id: string; status_novo: string }[]>(
-    () => supabase.from('leads_status_historico').select('lead_id, status_novo').limit(10000),
-  )
-
+  // 2. SELECT paginado de 1000 em 1000 em leads_status_historico
+  // Busca lead_id, status_novo e criado_em para consultoria e perdas
   const historicoMap = new Set<string>()
-  if (historicoResult.data) {
-    for (const h of historicoResult.data) {
+  const historicoPerdasMap = new Map<string, string>() // lead_id -> data mais recente de perda
+
+  let histFrom = 0
+  while (true) {
+    const histTo = histFrom + PAGE_SIZE - 1
+    const res = await runWithAuthRecovery<
+      { id?: string; lead_id: string; status_novo: string; criado_em: string | null }[]
+    >(() =>
+      supabase
+        .from('leads_status_historico')
+        .select('id, lead_id, status_novo, criado_em')
+        .order('id', { ascending: true })
+        .range(histFrom, histTo),
+    )
+
+    if (res.error) {
+      throw new Error(res.error.message || 'Erro ao consultar histórico de leads para coortes')
+    }
+
+    const rows = res.data || []
+    for (const h of rows) {
       const norm = (h.status_novo || '').trim().toLowerCase()
+
+      // Consultoria
       if (COLUNAS_CONSULTORIA.has(norm)) {
         historicoMap.add(h.lead_id)
       }
+
+      // Perda (status_novo contendo 'perdido', sem diferenciar maiúsculas)
+      if (norm.includes('perdido') && h.criado_em) {
+        const prev = historicoPerdasMap.get(h.lead_id)
+        if (!prev || new Date(h.criado_em).getTime() > new Date(prev).getTime()) {
+          historicoPerdasMap.set(h.lead_id, h.criado_em)
+        }
+      }
     }
+
+    if (rows.length < PAGE_SIZE) {
+      break
+    }
+    histFrom += PAGE_SIZE
   }
 
   return {
-    leads: rawLeads,
+    leads: allLeads,
     historicoMap,
+    historicoPerdasMap,
   }
 }
 
@@ -169,9 +259,13 @@ export function processarCoortes(
     consultorId?: string | null
     origem?: string | null
     mesesJanela?: number // padrão 12
+    historicoPerdasMap?: Map<string, string>
   } = {},
+  historicoPerdasFallback?: Map<string, string>,
 ): CoorteResultado {
   const { consultorId, origem, mesesJanela = 12 } = filtros
+  const perdasMap =
+    filtros.historicoPerdasMap || historicoPerdasFallback || new Map<string, string>()
 
   // Mapear consultores e origens disponíveis antes dos filtros
   const consultoresMap = new Map<string, string>()
@@ -203,18 +297,19 @@ export function processarCoortes(
     return true
   })
 
-  // Data atual de referência para avaliar maturidade
+  // Data atual e mês anterior de referência no fuso America/Sao_Paulo
   const now = new Date()
-  const currentYear = now.getUTCFullYear()
-  const currentMonth = now.getUTCMonth() // 0-11
-  const mesAtualIso = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`
+  const nowSP = getAnoMesSP(now)
+  const mesAtualIso = nowSP.mesIso
 
-  const prevMonthDate = new Date(Date.UTC(currentYear, currentMonth - 1, 1))
-  const mesAnteriorIso = `${prevMonthDate.getUTCFullYear()}-${String(
-    prevMonthDate.getUTCMonth() + 1,
-  ).padStart(2, '0')}`
+  // Mês anterior em SP:
+  const prevMonthDate = new Date(now.getTime() - 32 * 24 * 60 * 60 * 1000)
+  // Calcula com base nos números ano/mês para ser 100% determinístico:
+  const prevAno = nowSP.mes === 1 ? nowSP.ano - 1 : nowSP.ano
+  const prevMes = nowSP.mes === 1 ? 12 : nowSP.mes - 1
+  const mesAnteriorIso = `${prevAno}-${String(prevMes).padStart(2, '0')}`
 
-  // Agrupar leads por mês de criado_em (safra)
+  // Agrupar leads por mês de criado_em (safra) no fuso America/Sao_Paulo
   interface CoorteAcc {
     mes_iso: string
     ano: number
@@ -226,15 +321,14 @@ export function processarCoortes(
 
   for (const l of leadsFiltrados) {
     if (!l.criado_em) continue
-    const d = new Date(l.criado_em)
-    const mesIso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+    const { ano, mes, mesIso } = getAnoMesSP(l.criado_em)
 
     let acc = coortesMap.get(mesIso)
     if (!acc) {
       acc = {
         mes_iso: mesIso,
-        ano: d.getUTCFullYear(),
-        mes: d.getUTCMonth() + 1,
+        ano,
+        mes,
         leads: [],
       }
       coortesMap.set(mesIso, acc)
@@ -249,7 +343,7 @@ export function processarCoortes(
 
   const safrasJanela = safrasOrdenadas.slice(0, mesesJanela)
 
-  // Encontrar a defasagem máxima para dimensionar as colunas M+X
+  // Encontrar a defasagem máxima (entre vendas e perdas) para dimensionar colunas M+X
   let maxDefasagemGeral = 0
 
   // Linhas calculadas
@@ -275,13 +369,8 @@ export function processarCoortes(
     let emAberto = 0
 
     const ciclosDias: number[] = []
-    const vendasPorDefasagemMap = new Map<number, number>()
-    const perdasPorDefasagemMap = new Map<number, number>()
-
-    const dataInicioSafra = new Date(Date.UTC(ano, mes - 1, 1))
 
     for (const lead of safraLeads) {
-      const criadoEmDate = new Date(lead.criado_em)
       const isVenda = !!lead.data_venda
       const isPerdido =
         lead.status === 'Perdido' ||
@@ -300,6 +389,7 @@ export function processarCoortes(
 
       if (isVenda) {
         vendidos++
+        const criadoEmDate = new Date(lead.criado_em)
         const dataVendaDate = new Date(lead.data_venda!)
 
         // Ciclo em dias
@@ -307,18 +397,20 @@ export function processarCoortes(
         const dias = Math.max(0, Math.round((diffMs / (1000 * 60 * 60 * 24)) * 10) / 10)
         ciclosDias.push(dias)
 
-        // Defasagem em meses (mês da data_venda - mês de criado_em)
-        const def = Math.max(0, diffInMonths(dataVendaDate, dataInicioSafra))
-        vendasPorDefasagemMap.set(def, (vendasPorDefasagemMap.get(def) || 0) + 1)
+        // Defasagem em meses no fuso America/Sao_Paulo (mês da data_venda - mês da safra)
+        const def = Math.max(0, diffInMonthsSP(lead.data_venda!, safra.mes_iso))
         if (def > maxDefasagemGeral) {
           maxDefasagemGeral = def
         }
       } else if (isPerdido) {
         perdidos++
-        // Defasagem de perda: usa atualizado_em se houver ou criado_em
-        // Como o lead veio sem atualizado_em para economizar payload, usa criado_em ou mês corrente
-        // Por aproximação na coorte, perdas contam no M+0 ou defasagem se lead antigo
-        perdasPorDefasagemMap.set(0, (perdasPorDefasagemMap.get(0) || 0) + 1)
+        // Data da perda: data mais recente no histórico onde status_novo contém 'perdido',
+        // se não houver, fallback para lead.atualizado_em, e fallback final lead.criado_em
+        const dataPerda = perdasMap.get(lead.id) || lead.atualizado_em || lead.criado_em
+        const defPerda = Math.max(0, diffInMonthsSP(dataPerda, safra.mes_iso))
+        if (defPerda > maxDefasagemGeral) {
+          maxDefasagemGeral = defPerda
+        }
       } else {
         emAberto++
       }
@@ -336,7 +428,6 @@ export function processarCoortes(
     const taxaConversaoConsultoria =
       iniciaramConsultoria > 0 ? Math.round((vendidos / iniciaramConsultoria) * 1000) / 10 : 0
 
-    // Converte os maps de defasagem em arrays até maxDefasagemGeral (ajustado depois)
     linhas.push({
       mes_iso,
       mes_label: mesLabel,
@@ -353,8 +444,8 @@ export function processarCoortes(
       taxa_conversao_consultoria: taxaConversaoConsultoria,
       ciclo_medio_dias: cicloMedio,
       ciclo_mediano_dias: cicloMediano !== null ? Math.round(cicloMediano * 10) / 10 : null,
-      vendas_por_defasagem: [], // preenchido logo abaixo quando maxDefasagemGeral estiver estável
-      perdas_por_defasagem: [],
+      vendas_por_defasagem: [], // preenchido logo abaixo
+      perdas_por_defasagem: [], // preenchido logo abaixo
     })
 
     totalVendasGeral += vendidos
@@ -371,17 +462,28 @@ export function processarCoortes(
   for (let i = 0; i < linhas.length; i++) {
     const l = linhas[i]
     const safra = safrasJanela[i]
-    const dataInicioSafra = new Date(Date.UTC(l.ano, l.mes - 1, 1))
 
     const vendasArr = new Array(maxDef + 1).fill(0)
     const perdasArr = new Array(maxDef + 1).fill(0)
 
     for (const lead of safra.leads) {
-      if (lead.data_venda) {
-        const dv = new Date(lead.data_venda)
-        const def = Math.max(0, diffInMonths(dv, dataInicioSafra))
+      const isVenda = !!lead.data_venda
+      const isPerdido =
+        lead.status === 'Perdido' ||
+        lead.status === 'SDR: Perdido' ||
+        (lead.motivo_perda !== null && lead.motivo_perda.trim() !== '') ||
+        (lead.status && lead.status.toLowerCase().includes('perdido'))
+
+      if (isVenda && lead.data_venda) {
+        const def = Math.max(0, diffInMonthsSP(lead.data_venda, safra.mes_iso))
         if (def <= maxDef) {
           vendasArr[def]++
+        }
+      } else if (isPerdido) {
+        const dataPerda = perdasMap.get(lead.id) || lead.atualizado_em || lead.criado_em
+        const def = Math.max(0, diffInMonthsSP(dataPerda, safra.mes_iso))
+        if (def <= maxDef) {
+          perdasArr[def]++
         }
       }
     }

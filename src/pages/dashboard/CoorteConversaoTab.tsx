@@ -44,6 +44,7 @@ export function CoorteConversaoTab({ atendimentosMetrics }: CoorteConversaoTabPr
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [rawLeads, setRawLeads] = useState<RawLeadCoorte[]>([])
   const [historicoMap, setHistoricoMap] = useState<Set<string>>(new Set())
+  const [historicoPerdasMap, setHistoricoPerdasMap] = useState<Map<string, string>>(new Map())
 
   // Métricas da RPC para leads comerciais válidos (fallback se não fornecido via prop)
   const [rpcAtendimentos, setRpcAtendimentos] = useState<AtendimentosMetrics | null>(
@@ -70,10 +71,14 @@ export function CoorteConversaoTab({ atendimentosMetrics }: CoorteConversaoTabPr
             }),
           )
 
-      const [{ leads, historicoMap: hMap }, rpcRes] = await Promise.all([p1, p2])
+      const [{ leads, historicoMap: hMap, historicoPerdasMap: pMap }, rpcRes] = await Promise.all([
+        p1,
+        p2,
+      ])
 
       setRawLeads(leads)
       setHistoricoMap(hMap)
+      setHistoricoPerdasMap(pMap)
 
       if (rpcRes?.data?.atendimentos) {
         setRpcAtendimentos(rpcRes.data.atendimentos)
@@ -109,8 +114,9 @@ export function CoorteConversaoTab({ atendimentosMetrics }: CoorteConversaoTabPr
       consultorId: consultorId === 'todos' ? null : consultorId,
       origem: origemFiltro === 'todas' ? null : origemFiltro,
       mesesJanela: janelaMeses,
+      historicoPerdasMap,
     })
-  }, [rawLeads, historicoMap, consultorId, origemFiltro, janelaMeses])
+  }, [rawLeads, historicoMap, historicoPerdasMap, consultorId, origemFiltro, janelaMeses])
 
   const {
     coortes,
