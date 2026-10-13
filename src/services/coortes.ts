@@ -398,7 +398,10 @@ export function processarCoortes(
         ciclosDias.push(dias)
 
         // Defasagem em meses no fuso America/Sao_Paulo (mês da data_venda - mês da safra)
-        const def = Math.max(0, diffInMonthsSP(lead.data_venda!, safra.mes_iso))
+        const def = Math.max(
+          0,
+          diffInMonthsSP(lead.data_venda!, getDataInicioSafraSP(safra.ano, safra.mes)),
+        )
         if (def > maxDefasagemGeral) {
           maxDefasagemGeral = def
         }
@@ -407,7 +410,10 @@ export function processarCoortes(
         // Data da perda: data mais recente no histórico onde status_novo contém 'perdido',
         // se não houver, fallback para lead.atualizado_em, e fallback final lead.criado_em
         const dataPerda = perdasMap.get(lead.id) || lead.atualizado_em || lead.criado_em
-        const defPerda = Math.max(0, diffInMonthsSP(dataPerda, safra.mes_iso))
+        const defPerda = Math.max(
+          0,
+          diffInMonthsSP(dataPerda, getDataInicioSafraSP(safra.ano, safra.mes)),
+        )
         if (defPerda > maxDefasagemGeral) {
           maxDefasagemGeral = defPerda
         }
@@ -475,13 +481,19 @@ export function processarCoortes(
         (lead.status && lead.status.toLowerCase().includes('perdido'))
 
       if (isVenda && lead.data_venda) {
-        const def = Math.max(0, diffInMonthsSP(lead.data_venda, safra.mes_iso))
+        const def = Math.max(
+          0,
+          diffInMonthsSP(lead.data_venda, getDataInicioSafraSP(safra.ano, safra.mes)),
+        )
         if (def <= maxDef) {
           vendasArr[def]++
         }
       } else if (isPerdido) {
         const dataPerda = perdasMap.get(lead.id) || lead.atualizado_em || lead.criado_em
-        const def = Math.max(0, diffInMonthsSP(dataPerda, safra.mes_iso))
+        const def = Math.max(
+          0,
+          diffInMonthsSP(dataPerda, getDataInicioSafraSP(safra.ano, safra.mes)),
+        )
         if (def <= maxDef) {
           perdasArr[def]++
         }
