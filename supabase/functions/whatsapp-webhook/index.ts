@@ -42,16 +42,20 @@ Deno.serve(async (req) => {
       let p = cleanDigits(raw.split('@')[0])
       if (!p) return ''
 
+      const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
+
       // Se for um LID do WhatsApp (ex: 13 a 15 dígitos sem código de país coerente ou sufixo @lid)
       // Um número válido de telefone brasileiro tem 10 ou 11 dígitos sem DDI, ou 12/13 com DDI 55.
       // Se o número começa com 55 e tem 12 dígitos, acrescenta 9 no nono dígito:
       if (p.startsWith('55')) {
-        if (p.length === 12) {
+        if (p.length === 12 && isCelularSem9(p.substring(4))) {
           p = p.substring(0, 4) + '9' + p.substring(4)
         }
       } else {
         if (p.length === 10) {
-          p = '55' + p.substring(0, 2) + '9' + p.substring(2)
+          p = isCelularSem9(p.substring(2))
+            ? '55' + p.substring(0, 2) + '9' + p.substring(2)
+            : '55' + p
         } else if (p.length === 11) {
           p = '55' + p
         }
@@ -98,10 +102,8 @@ Deno.serve(async (req) => {
       payload.wa_chatId,
       payload.participantJid,
       payload.participant,
-      payload.author,
-      payload.user,
-      payload.to,
-      payload.recipient,
+      // payload.to / payload.recipient / payload.user / payload.author NÃO entram:
+      // apontam para o número da própria empresa e criavam lead com ele (erro 1.13)
       payload.chat?.id,
       payload.chat?.phone,
       payload.contact?.phone,
@@ -128,6 +130,11 @@ Deno.serve(async (req) => {
     // Se nenhum campo forneceu telefone válido mas havia campos informados
     let phone = resolvedPhone
     const rawPrimaryPhone = payload.phone || payload.from || payload.sender || ''
+    const lidFromPayload = [payload.chatLid, rawPrimaryPhone].find(
+      (v) => v && String(v).includes('@lid'),
+    )
+    const chatLid = lidFromPayload ? cleanDigits(String(lidFromPayload).split('@')[0]) : ''
+
     if (!phone) {
       // Se não encontrou telefone válido e foi um LID não resolvível
       const rawNormalized = normalizePhoneNumber(rawPrimaryPhone)
@@ -139,7 +146,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const isPhoneValid = isValidPhone(phone)
+    const companyPhone = normalizePhoneNumber(String(payload.connectedPhone || ''))
+    let isPhoneValid = isValidPhone(phone) && !(companyPhone && phone === companyPhone)
 
     const rawContent =
       payload.text?.message ||
@@ -156,9 +164,13 @@ Deno.serve(async (req) => {
     let messageText =
       typeof rawContent === 'string' ? rawContent.trim() : String(rawContent || '').trim()
 
+    const isReaction = Boolean(payload.reaction)
+
     // Blindar inbound/mensagens sem texto (áudio, figurinha, imagem sem legenda, anexo sem nome)
     if (!messageText) {
-      if (payload.sticker || payload.isSticker) {
+      if (isReaction) {
+        messageText = `[reação ${String(payload.reaction?.value || '').trim()}]`.replace(' ]', ']')
+      } else if (payload.sticker || payload.isSticker) {
         messageText = '[figurinha]'
       } else if (payload.audio || payload.voice || payload.isAudio) {
         messageText = '[áudio]'
@@ -247,6 +259,8 @@ Deno.serve(async (req) => {
       raw_chat_id: payload.chatId || payload.remoteJid || payload.wa_chatId || null,
       raw_phone: payload.phone || payload.from || payload.sender || null,
       is_lid: isLidIdentifier(phone) || isLidIdentifier(rawPrimaryPhone),
+      chat_lid: chatLid || null,
+      ...(isReaction ? { reaction: payload.reaction } : {}),
     }
 
     let extractedTimestamp = new Date().toISOString()
@@ -256,8 +270,9 @@ Deno.serve(async (req) => {
       if (!isNaN(ts)) {
         extractedTimestamp = new Date(ts > 10000000000 ? ts : ts * 1000).toISOString()
       }
-    } else if (payload.moment) {
-      const ts = typeof payload.moment === 'number' ? payload.moment : parseInt(payload.moment, 10)
+    } else if (payload.moment || payload.momment) {
+      const rawMoment = payload.moment || payload.momment
+      const ts = typeof rawMoment === 'number' ? rawMoment : parseInt(rawMoment, 10)
       if (!isNaN(ts)) {
         extractedTimestamp = new Date(ts > 10000000000 ? ts : ts * 1000).toISOString()
       }
@@ -269,6 +284,21 @@ Deno.serve(async (req) => {
 
     if (payload.isGroup) {
       return new Response('Ignored', { status: 200 })
+    }
+
+    if (payload.type && payload.type !== 'ReceivedCallback')
+      return new Response(`Ignored event ${payload.type}`, { status: 200 })
+    if (payload.isNewsletter || payload.broadcast)
+      return new Response('Ignored newsletter/broadcast', { status: 200 })
+
+    const lookupPhoneByLid = async (lid: string): Promise<string | null> => {
+      const { data, error } = await supabase
+        .from('whatsapp_lid_map')
+        .select('phone')
+        .eq('lid', lid)
+        .maybeSingle()
+      if (error) throw error
+      return data?.phone || null
     }
 
     // Deduplicate webhooks (verificação prévia)
@@ -285,6 +315,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (!isPhoneValid && chatLid) {
+      const mappedPhone = await lookupPhoneByLid(chatLid)
+      if (mappedPhone) {
+        phone = mappedPhone
+        isPhoneValid = true
+      }
+    }
+
     // Lead Lookup por telefone (apenas se tivermos um telefone ou identificador válido)
     let lead: any = null
     if (phone && isPhoneValid) {
@@ -295,123 +333,13 @@ Deno.serve(async (req) => {
         .order('criado_em', { ascending: false })
         .limit(1)
 
-      if (leadsError) console.error('Erro ao buscar leads por telefone:', leadsError)
+      if (leadsError) throw new Error('Erro ao buscar leads por telefone: ' + leadsError.message)
       if (leads && leads.length > 0) {
         lead = leads[0]
       }
     }
 
     const nowStr = new Date().toISOString()
-
-    // Resolução avançada para outbound (fromMe) com identificador LID ou sem lead encontrado:
-    // Se for fromMe e não achamos lead por telefone (ex: phone é LID do WhatsApp, 13-16 dígitos não-55 ou não-E164):
-    // 1) Checar se esse LID já foi associado a algum lead em mensagens anteriores
-    // 2) Tentar casamento temporal inteligente por horário + contexto: resposta da equipe logo após
-    //    mensagem de cliente aguardando resposta (últimas horas)
-    if (payload.fromMe && !lead) {
-      // 1. Tentar mapear por histórico prévio de mensagens com este mesmo LID associadas a um lead
-      if (phone) {
-        const { data: prevMatch } = await supabase
-          .from('whatsapp_messages')
-          .select('lead_id')
-          .eq('phone', phone)
-          .not('lead_id', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (prevMatch?.lead_id) {
-          const { data: matchedLead } = await supabase
-            .from('leads')
-            .select('*')
-            .eq('id', prevMatch.lead_id)
-            .maybeSingle()
-
-          if (matchedLead) {
-            lead = matchedLead
-            console.log(
-              `[LID RESOLVER] Lead ${lead.id} (${lead.nome}) recuperado via histórico para LID ${phone}`,
-            )
-          }
-        }
-      }
-
-      // 2. Casamento por horário + contexto se ainda não resolveu
-      // Procurar clientes com status_atendimento = 'aguardando_resposta' ou que enviaram mensagem recente
-      if (!lead) {
-        const msgTime = new Date(extractedTimestamp || nowStr).getTime()
-        const windowStart = new Date(msgTime - 4 * 60 * 60 * 1000).toISOString() // 4 horas antes
-        const windowEnd = new Date(msgTime + 5 * 60 * 1000).toISOString() // até 5 min depois
-
-        // Buscar última mensagem de cliente recebida antes deste outbound
-        const { data: candidateMsgs } = await supabase
-          .from('whatsapp_messages')
-          .select('lead_id, created_at, content')
-          .eq('direction', 'inbound')
-          .eq('sender_type', 'cliente')
-          .not('lead_id', 'is', null)
-          .gte('created_at', windowStart)
-          .lte('created_at', windowEnd)
-          .order('created_at', { ascending: false })
-          .limit(10)
-
-        if (Array.isArray(candidateMsgs) && candidateMsgs.length > 0) {
-          // Prioridade 1: candidato cujo lead ainda está 'aguardando_resposta'
-          const candidateLeadIds = Array.from(
-            new Set(candidateMsgs.map((m) => m.lead_id).filter(Boolean)),
-          )
-          const { data: pendingLeads } = await supabase
-            .from('leads')
-            .select('*')
-            .in('id', candidateLeadIds)
-            .eq('status_atendimento', 'aguardando_resposta')
-            .order('atualizado_em', { ascending: false })
-
-          if (Array.isArray(pendingLeads) && pendingLeads.length > 0) {
-            // Se houver lead com primeiro nome mencionado no texto da equipe (ex: "Bom dia Bruno!", "Pablo,...")
-            const textLower = messageText.toLowerCase()
-            const nameMatch = pendingLeads.find((l) => {
-              if (!l.nome) return false
-              const firstName = l.nome.trim().split(/\s+/)[0]?.toLowerCase()
-              return firstName && firstName.length >= 3 && textLower.includes(firstName)
-            })
-
-            if (nameMatch) {
-              lead = nameMatch
-              console.log(
-                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por contexto de nome e pendência`,
-              )
-            } else if (pendingLeads.length === 1) {
-              // Se há apenas um lead com pendência recente na janela de 4h
-              lead = pendingLeads[0]
-              console.log(
-                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por pendência única recente`,
-              )
-            } else {
-              // Se há múltiplos pendentes, casar com o que recebeu mensagem inbound mais próxima no tempo
-              lead = pendingLeads[0]
-              console.log(
-                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado com o pendente mais recente`,
-              )
-            }
-          } else if (candidateLeadIds.length === 1) {
-            // Não há com 'aguardando_resposta', mas há exatamente 1 lead interagindo nas últimas horas
-            const { data: onlyLead } = await supabase
-              .from('leads')
-              .select('*')
-              .eq('id', candidateLeadIds[0])
-              .maybeSingle()
-
-            if (onlyLead) {
-              lead = onlyLead
-              console.log(
-                `[LID MATCH] Lead ${lead.id} (${lead.nome}) casado por interação única recente`,
-              )
-            }
-          }
-        }
-      }
-    }
 
     // Regra 1: fromMe NUNCA cria lead!
     // Se a mensagem for outbound (fromMe) e o lead não existir, gravamos como órfão (lead_id: null)
@@ -439,7 +367,8 @@ Deno.serve(async (req) => {
           .update(leadUpdatePayload)
           .eq('id', lead.id)
 
-        if (leadUpdateErr) console.error('Erro ao atualizar lead (fromMe):', leadUpdateErr)
+        if (leadUpdateErr)
+          throw new Error('Erro ao atualizar lead (fromMe): ' + leadUpdateErr.message)
       }
 
       // Sessão de WhatsApp (apenas se houver telefone válido)
@@ -487,7 +416,7 @@ Deno.serve(async (req) => {
       const { error: insertAnaErr } = await supabase.from('whatsapp_messages').upsert(
         {
           lead_id: lead?.id || null,
-          phone: lead?.telefone || phone || 'unknown',
+          phone: lead?.telefone || (isPhoneValid ? phone : chatLid || phone) || 'unknown',
           sender_type: 'ana',
           sender_name: fromMeSenderName,
           content: messageText,
@@ -499,14 +428,15 @@ Deno.serve(async (req) => {
         msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
       )
 
-      if (insertAnaErr) console.error('Erro ao inserir mensagem da Ana/Equipe:', insertAnaErr)
+      if (insertAnaErr)
+        throw new Error('Erro ao inserir mensagem da Equipe: ' + insertAnaErr.message)
 
       return new Response('Outbound logged (manual mode)', { status: 200 })
     }
 
     // Inbound (mensagens vindas do cliente):
     // Se o lead não existir, mas o telefone for válido e NÃO for LID, criar lead novo
-    if (!lead && isPhoneValid && phone) {
+    if (!lead && isPhoneValid && phone && !isReaction) {
       // Regra 3: Nunca usar nome da empresa ("Bender Haussform") ou nomes inválidos
       const initialLeadName =
         isValidRealName(senderName) && senderName !== 'Cliente' ? senderName : 'Cliente'
@@ -516,7 +446,7 @@ Deno.serve(async (req) => {
         .insert({
           nome: initialLeadName,
           telefone: phone,
-          email: `${phone}@whatsapp.com`,
+          email: null,
           origem: 'A definir',
           status: 'Novo contato',
           notas: '',
@@ -527,9 +457,39 @@ Deno.serve(async (req) => {
         .single()
 
       if (error) {
-        console.error('Erro ao criar novo lead:', error)
+        throw new Error('Erro ao criar novo lead: ' + error.message)
       } else {
         lead = newLead
+      }
+    }
+
+    if (chatLid && isPhoneValid && phone) {
+      const { error: lidUpsertErr } = await supabase.from('whatsapp_lid_map').upsert(
+        {
+          lid: chatLid,
+          phone,
+          atualizado_em: nowStr,
+        },
+        { onConflict: 'lid' },
+      )
+
+      if (lidUpsertErr) {
+        console.error('Erro ao mapear LID para telefone:', lidUpsertErr)
+      }
+
+      if (lead) {
+        const { error: updateOrphanErr } = await supabase
+          .from('whatsapp_messages')
+          .update({
+            lead_id: lead.id,
+            phone: lead.telefone || phone,
+          })
+          .is('lead_id', null)
+          .eq('phone', chatLid)
+
+        if (updateOrphanErr) {
+          console.error('Erro ao vincular mensagens órfãs do LID:', updateOrphanErr)
+        }
       }
     }
 
@@ -571,25 +531,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Inbound customer message — gravação atômica com onConflict em external_id
-    const safeContent = messageText || '[mídia]'
-    const { error: insertClientErr } = await supabase.from('whatsapp_messages').upsert(
-      {
-        lead_id: lead?.id || null,
-        phone: lead?.telefone || phone || 'unknown',
-        sender_type: 'cliente',
-        sender_name: senderName,
-        content: safeContent,
-        external_id: msgExternalId,
-        direction: 'inbound',
-        metadata: messageMetadata,
-        created_at: extractedTimestamp,
-      },
-      msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
-    )
-
-    if (insertClientErr) console.error('Erro ao inserir mensagem do Cliente:', insertClientErr)
-
     // Update session/lead context so operators know there's a new pending message.
     if (session) {
       const { error: sessionTouchErr } = await supabase
@@ -600,7 +541,7 @@ Deno.serve(async (req) => {
       if (sessionTouchErr) console.error('Erro ao atualizar sessão (inbound):', sessionTouchErr)
     }
 
-    if (lead) {
+    if (lead && !isReaction) {
       // Para contatos que JÁ EXISTEM no sistema, NUNCA alterar status, coluna ou pipeline.
       // Apenas atualizar atualizado_em e status_atendimento para indicação de resposta pendente.
       const updatePayload: any = {
@@ -707,8 +648,29 @@ Deno.serve(async (req) => {
         .update(updatePayload)
         .eq('id', lead.id)
 
-      if (leadUpdateErr) console.error('Erro ao atualizar lead (inbound):', leadUpdateErr)
+      if (leadUpdateErr)
+        throw new Error('Erro ao atualizar lead (inbound): ' + leadUpdateErr.message)
     }
+
+    // Inbound customer message — gravação atômica com onConflict em external_id
+    const safeContent = messageText || '[mídia]'
+    const { error: insertClientErr } = await supabase.from('whatsapp_messages').upsert(
+      {
+        lead_id: lead?.id || null,
+        phone: lead?.telefone || phone || 'unknown',
+        sender_type: 'cliente',
+        sender_name: senderName,
+        content: safeContent,
+        external_id: msgExternalId,
+        direction: 'inbound',
+        metadata: messageMetadata,
+        created_at: extractedTimestamp,
+      },
+      msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
+    )
+
+    if (insertClientErr)
+      throw new Error('Erro ao inserir mensagem do Cliente: ' + insertClientErr.message)
 
     return new Response('Inbound logged (manual mode)', { status: 200 })
   } catch (e: any) {
