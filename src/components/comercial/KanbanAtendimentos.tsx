@@ -420,8 +420,12 @@ export function KanbanAtendimentos({
         })
       }
 
-      // Sincroniza dados gerais com debounce
-      debouncedRefetch()
+      if (payload?.eventType === 'DELETE' && payload?.old?.id) {
+        const removedId = payload.old.id
+        setLeads((prev) => prev.filter((l) => l.id !== removedId))
+      } else if (payload?.eventType !== 'UPDATE') {
+        debouncedRefetch()
+      }
     })
 
     // Inscrição no canal compartilhado singleton apenas para INSERTs de whatsapp_messages

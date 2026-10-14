@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -73,6 +73,7 @@ interface LeadComercialItem {
 type FilaView = 'sem_origem' | 'sem_consultor'
 
 export default function LeadsSemOrigem() {
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [todosComerciais, setTodosComerciais] = useState<LeadComercialItem[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -198,7 +199,8 @@ export default function LeadsSemOrigem() {
           }
 
           // Atualizar lista silenciosamente em qualquer alteração relevante
-          fetchLeads(true)
+          if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+          refetchTimerRef.current = setTimeout(() => fetchLeads(true), 1500)
         } catch (innerErr) {
           console.warn('Erro ao processar evento realtime de leads:', innerErr)
         }
@@ -208,6 +210,7 @@ export default function LeadsSemOrigem() {
     }
 
     return () => {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
       if (unsubscribe) {
         try {
           unsubscribe()
