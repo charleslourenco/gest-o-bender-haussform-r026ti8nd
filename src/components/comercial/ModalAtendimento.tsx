@@ -169,26 +169,6 @@ export function ModalAtendimento({
     rawNotasClean,
   ])
 
-  // Limpar status_atendimento pendente no banco ao abrir a conversa do lead
-  useEffect(() => {
-    if (!open || !lead?.id) return
-
-    // Se o lead estiver aguardando resposta no banco, atualizar para 'em_atendimento'
-    if (lead.status_atendimento === 'aguardando_resposta') {
-      const clearPendency = async () => {
-        try {
-          await onUpdateLead(lead.id, {
-            status_atendimento: 'em_atendimento',
-            atualizado_em: new Date().toISOString(),
-          } as any)
-        } catch (err) {
-          console.warn('Erro ao limpar pendência ao abrir modal do lead:', err)
-        }
-      }
-      clearPendency()
-    }
-  }, [open, lead?.id, lead?.status_atendimento, onUpdateLead])
-
   // Carregar mensagens do WhatsApp
   const loadMessages = useCallback(
     async (silent = false) => {
@@ -394,6 +374,23 @@ export function ModalAtendimento({
     }
   }, [open, activeTab, loadTimeline])
 
+  const [resolvendoPendencia, setResolvendoPendencia] = useState(false)
+  const handleMarcarRespondido = async () => {
+    if (!lead?.id) return
+    try {
+      setResolvendoPendencia(true)
+      await onUpdateLead(lead.id, {
+        status_atendimento: 'em_atendimento',
+        atualizado_em: new Date().toISOString(),
+      } as any)
+      toast.success('Pendência resolvida')
+    } catch (err: any) {
+      toast.error('Erro ao resolver pendência: ' + (err?.message || 'Falha na conexão'))
+    } finally {
+      setResolvendoPendencia(false)
+    }
+  }
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !lead) return
     const textToSend = newMessage.trim()
@@ -565,6 +562,18 @@ export function ModalAtendimento({
                 <Badge variant="secondary" className="text-xs font-semibold">
                   {currentAba?.titulo || 'Atendimentos'}
                 </Badge>
+                {lead.status_atendimento === 'aguardando_resposta' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-xs"
+                    disabled={resolvendoPendencia}
+                    onClick={handleMarcarRespondido}
+                  >
+                    Marcar como respondido
+                  </Button>
+                )}
                 {isStatusPerdido(lead.status) && lead.motivo_perda && (
                   <Badge
                     variant="destructive"

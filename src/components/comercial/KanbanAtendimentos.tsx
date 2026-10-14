@@ -214,7 +214,7 @@ export function KanbanAtendimentos({
   >([])
   usersRef.current = users
 
-  // Limpar contagem de não lidas e pendência quando abrir o modal de conversa
+  // Limpar contagem de não lidas quando abrir o modal de conversa
   const handleOpenLeadModal = async (lead: Lead) => {
     if (!lead || !lead.id) return
     setUnreadCounts((prev) => {
@@ -223,13 +223,6 @@ export function KanbanAtendimentos({
       delete copy[lead.id]
       return copy
     })
-    // Se lead estiver com status_atendimento = 'aguardando_resposta', limpar imediatamente no banco e no estado
-    if (lead.status_atendimento === 'aguardando_resposta') {
-      handleUpdateLead(lead.id, {
-        status_atendimento: 'em_atendimento',
-        atualizado_em: new Date().toISOString(),
-      } as any).catch((err) => console.warn('Falha ao limpar pendência', err))
-    }
     setSelectedLeadForModal(lead)
   }
 
