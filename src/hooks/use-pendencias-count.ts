@@ -10,7 +10,6 @@ import { ATENDIMENTO_ABAS, leadBelongsToAba } from '@/components/comercial/const
  * - lead com status_atendimento = 'aguardando_resposta'
  * - excluido = false
  * - arquivado_comercial = false
- * - status NÃO pode ser 'Perdido' nem 'Vendido'
  * - não excluído nem arquivado nos metadados da aba (meta.exclusoes / meta.arquivamentos)
  * - possui pelo menos 1 mensagem de cliente REAL (sender_type IN ('cliente', 'lead') OU direction = 'inbound')
  */
@@ -23,10 +22,14 @@ let sharedResult: PendenciasCountResult = { total: 0, byAba: {} }
 const subscribers = new Set<(r: PendenciasCountResult) => void>()
 let unsubscribeAll: (() => void) | null = null
 let isFetching = false
+let precisaRecontar = false
 let timer: ReturnType<typeof setTimeout> | null = null
 
 const fetchCount = async () => {
-  if (isFetching) return
+  if (isFetching) {
+    precisaRecontar = true
+    return
+  }
   isFetching = true
   try {
     // 1. Buscar leads candidatos com status_atendimento = 'aguardando_resposta'
@@ -48,13 +51,7 @@ const fetchCount = async () => {
       return
     }
 
-    // Regra: ignorar leads com status 'Perdido' ou 'Vendido'
-    const activeStatusLeads = leads.filter((l: any) => {
-      const s = typeof l?.status === 'string' ? l.status.trim().toLowerCase() : ''
-      return s !== 'perdido' && s !== 'vendido'
-    })
-
-    const leadIds = activeStatusLeads.map((l: any) => l.id).filter(Boolean)
+    const leadIds = leads.map((l: any) => l.id).filter(Boolean)
     if (leadIds.length === 0) {
       sharedResult = { total: 0, byAba: {} }
       subscribers.forEach((notify) => notify(sharedResult))
@@ -78,7 +75,7 @@ const fetchCount = async () => {
     }
 
     const uniqueLeadsWithClientMsg = new Set(msgs.map((m: any) => m.lead_id).filter(Boolean))
-    const validLeads = activeStatusLeads.filter((l: any) => uniqueLeadsWithClientMsg.has(l.id))
+    const validLeads = leads.filter((l: any) => uniqueLeadsWithClientMsg.has(l.id))
 
     // 3. Mapear pendências por aba usando leadBelongsToAba
     const abaCounts: Record<string, number> = {}
@@ -107,6 +104,10 @@ const fetchCount = async () => {
     console.warn('Erro ao calcular pendências globais:', err)
   } finally {
     isFetching = false
+    if (precisaRecontar) {
+      precisaRecontar = false
+      debouncedFetch()
+    }
   }
 }
 

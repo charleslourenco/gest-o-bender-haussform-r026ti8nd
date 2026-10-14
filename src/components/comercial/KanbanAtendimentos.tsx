@@ -1317,6 +1317,9 @@ export function KanbanAtendimentos({
     return leads.filter((l) => {
       try {
         if (!l || typeof l !== 'object') return false
+        // Excluídos e arquivados não aparecem nos quadros (ficam na tela de Arquivados) (erro 1.12)
+        if ((l as any).excluido === true) return false
+        if ((l as any).arquivado_comercial === true) return false
 
         const { meta } = getCachedMeta(l)
 
