@@ -280,18 +280,54 @@ export function ModalAtendimento({
         .like('link', `%lead_id=${lead.id}%`)
         .order('criado_em', { ascending: false })
 
+      const notifsFiltradas: any[] = []
       if (notifs && notifs.length > 0) {
-        notifs.forEach((n) => {
-          if (n?.criado_em) {
-            items.push({
-              id: n.id,
-              titulo: n.titulo || 'Movimentação de Estágio',
-              descricao: n.mensagem || '',
-              data: n.criado_em,
-              icone: 'status',
-            })
-          }
-        })
+        const seenNotifs = new Set<string>()
+        for (const n of notifs) {
+          if (!n?.criado_em) continue
+          const key = `${n.mensagem}|${String(n.criado_em).slice(0, 19)}`
+          if (seenNotifs.has(key)) continue
+          seenNotifs.add(key)
+          notifsFiltradas.push(n)
+          items.push({
+            id: n.id,
+            titulo: n.titulo || 'Movimentação de Estágio',
+            descricao: n.mensagem || '',
+            data: n.criado_em,
+            icone: 'status',
+          })
+        }
+      }
+
+      const { data: hist } = await supabase
+        .from('leads_status_historico')
+        .select('id, status_anterior, status_novo, criado_em')
+        .eq('lead_id', lead.id)
+        .order('criado_em', { ascending: false })
+
+      if (hist && hist.length > 0) {
+        for (const h of hist) {
+          if (!h.criado_em) continue
+          const targetPrefix = `${h.status_anterior} → ${h.status_novo}`
+          const hTime = new Date(h.criado_em).getTime()
+
+          const jaExisteNotif = notifsFiltradas.some((n) => {
+            if (!n.mensagem || !n.criado_em) return false
+            if (!n.mensagem.startsWith(targetPrefix)) return false
+            const nTime = new Date(n.criado_em).getTime()
+            return Math.abs(hTime - nTime) < 10000
+          })
+
+          if (jaExisteNotif) continue
+
+          items.push({
+            id: h.id,
+            titulo: 'Lead movido',
+            descricao: `${h.status_anterior || '-'} → ${h.status_novo || '-'}`,
+            data: h.criado_em,
+            icone: 'status',
+          })
+        }
       }
 
       if (meta?.encaminhado_para_aba && meta?.encaminhado_em) {
