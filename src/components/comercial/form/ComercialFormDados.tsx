@@ -417,23 +417,17 @@ export function ComercialFormDados({ dossie, onSaved }: { dossie: any; onSaved: 
                 },
               ]
 
-        await supabase.from('contas_receber').delete().eq('formulario_comercial_id', formId)
-
-        const contasReceberInserts = parcelasParaReceber.map((p: any, i: number) => ({
-          cliente_id: dossie.cliente_id,
-          formulario_comercial_id: formId,
-          user_id: authData.user?.id,
-          numero_parcela: `${i + 1}/${parcelasParaReceber.length}`,
-          data_vencimento: p.data,
-          valor: p.valor,
-          status_pagamento: 'aguardando',
-          meio_pagamento: p.meio || 'PIX',
-          descricao: `Parcela ${i + 1}/${parcelasParaReceber.length} - ${data.nome || ''}`,
-          categoria: 'Venda',
-        }))
-
-        if (contasReceberInserts.length > 0) {
-          await supabase.from('contas_receber').insert(contasReceberInserts)
+        // Parcelas gravadas numa transação só, sem apagar parcela já recebida (erro 2.2)
+        const { error: erroParcelas } = await supabase.rpc('salvar_parcelas_venda' as any, {
+          p_formulario_id: formId,
+          p_parcelas: parcelasParaReceber.map((p: any) => ({
+            data: p.data,
+            valor: Number(p.valor) || 0,
+            meio: p.meio || 'PIX',
+          })),
+        })
+        if (erroParcelas) {
+          throw new Error('Parcelas não foram salvas: ' + erroParcelas.message)
         }
       }
 
