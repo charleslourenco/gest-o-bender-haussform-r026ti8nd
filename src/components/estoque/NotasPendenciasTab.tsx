@@ -70,6 +70,7 @@ const TIPO_ALERTA_LABELS: Record<TipoAlertaNota, string> = {
   SEM_ENTRADA_ESTOQUE: 'Sem entrada no estoque',
   ITEM_SEM_VINCULO: 'Item sem vínculo',
   TOTAL_DIVERGENTE: 'Total divergente',
+  IMPOSTOS_NAO_INFORMADOS: 'Impostos/Frete não informados',
   SEM_CONTA_PAGAR: 'Sem conta a pagar',
 }
 
@@ -96,6 +97,27 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
   const [observacaoConferencia, setObservacaoConferencia] = useState('')
   const [isSubmittingConferencia, setIsSubmittingConferencia] = useState(false)
 
+  // Estado para modal "Informar impostos/frete" (IMPOSTOS_NAO_INFORMADOS)
+  const [impostosModalNota, setImpostosModalNota] = useState<AlertaNotaFiscal | null>(null)
+  const [formImpostos, setFormImpostos] = useState({
+    frete: 0,
+    ipi: 0,
+    st: 0,
+    outras: 0,
+    desconto: 0,
+  })
+  const [isSubmittingImpostos, setIsSubmittingImpostos] = useState(false)
+  const [erroImpostosRpc, setErroImpostosRpc] = useState<string | null>(null)
+
+  // Estado para "Reprocessar totais em lote"
+  const [isBatchReprocessing, setIsBatchReprocessing] = useState(false)
+  const [batchResultModal, setBatchResultModal] = useState<{
+    resolvidas: number
+    pendentes: number
+    total: number
+    erros: string[]
+  } | null>(null)
+
   const userCanResolve = canResolvePendencia(user, permissions, isAdmin)
 
   const formatCurrency = (val: number | null | undefined) =>
@@ -115,7 +137,8 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
   // Filtragem no front
   const filteredAlertas = useMemo(() => {
     return alertas.filter((a) => {
-      if (filterGravidade !== 'todas' && a.gravidade !== filterGravidade) {
+      const g = a.tipo_alerta === 'IMPOSTOS_NAO_INFORMADOS' ? 'baixa' : a.gravidade
+      if (filterGravidade !== 'todas' && g !== filterGravidade) {
         return false
       }
       if (filterTipo !== 'todos' && a.tipo_alerta !== filterTipo) {
@@ -254,6 +277,215 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
     setObservacaoConferencia('')
   }
 
+  // Abrir modal "Informar impostos/frete"
+  const handleOpenInformarImpostos = (alerta: AlertaNotaFiscal) => {
+    setImpostosModalNota(alerta)
+    setErroImpostosRpc(null)
+    setFormImpostos({
+      frete: 0,
+      ipi: 0,
+      st: 0,
+      outras: 0,
+      desconto: 0,
+    })
+  }
+
+  // Confirmar chamada da RPC classificar_diferenca_nota
+  const handleConfirmClassificarDiferenca = async () => {
+    if (!impostosModalNota) return
+    setIsSubmittingImpostos(true)
+    setErroImpostosRpc(null)
+    try {
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc('classificar_diferenca_nota', {
+        p_nota_id: impostosModalNota.nota_id,
+        p_frete: Number(formImpostos.frete) || 0,
+        p_ipi: Number(formImpostos.ipi) || 0,
+        p_st: Number(formImpostos.st) || 0,
+        p_outras: Number(formImpostos.outras) || 0,
+        p_desconto: Number(formImpostos.desconto) || 0,
+        p_usuario_id: user?.id || null,
+      })
+
+      if (rpcErr) {
+        setErroImpostosRpc(rpcErr.message || 'Erro ao classificar diferença da nota')
+        return
+      }
+
+      // Se a RPC retornou um objeto ou booleano com erro
+      if (rpcRes && typeof rpcRes === 'object' && rpcRes.success === false) {
+        setErroImpostosRpc(
+          rpcRes.error || rpcRes.mensagem || 'Valores não fecham com a diferença da nota',
+        )
+        return
+      }
+
+      toast({
+        title: 'Impostos e frete classificados!',
+        description: `Nota fiscal ${impostosModalNota.numero_nota || ''} atualizada e removida de pendências.`,
+      })
+
+      setImpostosModalNota(null)
+      triggerAlertasReload()
+      await onReload()
+    } catch (err: any) {
+      setErroImpostosRpc(err.message || 'Falha na comunicação com o banco')
+    } finally {
+      setIsSubmittingImpostos(false)
+    }
+  }
+
+  // Rotina de "Reprocessar totais em lote"
+  const handleReprocessarTotaisEmLote = async () => {
+    const notasCandidatas = alertas.filter(
+      (a) => a.tipo_alerta === 'IMPOSTOS_NAO_INFORMADOS' || a.tipo_alerta === 'TOTAL_DIVERGENTE',
+    )
+
+    if (notasCandidatas.length === 0) {
+      toast({
+        title: 'Nenhuma nota elegível',
+        description:
+          'Não há notas com alerta de "Impostos não informados" ou "Total divergente" na lista.',
+      })
+      return
+    }
+
+    if (
+      !window.confirm(
+        `Deseja reprocessar a leitura de totais da Camada 1 para as ${notasCandidatas.length} nota(s) elegíveis? Os itens existentes não serão alterados.`,
+      )
+    ) {
+      return
+    }
+
+    setIsBatchReprocessing(true)
+    let resolvidas = 0
+    let continuamPendentes = 0
+    const errosOcorridos: string[] = []
+
+    try {
+      const { extractTextFromPdf } = await import('@/lib/pdf-to-images')
+      const { parseDanfeText } = await import('@/services/danfe-pdf-parser')
+
+      for (const alerta of notasCandidatas) {
+        try {
+          // 1. Obter arquivo_url e dados_ocr da nota
+          const { data: notaRow, error: nfErr } = await supabase
+            .from('notas_fiscais')
+            .select('id, numero_nota, fornecedor, valor_total, arquivo_url, dados_ocr')
+            .eq('id', alerta.nota_id)
+            .single()
+
+          if (nfErr || !notaRow || !notaRow.arquivo_url) {
+            continuamPendentes++
+            continue
+          }
+
+          // 2. Download do PDF do storage
+          const cleanPath = notaRow.arquivo_url
+            .replace(/^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/[^/]+\//, '')
+            .replace(/^\/+/, '')
+
+          let fileBlob: Blob | null = null
+          const tryBuckets = ['notas-fiscais', 'documentos', 'comprovantes']
+          for (const b of tryBuckets) {
+            const pathCandidate = cleanPath.startsWith(`${b}/`)
+              ? cleanPath.replace(`${b}/`, '')
+              : cleanPath
+            const res = await supabase.storage.from(b).download(pathCandidate)
+            if (res.data) {
+              fileBlob = res.data
+              break
+            }
+          }
+
+          if (!fileBlob) {
+            continuamPendentes++
+            continue
+          }
+
+          const fileName = cleanPath.split('/').pop() || 'nota.pdf'
+          const file = new File([fileBlob], fileName, { type: fileBlob.type || 'application/pdf' })
+
+          // 3. Extrair texto e executar Danfe Parser Camada 1 (sem IA)
+          const text = await extractTextFromPdf(file)
+          if (!text || text.trim().length === 0) {
+            continuamPendentes++
+            continue
+          }
+
+          const parsed = parseDanfeText(text)
+          if (!parsed || !parsed.totais) {
+            continuamPendentes++
+            continue
+          }
+
+          const t = parsed.totais
+          const vProdutos = Number(t.valor_produtos) || 0
+          const vFrete = Number(t.valor_frete) || 0
+          const vSeguro = Number(t.valor_seguro) || 0
+          const vDesconto = Number(t.valor_desconto) || 0
+          const vOutras = Number(t.valor_outras_despesas) || 0
+          const vIpi = Number(t.valor_ipi) || 0
+          const vSt = Number(t.valor_st) || 0
+          const vTotal = Number(t.valor_total_nota) || Number(notaRow.valor_total) || 0
+
+          // Atualizar colunas fiscais novas + dados_ocr.totais SEM alterar itens
+          const updatedDadosOcr = {
+            ...(notaRow.dados_ocr || {}),
+            totais: {
+              ...(notaRow.dados_ocr?.totais || {}),
+              ...t,
+            },
+          }
+
+          const { error: updErr } = await supabase
+            .from('notas_fiscais')
+            .update({
+              valor_produtos: vProdutos,
+              valor_frete: vFrete,
+              valor_seguro: vSeguro,
+              valor_desconto: vDesconto,
+              valor_outras_despesas: vOutras,
+              valor_ipi: vIpi,
+              valor_st: vSt,
+              valor_total: vTotal,
+              dados_ocr: updatedDadosOcr,
+            })
+            .eq('id', alerta.nota_id)
+
+          if (updErr) {
+            errosOcorridos.push(`Nota ${notaRow.numero_nota || alerta.nota_id}: ${updErr.message}`)
+            continuamPendentes++
+          } else {
+            resolvidas++
+          }
+        } catch (itemErr: any) {
+          errosOcorridos.push(`Nota ${alerta.numero_nota || alerta.nota_id}: ${itemErr.message}`)
+          continuamPendentes++
+        }
+      }
+
+      // Recarrega alertas para conferir o resultado final após a view recalcular
+      triggerAlertasReload()
+      await onReload()
+
+      setBatchResultModal({
+        resolvidas,
+        pendentes: continuamPendentes,
+        total: notasCandidatas.length,
+        erros: errosOcorridos,
+      })
+    } catch (gErr: any) {
+      toast({
+        title: 'Erro no processamento em lote',
+        description: gErr.message || 'Falha ao reprocessar notas.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsBatchReprocessing(false)
+    }
+  }
+
   // Confirmar Marcar como conferida com observação obrigatória
   const handleConfirmConferencia = async () => {
     if (!conferirNota) return
@@ -301,8 +533,9 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
     }
   }
 
-  const getGravidadeBadge = (gravidade: GravidadeAlerta) => {
-    if (gravidade === 'alta') {
+  const getGravidadeBadge = (gravidade: GravidadeAlerta, tipoAlerta?: TipoAlertaNota) => {
+    const efGravidade = tipoAlerta === 'IMPOSTOS_NAO_INFORMADOS' ? 'baixa' : gravidade
+    if (efGravidade === 'alta') {
       return (
         <Badge className="bg-red-500 hover:bg-red-600 text-white border-none gap-1 font-semibold text-[11px]">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -310,7 +543,7 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
         </Badge>
       )
     }
-    if (gravidade === 'media') {
+    if (efGravidade === 'media') {
       return (
         <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none gap-1 font-semibold text-[11px]">
           <span className="w-1.5 h-1.5 rounded-full bg-white" />
@@ -400,11 +633,32 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
                   <SelectItem value="TOTAL_DIVERGENTE" className="text-xs">
                     Total divergente
                   </SelectItem>
+                  <SelectItem value="IMPOSTOS_NAO_INFORMADOS" className="text-xs">
+                    Impostos/Frete não informados
+                  </SelectItem>
                   <SelectItem value="SEM_CONTA_PAGAR" className="text-xs">
                     Sem conta a pagar
                   </SelectItem>
                 </SelectContent>
               </Select>
+
+              {userCanResolve && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReprocessarTotaisEmLote}
+                  disabled={isBatchReprocessing || loading}
+                  className="h-9 text-xs text-blue-700 border-blue-300 hover:bg-blue-50 dark:text-blue-300 dark:border-blue-700 dark:hover:bg-blue-950/40 gap-1.5"
+                  title="Reprocessar leitura de totais da Camada 1 para notas com alerta de impostos ou divergência"
+                >
+                  {isBatchReprocessing ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>Reprocessar totais em lote</span>
+                </Button>
+              )}
 
               {(search || filterGravidade !== 'todas' || filterTipo !== 'todos') && (
                 <Button
@@ -505,6 +759,7 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
                 <TableBody>
                   {filteredAlertas.map((alerta, idx) => {
                     const isTotalDiv = alerta.tipo_alerta === 'TOTAL_DIVERGENTE'
+                    const isImpostos = alerta.tipo_alerta === 'IMPOSTOS_NAO_INFORMADOS'
                     const isSemConta = alerta.tipo_alerta === 'SEM_CONTA_PAGAR'
                     const isSemEstoque = alerta.tipo_alerta === 'SEM_ENTRADA_ESTOQUE'
 
@@ -514,7 +769,7 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
                         className="border-b border-border hover:bg-muted/40 transition-colors"
                       >
                         <TableCell className="py-3">
-                          {getGravidadeBadge(alerta.gravidade)}
+                          {getGravidadeBadge(alerta.gravidade, alerta.tipo_alerta)}
                         </TableCell>
                         <TableCell className="py-3 font-semibold text-xs text-foreground">
                           {alerta.numero_nota || 'S/N'}
@@ -562,6 +817,32 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
                         <TableCell className="py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                             {/* Ações rápidas por tipo */}
+                            {isImpostos && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!userCanResolve}
+                                        onClick={() => handleOpenInformarImpostos(alerta)}
+                                        className="h-7 px-2 text-[11px] font-semibold border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 bg-amber-50/50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 gap-1"
+                                      >
+                                        <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                        <span>Informar impostos/frete</span>
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  {!userCanResolve && (
+                                    <TooltipContent className="text-xs">
+                                      Disponível apenas para os papéis Gestor e Compras
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
                             {isSemEstoque && (
                               <TooltipProvider>
                                 <Tooltip>
@@ -843,6 +1124,340 @@ export function NotasPendenciasTab({ alertas, loading, error, onReload }: NotasP
                   <span>Confirmar Conferência</span>
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 4: Informar impostos/frete (IMPOSTOS_NAO_INFORMADOS) */}
+      <Dialog
+        open={Boolean(impostosModalNota)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setImpostosModalNota(null)
+            setErroImpostosRpc(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Sparkles className="w-5 h-5" />
+              Informar Impostos e Frete da Nota
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Nota fiscal <strong>{impostosModalNota?.numero_nota || 'S/N'}</strong> · Fornecedor:{' '}
+              <strong>{impostosModalNota?.fornecedor || 'Desconhecido'}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          {impostosModalNota &&
+            (() => {
+              const totalNota = Number(impostosModalNota.valor_total) || 0
+              const somaItens = Number(impostosModalNota.soma_itens) || 0
+              const diferencaCalculada =
+                impostosModalNota.diferenca !== null && impostosModalNota.diferenca !== undefined
+                  ? Math.abs(impostosModalNota.diferenca)
+                  : Math.max(0, Math.round((totalNota - somaItens) * 100) / 100)
+
+              const somaInformada =
+                Math.round(
+                  (Number(formImpostos.frete) +
+                    Number(formImpostos.ipi) +
+                    Number(formImpostos.st) +
+                    Number(formImpostos.outras) -
+                    Number(formImpostos.desconto)) *
+                    100,
+                ) / 100
+
+              const saldoPendente = Math.round((diferencaCalculada - somaInformada) * 100) / 100
+
+              return (
+                <div className="space-y-4 py-2">
+                  {/* Resumo da Diferença */}
+                  <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800 space-y-1.5 text-xs text-amber-900 dark:text-amber-200">
+                    <div className="flex items-center justify-between font-medium">
+                      <span>Total da nota:</span>
+                      <strong className="text-sm">{formatCurrency(totalNota)}</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-muted-foreground">
+                      <span>Soma dos itens:</span>
+                      <span>{formatCurrency(somaItens)}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-amber-200 dark:border-amber-800 pt-1.5 font-bold text-amber-900 dark:text-amber-100">
+                      <span>Diferença a classificar (Total − Itens):</span>
+                      <span className="text-sm text-rose-600 dark:text-rose-400">
+                        {formatCurrency(diferencaCalculada)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Atalhos rápidos para preenchimento */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-muted-foreground">Atalhos:</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormImpostos({
+                          frete: diferencaCalculada,
+                          ipi: 0,
+                          st: 0,
+                          outras: 0,
+                          desconto: 0,
+                        })
+                        setErroImpostosRpc(null)
+                      }}
+                      className="h-7 text-xs border-amber-300 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300"
+                    >
+                      A diferença toda é frete
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormImpostos({
+                          frete: 0,
+                          ipi: diferencaCalculada,
+                          st: 0,
+                          outras: 0,
+                          desconto: 0,
+                        })
+                        setErroImpostosRpc(null)
+                      }}
+                      className="h-7 text-xs border-amber-300 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/40 text-amber-800 dark:text-amber-300"
+                    >
+                      A diferença toda é IPI
+                    </Button>
+                  </div>
+
+                  {/* Campos: Frete, IPI, ICMS-ST, Outras e Desconto */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                        Frete (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formImpostos.frete}
+                        onChange={(e) => {
+                          setFormImpostos((p) => ({ ...p, frete: parseFloat(e.target.value) || 0 }))
+                          setErroImpostosRpc(null)
+                        }}
+                        className="h-8 text-xs font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                        IPI (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formImpostos.ipi}
+                        onChange={(e) => {
+                          setFormImpostos((p) => ({ ...p, ipi: parseFloat(e.target.value) || 0 }))
+                          setErroImpostosRpc(null)
+                        }}
+                        className="h-8 text-xs font-semibold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                        ICMS-ST (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formImpostos.st}
+                        onChange={(e) => {
+                          setFormImpostos((p) => ({ ...p, st: parseFloat(e.target.value) || 0 }))
+                          setErroImpostosRpc(null)
+                        }}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                        Outras despesas (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formImpostos.outras}
+                        onChange={(e) => {
+                          setFormImpostos((p) => ({
+                            ...p,
+                            outras: parseFloat(e.target.value) || 0,
+                          }))
+                          setErroImpostosRpc(null)
+                        }}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-medium text-slate-700 dark:text-slate-300 block mb-1">
+                        Desconto (-) (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formImpostos.desconto}
+                        onChange={(e) => {
+                          setFormImpostos((p) => ({
+                            ...p,
+                            desconto: parseFloat(e.target.value) || 0,
+                          }))
+                          setErroImpostosRpc(null)
+                        }}
+                        className="h-8 text-xs text-emerald-700 dark:text-emerald-400 font-medium"
+                      />
+                    </div>
+
+                    <div className="flex flex-col justify-end">
+                      <span className="text-[11px] text-muted-foreground block mb-1">
+                        Saldo restante:
+                      </span>
+                      <div
+                        className={`h-8 px-2 flex items-center font-bold text-xs rounded-md border ${
+                          Math.abs(saldoPendente) <= 0.05
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800'
+                            : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800'
+                        }`}
+                      >
+                        {formatCurrency(saldoPendente)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Exibição de mensagem de erro da RPC caso os valores não fechem */}
+                  {erroImpostosRpc && (
+                    <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-md text-xs text-red-800 dark:text-red-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold">Erro ao validar classificação:</p>
+                        <p className="mt-0.5">{erroImpostosRpc}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setImpostosModalNota(null)
+                setErroImpostosRpc(null)
+              }}
+              disabled={isSubmittingImpostos}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmClassificarDiferenca}
+              disabled={isSubmittingImpostos}
+              className="text-xs bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+            >
+              {isSubmittingImpostos ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Validando no banco...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Confirmar e Salvar</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 5: Relatório do Reprocessamento em Lote */}
+      <Dialog
+        open={Boolean(batchResultModal)}
+        onOpenChange={(open) => {
+          if (!open) setBatchResultModal(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-blue-700 dark:text-blue-400">
+              <Sparkles className="w-5 h-5" />
+              Reprocessamento de Totais em Lote Concluído
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Resultado da execução da Camada 1 (parser de texto sem IA) sobre as notas elegíveis:
+            </DialogDescription>
+          </DialogHeader>
+
+          {batchResultModal && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border dark:border-slate-700">
+                  <span className="text-[11px] text-muted-foreground block">Total Elegíveis</span>
+                  <strong className="text-base text-foreground font-bold">
+                    {batchResultModal.total}
+                  </strong>
+                </div>
+                <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+                  <span className="text-[11px] text-emerald-700 dark:text-emerald-400 block">
+                    Resolvidas / Atualizadas
+                  </span>
+                  <strong className="text-base text-emerald-700 dark:text-emerald-300 font-bold">
+                    {batchResultModal.resolvidas}
+                  </strong>
+                </div>
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 block">
+                    Continuam Pendentes
+                  </span>
+                  <strong className="text-base text-amber-700 dark:text-amber-300 font-bold">
+                    {batchResultModal.pendentes}
+                  </strong>
+                </div>
+              </div>
+
+              {batchResultModal.erros.length > 0 && (
+                <div className="mt-2 p-2.5 bg-muted/40 rounded-md border border-border text-[11px] max-h-36 overflow-y-auto space-y-1">
+                  <p className="font-semibold text-foreground">
+                    Notas que exigem conferência manual:
+                  </p>
+                  {batchResultModal.erros.map((e, idx) => (
+                    <p key={idx} className="text-muted-foreground">
+                      • {e}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              size="sm"
+              onClick={() => setBatchResultModal(null)}
+              className="text-xs bg-primary text-primary-foreground"
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

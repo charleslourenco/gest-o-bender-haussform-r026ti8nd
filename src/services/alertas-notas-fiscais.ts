@@ -8,6 +8,7 @@ export type TipoAlertaNota =
   | 'SEM_ENTRADA_ESTOQUE'
   | 'ITEM_SEM_VINCULO'
   | 'TOTAL_DIVERGENTE'
+  | 'IMPOSTOS_NAO_INFORMADOS'
   | 'SEM_CONTA_PAGAR'
   | 'divergencia_valores'
   | 'itens_sem_match'
@@ -85,10 +86,13 @@ export function normalizeAlertaNota(raw: any): AlertaNotaFiscal {
         : null
   const mensagem = raw.mensagem || raw.mensagem_alerta || ''
   const tipoAlerta = raw.tipo_alerta || 'divergencia_valores'
+  const rawGravidade = String(raw.gravidade || '').toLowerCase()
   const gravidade: GravidadeAlerta =
-    raw.gravidade === 'alta' || raw.gravidade === 'media' || raw.gravidade === 'baixa'
-      ? raw.gravidade
-      : 'media'
+    tipoAlerta === 'IMPOSTOS_NAO_INFORMADOS'
+      ? 'baixa'
+      : rawGravidade === 'alta' || rawGravidade === 'media' || rawGravidade === 'baixa'
+        ? (rawGravidade as GravidadeAlerta)
+        : 'media'
 
   return {
     nota_id: raw.nota_id || raw.id,

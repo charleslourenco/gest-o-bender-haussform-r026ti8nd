@@ -205,32 +205,83 @@ export function parseDanfeText(text: string): ParsedDanfeResult | null {
   // Duas linhas de valores após "CÁLCULO DO IMPOSTO":
   // Linha 1 de totais: BASE CÁLC ICMS, VALOR ICMS, BASE CÁLC ST, VALOR ST, VALOR TOTAL PRODUTOS (5 valores)
   // Linha 2 de totais: VALOR FRETE, VALOR SEGURO, DESCONTO, OUTRAS DESP, VALOR IPI, VALOR TOTAL NOTA (6 valores)
-  let totais: ParsedDanfeTotais = {
-    valor_produtos: 0,
-    valor_total_nota: 0,
+  let baseCalculoIcmsLido = 0
+  let valorIcmsLido = 0
+  let baseCalculoStLido = 0
+  let valorStLido = 0
+  let valorProdutosLido = 0
+  let valorFreteLido = 0
+  let valorSeguroLido = 0
+  let valorDescontoLido = 0
+  let valorOutrasDespesasLido = 0
+  let valorIpiLido = 0
+  let valorNotaLido = 0
+
+  // 1.6.1 Tentar capturar por regex de labels específicos
+  const matchLabeled = (pattern: RegExp) => {
+    const m = text.match(pattern)
+    return m ? parseBrazilianNumber(m[1] || m[2]) : 0
   }
 
-  // Tentar encontrar linhas com valores de cálculo do imposto
-  // Buscamos especificamente "VALOR TOTAL DOS PRODUTOS" e "VALOR TOTAL DA NOTA"
-  const vProdMatch = text.match(
+  valorProdutosLido = matchLabeled(
     /VALOR\s+TOTAL\s+DOS\s+PRODUTOS\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*PRODUTOS?)\s*[:.]?\s*([\d.,]+)/i,
   )
-  const vNotaMatch = text.match(
+  valorNotaLido = matchLabeled(
     /VALOR\s+TOTAL\s+DA\s+NOTA\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*TOTAL\s*DA\s*NOTA)\s*[:.]?\s*([\d.,]+)/i,
   )
+  valorFreteLido = matchLabeled(
+    /VALOR\s+D[OE]\s+FRETE\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*FRETE)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorSeguroLido = matchLabeled(
+    /VALOR\s+D[OE]\s+SEGURO\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*SEG(?:URO)?)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorDescontoLido = matchLabeled(
+    /(?:VALOR\s+D[OE]\s+)?DESCONTO\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*DESC)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorOutrasDespesasLido = matchLabeled(
+    /OUTRAS\s+DESPESAS(?:\s+ACESS[ÓO]RIAS)?\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*OUTR(?:O|AS)?)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorIpiLido = matchLabeled(
+    /VALOR\s+TOTAL\s+D[OE]\s+IPI\s*[:.]?\s*R?\$?\s*([\d.,]+)|VALOR\s+D[OE]\s+IPI\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*IPI)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorStLido = matchLabeled(
+    /VALOR\s+D[OE]\s+ICMS\s+ST\s*[:.]?\s*R?\$?\s*([\d.,]+)|VALOR\s+ST\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*ST)\s*[:.]?\s*([\d.,]+)/i,
+  )
+  valorIcmsLido = matchLabeled(
+    /VALOR\s+D[OE]\s+ICMS\s*[:.]?\s*R?\$?\s*([\d.,]+)|(?:V\.?\s*ICMS)\s*[:.]?\s*([\d.,]+)/i,
+  )
 
-  let valorProdutosLido = vProdMatch ? parseBrazilianNumber(vProdMatch[1] || vProdMatch[2]) : 0
-  let valorNotaLido = vNotaMatch ? parseBrazilianNumber(vNotaMatch[1] || vNotaMatch[2]) : 0
-
-  // Se não achou por label direto, busca por sequências de valores na seção CÁLCULO DO IMPOSTO
+  // 1.6.2 Se faltou valor_produtos ou valor_total_nota, busca por sequências de valores na seção CÁLCULO DO IMPOSTO
   const posCalculo = text.search(/C[AÁ]LCULO\s+DO\s+IMPOSTO/i)
   if (posCalculo >= 0) {
-    const sub = text.substring(posCalculo, posCalculo + 1200)
+    const sub = text.substring(posCalculo, posCalculo + 1400)
     // Procurar números com vírgula no subtrecho
     const numberMatches = sub.match(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g)
-    if (numberMatches && numberMatches.length >= 6) {
-      // Normalmente o 5º valor da primeira linha é o valor dos produtos
-      // e o último valor da segunda linha é o valor da nota
+    if (numberMatches && numberMatches.length >= 11) {
+      // Formato clássico DANFE: 11 valores
+      // 0: BC ICMS, 1: V.ICMS, 2: BC ST, 3: V.ICMS ST, 4: V.PROD
+      // 5: V.FRETE, 6: V.SEG, 7: V.DESC, 8: OUTRAS, 9: V.IPI, 10: V.NF
+      if (!baseCalculoIcmsLido && numberMatches[0])
+        baseCalculoIcmsLido = parseBrazilianNumber(numberMatches[0])
+      if (!valorIcmsLido && numberMatches[1]) valorIcmsLido = parseBrazilianNumber(numberMatches[1])
+      if (!baseCalculoStLido && numberMatches[2])
+        baseCalculoStLido = parseBrazilianNumber(numberMatches[2])
+      if (!valorStLido && numberMatches[3]) valorStLido = parseBrazilianNumber(numberMatches[3])
+      if (!valorProdutosLido && numberMatches[4])
+        valorProdutosLido = parseBrazilianNumber(numberMatches[4])
+
+      if (!valorFreteLido && numberMatches[5])
+        valorFreteLido = parseBrazilianNumber(numberMatches[5])
+      if (!valorSeguroLido && numberMatches[6])
+        valorSeguroLido = parseBrazilianNumber(numberMatches[6])
+      if (!valorDescontoLido && numberMatches[7])
+        valorDescontoLido = parseBrazilianNumber(numberMatches[7])
+      if (!valorOutrasDespesasLido && numberMatches[8])
+        valorOutrasDespesasLido = parseBrazilianNumber(numberMatches[8])
+      if (!valorIpiLido && numberMatches[9]) valorIpiLido = parseBrazilianNumber(numberMatches[9])
+      if (!valorNotaLido && numberMatches[10])
+        valorNotaLido = parseBrazilianNumber(numberMatches[10])
+    } else if (numberMatches && numberMatches.length >= 6) {
       if (valorProdutosLido === 0 && numberMatches[4]) {
         valorProdutosLido = parseBrazilianNumber(numberMatches[4])
       }
@@ -392,7 +443,16 @@ export function parseDanfeText(text: string): ParsedDanfeResult | null {
   const somaBateu = valorReferencia > 0 ? diferenca <= 0.05 : false
 
   totais = {
+    base_calculo_icms: baseCalculoIcmsLido || 0,
+    valor_icms: valorIcmsLido || 0,
+    base_calculo_st: baseCalculoStLido || 0,
+    valor_st: valorStLido || 0,
     valor_produtos: valorProdutosLido || somaItens,
+    valor_frete: valorFreteLido || 0,
+    valor_seguro: valorSeguroLido || 0,
+    valor_desconto: valorDescontoLido || 0,
+    valor_outras_despesas: valorOutrasDespesasLido || 0,
+    valor_ipi: valorIpiLido || 0,
     valor_total_nota: valorNotaLido || somaItens,
   }
 

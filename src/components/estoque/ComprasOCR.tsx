@@ -268,6 +268,14 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         .insert({
           fornecedor: extractedData?.fornecedor || 'Desconhecido',
           valor_total: extractedData?.valor || 0,
+          valor_produtos:
+            Number(totaisFiscais?.valor_produtos) || Number(extractedData?.valor) || 0,
+          valor_frete: Number(totaisFiscais?.valor_frete) || 0,
+          valor_seguro: Number(totaisFiscais?.valor_seguro) || 0,
+          valor_desconto: Number(totaisFiscais?.valor_desconto) || 0,
+          valor_outras_despesas: Number(totaisFiscais?.valor_outras_despesas) || 0,
+          valor_ipi: Number(totaisFiscais?.valor_ipi) || 0,
+          valor_st: Number(totaisFiscais?.valor_st) || 0,
           data_emissao: extractedData?.data_emissao || new Date().toISOString().split('T')[0],
           dados_ocr: { ...extractedData, totais: totaisFiscais, itens: [] },
           status_reconciliacao: 'pendente_revisao',
@@ -391,11 +399,19 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
             ? 'pendente_revisao'
             : 'conciliado'
 
-      // Atualizar dados_ocr e status da nota criada (incluindo totais)
+      // Atualizar dados_ocr e status da nota criada (incluindo totais e colunas dedicadas)
       const { error: updateNotaErr } = await supabase
         .from('notas_fiscais')
         .update({
           dados_ocr: { ...extractedData, totais: totaisFiscais, itens: matchedItems },
+          valor_produtos:
+            Number(totaisFiscais?.valor_produtos) || Number(extractedData?.valor) || 0,
+          valor_frete: Number(totaisFiscais?.valor_frete) || 0,
+          valor_seguro: Number(totaisFiscais?.valor_seguro) || 0,
+          valor_desconto: Number(totaisFiscais?.valor_desconto) || 0,
+          valor_outras_despesas: Number(totaisFiscais?.valor_outras_despesas) || 0,
+          valor_ipi: Number(totaisFiscais?.valor_ipi) || 0,
+          valor_st: Number(totaisFiscais?.valor_st) || 0,
           status_reconciliacao: notaStatus,
         })
         .eq('id', notaId)
@@ -574,6 +590,14 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         .update({
           fornecedor: extractedData?.fornecedor || nota.fornecedor,
           valor_total: extractedData?.valor || nota.valor_total,
+          valor_produtos:
+            Number(totaisFiscais?.valor_produtos) || Number(extractedData?.valor) || 0,
+          valor_frete: Number(totaisFiscais?.valor_frete) || 0,
+          valor_seguro: Number(totaisFiscais?.valor_seguro) || 0,
+          valor_desconto: Number(totaisFiscais?.valor_desconto) || 0,
+          valor_outras_despesas: Number(totaisFiscais?.valor_outras_despesas) || 0,
+          valor_ipi: Number(totaisFiscais?.valor_ipi) || 0,
+          valor_st: Number(totaisFiscais?.valor_st) || 0,
           data_emissao: dataEmissaoPura,
           dados_ocr: novoDadosOcr,
           status_reconciliacao: novoStatus,
@@ -690,6 +714,14 @@ export function ComprasOCR({ onSelectNotaForEdit, onNavigateToPendencias }: Comp
         .update({
           fornecedor: extractedData?.fornecedor || target.fornecedor,
           valor_total: extractedData?.valor || target.valor_total,
+          valor_produtos:
+            Number(totaisFiscais?.valor_produtos) || Number(extractedData?.valor) || 0,
+          valor_frete: Number(totaisFiscais?.valor_frete) || 0,
+          valor_seguro: Number(totaisFiscais?.valor_seguro) || 0,
+          valor_desconto: Number(totaisFiscais?.valor_desconto) || 0,
+          valor_outras_despesas: Number(totaisFiscais?.valor_outras_despesas) || 0,
+          valor_ipi: Number(totaisFiscais?.valor_ipi) || 0,
+          valor_st: Number(totaisFiscais?.valor_st) || 0,
           data_emissao: dataEmissaoPura,
           dados_ocr: novoDadosOcr,
           status_reconciliacao: novoStatus,

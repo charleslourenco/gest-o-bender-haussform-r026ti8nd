@@ -283,6 +283,75 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
     return calcularCustosEfetivos(draftItens, totaisXml)
   }, [draftItens, totaisXml])
 
+  // Estado local para os campos fiscais de "Totais da nota"
+  const [totaisNotaState, setTotaisNotaState] = useState({
+    valor_produtos: 0,
+    valor_frete: 0,
+    valor_seguro: 0,
+    valor_desconto: 0,
+    valor_outras_despesas: 0,
+    valor_ipi: 0,
+    valor_st: 0,
+    valor_total: 0,
+  })
+
+  // Sincroniza totais da nota ao carregar/abrir nota
+  useEffect(() => {
+    const dadosOcrTotais = nota.dados_ocr?.totais
+    const vProd =
+      nota.valor_produtos !== undefined && nota.valor_produtos !== null
+        ? Number(nota.valor_produtos)
+        : dadosOcrTotais?.valor_produtos !== undefined && dadosOcrTotais?.valor_produtos !== null
+          ? Number(dadosOcrTotais.valor_produtos)
+          : recalculatedTotal || originalTotal || 0
+
+    const vFrete =
+      nota.valor_frete !== undefined && nota.valor_frete !== null
+        ? Number(nota.valor_frete)
+        : Number(dadosOcrTotais?.valor_frete || 0)
+
+    const vSeguro =
+      nota.valor_seguro !== undefined && nota.valor_seguro !== null
+        ? Number(nota.valor_seguro)
+        : Number(dadosOcrTotais?.valor_seguro || 0)
+
+    const vDesconto =
+      nota.valor_desconto !== undefined && nota.valor_desconto !== null
+        ? Number(nota.valor_desconto)
+        : Number(dadosOcrTotais?.valor_desconto || 0)
+
+    const vOutras =
+      nota.valor_outras_despesas !== undefined && nota.valor_outras_despesas !== null
+        ? Number(nota.valor_outras_despesas)
+        : Number(dadosOcrTotais?.valor_outras_despesas || 0)
+
+    const vIpi =
+      nota.valor_ipi !== undefined && nota.valor_ipi !== null
+        ? Number(nota.valor_ipi)
+        : Number(dadosOcrTotais?.valor_ipi || 0)
+
+    const vSt =
+      nota.valor_st !== undefined && nota.valor_st !== null
+        ? Number(nota.valor_st)
+        : Number(dadosOcrTotais?.valor_st || 0)
+
+    const vTotal =
+      nota.valor_total !== undefined && nota.valor_total !== null
+        ? Number(nota.valor_total)
+        : originalTotal || 0
+
+    setTotaisNotaState({
+      valor_produtos: vProd,
+      valor_frete: vFrete,
+      valor_seguro: vSeguro,
+      valor_desconto: vDesconto,
+      valor_outras_despesas: vOutras,
+      valor_ipi: vIpi,
+      valor_st: vSt,
+      valor_total: vTotal,
+    })
+  }, [nota, originalTotal])
+
   // Manipulação de itens no rascunho local por _draftId ou índice
   const handleItemChange = (target: number | string, updated: Partial<MatchedItem>) => {
     setDraftItens((prev) => {
@@ -445,9 +514,11 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       // Regra 8: Substituir dados_ocr (NUNCA dados_ocr_original) sem mexer em itens_nota_fiscal
       // Tratar data pura (YYYY-MM-DD)
       const dataEmissaoPura = extracted.data_emissao || nota.data_emissao
+      const totaisFiscaisReprocess = extracted.totais || undefined
       const updatedDadosOcr = {
         ...(nota.dados_ocr || {}),
         ...extracted,
+        totais: totaisFiscaisReprocess,
         itens: matched,
         camada_resolvida: pipelineRes.camadaResolvida,
       }
@@ -457,6 +528,14 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
         .update({
           dados_ocr: updatedDadosOcr,
           valor_total: extracted.valor_total || extracted.valor || nota.valor_total,
+          valor_produtos:
+            Number(totaisFiscaisReprocess?.valor_produtos) || Number(extracted.valor) || 0,
+          valor_frete: Number(totaisFiscaisReprocess?.valor_frete) || 0,
+          valor_seguro: Number(totaisFiscaisReprocess?.valor_seguro) || 0,
+          valor_desconto: Number(totaisFiscaisReprocess?.valor_desconto) || 0,
+          valor_outras_despesas: Number(totaisFiscaisReprocess?.valor_outras_despesas) || 0,
+          valor_ipi: Number(totaisFiscaisReprocess?.valor_ipi) || 0,
+          valor_st: Number(totaisFiscaisReprocess?.valor_st) || 0,
           fornecedor: extracted.fornecedor || nota.fornecedor,
           numero_nota: extracted.numero_nota || nota.numero_nota,
           data_emissao: dataEmissaoPura,
@@ -617,14 +696,32 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
       // Regra 5 e 6: Gravar notas_fiscais.valor_total com o total da NOTA (com frete e impostos), NÃO a soma dos itens!
       // NUNCA sobrescrever notas_fiscais.dados_ocr com estado da tela se puder corromper; dados_ocr_original fica intocado.
       // dados_ocr guarda apenas o estado da revisão.
-      const valorTotalNotaFinal = originalTotal > 0 ? originalTotal : recalculatedTotal
+      const valorTotalNotaFinal =
+        totaisNotaState.valor_total > 0
+          ? totaisNotaState.valor_total
+          : originalTotal > 0
+            ? originalTotal
+            : recalculatedTotal
       const pendingCount = draftItens.filter((i) => i.status === 'pendente_revisao').length
       const novoStatus =
         draftItens.length === 0 ? 'pendente' : pendingCount > 0 ? 'pendente_revisao' : 'conciliado'
 
-      // Manter a integridade de dados_ocr gravando itens revisados e metadados de conciliação
+      // Manter a integridade de dados_ocr gravando itens revisados e totais
+      const updatedTotaisOcr = {
+        ...(nota.dados_ocr?.totais || {}),
+        valor_produtos: totaisNotaState.valor_produtos,
+        valor_frete: totaisNotaState.valor_frete,
+        valor_seguro: totaisNotaState.valor_seguro,
+        valor_desconto: totaisNotaState.valor_desconto,
+        valor_outras_despesas: totaisNotaState.valor_outras_despesas,
+        valor_ipi: totaisNotaState.valor_ipi,
+        valor_st: totaisNotaState.valor_st,
+        valor_total_nota: valorTotalNotaFinal,
+      }
+
       const updatedDadosOcr = {
         ...(nota.dados_ocr || {}),
+        totais: updatedTotaisOcr,
         itens: draftItens,
       }
 
@@ -632,6 +729,13 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
         .from('notas_fiscais')
         .update({
           valor_total: valorTotalNotaFinal,
+          valor_produtos: totaisNotaState.valor_produtos,
+          valor_frete: totaisNotaState.valor_frete,
+          valor_seguro: totaisNotaState.valor_seguro,
+          valor_desconto: totaisNotaState.valor_desconto,
+          valor_outras_despesas: totaisNotaState.valor_outras_despesas,
+          valor_ipi: totaisNotaState.valor_ipi,
+          valor_st: totaisNotaState.valor_st,
           dados_ocr: updatedDadosOcr,
           status_reconciliacao: novoStatus,
         })
@@ -672,6 +776,38 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
   const formatBRL = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 
+  // Conferências ao vivo do bloco Totais da nota:
+  // 1. Soma dos itens deve ser igual a Valor dos produtos
+  // 2. Valor total deve ser igual a produtos + frete + seguro + outras + IPI + ST − desconto
+  const diffConferenciaProdutos =
+    Math.round((recalculatedTotal - totaisNotaState.valor_produtos) * 100) / 100
+  const bateuConferenciaProdutos = Math.abs(diffConferenciaProdutos) <= 0.05
+
+  const totalCalculadoFórmula =
+    Math.round(
+      (totaisNotaState.valor_produtos +
+        totaisNotaState.valor_frete +
+        totaisNotaState.valor_seguro +
+        totaisNotaState.valor_outras_despesas +
+        totaisNotaState.valor_ipi +
+        totaisNotaState.valor_st -
+        totaisNotaState.valor_desconto) *
+        100,
+    ) / 100
+
+  const diffConferenciaTotal =
+    Math.round((totaisNotaState.valor_total - totalCalculadoFórmula) * 100) / 100
+  const bateuConferenciaTotal = Math.abs(diffConferenciaTotal) <= 0.05
+
+  const handleTotaisFieldChange = (field: keyof typeof totaisNotaState, valueStr: string) => {
+    const num = parseFloat(valueStr) || 0
+    setTotaisNotaState((prev) => {
+      const next = { ...prev, [field]: num }
+      return next
+    })
+    setHasChanges(true)
+  }
+
   return (
     <div
       className={`mt-4 border-2 rounded-lg p-4 ${
@@ -680,6 +816,247 @@ export function NotaReviewPanel({ nota, onResolved, onReprocess }: NotaReviewPan
           : 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/20'
       }`}
     >
+      {/* BLOCO: TOTAIS DA NOTA com conferência ao vivo */}
+      <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg p-4 mb-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b dark:border-slate-800 pb-2">
+          <div>
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <span>Totais da nota</span>
+              <Badge variant="outline" className="text-[10px] font-medium">
+                Conferência Fiscal
+              </Badge>
+            </h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Valores fiscais vinculados às colunas da nota e conferência em tempo real.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Preencher valor dos produtos com a soma dos itens
+                setTotaisNotaState((prev) => ({
+                  ...prev,
+                  valor_produtos: recalculatedTotal,
+                }))
+                setHasChanges(true)
+              }}
+              className="h-7 text-xs text-slate-600"
+            >
+              Usar soma dos itens em Produtos
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Calcular valor total pela fórmula
+                setTotaisNotaState((prev) => ({
+                  ...prev,
+                  valor_total: totalCalculadoFórmula,
+                }))
+                setHasChanges(true)
+              }}
+              className="h-7 text-xs text-slate-600"
+            >
+              Calcular Total pela fórmula
+            </Button>
+          </div>
+        </div>
+
+        {/* 8 Campos fiscais */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Valor produtos
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_produtos}
+              onChange={(e) => handleTotaisFieldChange('valor_produtos', e.target.value)}
+              className="h-8 text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Frete
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_frete}
+              onChange={(e) => handleTotaisFieldChange('valor_frete', e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Seguro
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_seguro}
+              onChange={(e) => handleTotaisFieldChange('valor_seguro', e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Desconto (-)
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_desconto}
+              onChange={(e) => handleTotaisFieldChange('valor_desconto', e.target.value)}
+              className="h-8 text-xs text-emerald-700 dark:text-emerald-400 font-medium"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              Outras despesas
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_outras_despesas}
+              onChange={(e) => handleTotaisFieldChange('valor_outras_despesas', e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              IPI
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_ipi}
+              onChange={(e) => handleTotaisFieldChange('valor_ipi', e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-slate-600 dark:text-slate-300 block mb-1">
+              ICMS-ST
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_st}
+              onChange={(e) => handleTotaisFieldChange('valor_st', e.target.value)}
+              className="h-8 text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-bold text-slate-700 dark:text-slate-200 block mb-1">
+              Valor total
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={totaisNotaState.valor_total}
+              onChange={(e) => handleTotaisFieldChange('valor_total', e.target.value)}
+              className="h-8 text-xs font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800"
+            />
+          </div>
+        </div>
+
+        {/* Conferência ao vivo: verde quando bate e vermelha com diferença quando não bate */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+          {/* Conferência 1: Soma dos itens vs Valor dos produtos */}
+          <div
+            className={`p-2.5 rounded-md border text-xs flex items-center justify-between gap-2 ${
+              bateuConferenciaProdutos
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-900 dark:text-red-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {bateuConferenciaProdutos ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+              )}
+              <div>
+                <p className="font-semibold">
+                  Conferência de Produtos: {bateuConferenciaProdutos ? 'Correta' : 'Divergente'}
+                </p>
+                <p className="text-[11px] opacity-90">
+                  Soma dos itens ({formatBRL(recalculatedTotal)}) vs Valor dos produtos (
+                  {formatBRL(totaisNotaState.valor_produtos)})
+                </p>
+              </div>
+            </div>
+            {!bateuConferenciaProdutos && (
+              <Badge variant="destructive" className="shrink-0 text-[11px]">
+                Diferença: {formatBRL(diffConferenciaProdutos)}
+              </Badge>
+            )}
+            {bateuConferenciaProdutos && (
+              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 shrink-0 text-[11px]">
+                Bateu (R$ 0,00)
+              </Badge>
+            )}
+          </div>
+
+          {/* Conferência 2: Valor total vs Produtos + Frete + Seguro + Outras + IPI + ST - Desconto */}
+          <div
+            className={`p-2.5 rounded-md border text-xs flex items-center justify-between gap-2 ${
+              bateuConferenciaTotal
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-900 dark:text-red-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {bateuConferenciaTotal ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+              )}
+              <div>
+                <p className="font-semibold">
+                  Conferência do Total Geral: {bateuConferenciaTotal ? 'Correto' : 'Divergente'}
+                </p>
+                <p className="text-[11px] opacity-90">
+                  Total nota ({formatBRL(totaisNotaState.valor_total)}) vs Fórmula (
+                  {formatBRL(totalCalculadoFórmula)})
+                </p>
+              </div>
+            </div>
+            {!bateuConferenciaTotal && (
+              <Badge variant="destructive" className="shrink-0 text-[11px]">
+                Diferença: {formatBRL(diffConferenciaTotal)}
+              </Badge>
+            )}
+            {bateuConferenciaTotal && (
+              <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 shrink-0 text-[11px]">
+                Bateu (R$ 0,00)
+              </Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Resumo do Total Recalculado vs Original */}
       <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg p-3 mb-4 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

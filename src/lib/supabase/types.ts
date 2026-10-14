@@ -2488,6 +2488,13 @@ export type Database = {
           numero_nota: string | null
           pedido_id: string | null
           status_reconciliacao: string
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_ipi: number | null
+          valor_outras_despesas: number | null
+          valor_produtos: number | null
+          valor_seguro: number | null
+          valor_st: number | null
           valor_total: number
         }
         Insert: {
@@ -2501,6 +2508,13 @@ export type Database = {
           numero_nota?: string | null
           pedido_id?: string | null
           status_reconciliacao?: string
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_ipi?: number | null
+          valor_outras_despesas?: number | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
+          valor_st?: number | null
           valor_total: number
         }
         Update: {
@@ -2514,6 +2528,13 @@ export type Database = {
           numero_nota?: string | null
           pedido_id?: string | null
           status_reconciliacao?: string
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_ipi?: number | null
+          valor_outras_despesas?: number | null
+          valor_produtos?: number | null
+          valor_seguro?: number | null
+          valor_st?: number | null
           valor_total?: number
         }
         Relationships: [
@@ -3627,6 +3648,18 @@ export type Database = {
       }
     }
     Functions: {
+      classificar_diferenca_nota: {
+        Args: {
+          p_desconto: number
+          p_frete: number
+          p_ipi: number
+          p_nota_id: string
+          p_outras: number
+          p_st: number
+          p_usuario_id: string | null
+        }
+        Returns: Json
+      }
       gerar_codigo_acompanhamento: { Args: { p_nome: string }; Returns: string }
       get_dashboard_metrics: {
         Args: { p_end_date?: string; p_start_date?: string }
