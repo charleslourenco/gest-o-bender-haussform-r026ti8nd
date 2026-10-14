@@ -4,6 +4,11 @@ export function normalizePhoneDigits(phone: string): string {
   return (phone || '').replace(/\D/g, '')
 }
 
+// Escapa % _ e \ para a busca ilike comparar o texto literal (erro 1.17)
+export function escaparCuringasLike(texto: string): string {
+  return (texto || '').replace(/[\\%_]/g, (c) => '\\' + c)
+}
+
 export function phoneSearchVariants(phone: string): string[] {
   const digits = normalizePhoneDigits(phone)
   if (!digits) return []
@@ -28,27 +33,52 @@ export async function findExistingClient(opts: {
   const cpfClean = (opts.cpf || '').replace(/\D/g, '')
   const phoneVariants = phoneSearchVariants(opts.phone || '')
 
-  const orFilters: string[] = []
-  if (emailClean) orFilters.push(`email.ilike.${emailClean}`)
-  if (cpfClean) orFilters.push(`cpf.eq.${cpfClean}`)
-  phoneVariants.forEach((p) => orFilters.push(`telefone.eq.${p}`))
+  if (emailClean) {
+    const { data: clientByEmail, error: emailError } = await supabase
+      .from('clientes')
+      .select('id, nome')
+      .eq('excluido', false)
+      .ilike('email', escaparCuringasLike(emailClean))
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-  if (orFilters.length === 0) return null
+    if (emailError) {
+      console.error('findExistingClient error:', emailError)
+      return null
+    }
 
-  const { data, error } = await supabase
-    .from('clientes')
-    .select('id, nome')
-    .eq('excluido', false)
-    .or(orFilters.join(','))
-    .order('criado_em', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) {
-    console.error('findExistingClient error:', error)
-    return null
+    if (clientByEmail) {
+      return { id: clientByEmail.id, nome: clientByEmail.nome }
+    }
   }
-  return data ? { id: data.id, nome: data.nome } : null
+
+  if (cpfClean || phoneVariants.length > 0) {
+    const orFilter = [
+      ...(cpfClean ? [`cpf.eq.${cpfClean}`] : []),
+      ...phoneVariants.map((p) => `telefone_digitos.eq.${p}`),
+    ].join(',')
+
+    const { data: clientByCpfOrPhone, error: phoneError } = await supabase
+      .from('clientes')
+      .select('id, nome')
+      .eq('excluido', false)
+      .or(orFilter)
+      .order('criado_em', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (phoneError) {
+      console.error('findExistingClient error:', phoneError)
+      return null
+    }
+
+    if (clientByCpfOrPhone) {
+      return { id: clientByCpfOrPhone.id, nome: clientByCpfOrPhone.nome }
+    }
+  }
+
+  return null
 }
 
 async function ensureStorageFolder(clienteId: string): Promise<void> {

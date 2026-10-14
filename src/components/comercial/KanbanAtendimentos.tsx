@@ -9,6 +9,7 @@ import {
   updateLead,
   salvarNotasLead,
 } from '@/services/comercial'
+import { phoneSearchVariants } from '@/services/vendas'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
 import {
@@ -1159,22 +1160,25 @@ export function KanbanAtendimentos({
 
       // Consulta complementar ao banco para telefones exatos ou equivalentes
       try {
-        const { data: dbDups } = await supabase
-          .from('leads')
-          .select('id, nome, status, criado_em, telefone')
-          .or(`telefone.eq.${phoneDigits},telefone.eq.${phoneDigits.replace(/^55/, '')}`)
-          .limit(10)
+        const variants = phoneSearchVariants(phoneDigits)
+        if (variants.length > 0) {
+          const { data: dbDups } = await supabase
+            .from('leads')
+            .select('id, nome, status, criado_em, telefone')
+            .or(variants.map((p) => `telefone_digitos.eq.${p}`).join(','))
+            .limit(10)
 
-        if (Array.isArray(dbDups)) {
-          for (const d of dbDups) {
-            if (d && !seenIds.has(d.id)) {
-              seenIds.add(d.id)
-              currentDuplicates.push({
-                id: d.id,
-                nome: d.nome || null,
-                status: d.status || null,
-                criado_em: d.criado_em || null,
-              })
+          if (Array.isArray(dbDups)) {
+            for (const d of dbDups) {
+              if (d && !seenIds.has(d.id)) {
+                seenIds.add(d.id)
+                currentDuplicates.push({
+                  id: d.id,
+                  nome: d.nome || null,
+                  status: d.status || null,
+                  criado_em: d.criado_em || null,
+                })
+              }
             }
           }
         }

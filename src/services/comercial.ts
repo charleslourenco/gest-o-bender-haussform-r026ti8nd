@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { parseLeadMetadados } from '@/components/comercial/constants'
-import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
+import { phoneSearchVariants, ensureSaleForLead, escaparCuringasLike } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
@@ -311,8 +311,9 @@ export const sendWhatsAppMessage = async (leadId: string, phone: string, message
 
 export const fetchLeadMessages = async (leadId: string, phone?: string) => {
   // Construir filtro unificado para evitar queries sequenciais redundantes
-  const normalizedPhone = phone ? phone.trim() : ''
-  if (!leadId && !normalizedPhone) {
+  const normalizedPhone = (phone || '').replace(/\D/g, '')
+  const hasPhone = normalizedPhone.length >= 10
+  if (!leadId && !hasPhone) {
     return []
   }
 
@@ -323,11 +324,11 @@ export const fetchLeadMessages = async (leadId: string, phone?: string) => {
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
 
-    if (leadId && normalizedPhone) {
+    if (leadId && hasPhone) {
       q = q.or(`lead_id.eq.${leadId},phone.eq.${normalizedPhone}`)
     } else if (leadId) {
       q = q.eq('lead_id', leadId)
-    } else if (normalizedPhone) {
+    } else if (hasPhone) {
       q = q.eq('phone', normalizedPhone)
     }
     return q
@@ -370,7 +371,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
     const { data: existingClients, error: lookupErr } = await supabase
       .from('clientes')
       .select('id, excluido')
-      .eq('email', lead.email.trim())
+      .ilike('email', escaparCuringasLike(lead.email.trim()))
       .eq('excluido', false)
       .order('criado_em', { ascending: false })
       .limit(1)
@@ -387,7 +388,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
   if (!novo_cliente_id && lead.telefone) {
     const phoneVariants = phoneSearchVariants(lead.telefone)
     if (phoneVariants.length > 0) {
-      const orFilter = phoneVariants.map((p) => `telefone.eq.${p}`).join(',')
+      const orFilter = phoneVariants.map((p) => `telefone_digitos.eq.${p}`).join(',')
       const { data: phoneClients, error: phoneErr } = await supabase
         .from('clientes')
         .select('id, excluido')
@@ -413,7 +414,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
       const { data: excByEmail } = await supabase
         .from('clientes')
         .select('id')
-        .eq('email', lead.email.trim())
+        .ilike('email', escaparCuringasLike(lead.email.trim()))
         .eq('excluido', true)
         .order('criado_em', { ascending: false })
         .limit(1)
@@ -426,7 +427,7 @@ export const moveLeadToClient = async (lead: any, userId: string) => {
     if (!clienteExcluidoId && lead.telefone) {
       const phoneVariants = phoneSearchVariants(lead.telefone)
       if (phoneVariants.length > 0) {
-        const orFilter = phoneVariants.map((p) => `telefone.eq.${p}`).join(',')
+        const orFilter = phoneVariants.map((p) => `telefone_digitos.eq.${p}`).join(',')
         const { data: excByPhone } = await supabase
           .from('clientes')
           .select('id')
