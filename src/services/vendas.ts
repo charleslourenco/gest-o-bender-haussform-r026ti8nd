@@ -81,7 +81,7 @@ export async function findExistingClient(opts: {
   return null
 }
 
-async function ensureStorageFolder(clienteId: string): Promise<void> {
+export async function ensureStorageFolder(clienteId: string): Promise<void> {
   try {
     const emptyFile = new Blob([''], { type: 'text/plain' })
     await supabase.storage

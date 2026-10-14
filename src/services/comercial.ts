@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { parseLeadMetadados } from '@/components/comercial/constants'
-import { phoneSearchVariants, ensureSaleForLead, escaparCuringasLike } from '@/services/vendas'
+import { ensureStorageFolder } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
 import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
@@ -363,151 +363,13 @@ export const fetchLeadMessages = async (leadId: string, phone?: string) => {
   return []
 }
 
-export const moveLeadToClient = async (lead: any, userId: string) => {
-  // Passo 1: Verificar se o cliente já existe por EMAIL ou TELEFONE (apenas clientes não excluídos)
-  let novo_cliente_id: string | null = null
-
-  if (lead.email && lead.email.trim() !== '') {
-    const { data: existingClients, error: lookupErr } = await supabase
-      .from('clientes')
-      .select('id, excluido')
-      .ilike('email', escaparCuringasLike(lead.email.trim()))
-      .eq('excluido', false)
-      .order('criado_em', { ascending: false })
-      .limit(1)
-
-    if (lookupErr) {
-      throw new Error('Falha ao verificar cliente existente: ' + lookupErr.message)
-    }
-    if (existingClients && existingClients.length > 0) {
-      novo_cliente_id = existingClients[0].id
-    }
-  }
-
-  // Critério secundário: telefone normalizado (apenas dígitos) em clientes não excluídos
-  if (!novo_cliente_id && lead.telefone) {
-    const phoneVariants = phoneSearchVariants(lead.telefone)
-    if (phoneVariants.length > 0) {
-      const orFilter = phoneVariants.map((p) => `telefone_digitos.eq.${p}`).join(',')
-      const { data: phoneClients, error: phoneErr } = await supabase
-        .from('clientes')
-        .select('id, excluido')
-        .eq('excluido', false)
-        .or(orFilter)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-
-      if (phoneErr) {
-        throw new Error('Falha ao verificar cliente por telefone: ' + phoneErr.message)
-      }
-      if (phoneClients && phoneClients.length > 0) {
-        novo_cliente_id = phoneClients[0].id
-      }
-    }
-  }
-
-  // Passo 1b: Se não encontrou cliente ativo, verificar se existe cliente excluído para reativar
-  if (!novo_cliente_id) {
-    let clienteExcluidoId: string | null = null
-
-    if (lead.email && lead.email.trim() !== '') {
-      const { data: excByEmail } = await supabase
-        .from('clientes')
-        .select('id')
-        .ilike('email', escaparCuringasLike(lead.email.trim()))
-        .eq('excluido', true)
-        .order('criado_em', { ascending: false })
-        .limit(1)
-
-      if (excByEmail && excByEmail.length > 0) {
-        clienteExcluidoId = excByEmail[0].id
-      }
-    }
-
-    if (!clienteExcluidoId && lead.telefone) {
-      const phoneVariants = phoneSearchVariants(lead.telefone)
-      if (phoneVariants.length > 0) {
-        const orFilter = phoneVariants.map((p) => `telefone_digitos.eq.${p}`).join(',')
-        const { data: excByPhone } = await supabase
-          .from('clientes')
-          .select('id')
-          .eq('excluido', true)
-          .or(orFilter)
-          .order('criado_em', { ascending: false })
-          .limit(1)
-
-        if (excByPhone && excByPhone.length > 0) {
-          clienteExcluidoId = excByPhone[0].id
-        }
-      }
-    }
-
-    if (clienteExcluidoId) {
-      const { error: reactivateErr } = await supabase
-        .from('clientes')
-        .update({
-          excluido: false,
-          usuario_id: userId,
-          status: 'Ativo',
-        })
-        .eq('id', clienteExcluidoId)
-
-      if (!reactivateErr) {
-        novo_cliente_id = clienteExcluidoId
-      }
-    }
-  }
-
-  // Passo 2: Se o cliente ainda não existir, criar um novo cliente
-  let isBrandNewClient = false
-  if (!novo_cliente_id) {
-    const safeNome = (lead.nome ?? '').trim() || 'Cliente sem nome'
-    const safeEmail = (lead.email ?? '').trim()
-    const safeTelefone = (lead.telefone ?? '').trim()
-
-    const { data: newClient, error: err1 } = await supabase
-      .from('clientes')
-      .insert({
-        nome: safeNome,
-        email: safeEmail,
-        telefone: safeTelefone,
-        lead_id: lead.id,
-        usuario_id: userId,
-        status: 'Ativo',
-      })
-      .select('id')
-      .single()
-    if (err1) throw new Error('Falha ao criar cliente: ' + err1.message)
-    novo_cliente_id = newClient.id
-    isBrandNewClient = true
-  }
-
-  // Passo 3 e 4: Criar venda independente e atualizar lead para "Vendido"
-  // Se o cliente foi recém-criado nesta chamada e o Passo 3 ou 4 falhar, marcar como excluido = true para não deixar cliente órfão/sem contrato.
-  try {
-    // Passo 3: Criar/reutilizar venda independente (formulário + dossiê + pasta storage)
-    const { dossieId: novo_dossie_id } = await ensureSaleForLead({
-      leadId: lead.id,
-      clienteId: novo_cliente_id,
-      userId,
-    })
-
-    // Passo 4: Atualizar o lead para "Vendido"
-    const { error: err2 } = await supabase
-      .from('leads')
-      .update({ status: 'Vendido' })
-      .eq('id', lead.id)
-    if (err2) throw new Error('Falha ao atualizar lead: ' + err2.message)
-
-    return novo_dossie_id
-  } catch (err) {
-    if (isBrandNewClient && novo_cliente_id) {
-      try {
-        await supabase.from('clientes').update({ excluido: true }).eq('id', novo_cliente_id)
-      } catch (cleanupErr) {
-        console.warn('[moveLeadToClient] Falha ao marcar cliente órfão como excluído:', cleanupErr)
-      }
-    }
-    throw err
-  }
+export const moveLeadToClient = async (lead: any, _userId: string) => {
+  // Venda numa transação só no banco, com trava por lead (erro 2.1)
+  const { data, error } = await supabase.rpc('converter_lead_em_venda' as any, {
+    p_lead_id: lead.id,
+  })
+  if (error) throw new Error('Falha ao registrar a venda: ' + error.message)
+  const resultado = (data || {}) as { cliente_id?: string; dossie_id?: string }
+  if (resultado.cliente_id) await ensureStorageFolder(resultado.cliente_id)
+  return resultado.dossie_id as string
 }
