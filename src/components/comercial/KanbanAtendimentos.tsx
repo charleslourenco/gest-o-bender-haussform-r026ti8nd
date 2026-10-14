@@ -377,10 +377,35 @@ export function KanbanAtendimentos({
           const currentUsers = usersRef.current || []
           const matchedUser = currentUsers.find((u) => u.id === consultorId)
           if (matchedUser) {
-            consultorObj = { nome: matchedUser.nome }
+            consultorObj = {
+              nome: matchedUser.nome,
+              ex_colaborador: matchedUser.ex_colaborador ?? false,
+            } as any
           } else if (updatedRow.responsavel_nome) {
             consultorObj = { nome: updatedRow.responsavel_nome }
           }
+        }
+
+        const secundarioId = updatedRow.consultor_id_secundario ?? null
+        const secundarioUser = secundarioId
+          ? (usersRef.current || []).find((u) => u.id === secundarioId)
+          : null
+        const montarSecundario = (atual: any) => {
+          if (!('consultor_id_secundario' in updatedRow)) return {}
+          if (!secundarioId) return { consultor_secundario: null }
+          if (secundarioUser) {
+            return {
+              consultor_secundario: {
+                id: secundarioUser.id,
+                nome: secundarioUser.nome,
+                ex_colaborador: secundarioUser.ex_colaborador ?? false,
+              },
+            }
+          }
+          // usuário não está na lista: mantém o que já tinha se o consultor não mudou
+          return secundarioId === atual?.consultor_id_secundario
+            ? {}
+            : { consultor_secundario: null }
         }
 
         setLeads((prevLeads) =>
@@ -389,6 +414,7 @@ export function KanbanAtendimentos({
             return {
               ...l,
               ...updatedRow,
+              ...montarSecundario(l),
               ...(consultorId !== undefined
                 ? {
                     consultor_id: consultorId,
@@ -407,6 +433,7 @@ export function KanbanAtendimentos({
           return {
             ...curr,
             ...updatedRow,
+            ...montarSecundario(curr),
             ...(consultorId !== undefined
               ? {
                   consultor_id: consultorId,
