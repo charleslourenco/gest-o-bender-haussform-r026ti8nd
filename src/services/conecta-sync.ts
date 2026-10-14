@@ -35,7 +35,7 @@ export function triggerConectaPhaseSync(options: TriggerOptions) {
   // Executa em segundo plano desacoplado (fire-and-forget seguro)
   setTimeout(async () => {
     try {
-      await supabase.functions.invoke('conecta-sync-event', {
+      const { error } = await supabase.functions.invoke('conecta-sync-event', {
         body: {
           lead_id: leadId,
           status_gestor: newStatus,
@@ -43,6 +43,12 @@ export function triggerConectaPhaseSync(options: TriggerOptions) {
           origem: origem,
         },
       })
+      if (error) {
+        console.warn('[conecta-sync] conecta-sync-event respondeu com erro:', error, {
+          leadId,
+          newStatus,
+        })
+      }
     } catch (err) {
       // Falha graciosa e silenciosa
       console.warn('[conecta-sync] Falha silenciosa no envio do evento pós-processamento:', err)

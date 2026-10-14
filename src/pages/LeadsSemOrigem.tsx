@@ -75,6 +75,7 @@ type FilaView = 'sem_origem' | 'sem_consultor'
 
 export default function LeadsSemOrigem() {
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const avisadosSemConsultorRef = useRef<Set<string>>(new Set())
   const [todosComerciais, setTodosComerciais] = useState<LeadComercialItem[]>([])
   const [loading, setLoading] = useState(true)
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -182,22 +183,31 @@ export default function LeadsSemOrigem() {
             const consultorVazio =
               !newLead.consultor_id || String(newLead.consultor_id).trim() === ''
 
+            if (!consultorVazio && newLead.id) {
+              avisadosSemConsultorRef.current.delete(newLead.id)
+            }
+
             if (isNaoExcluido && isComercial && consultorVazio) {
               const abaConfig = getLeadAba(newLead)
               if (
                 abaConfig?.id === 'lead-consultoria' ||
                 abaConfig?.titulo === 'Lead p/ Consultoria'
               ) {
-                const leadNome = newLead.nome || 'Sem nome'
-                toast.warning(`Lead ${leadNome} entrou em Leads p/ Consultoria sem consultor`, {
-                  duration: 8000,
-                  action: {
-                    label: 'Atribuir agora',
-                    onClick: () => {
-                      setActiveFila('sem_consultor')
+                if (avisadosSemConsultorRef.current.has(newLead.id)) {
+                  /* já avisado, não repete */
+                } else {
+                  avisadosSemConsultorRef.current.add(newLead.id)
+                  const leadNome = newLead.nome || 'Sem nome'
+                  toast.warning(`Lead ${leadNome} entrou em Leads p/ Consultoria sem consultor`, {
+                    duration: 8000,
+                    action: {
+                      label: 'Atribuir agora',
+                      onClick: () => {
+                        setActiveFila('sem_consultor')
+                      },
                     },
-                  },
-                })
+                  })
+                }
               }
             }
           }

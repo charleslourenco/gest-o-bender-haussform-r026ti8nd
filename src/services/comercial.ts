@@ -9,7 +9,7 @@ export type { Lead }
 
 // Colunas necessárias para o Kanban, filtros, edição inline e exibição sem payloads excessivos
 export const KANBAN_LEAD_COLUMNS =
-  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, consultor_id_secundario, status, status_atendimento, categoria, criado_em, atualizado_em, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(id, nome, ex_colaborador), consultor_secundario:users!leads_consultor_id_secundario_fkey(id, nome, ex_colaborador)'
+  'id, nome, email, telefone, origem, origem_pessoa, consultor_id, consultor_id_secundario, status, status_atendimento, categoria, criado_em, atualizado_em, status_desde, notas_pessoais, notas, ordem, kanban_ativo, criado_por_nome, data_venda, excluido, arquivado_comercial, motivo_perda, etapa_perda, consultor:users!leads_consultor_id_fkey(id, nome, ex_colaborador), consultor_secundario:users!leads_consultor_id_secundario_fkey(id, nome, ex_colaborador)'
 
 /**
  * Normaliza e sanitiza um lead bruto vindo do banco ou realtime.

@@ -139,7 +139,8 @@ function CardAtendimentoComponent({
   useEffect(() => {
     const updateTimer = () => {
       try {
-        const baseDate = (lead as any)?.atualizado_em || lead?.criado_em
+        const baseDate =
+          (lead as any)?.status_desde || (lead as any)?.atualizado_em || lead?.criado_em
         setElapsed(formatElapsedTime(baseDate, '-'))
       } catch {
         setElapsed('-')
@@ -149,7 +150,7 @@ function CardAtendimentoComponent({
     updateTimer()
     const interval = setInterval(updateTimer, 60000)
     return () => clearInterval(interval)
-  }, [(lead as any)?.atualizado_em, lead?.criado_em])
+  }, [(lead as any)?.status_desde, (lead as any)?.atualizado_em, lead?.criado_em])
 
   // Timer de tempo decorrido desde a última mensagem do cliente (pendência)
   useEffect(() => {
