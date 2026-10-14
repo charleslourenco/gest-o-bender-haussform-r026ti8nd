@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { ATENDIMENTO_ABAS, leadBelongsToAba } from '@/components/comercial/constants'
 
@@ -29,12 +30,17 @@ const fetchCount = async () => {
   isFetching = true
   try {
     // 1. Buscar leads candidatos com status_atendimento = 'aguardando_resposta'
-    const { data: leads, error: leadsErr } = await supabase
-      .from('leads' as any)
-      .select('id, status, categoria, kanban_ativo, notas_pessoais, excluido, arquivado_comercial')
-      .eq('status_atendimento', 'aguardando_resposta')
-      .eq('excluido', false)
-      .eq('arquivado_comercial', false)
+    const { data: leads, error: leadsErr } = await buscarTodasPaginas(() =>
+      supabase
+        .from('leads' as any)
+        .select(
+          'id, status, categoria, kanban_ativo, notas_pessoais, excluido, arquivado_comercial',
+        )
+        .eq('status_atendimento', 'aguardando_resposta')
+        .eq('excluido', false)
+        .eq('arquivado_comercial', false)
+        .order('id', { ascending: true }),
+    )
 
     if (leadsErr || !Array.isArray(leads) || leads.length === 0) {
       sharedResult = { total: 0, byAba: {} }
@@ -56,11 +62,14 @@ const fetchCount = async () => {
     }
 
     // 2. Filtrar apenas aqueles que realmente têm pelo menos uma mensagem REAL de cliente
-    const { data: msgs, error: msgsErr } = await supabase
-      .from('whatsapp_messages' as any)
-      .select('lead_id')
-      .in('lead_id', leadIds)
-      .or('sender_type.eq.cliente,sender_type.eq.lead,direction.eq.inbound')
+    const { data: msgs, error: msgsErr } = await buscarTodasPaginas(() =>
+      supabase
+        .from('whatsapp_messages' as any)
+        .select('lead_id')
+        .in('lead_id', leadIds)
+        .or('sender_type.eq.cliente,sender_type.eq.lead,direction.eq.inbound')
+        .order('id', { ascending: true }),
+    )
 
     if (msgsErr || !Array.isArray(msgs)) {
       sharedResult = { total: 0, byAba: {} }

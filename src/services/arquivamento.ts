@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import { parseLeadMetadados, stringifyLeadMetadados } from '@/components/comercial/constants'
 
 export async function arquivarLead(id: string): Promise<void> {
@@ -57,21 +58,30 @@ export async function desarquivarLead(id: string): Promise<void> {
 
 export async function fetchLeadsArquivados() {
   const [resA, resB, resC] = await Promise.all([
-    supabase
-      .from('leads')
-      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-      .eq('arquivado_comercial' as any, true)
-      .eq('excluido' as any, false),
-    supabase
-      .from('leads')
-      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-      .eq('excluido' as any, false)
-      .ilike('notas_pessoais' as any, '%"arquivamentos":[{%'),
-    supabase
-      .from('leads')
-      .select('*, consultor:users!leads_consultor_id_fkey(nome)')
-      .eq('excluido' as any, false)
-      .ilike('notas_pessoais' as any, '%"exclusoes":[{%'),
+    buscarTodasPaginas(() =>
+      supabase
+        .from('leads')
+        .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+        .eq('arquivado_comercial' as any, true)
+        .eq('excluido' as any, false)
+        .order('id', { ascending: true }),
+    ),
+    buscarTodasPaginas(() =>
+      supabase
+        .from('leads')
+        .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+        .eq('excluido' as any, false)
+        .ilike('notas_pessoais' as any, '%"arquivamentos":[{%')
+        .order('id', { ascending: true }),
+    ),
+    buscarTodasPaginas(() =>
+      supabase
+        .from('leads')
+        .select('*, consultor:users!leads_consultor_id_fkey(nome)')
+        .eq('excluido' as any, false)
+        .ilike('notas_pessoais' as any, '%"exclusoes":[{%')
+        .order('id', { ascending: true }),
+    ),
   ])
 
   if (resA.error) throw resA.error

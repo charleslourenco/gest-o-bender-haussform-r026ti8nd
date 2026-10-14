@@ -47,6 +47,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ORIGENS_LEAD, getLeadAba, type OrigemLead } from '@/components/comercial/constants'
 import { fetchUsers, normalizeLead, salvarNotasLead } from '@/services/comercial'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import { subscribeSharedTable } from '@/lib/comercial-realtime'
 import { ModalAtendimento } from '@/components/comercial/ModalAtendimento'
 import { formatConsultorOptionLabel } from '@/lib/consultor-utils'
@@ -131,13 +132,16 @@ export default function LeadsSemOrigem() {
   const fetchLeads = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select(
-          'id, nome, telefone, origem, status, categoria, consultor_id, kanban_ativo, notas_pessoais, criado_em',
-        )
-        .or('excluido.is.null,excluido.eq.false')
-        .order('criado_em', { ascending: false })
+      const { data, error } = await buscarTodasPaginas(() =>
+        supabase
+          .from('leads')
+          .select(
+            'id, nome, telefone, origem, status, categoria, consultor_id, kanban_ativo, notas_pessoais, criado_em',
+          )
+          .or('excluido.is.null,excluido.eq.false')
+          .order('criado_em', { ascending: false })
+          .order('id', { ascending: true }),
+      )
 
       if (error) {
         throw error

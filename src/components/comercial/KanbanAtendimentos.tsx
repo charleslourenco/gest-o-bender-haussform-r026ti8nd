@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Lead } from '@/types'
 import { supabase } from '@/lib/supabase/client'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import {
   fetchLeads,
   fetchUsers,
@@ -291,11 +292,14 @@ export function KanbanAtendimentos({
       if (pendingCandidateLeads.length > 0) {
         try {
           const pendingIds = pendingCandidateLeads.map((l: any) => l.id).filter(Boolean)
-          const { data: recentMsgs } = await supabase
-            .from('whatsapp_messages' as any)
-            .select('lead_id, content, created_at, sender_type, direction')
-            .in('lead_id', pendingIds)
-            .order('created_at', { ascending: false })
+          const { data: recentMsgs } = await buscarTodasPaginas(() =>
+            supabase
+              .from('whatsapp_messages' as any)
+              .select('lead_id, content, created_at, sender_type, direction')
+              .in('lead_id', pendingIds)
+              .order('created_at', { ascending: false })
+              .order('id', { ascending: true }),
+          )
 
           if (Array.isArray(recentMsgs)) {
             const map: Record<

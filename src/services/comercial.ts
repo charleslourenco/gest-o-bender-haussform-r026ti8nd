@@ -3,6 +3,7 @@ import { parseLeadMetadados } from '@/components/comercial/constants'
 import { phoneSearchVariants, ensureSaleForLead } from '@/services/vendas'
 import { triggerConectaPhaseSync } from '@/services/conecta-sync'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import type { Lead } from '@/types'
 export type { Lead }
 
@@ -168,7 +169,13 @@ export function normalizeLead(raw: any) {
 
 export const fetchLeads = async () => {
   const result = await runWithAuthRecovery<any[]>(() =>
-    supabase.from('leads').select(KANBAN_LEAD_COLUMNS).order('criado_em', { ascending: false }),
+    buscarTodasPaginas(() =>
+      supabase
+        .from('leads')
+        .select(KANBAN_LEAD_COLUMNS)
+        .order('criado_em', { ascending: false })
+        .order('id', { ascending: true }),
+    ),
   )
   if (result.error) throw result.error
   return Array.isArray(result.data) ? result.data.map(normalizeLead) : []
@@ -305,22 +312,28 @@ export const sendWhatsAppMessage = async (leadId: string, phone: string, message
 export const fetchLeadMessages = async (leadId: string, phone?: string) => {
   // Construir filtro unificado para evitar queries sequenciais redundantes
   const normalizedPhone = phone ? phone.trim() : ''
-  let query = supabase
-    .from('whatsapp_messages' as any)
-    .select('*')
-    .order('created_at', { ascending: true })
-
-  if (leadId && normalizedPhone) {
-    query = query.or(`lead_id.eq.${leadId},phone.eq.${normalizedPhone}`)
-  } else if (leadId) {
-    query = query.eq('lead_id', leadId)
-  } else if (normalizedPhone) {
-    query = query.eq('phone', normalizedPhone)
-  } else {
+  if (!leadId && !normalizedPhone) {
     return []
   }
 
-  const { data, error } = await query
+  const montarConsulta = () => {
+    let q = supabase
+      .from('whatsapp_messages' as any)
+      .select('*')
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+
+    if (leadId && normalizedPhone) {
+      q = q.or(`lead_id.eq.${leadId},phone.eq.${normalizedPhone}`)
+    } else if (leadId) {
+      q = q.eq('lead_id', leadId)
+    } else if (normalizedPhone) {
+      q = q.eq('phone', normalizedPhone)
+    }
+    return q
+  }
+
+  const { data, error } = await buscarTodasPaginas(montarConsulta)
 
   if (!error && Array.isArray(data) && data.length > 0) {
     return data
