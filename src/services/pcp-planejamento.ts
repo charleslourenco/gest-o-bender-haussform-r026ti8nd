@@ -36,6 +36,9 @@ export interface PcpCardItem {
   semana_planejada_analise: string | null
   semana_planejada_producao: string | null
   semana_planejada_montagem: string | null
+  semana_producao_inicio?: string | null
+  semana_montagem_inicio?: string | null
+  semana_analise_inicio?: string | null
   mes_planejado_analise?: string | null
   mes_planejado_producao?: string | null
   mes_planejado_montagem?: string | null
@@ -110,6 +113,7 @@ const SELECT_QUERY = `
   excluido_analise, excluido_producao, excluido_montagem,
   criado_em, atualizado_em,
   semana_planejada_analise, semana_planejada_producao, semana_planejada_montagem,
+  semana_producao_inicio, semana_montagem_inicio, semana_analise_inicio,
   mes_planejado_analise, mes_planejado_producao, mes_planejado_montagem,
   data_planejada_analise, data_planejada_producao, data_planejada_montagem,
   data_limite_analise, data_obra_montagem, data_prometida_montagem,

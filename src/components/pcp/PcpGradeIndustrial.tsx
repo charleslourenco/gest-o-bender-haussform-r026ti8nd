@@ -42,6 +42,7 @@ import {
   calcularDatasDerivadasPcp,
   formatBRL,
   matchWeek,
+  semanaLabelComAno,
 } from '@/lib/pcp-capacity'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpSideDrawer } from './PcpSideDrawer'
@@ -191,7 +192,10 @@ export const PcpGradeIndustrial: React.FC = () => {
         }
 
         // 2. Se não tem data exata de produção mas a semana de produção bate com a semana atual e é Segunda-feira (dia 0)
-        if (matchWeek(c.semana_planejada_producao, week) && dia.dayIndex === 0) {
+        if (
+          matchWeek(c.semana_planejada_producao, week, c.semana_producao_inicio) &&
+          dia.dayIndex === 0
+        ) {
           return true
         }
 
@@ -222,7 +226,7 @@ export const PcpGradeIndustrial: React.FC = () => {
         }
 
         // Match por semana_planejada_producao
-        if (matchWeek(c.semana_planejada_producao, week)) return true
+        if (matchWeek(c.semana_planejada_producao, week, c.semana_producao_inicio)) return true
 
         return false
       })
@@ -266,7 +270,7 @@ export const PcpGradeIndustrial: React.FC = () => {
     const allAffectedIds = Array.from(new Set([cardId, ...childrenIds].filter(Boolean)))
 
     const { dataLimiteAnalise, dataObraMontagem } = calcularDatasDerivadasPcp(dia.dateStr)
-    const semanaLabel = week.label
+    const semanaLabel = semanaLabelComAno(week)
     const targetData = dia.dateStr
 
     // Atualização otimista imediata no estado local

@@ -19,6 +19,17 @@ export interface IsoWeekRange {
   formattedRange: string
 }
 
+// Rótulo de semana com ano, ex.: "S40/2026" (erro 4.1)
+export function semanaLabelComAno(week: IsoWeekRange): string {
+  return `S${String(week.weekNumber).padStart(2, '0')}/${week.year}`
+}
+
+// 'yyyy-MM-dd' da segunda-feira da semana (data local, sem fuso)
+export function inicioSemanaStr(week: IsoWeekRange): string {
+  const d = week.startDate
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /**
  * Obtém número da semana ISO (1 a 53) e ano ISO para uma data.
  */
@@ -274,7 +285,15 @@ export function getIsoWeeksForMonth(year: number, monthIndex: number): IsoWeekRa
  *   só casa se o ano também conferir com week.year.
  * - Quando gravado sem ano, casa com a semana exibida pelo weekNumber.
  */
-export function matchWeek(cardWeekValue: string | null | undefined, week: IsoWeekRange): boolean {
+export function matchWeek(
+  cardWeekValue: string | null | undefined,
+  week: IsoWeekRange,
+  inicio?: string | null,
+): boolean {
+  if (inicio && typeof inicio === 'string') {
+    return inicio.slice(0, 10) === inicioSemanaStr(week)
+  }
+
   if (!cardWeekValue) return false
   const raw = cardWeekValue.trim()
   if (!raw) return false
@@ -646,9 +665,11 @@ export function somarCargaProducaoMes(
   const monthNum = String(monthIndex + 1).padStart(2, '0')
   const mesKey = `${year}-${monthNum}`
 
-  const cardsNoMes = cards.filter((c) => {
+  const cardsNoMes = cards.filter((c: any) => {
     // 1. Vinculado a uma semana que toca este mês
-    const matchSemana = weeksDoMes.some((w) => matchWeek(c.semana_planejada_producao, w))
+    const matchSemana = weeksDoMes.some((w) =>
+      matchWeek(c.semana_planejada_producao, w, c.semana_producao_inicio),
+    )
     if (matchSemana) return true
 
     // 2. OU mes_planejado_producao é este mês (formato 'YYYY-MM', 'MM' ou 'M')
@@ -722,8 +743,9 @@ export function somarCargaTodasLinhasMes(
   const matchLinha = (
     semanaVal: string | null | undefined,
     mesVal: string | null | undefined,
+    inicio?: string | null,
   ): boolean => {
-    if (weeksDoMes.some((w) => matchWeek(semanaVal, w))) return true
+    if (weeksDoMes.some((w) => matchWeek(semanaVal, w, inicio))) return true
     if (mesVal) {
       const clean = mesVal.trim()
       if (clean === mesKey) return true
@@ -739,16 +761,22 @@ export function somarCargaTodasLinhasMes(
   const paisComFilhosValoradosProducao = new Set<string>()
   const paisComFilhosValoradosMontagem = new Set<string>()
 
-  for (const c of cards) {
+  for (const c of cards as any[]) {
     const val = Number(c.valor_total) || 0
     if (c.card_pai_id && val > 0) {
-      if (matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)) {
+      if (
+        matchLinha(c.semana_planejada_analise, c.mes_planejado_analise, c.semana_analise_inicio)
+      ) {
         paisComFilhosValoradosAnalise.add(c.card_pai_id)
       }
-      if (matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)) {
+      if (
+        matchLinha(c.semana_planejada_producao, c.mes_planejado_producao, c.semana_producao_inicio)
+      ) {
         paisComFilhosValoradosProducao.add(c.card_pai_id)
       }
-      if (matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)) {
+      if (
+        matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem, c.semana_montagem_inicio)
+      ) {
         paisComFilhosValoradosMontagem.add(c.card_pai_id)
       }
     }
@@ -762,11 +790,23 @@ export function somarCargaTodasLinhasMes(
   let countMontagem = 0
   const uniqueCardsSet = new Set<string>()
 
-  for (const c of cards) {
+  for (const c of cards as any[]) {
     const val = Number(c.valor_total) || 0
-    const inAnalise = matchLinha(c.semana_planejada_analise, c.mes_planejado_analise)
-    const inProducao = matchLinha(c.semana_planejada_producao, c.mes_planejado_producao)
-    const inMontagem = matchLinha(c.semana_planejada_montagem, c.mes_planejado_montagem)
+    const inAnalise = matchLinha(
+      c.semana_planejada_analise,
+      c.mes_planejado_analise,
+      c.semana_analise_inicio,
+    )
+    const inProducao = matchLinha(
+      c.semana_planejada_producao,
+      c.mes_planejado_producao,
+      c.semana_producao_inicio,
+    )
+    const inMontagem = matchLinha(
+      c.semana_planejada_montagem,
+      c.mes_planejado_montagem,
+      c.semana_montagem_inicio,
+    )
 
     const isParent = !c.card_pai_id
 
