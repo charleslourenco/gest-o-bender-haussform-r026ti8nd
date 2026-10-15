@@ -42,11 +42,11 @@ Deno.serve(async (req) => {
       let p = cleanDigits(raw.split('@')[0])
       if (!p) return ''
 
-      const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
-
       // Se for um LID do WhatsApp (ex: 13 a 15 dígitos sem código de país coerente ou sufixo @lid)
       // Um número válido de telefone brasileiro tem 10 ou 11 dígitos sem DDI, ou 12/13 com DDI 55.
-      // Se o número começa com 55 e tem 12 dígitos, acrescenta 9 no nono dígito:
+      // Se o número começa com 55 e tem 12 dígitos, acrescenta 9 no nono dígito,
+      // mas só para celular (número local começando com 6, 7, 8 ou 9). Fixo (2 a 5) fica como está.
+      const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
       if (p.startsWith('55')) {
         if (p.length === 12 && isCelularSem9(p.substring(4))) {
           p = p.substring(0, 4) + '9' + p.substring(4)
@@ -130,11 +130,13 @@ Deno.serve(async (req) => {
     // Se nenhum campo forneceu telefone válido mas havia campos informados
     let phone = resolvedPhone
     const rawPrimaryPhone = payload.phone || payload.from || payload.sender || ''
+
+    // Identificador interno (LID) da conversa. A Z-API manda em chatLid nas mensagens do cliente
+    // (junto com o telefone real) e em phone nas mensagens enviadas pelo celular da empresa.
     const lidFromPayload = [payload.chatLid, rawPrimaryPhone].find(
       (v) => v && String(v).includes('@lid'),
     )
     const chatLid = lidFromPayload ? cleanDigits(String(lidFromPayload).split('@')[0]) : ''
-
     if (!phone) {
       // Se não encontrou telefone válido e foi um LID não resolvível
       const rawNormalized = normalizePhoneNumber(rawPrimaryPhone)
@@ -146,6 +148,7 @@ Deno.serve(async (req) => {
       }
     }
 
+    // O número da própria empresa (connectedPhone) nunca vale como telefone de cliente
     const companyPhone = normalizePhoneNumber(String(payload.connectedPhone || ''))
     let isPhoneValid = isValidPhone(phone) && !(companyPhone && phone === companyPhone)
 
@@ -164,6 +167,8 @@ Deno.serve(async (req) => {
     let messageText =
       typeof rawContent === 'string' ? rawContent.trim() : String(rawContent || '').trim()
 
+    // Reação (ex.: 👍 numa mensagem nossa) não é mensagem nova do cliente:
+    // grava como "[reação 👍]", não cria lead e não coloca o lead em "aguardando resposta"
     const isReaction = Boolean(payload.reaction)
 
     // Blindar inbound/mensagens sem texto (áudio, figurinha, imagem sem legenda, anexo sem nome)
@@ -271,6 +276,7 @@ Deno.serve(async (req) => {
         extractedTimestamp = new Date(ts > 10000000000 ? ts : ts * 1000).toISOString()
       }
     } else if (payload.moment || payload.momment) {
+      // A Z-API envia o campo com a grafia "momment"
       const rawMoment = payload.moment || payload.momment
       const ts = typeof rawMoment === 'number' ? rawMoment : parseInt(rawMoment, 10)
       if (!isNaN(ts)) {
@@ -286,18 +292,24 @@ Deno.serve(async (req) => {
       return new Response('Ignored', { status: 200 })
     }
 
-    if (payload.type && payload.type !== 'ReceivedCallback')
+    // Só mensagens recebidas viram mensagem. Eventos de leitura, entrega, presença,
+    // canais (newsletter) e listas de transmissão são ignorados (erro 1.3).
+    if (payload.type && payload.type !== 'ReceivedCallback') {
       return new Response(`Ignored event ${payload.type}`, { status: 200 })
-    if (payload.isNewsletter || payload.broadcast)
+    }
+    if (payload.isNewsletter || payload.broadcast) {
       return new Response('Ignored newsletter/broadcast', { status: 200 })
+    }
 
+    // Mapa LID -> telefone real, aprendido das mensagens do cliente (que trazem os dois)
     const lookupPhoneByLid = async (lid: string): Promise<string | null> => {
+      if (!lid) return null
       const { data, error } = await supabase
         .from('whatsapp_lid_map')
         .select('phone')
         .eq('lid', lid)
         .maybeSingle()
-      if (error) throw error
+      if (error) throw new Error('Falha ao consultar whatsapp_lid_map: ' + error.message)
       return data?.phone || null
     }
 
@@ -315,6 +327,9 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Mensagem enviada pelo celular da empresa chega só com o LID da conversa.
+    // Resolve o telefone real pelo mapa aprendido; se não houver, a mensagem fica sem lead
+    // (para triagem) em vez de ser ligada a um cliente por palpite (erro 1.2).
     if (!isPhoneValid && chatLid) {
       const mappedPhone = await lookupPhoneByLid(chatLid)
       if (mappedPhone) {
@@ -323,7 +338,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Lead Lookup por telefone (apenas se tivermos um telefone ou identificador válido)
+    // Lead Lookup por telefone (apenas se tivermos um telefone válido)
     let lead: any = null
     if (phone && isPhoneValid) {
       const { data: leads, error: leadsError } = await supabase
@@ -367,8 +382,7 @@ Deno.serve(async (req) => {
           .update(leadUpdatePayload)
           .eq('id', lead.id)
 
-        if (leadUpdateErr)
-          throw new Error('Erro ao atualizar lead (fromMe): ' + leadUpdateErr.message)
+        if (leadUpdateErr) throw new Error('Erro ao atualizar lead (fromMe): ' + leadUpdateErr.message)
       }
 
       // Sessão de WhatsApp (apenas se houver telefone válido)
@@ -416,6 +430,8 @@ Deno.serve(async (req) => {
       const { error: insertAnaErr } = await supabase.from('whatsapp_messages').upsert(
         {
           lead_id: lead?.id || null,
+          // Sem lead, guarda o LID no campo phone para a mensagem ser ligada ao cliente
+          // assim que ele escrever (o mapa LID -> telefone é aprendido na mensagem dele)
           phone: lead?.telefone || (isPhoneValid ? phone : chatLid || phone) || 'unknown',
           sender_type: 'ana',
           sender_name: fromMeSenderName,
@@ -428,14 +444,15 @@ Deno.serve(async (req) => {
         msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
       )
 
-      if (insertAnaErr)
-        throw new Error('Erro ao inserir mensagem da Equipe: ' + insertAnaErr.message)
+      // Responde erro para a falha aparecer e a mensagem não se perder em silêncio (erro 1.3)
+      if (insertAnaErr) throw new Error('Erro ao inserir mensagem da Equipe: ' + insertAnaErr.message)
 
       return new Response('Outbound logged (manual mode)', { status: 200 })
     }
 
     // Inbound (mensagens vindas do cliente):
     // Se o lead não existir, mas o telefone for válido e NÃO for LID, criar lead novo
+    // (reação não cria lead)
     if (!lead && isPhoneValid && phone && !isReaction) {
       // Regra 3: Nunca usar nome da empresa ("Bender Haussform") ou nomes inválidos
       const initialLeadName =
@@ -447,40 +464,28 @@ Deno.serve(async (req) => {
         .rpc('criar_lead_whatsapp', { p_nome: initialLeadName, p_telefone: phone })
         .single()
 
-      if (error) {
-        throw new Error('Erro ao criar novo lead: ' + error.message)
-      } else {
-        lead = newLead
-      }
+      if (error) throw new Error('Erro ao criar novo lead: ' + error.message)
+      lead = newLead
     }
 
+    // Aprende o LID desta conversa (a mensagem do cliente traz LID e telefone real juntos)
+    // e liga ao lead as mensagens da equipe que ficaram sem lead com esse LID.
     if (chatLid && isPhoneValid && phone) {
-      const { error: lidUpsertErr } = await supabase.from('whatsapp_lid_map').upsert(
-        {
-          lid: chatLid,
-          phone,
-          atualizado_em: nowStr,
-        },
-        { onConflict: 'lid' },
-      )
+      const { error: mapErr } = await supabase
+        .from('whatsapp_lid_map')
+        .upsert(
+          { lid: chatLid, phone, atualizado_em: new Date().toISOString() },
+          { onConflict: 'lid' },
+        )
+      if (mapErr) console.error('Erro ao gravar whatsapp_lid_map:', mapErr)
 
-      if (lidUpsertErr) {
-        console.error('Erro ao mapear LID para telefone:', lidUpsertErr)
-      }
-
-      if (lead) {
-        const { error: updateOrphanErr } = await supabase
+      if (lead?.id) {
+        const { error: adoptErr } = await supabase
           .from('whatsapp_messages')
-          .update({
-            lead_id: lead.id,
-            phone: lead.telefone || phone,
-          })
+          .update({ lead_id: lead.id, phone: lead.telefone || phone })
           .is('lead_id', null)
           .eq('phone', chatLid)
-
-        if (updateOrphanErr) {
-          console.error('Erro ao vincular mensagens órfãs do LID:', updateOrphanErr)
-        }
+        if (adoptErr) console.error('Erro ao ligar mensagens sem lead ao cliente:', adoptErr)
       }
     }
 
@@ -639,11 +644,11 @@ Deno.serve(async (req) => {
         .update(updatePayload)
         .eq('id', lead.id)
 
-      if (leadUpdateErr)
-        throw new Error('Erro ao atualizar lead (inbound): ' + leadUpdateErr.message)
+      if (leadUpdateErr) throw new Error('Erro ao atualizar lead (inbound): ' + leadUpdateErr.message)
     }
 
-    // Inbound customer message — gravação atômica com onConflict em external_id
+    // Inbound customer message — gravada por último: se algo antes falhar, a resposta é erro
+    // e a mensagem ainda não existe, então um reenvio processa tudo de novo
     const safeContent = messageText || '[mídia]'
     const { error: insertClientErr } = await supabase.from('whatsapp_messages').upsert(
       {
@@ -660,8 +665,8 @@ Deno.serve(async (req) => {
       msgExternalId ? { onConflict: 'external_id', ignoreDuplicates: true } : undefined,
     )
 
-    if (insertClientErr)
-      throw new Error('Erro ao inserir mensagem do Cliente: ' + insertClientErr.message)
+    // Responde erro para a falha aparecer e a mensagem não se perder em silêncio (erro 1.3)
+    if (insertClientErr) throw new Error('Erro ao inserir mensagem do Cliente: ' + insertClientErr.message)
 
     return new Response('Inbound logged (manual mode)', { status: 200 })
   } catch (e: any) {

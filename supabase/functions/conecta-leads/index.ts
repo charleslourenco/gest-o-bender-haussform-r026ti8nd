@@ -34,17 +34,17 @@ function normalizePhoneNumber(raw: unknown): string {
   if (!digits) return ''
 
   let p = digits
-
   // Só acrescenta o 9 em celular (número local começando com 6, 7, 8 ou 9); fixo fica como está
   const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
-
   if (p.startsWith('55')) {
     if (p.length === 12 && isCelularSem9(p.substring(4))) {
       p = p.substring(0, 4) + '9' + p.substring(4)
     }
   } else {
     if (p.length === 10) {
-      p = isCelularSem9(p.substring(2)) ? '55' + p.substring(0, 2) + '9' + p.substring(2) : '55' + p
+      p = isCelularSem9(p.substring(2))
+        ? '55' + p.substring(0, 2) + '9' + p.substring(2)
+        : '55' + p
     } else if (p.length === 11) {
       p = '55' + p
     }
@@ -330,9 +330,7 @@ Deno.serve(async (req: Request) => {
     // nele em vez de criar outro card (erro 1.5). Se o último card foi vendido ou perdido,
     // segue o fluxo normal e cria card novo (recompra / nova oportunidade).
     const isStatusEncerrado = (status: unknown) => {
-      const st = String(status || '')
-        .trim()
-        .toLowerCase()
+      const st = String(status || '').trim().toLowerCase()
       return (
         st === 'vendido' ||
         st.includes('perdido') ||

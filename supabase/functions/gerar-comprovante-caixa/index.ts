@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
     const { data: caixa, error: caixaError } = await supabase
       .from('estoque_caixas')
       .select(
-        '*, cliente:clientes(nome), projeto:formulario_comercial(id), itens:estoque_caixas_itens(*, item:estoque_itens(nome, unidade))',
+        '*, cliente:clientes(nome), projeto:formulario_comercial(id), itens:estoque_caixas_itens(*, item:estoque_itens(nome, unidade, valor_unitario))',
       )
       .eq('id', caixa_id)
       .single()
@@ -293,7 +293,14 @@ Deno.serve(async (req: Request) => {
       const clienteNomeFallback = (caixa.cliente as any)?.nome || 'Consumo Interno / Produção'
 
       for (const item of itensPendentes) {
-        await supabase.from('estoque_caixas_itens').update({ status: 'entregue' }).eq('id', item.id)
+        // Só segue se o item ainda estava reservado (evita baixar em dobro numa segunda chamada)
+        const { data: marcado } = await supabase
+          .from('estoque_caixas_itens')
+          .update({ status: 'entregue' })
+          .eq('id', item.id)
+          .eq('status', 'reservado')
+          .select('id')
+        if (!marcado || marcado.length === 0) continue
 
         const precoUnit = Number(item.item?.valor_unitario ?? 0)
         const qtd = Number(item.quantidade || 0)
@@ -303,7 +310,7 @@ Deno.serve(async (req: Request) => {
           item_id: item.item_id,
           cliente_id: caixa.cliente_id || null,
           cliente_nome: clienteNomeFallback,
-          quantidade: Math.round(qtd),
+          quantidade: qtd,
           status: 'baixado',
           destino: destinoCaixa,
           valor_unitario_congelado: precoUnit,

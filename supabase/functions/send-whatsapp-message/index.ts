@@ -2,6 +2,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
+// Resultado do envio: ok=false quando a Z-API não aceitou a mensagem (erro 1.4)
 type ZapiResult = { ok: boolean; messageId: string | null; error?: string }
 
 async function sendZapiMessage(phone: string, text: string): Promise<ZapiResult> {
@@ -10,9 +11,7 @@ async function sendZapiMessage(phone: string, text: string): Promise<ZapiResult>
   if (!zapiInstance || !zapiToken) {
     return { ok: false, messageId: null, error: 'Z-API não configurada' }
   }
-  if (!text) {
-    return { ok: false, messageId: null, error: 'Mensagem vazia' }
-  }
+  if (!text) return { ok: false, messageId: null, error: 'Mensagem vazia' }
 
   const zapiUrl = `https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`
   try {
@@ -103,15 +102,16 @@ Deno.serve(async (req) => {
 
     // Send via Z-API first to capture messageId for webhook dedup
     const zapi = await sendZapiMessage(String(phone), trimmedMessage)
+
+    // Se a Z-API não aceitou, NÃO grava a mensagem como enviada e devolve erro para a tela
+    // mostrar a falha e manter o texto digitado (erro 1.4)
     if (!zapi.ok) {
-      return new Response(
-        JSON.stringify({ error: zapi.error || 'Falha ao enviar pelo WhatsApp' }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
+      return new Response(JSON.stringify({ error: zapi.error || 'Falha ao enviar pelo WhatsApp' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
+
     const externalId = zapi.messageId || fallbackExternalId
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
