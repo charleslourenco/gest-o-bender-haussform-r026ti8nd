@@ -335,13 +335,23 @@ export function AnaliseKanbanBoard({
   const handleCheckOutsourced = async (hasOutsourced: boolean) => {
     if (!checkModalCard) return
     if (!hasOutsourced) {
-      await supabase
+      const { error } = await supabase
         .from('produtos_servicos_projeto')
         .update({ outsourced_checked: true })
         .eq('id', checkModalCard.id)
-      toast({ description: 'Ambiente verificado com sucesso. Nenhum terceirizado.' })
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao marcar verificação',
+          description: error.message,
+        })
+        return
+      }
+      setCards((prev) =>
+        prev.map((c) => (c?.id === checkModalCard.id ? { ...c, outsourced_checked: true } : c)),
+      )
+      toast({ description: 'Ambiente verificado. Nenhum item terceirizado.' })
       setCheckModalCard(null)
-      loadCards()
     } else {
       setAvulsoCardToUpdate(checkModalCard)
       setCheckModalCard(null)
@@ -350,15 +360,26 @@ export function AnaliseKanbanBoard({
   }
 
   const handleAvulsoCreated = async () => {
-    if (avulsoCardToUpdate && !avulsoCardToUpdate.is_outsourced) {
-      await supabase
+    if (avulsoCardToUpdate) {
+      const { error } = await supabase
         .from('produtos_servicos_projeto')
         .update({ outsourced_checked: true })
         .eq('id', avulsoCardToUpdate.id)
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao marcar verificação',
+          description: error.message,
+        })
+        return
+      }
+      setCards((prev) =>
+        prev.map((c) => (c?.id === avulsoCardToUpdate.id ? { ...c, outsourced_checked: true } : c)),
+      )
     }
     setAvulsoModalOpen(false)
     setAvulsoCardToUpdate(null)
-    toast({ description: 'Card avulso criado com sucesso!' })
+    toast({ description: 'Card avulso criado. Ambiente marcado como verificado.' })
     loadCards()
   }
 

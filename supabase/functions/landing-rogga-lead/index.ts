@@ -51,7 +51,8 @@ function escapeHtml(value: string): string {
 
 // Mesma normalização do conecta-leads: 55 + DDD + número, com o 9 em celulares.
 function normalizePhoneNumber(raw: unknown): string {
-  const digits = typeof raw === 'string' || typeof raw === 'number' ? String(raw).replace(/\D/g, '') : ''
+  const digits =
+    typeof raw === 'string' || typeof raw === 'number' ? String(raw).replace(/\D/g, '') : ''
   if (!digits) return ''
   let p = digits
   const isCelularSem9 = (local8: string) => /^[6-9]/.test(local8)
@@ -73,8 +74,15 @@ function formatPhone(p: string): string {
 }
 
 function isStatusEncerrado(status: unknown) {
-  const st = String(status || '').trim().toLowerCase()
-  return st === 'vendido' || st.includes('perdido') || st === 'sdr: não é lead' || st === 'sdr: nao e lead'
+  const st = String(status || '')
+    .trim()
+    .toLowerCase()
+  return (
+    st === 'vendido' ||
+    st.includes('perdido') ||
+    st === 'sdr: não é lead' ||
+    st === 'sdr: nao e lead'
+  )
 }
 
 const CATEGORIAS_COMERCIAIS = ['Comercial', 'Orçamento', 'Follow up', 'Já é Cliente']
@@ -119,11 +127,17 @@ Deno.serve(async (req: Request) => {
 
   const nowStr = new Date().toISOString()
   const dataBR = new Date(nowStr).toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
     timeZone: 'America/Sao_Paulo',
   })
   const utmLinha = Object.keys(utm).length
-    ? Object.entries(utm).map(([k, v]) => `${k}=${v}`).join(' ')
+    ? Object.entries(utm)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(' ')
     : ''
 
   let action: 'created' | 'linked_existing' | 'email_only' = 'email_only'
@@ -160,7 +174,10 @@ Deno.serve(async (req: Request) => {
           const notasAtuais = String(ativo.notas || '').trim()
           const { error: updErr } = await supabase
             .from('leads')
-            .update({ notas: notasAtuais ? `${notasAtuais}\n${linha}` : linha, atualizado_em: nowStr })
+            .update({
+              notas: notasAtuais ? `${notasAtuais}\n${linha}` : linha,
+              atualizado_em: nowStr,
+            })
             .eq('id', ativo.id)
           if (updErr) throw updErr
           action = 'linked_existing'
@@ -242,7 +259,8 @@ Deno.serve(async (req: Request) => {
 <p style="margin:24px 0 0"><a href="${waLink}" style="display:inline-block;background:#27272A;color:#fff;text-decoration:none;padding:12px 20px;border-radius:6px;font-size:14px;font-weight:600">Chamar no WhatsApp</a></p>
 <p style="margin:24px 0 0;color:#4D5357;font-size:13px;line-height:1.5">${escapeHtml(situacao)}</p>
 </div></body></html>`
-    const text = linhas.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\n${situacao}\nWhatsApp: ${waLink}`
+    const text =
+      linhas.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\n${situacao}\nWhatsApp: ${waLink}`
 
     try {
       const res = await fetch('https://api.resend.com/emails', {
@@ -265,7 +283,14 @@ Deno.serve(async (req: Request) => {
   }
 
   if (crmError && emailError) {
-    return json({ success: false, error: 'Não foi possível registrar o lead.', details: { crmError, emailError } }, 500)
+    return json(
+      {
+        success: false,
+        error: 'Não foi possível registrar o lead.',
+        details: { crmError, emailError },
+      },
+      500,
+    )
   }
 
   return json({

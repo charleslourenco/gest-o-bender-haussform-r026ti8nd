@@ -39,10 +39,7 @@ export function AnaliseKanbanCard({
 }: any) {
   const navigate = useNavigate()
 
-  const needsCheck =
-    card &&
-    card.is_outsourced &&
-    (card.outsourced_checked === false || card.outsourced_checked === null)
+  const needsCheck = !!card && !card.is_outsourced && !card.outsourced_checked
 
   const [users, setUsers] = useState<any[]>([])
   const [analistaId, setAnalistaId] = useState<string>(card?.analista_id || '')
@@ -260,7 +257,6 @@ export function AnaliseKanbanCard({
               onClick={(e) => {
                 e.stopPropagation()
                 if (onCheckOutsourced) onCheckOutsourced(card)
-                window.dispatchEvent(new CustomEvent('check_outsourced', { detail: card }))
               }}
               title="Verificar Terceirizado"
               className="bg-orange-600 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center justify-center hover:bg-orange-700 dark:bg-orange-500/20 dark:text-orange-400 dark:border dark:border-orange-500/50 dark:hover:bg-orange-500/40 cursor-pointer shrink-0"

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, Plus, CalendarIcon, LayoutDashboard, Search } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { CriarCardAvulsoModal } from '@/components/analise/CriarCardAvulsoModal'
-import { OutsourcedCheckModal } from '@/components/analise/OutsourcedCheckModal'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
@@ -20,7 +19,6 @@ export default function AnaliseTecnicaDetalhe() {
   const [clientName, setClientName] = useState('')
   const [clienteId, setClienteId] = useState('')
   const [showCriarModal, setShowCriarModal] = useState(false)
-  const [checkCard, setCheckCard] = useState<any>(null)
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroConsultor, setFiltroConsultor] = useState('')
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
@@ -50,12 +48,6 @@ export default function AnaliseTecnicaDetalhe() {
     }
     fetchProjectDetails()
   }, [id])
-
-  useEffect(() => {
-    const handleCheckOutsourced = (e: any) => setCheckCard(e.detail)
-    window.addEventListener('check_outsourced', handleCheckOutsourced)
-    return () => window.removeEventListener('check_outsourced', handleCheckOutsourced)
-  }, [])
 
   useEffect(() => {
     const event = new CustomEvent('analise_detalhe_filters', {
@@ -183,28 +175,6 @@ export default function AnaliseTecnicaDetalhe() {
             window.dispatchEvent(new Event('reload_kanban_board'))
           }}
           baseCard={{ formulario_comercial_id: id, cliente_id: clienteId }}
-        />
-      )}
-
-      {checkCard && (
-        <OutsourcedCheckModal
-          onClose={() => setCheckCard(null)}
-          onConfirm={async (hasOutsourced: boolean) => {
-            if (!hasOutsourced) {
-              const { error } = await supabase
-                .from('produtos_servicos_projeto')
-                .update({ outsourced_checked: true })
-                .eq('id', checkCard.id)
-
-              if (!error) {
-                window.dispatchEvent(new Event('reload_kanban_board'))
-              }
-              setCheckCard(null)
-            } else {
-              setCheckCard(null)
-              setShowCriarModal(true)
-            }
-          }}
         />
       )}
     </div>
