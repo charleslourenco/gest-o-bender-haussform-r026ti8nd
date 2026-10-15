@@ -583,19 +583,10 @@ export function AnaliseKanbanBoard({
         onDragLeave={handleContainerDragLeave}
       >
         <div ref={contentRef} className="flex gap-2.5 p-3 h-full min-h-full w-max items-stretch">
-          {(columns || []).map((col, index) => {
+          {(columns || []).map((col) => {
             const colCards = (filteredCards || [])
               .filter((c) => {
                 if (!c || c.status_analise !== col.id) return false
-                // Regra: coluna 1 da Análise Técnica só exibe card pai com (semana_planejada_analise || data_planejada_analise);
-                // sem isso, o card fica apenas na carteira lateral.
-                if (index === 0 && !c.card_pai_id) {
-                  const temData = Boolean(
-                    (c.semana_planejada_analise && c.semana_planejada_analise.trim() !== '') ||
-                    (c.data_planejada_analise && c.data_planejada_analise.trim() !== ''),
-                  )
-                  if (!temData) return false
-                }
                 return true
               })
               .map((c) => ({
