@@ -20,7 +20,6 @@ import {
   getCurrentIsoWeek,
   isAnaliseTecnicaConcluida,
   parseWeekNumber,
-  getAllIsoWeeksForYear,
   formatBRL,
   getStartDateOfIsoWeek,
   getIsoWeekAndYear,

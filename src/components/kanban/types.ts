@@ -31,11 +31,23 @@ export interface CardData {
   cor_vinculo?: string | null
   semana_planejada_producao?: string | null
   semana_producao_inicio?: string | null
+  semana_planejada_analise?: string | null
+  semana_planejada_montagem?: string | null
+  data_planejada_analise?: string | null
+  data_planejada_producao?: string | null
+  data_planejada_montagem?: string | null
+  status_producao?: string | null
   card_pai?: {
     id: string
     nome_produto: string
     status_analise?: string
+    status_producao?: string | null
     semana_planejada_producao?: string | null
     semana_producao_inicio?: string | null
+    semana_planejada_analise?: string | null
+    semana_planejada_montagem?: string | null
+    data_planejada_analise?: string | null
+    data_planejada_producao?: string | null
+    data_planejada_montagem?: string | null
   } | null
 }
