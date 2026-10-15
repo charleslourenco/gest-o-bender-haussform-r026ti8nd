@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Plus, Sparkles, AlertTriangle, RefreshCw, LogIn } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
-import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import { getCurrentIsoWeek, matchWeek, getIsoWeeksForYear } from '@/lib/pcp-capacity'
 import {
   Dialog,
   DialogContent,
@@ -493,8 +493,12 @@ export function AnaliseKanbanBoard({
     // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
     if (somenteSemanaAtual) {
       const current = getCurrentIsoWeek()
-      const semCard = parseWeekNumber(c.semana_planejada_producao)
-      if (semCard !== current.weekNumber) return false
+      const currentWeekRange =
+        getIsoWeeksForYear(current.year).find((w) => w.weekNumber === current.weekNumber) ||
+        (current as any)
+      if (!matchWeek(c.semana_planejada_producao, currentWeekRange, c.semana_producao_inicio)) {
+        return false
+      }
     }
 
     if (filters?.dateRange?.from && c.criado_em) {

@@ -16,7 +16,12 @@ import {
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { arquivarAnaliseFormulario } from '@/services/arquivamento'
-import { getBadgeProgramacaoSemana, parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import {
+  getBadgeProgramacaoSemana,
+  getCurrentIsoWeek,
+  matchWeek,
+  getIsoWeeksForYear,
+} from '@/lib/pcp-capacity'
 import { runWithAuthRecovery, redirectToLogin } from '@/lib/supabase/auth-recovery'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,6 +51,10 @@ export function AnaliseProjetoKanbanBoard() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [archivingId, setArchivingId] = useState<string | null>(null)
   const [somenteSemanaAtual, setSomenteSemanaAtual] = useState(false)
+  const [filters, setFilters] = useState<{
+    consultor?: string
+    dateRange?: { from?: Date; to?: Date }
+  }>({})
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSessionExpired, setIsSessionExpired] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
@@ -69,6 +78,7 @@ export function AnaliseProjetoKanbanBoard() {
           .select(
             `
             id,
+            criado_em,
             valor_total,
             data_prevista_entrega,
             status_analise_projeto,
@@ -78,7 +88,7 @@ export function AnaliseProjetoKanbanBoard() {
             arquivado_analise,
             clientes (nome),
             leads ( kanban_ativo, consultor:users!leads_consultor_id_fkey (nome) ),
-            produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao )
+            produtos_servicos_projeto ( nome_produto, is_outsourced, status_analise, semana_planejada_producao, semana_producao_inicio )
           `,
           )
           .eq('arquivado_analise' as any, false),
@@ -145,6 +155,7 @@ export function AnaliseProjetoKanbanBoard() {
     }
 
     const handleSearch = (e: any) => setSearchQuery(e.detail?.toLowerCase() || '')
+    const handleFilters = (e: any) => setFilters(e.detail || {})
     const handleWeekFilter = (e: any) => {
       if (e.detail && typeof e.detail === 'object' && 'somente_semana_atual' in e.detail) {
         setSomenteSemanaAtual(Boolean(e.detail.somente_semana_atual))
@@ -156,6 +167,7 @@ export function AnaliseProjetoKanbanBoard() {
     }
 
     window.addEventListener('kanban_search_change', handleSearch)
+    window.addEventListener('analise_detalhe_filters', handleFilters)
     window.addEventListener('toggle_filtro_semana_atual', handleWeekFilter)
     window.addEventListener('auth_session_restored', handleAuthRestored)
 
@@ -169,6 +181,7 @@ export function AnaliseProjetoKanbanBoard() {
         }
       }
       window.removeEventListener('kanban_search_change', handleSearch)
+      window.removeEventListener('analise_detalhe_filters', handleFilters)
       window.removeEventListener('toggle_filtro_semana_atual', handleWeekFilter)
       window.removeEventListener('auth_session_restored', handleAuthRestored)
     }
@@ -228,14 +241,49 @@ export function AnaliseProjetoKanbanBoard() {
     }
   }
 
+  const getConsultantName = (project: any) => {
+    let consultantName = 'Consultor não encontrado'
+    if (project.leads && !Array.isArray(project.leads)) {
+      consultantName =
+        (project.leads as any).consultor?.nome ||
+        (project.leads as any).users?.nome ||
+        consultantName
+    } else if (project.leads && Array.isArray(project.leads) && project.leads[0]) {
+      consultantName =
+        project.leads[0]?.consultor?.nome || project.leads[0]?.users?.nome || consultantName
+    }
+
+    if (!consultantName || consultantName === 'Consultor não encontrado') {
+      consultantName =
+        users.find((u) => u.id === project.user_id)?.nome || 'Consultor não encontrado'
+    }
+
+    return consultantName
+  }
+
   const filteredProjects = projects.filter((p) => {
     if (somenteSemanaAtual) {
       const current = getCurrentIsoWeek()
-      const hasCardInWeek = p?.produtos_servicos_projeto?.some((it: any) => {
-        const sem = parseWeekNumber(it?.semana_planejada_producao)
-        return sem === current.weekNumber
-      })
+      const currentWeekRange =
+        getIsoWeeksForYear(current.year).find((w) => w.weekNumber === current.weekNumber) ||
+        (current as any)
+      const hasCardInWeek = p?.produtos_servicos_projeto?.some((it: any) =>
+        matchWeek(it?.semana_planejada_producao, currentWeekRange, it?.semana_producao_inicio),
+      )
       if (!hasCardInWeek) return false
+    }
+
+    if (filters.consultor) {
+      const nome = getConsultantName(p).toLowerCase()
+      if (!nome.includes(filters.consultor.toLowerCase())) return false
+    }
+    if (filters.dateRange?.from && p.criado_em) {
+      const criado = new Date(p.criado_em)
+      const from = new Date(filters.dateRange.from)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(filters.dateRange.to || filters.dateRange.from)
+      to.setHours(23, 59, 59, 999)
+      if (criado < from || criado > to) return false
     }
 
     if (!searchQuery) return true
@@ -326,24 +374,7 @@ export function AnaliseProjetoKanbanBoard() {
 
               <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/30 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {col.items.map((project) => {
-                  let consultantName = 'Consultor não encontrado'
-                  if (project.leads && !Array.isArray(project.leads)) {
-                    consultantName =
-                      (project.leads as any).consultor?.nome ||
-                      (project.leads as any).users?.nome ||
-                      consultantName
-                  } else if (project.leads && Array.isArray(project.leads) && project.leads[0]) {
-                    consultantName =
-                      project.leads[0]?.consultor?.nome ||
-                      project.leads[0]?.users?.nome ||
-                      consultantName
-                  }
-
-                  if (!consultantName || consultantName === 'Consultor não encontrado') {
-                    consultantName =
-                      users.find((u) => u.id === project.user_id)?.nome ||
-                      'Consultor não encontrado'
-                  }
+                  const consultantName = getConsultantName(project)
 
                   const clientName = project.clientes?.nome || 'Cliente não encontrado'
 

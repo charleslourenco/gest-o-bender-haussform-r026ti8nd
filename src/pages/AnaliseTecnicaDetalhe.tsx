@@ -55,8 +55,6 @@ export default function AnaliseTecnicaDetalhe() {
         cliente: filtroCliente || '',
         consultor: filtroConsultor || '',
         dateRange: dateRange || { from: undefined, to: undefined },
-        customFilter:
-          'is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)',
       },
     })
     window.dispatchEvent(event)
@@ -163,7 +161,6 @@ export default function AnaliseTecnicaDetalhe() {
           title="Itens do Projeto"
           columns={ANALISE_COLUMNS}
           formularioComercialId={id}
-          filterQuery="is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)"
         />
       </div>
 
