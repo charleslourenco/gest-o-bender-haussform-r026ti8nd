@@ -362,7 +362,7 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Nenhum card atrasado ou das semanas {semanaLabelComAno(currentWeekObj)} e{' '}
-                    {semanaLabelComAno(nextWeekObj)} com análise análise pendente.
+                    {semanaLabelComAno(nextWeekObj)} com análise pendente.
                   </p>
                 </div>
               ) : (

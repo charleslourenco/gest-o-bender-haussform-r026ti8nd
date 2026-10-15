@@ -199,7 +199,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   const handleSolicitarCompra = async (item: any) => {
     if (
       !confirm(
-        `Deseja solicitar a compra do item "${item.nome_produto}" e removê-lo da análise técnica?`,
+        `Solicitar a compra do item "${item.nome_produto}"? Ele sai da Análise Técnica e vai para "Item Terceirizado" no quadro de Montagem.`,
       )
     )
       return
@@ -212,29 +212,15 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
     setItems((prev) => prev.filter((i) => i.id !== item.id))
 
     try {
-      const [resCompra, resProj] = await Promise.all([
-        supabase.from('solicitacoes_compra').insert({
-          usuario_id: user.id,
-          cliente_id: item.cliente_id,
-          nome_item: item.nome_produto,
-          quantidade: item.qtd || 1,
-          unidade: 'un',
-          urgencia: 'Média',
-          status: 'Pendente',
-          motivo: 'Solicitado via Análise Técnica',
-        }),
-        supabase
-          .from('produtos_servicos_projeto')
-          .update({
-            is_outsourced: true,
-          })
-          .eq('id', item.id),
-      ])
+      const { data, error } = await supabase.rpc('solicitar_compra_item' as any, {
+        p_item_id: item.id,
+      })
+      if (error) throw error
 
-      if (resCompra.error) throw resCompra.error
-      if (resProj.error) throw resProj.error
-
-      toast({ title: 'Compra solicitada com sucesso!' })
+      toast({
+        title: 'Compra solicitada',
+        description: 'Solicitação criada e item movido para Item Terceirizado.',
+      })
       window.dispatchEvent(new CustomEvent('kanban_refresh'))
     } catch (err: any) {
       fetchData()
