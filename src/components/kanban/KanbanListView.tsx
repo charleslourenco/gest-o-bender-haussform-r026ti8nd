@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import { getCurrentIsoWeek, getIsoWeeksForYear, matchWeek } from '@/lib/pcp-capacity'
 
 export interface KanbanColumn {
   id: string
@@ -282,10 +282,12 @@ export function KanbanListView({
     // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
     if (somenteSemanaAtual) {
       const current = getCurrentIsoWeek()
-      const semCard = parseWeekNumber(
-        c.semana_planejada_producao || c.card_pai?.semana_planejada_producao,
-      )
-      if (semCard !== current.weekNumber) return false
+      const currentWeekRange =
+        getIsoWeeksForYear(current.year).find((w) => w.weekNumber === current.weekNumber) ||
+        (current as any)
+      const semCard = c.semana_planejada_producao || c.card_pai?.semana_planejada_producao
+      const semInicio = c.semana_producao_inicio || c.card_pai?.semana_producao_inicio
+      if (!matchWeek(semCard, currentWeekRange, semInicio)) return false
     }
 
     if (!searchQuery) return true

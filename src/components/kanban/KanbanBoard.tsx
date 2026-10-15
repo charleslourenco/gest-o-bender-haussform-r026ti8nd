@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useKanbanData, getClienteNome, type KanbanItem } from '@/hooks/use-kanban-data'
-import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import { getCurrentIsoWeek, getIsoWeeksForYear, matchWeek } from '@/lib/pcp-capacity'
 import { AlocadosBadge } from './alocados-helper'
 import {
   updateCardStatus,
@@ -415,10 +415,12 @@ export function KanbanBoard({ title, columns }: KanbanBoardProps) {
     // Spec Etapa 4: Filtro [ 🚀 Ver Somente Programação da Semana ]
     if (somenteSemanaAtual) {
       const current = getCurrentIsoWeek()
-      const semCard = parseWeekNumber(
-        item.semana_planejada_producao || item.card_pai?.semana_planejada_producao,
-      )
-      if (semCard !== current.weekNumber) return false
+      const currentWeekRange =
+        getIsoWeeksForYear(current.year).find((w) => w.weekNumber === current.weekNumber) ||
+        (current as any)
+      const semCard = item.semana_planejada_producao || item.card_pai?.semana_planejada_producao
+      const semInicio = item.semana_producao_inicio || item.card_pai?.semana_producao_inicio
+      if (!matchWeek(semCard, currentWeekRange, semInicio)) return false
     }
 
     return true
