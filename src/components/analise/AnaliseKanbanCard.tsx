@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast'
 
 export function AnaliseKanbanCard({
   card,
+  users = [],
   subcards = [],
   isDragging,
   onDragStart,
@@ -41,22 +42,9 @@ export function AnaliseKanbanCard({
 
   const needsCheck = !!card && !card.is_outsourced && !card.outsourced_checked
 
-  const [users, setUsers] = useState<any[]>([])
   const [analistaId, setAnalistaId] = useState<string>(card?.analista_id || '')
   const { toast } = useToast()
   const { isAdmin } = useAuth()
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const { data } = await supabase
-        .from('users')
-        .select('id, nome')
-        .eq('status', true)
-        .order('nome')
-      if (data) setUsers(data)
-    }
-    fetchUsers()
-  }, [])
 
   const handleDelete = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation()

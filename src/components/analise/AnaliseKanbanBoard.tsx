@@ -30,6 +30,7 @@ export function AnaliseKanbanBoard({
   formularioComercialId?: string
 }) {
   const [cards, setCards] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const [dragOverCol, setDragOverCol] = useState<string | null>(null)
@@ -174,6 +175,18 @@ export function AnaliseKanbanBoard({
       setIsRetrying(false)
     }
   }
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data } = await supabase
+        .from('users')
+        .select('id, nome')
+        .eq('status', true)
+        .order('nome')
+      if (data) setUsers(data)
+    }
+    fetchUsers()
+  }, [])
 
   useEffect(() => {
     loadCards()
@@ -565,6 +578,7 @@ export function AnaliseKanbanBoard({
                 key={col.id}
                 column={col}
                 cards={colCards}
+                users={users}
                 subcardsByParentId={subcardsByParentId}
                 onDragOver={(e: any) => {
                   e.preventDefault()

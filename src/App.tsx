@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -36,6 +36,11 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ThemeProvider } from './components/theme-provider'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SessionExpiredAlert } from './components/SessionExpiredAlert'
+
+function RedirectAnaliseDetalhe() {
+  const { id } = useParams()
+  return <Navigate to={id ? `/pcp/analise-tecnica/${id}` : '/pcp/analise-tecnica'} replace />
+}
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -146,10 +151,7 @@ const App = () => (
                     path="/analise-tecnica"
                     element={<Navigate to="/pcp/analise-tecnica" replace />}
                   />
-                  <Route
-                    path="/analise-tecnica/:id"
-                    element={<Navigate to="/pcp/analise-tecnica/:id" replace />}
-                  />
+                  <Route path="/analise-tecnica/:id" element={<RedirectAnaliseDetalhe />} />
                   <Route path="/producao" element={<Navigate to="/pcp/producao" replace />} />
                   <Route path="/montagem" element={<Navigate to="/pcp/montagem" replace />} />
 
