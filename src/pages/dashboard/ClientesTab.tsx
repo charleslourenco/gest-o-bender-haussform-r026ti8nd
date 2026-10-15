@@ -1,4 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
+import { supabase } from '@/lib/supabase/client'
+import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +20,7 @@ import {
   Percent,
   Clock,
   UserCheck,
+  ListChecks,
 } from 'lucide-react'
 import {
   Tooltip as UITooltip,
@@ -23,14 +29,77 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
+import type { DateRangeProps } from './AtendimentosTab'
 import type { ClientesMetrics, RankingConsultorItem, ConsultorDesempenho } from './types'
+
+interface VendaPeriodoItem {
+  formulario_id: string
+  cliente_id: string | null
+  cliente: string
+  data_venda: string
+  valor_total: number
+  fechada: boolean
+  status_lead: string | null
+  consultor: string
+  origem: string | null
+  lead_id: string
+}
 
 type SortMode = 'valor' | 'ticket' | 'quantidade'
 type DesempenhoSortMode = 'conversao' | 'ciclo' | 'leads' | 'vendidos'
 
-export function ClientesTab({ data }: { data: ClientesMetrics }) {
+export function ClientesTab({
+  data,
+  dateRange,
+}: {
+  data: ClientesMetrics
+  dateRange?: DateRangeProps
+}) {
   const [sortMode, setSortMode] = useState<SortMode>('valor')
   const [desempenhoSort, setDesempenhoSort] = useState<DesempenhoSortMode>('conversao')
+
+  const [vendasPeriodo, setVendasPeriodo] = useState<VendaPeriodoItem[]>([])
+  const [loadingVendas, setLoadingVendas] = useState<boolean>(true)
+  const [erroVendas, setErroVendas] = useState<string | null>(null)
+  const requestIdRef = useRef(0)
+
+  useEffect(() => {
+    const currentRequestId = ++requestIdRef.current
+    setLoadingVendas(true)
+    setErroVendas(null)
+
+    const fetchVendas = async () => {
+      try {
+        const result = await runWithAuthRecovery<VendaPeriodoItem[]>(() =>
+          supabase.rpc('get_vendas_periodo' as any, {
+            p_start_date: dateRange?.from ?? null,
+            p_end_date: dateRange?.to ?? null,
+          }),
+        )
+
+        if (currentRequestId !== requestIdRef.current) {
+          return
+        }
+
+        if (result.error) {
+          setErroVendas(result.error?.message || 'Não foi possível carregar as vendas do período.')
+        } else {
+          setVendasPeriodo(Array.isArray(result.data) ? result.data : [])
+        }
+      } catch (err: any) {
+        if (currentRequestId !== requestIdRef.current) {
+          return
+        }
+        setErroVendas(err?.message || 'Erro inesperado ao consultar vendas do período.')
+      } finally {
+        if (currentRequestId === requestIdRef.current) {
+          setLoadingVendas(false)
+        }
+      }
+    }
+
+    fetchVendas()
+  }, [dateRange?.from, dateRange?.to])
 
   const {
     novos_clientes,
@@ -303,6 +372,124 @@ export function ClientesTab({ data }: { data: ClientesMetrics }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Card: Clientes que fecharam no período */}
+      {(() => {
+        const fechadasCount = vendasPeriodo.filter((v) => v.fechada).length
+        const abertosCount = vendasPeriodo.filter((v) => !v.fechada).length
+        const totalValorVendasPeriodo = vendasPeriodo.reduce(
+          (acc, cur) => acc + (Number(cur.valor_total) || 0),
+          0,
+        )
+
+        let descText = `${fechadasCount} ${fechadasCount === 1 ? 'venda fechada' : 'vendas fechadas'} no período filtrado`
+        if (abertosCount > 0) {
+          descText += ` e ${abertosCount} ${abertosCount === 1 ? 'formulário em aberto' : 'formulários em aberto'}`
+        }
+
+        return (
+          <Card className="border-border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <ListChecks className="h-5 w-5 text-primary" />
+                Clientes que fecharam no período
+              </CardTitle>
+              <CardDescription>{descText}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {loadingVendas ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : erroVendas ? (
+                <p className="text-sm text-destructive py-2">{erroVendas}</p>
+              ) : vendasPeriodo.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  Nenhuma venda no período.
+                </p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-muted/60 text-muted-foreground uppercase text-xs tracking-wider border-b border-border">
+                        <tr>
+                          <th className="py-2.5 px-3">Data</th>
+                          <th className="py-2.5 px-3">Cliente</th>
+                          <th className="py-2.5 px-3">Consultor</th>
+                          <th className="py-2.5 px-3">Origem</th>
+                          <th className="py-2.5 px-3 text-right">Valor</th>
+                          <th className="py-2.5 px-3 text-center">Situação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border bg-card">
+                        {vendasPeriodo.map((item) => {
+                          let dataFormatada = '—'
+                          if (item.data_venda) {
+                            try {
+                              dataFormatada = format(parseISO(item.data_venda), 'dd/MM/yyyy')
+                            } catch {
+                              dataFormatada = item.data_venda
+                            }
+                          }
+
+                          return (
+                            <tr
+                              key={item.formulario_id || `${item.lead_id}-${item.data_venda}`}
+                              className="hover:bg-muted/40 transition-colors"
+                            >
+                              <td className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
+                                {dataFormatada}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {item.cliente_id ? (
+                                  <Link
+                                    to={`/clientes/${item.cliente_id}`}
+                                    className="font-medium text-primary hover:underline"
+                                  >
+                                    {item.cliente || 'Sem nome'}
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-foreground">
+                                    {item.cliente || 'Sem nome'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-foreground">
+                                {item.consultor || '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-muted-foreground">
+                                {item.origem || '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-semibold text-foreground whitespace-nowrap">
+                                {formatCurrencyFull(item.valor_total || 0)}
+                              </td>
+                              <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                                {item.fechada ? (
+                                  <Badge variant="default">Fechada</Badge>
+                                ) : (
+                                  <Badge variant="secondary">
+                                    {item.status_lead || 'Em aberto'}
+                                  </Badge>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Total: {formatCurrencyFull(totalValorVendasPeriodo)}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Seção Principal: Ranking de Consultores com Três Ordenações Alternáveis */}
       <Card className="border-border shadow-sm">

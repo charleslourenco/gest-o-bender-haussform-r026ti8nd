@@ -406,7 +406,7 @@ export default function Dashboard() {
 
               {/* Aba 2: Clientes */}
               <TabsContent value="clientes" className="mt-0 focus-visible:outline-none">
-                <ClientesTab data={metrics.clientes} />
+                <ClientesTab data={metrics.clientes} dateRange={dateRangeStrings} />
               </TabsContent>
 
               {/* Aba 3: PCP */}
