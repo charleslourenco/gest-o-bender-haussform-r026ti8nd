@@ -18,6 +18,7 @@ import {
 import { ptBR } from 'date-fns/locale'
 import { Search, ClipboardList, Filter, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ANALISE_COLUMNS } from '@/components/analise/analise-columns'
 
 const PROJECT_COLUMNS = [
   { id: 'iniciar', title: 'INICIAR' },
@@ -254,7 +255,7 @@ export default function AnaliseTecnica() {
         ) : view === 'arquivados' ? (
           <KanbanArquivados archiveFlag="arquivado_analise" />
         ) : (
-          <AnaliseTecnicaListView searchQuery={filters.cliente} columns={PROJECT_COLUMNS} />
+          <AnaliseTecnicaListView searchQuery={filters.cliente} columns={ANALISE_COLUMNS} />
         )}
       </div>
     </div>

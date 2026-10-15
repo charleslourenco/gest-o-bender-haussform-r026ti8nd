@@ -17,7 +17,12 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Trash2, ShoppingBag, AlertTriangle, RefreshCw, LogIn } from 'lucide-react'
-import { parseWeekNumber, getCurrentIsoWeek } from '@/lib/pcp-capacity'
+import {
+  parseWeekNumber,
+  getCurrentIsoWeek,
+  matchWeek,
+  getIsoWeeksForYear,
+} from '@/lib/pcp-capacity'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -37,7 +42,7 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   const [isSessionExpired, setIsSessionExpired] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   const fetchData = async () => {
     try {
@@ -56,7 +61,9 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
             analista:users!produtos_servicos_projeto_analista_id_fkey(id, nome)
           `)
           .in('status_analise', columnIds)
-          .eq('is_outsourced', false)
+          .eq('arquivado_analise', false)
+          .eq('excluido_analise' as any, false)
+          .or('is_outsourced.eq.false,and(is_outsourced.eq.true,terceirizado_validado.eq.true)')
           .order('atualizado_em', { ascending: false }),
       )
 
@@ -77,9 +84,15 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
 
       if (somenteSemanaAtual) {
         const current = getCurrentIsoWeek()
+        const currentWeekRange =
+          getIsoWeeksForYear(current.year).find((w) => w.weekNumber === current.weekNumber) ||
+          (current as any)
         filtered = filtered.filter((item) => {
-          const sem = parseWeekNumber(item.semana_planejada_producao)
-          return sem === current.weekNumber
+          return matchWeek(
+            item.semana_planejada_producao,
+            currentWeekRange,
+            item.semana_producao_inicio,
+          )
         })
       }
 
@@ -163,12 +176,20 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir este item?')) return
+    if (
+      !confirm(
+        'Excluir este item da Análise? Ele sai dos quadros e da lista, mas o histórico é mantido.',
+      )
+    )
+      return
     try {
-      const { error } = await supabase.from('produtos_servicos_projeto').delete().eq('id', id)
+      const { error } = await supabase
+        .from('produtos_servicos_projeto')
+        .update({ excluido_analise: true } as any)
+        .eq('id', id)
 
       if (error) throw error
-      toast({ title: 'Item excluída' })
+      toast({ title: 'Item excluído da Análise' })
       window.dispatchEvent(new CustomEvent('kanban_refresh'))
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' })
@@ -375,15 +396,17 @@ export function AnaliseTecnicaListView({ searchQuery, columns }: Props) {
                       >
                         <ShoppingBag className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(item.id)}
-                        title="Excluir"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDelete(item.id)}
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

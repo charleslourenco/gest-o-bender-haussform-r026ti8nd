@@ -12,17 +12,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
-
-const COLUMNS = [
-  { id: 'iniciar', title: 'Iniciar' },
-  { id: 'aguardando_liberacao', title: 'Aguardando liberação' },
-  { id: 'medida_fina', title: 'Medida fina' },
-  { id: 'reuniao_analise', title: 'Reunião de análise' },
-  { id: 'caderno_tecnico', title: 'Caderno técnico' },
-  { id: 'alteracao_projeto', title: 'Alteração de projeto' },
-  { id: 'lista_materiais', title: 'Lista de materiais' },
-  { id: 'aguardando_plano_corte', title: 'Concluído (Pronto p/ Produção)' },
-]
+import { ANALISE_COLUMNS } from '@/components/analise/analise-columns'
 
 export default function AnaliseTecnicaDetalhe() {
   const { id } = useParams()
@@ -179,7 +169,7 @@ export default function AnaliseTecnicaDetalhe() {
       <div className="flex-1 overflow-hidden min-h-0 relative flex flex-col">
         <AnaliseKanbanBoard
           title="Itens do Projeto"
-          columns={COLUMNS}
+          columns={ANALISE_COLUMNS}
           formularioComercialId={id}
           filterQuery="is_outsourced.eq.false,or(is_outsourced.eq.true.and.terceirizado_validado.eq.true)"
         />
