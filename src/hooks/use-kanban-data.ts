@@ -30,12 +30,14 @@ export interface KanbanItem {
   card_pai_id?: string | null
   cor_vinculo?: string | null
   semana_planejada_producao?: string | null
+  semana_producao_inicio?: string | null
   card_pai?: {
     id: string
     nome_produto: string
     status_analise: string
     cor_vinculo: string | null
     semana_planejada_producao?: string | null
+    semana_producao_inicio?: string | null
   } | null
 }
 
@@ -49,8 +51,8 @@ const PAGE_SIZE = 30
 const ITEM_SELECT = `
   id, nome_produto, codigo_rastreio, qtd, status_analise, criado_em,
   analista_id, cliente_id, terceirizado_validado, outsourced_checked, is_outsourced,
-  card_pai_id, cor_vinculo, semana_planejada_producao,
-  card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, status_analise, cor_vinculo, semana_planejada_producao),
+  card_pai_id, cor_vinculo, semana_planejada_producao, semana_producao_inicio,
+  card_pai:produtos_servicos_projeto!card_pai_id(id, nome_produto, status_analise, cor_vinculo, semana_planejada_producao, semana_producao_inicio),
   cliente:clientes(nome),
   formulario:formulario_comercial(user_id, nome_cliente, cliente:clientes(nome)),
   alocacao_montagem(montador_id, pessoa_id, pessoa_nome, tipo_origem, montadores(nome_completo))
@@ -154,6 +156,7 @@ const normalizeItem = (item: any): KanbanItem => {
     card_pai_id: item?.card_pai_id ?? null,
     cor_vinculo: item?.cor_vinculo ?? null,
     semana_planejada_producao: item?.semana_planejada_producao ?? null,
+    semana_producao_inicio: item?.semana_producao_inicio ?? null,
     card_pai: Array.isArray(item?.card_pai) ? (item.card_pai[0] ?? null) : (item?.card_pai ?? null),
   }
 }

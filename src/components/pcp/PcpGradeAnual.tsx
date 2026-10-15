@@ -142,7 +142,8 @@ export const PcpGradeAnual: React.FC<PcpGradeAnualProps> = ({
       if (c[semanaField]) {
         // Obter semanas ISO deste mês
         const weeksDoMes = getIsoWeeksForMonth(year, mes.index)
-        return weeksDoMes.some((w) => matchWeek(c[semanaField], w))
+        const inicioField = semanaField.replace('semana_planejada_', 'semana_') + '_inicio'
+        return weeksDoMes.some((w) => matchWeek(c[semanaField], w, (c as any)[inicioField]))
       }
       return false
     })

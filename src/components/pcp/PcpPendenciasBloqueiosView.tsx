@@ -22,6 +22,12 @@ import {
   parseWeekNumber,
   getAllIsoWeeksForYear,
   formatBRL,
+  getStartDateOfIsoWeek,
+  getIsoWeekAndYear,
+  matchWeek,
+  inicioSemanaStr,
+  semanaLabelComAno,
+  IsoWeekRange,
 } from '@/lib/pcp-capacity'
 import { cn } from '@/lib/utils'
 
@@ -61,8 +67,39 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
   onRefresh,
   onOpenCardDrawer,
 }) => {
-  const currentWeek = useMemo(() => getCurrentIsoWeek(), [])
-  const nextWeekNum = currentWeek.weekNumber + 1
+  const { currentWeekObj, nextWeekObj } = useMemo(() => {
+    const cur = getCurrentIsoWeek()
+    const startDateCur = getStartDateOfIsoWeek(cur.weekNumber, cur.year)
+    const currentWeekRange: IsoWeekRange = {
+      key: cur.key,
+      label: cur.label,
+      weekNumber: cur.weekNumber,
+      year: cur.year,
+      startDate: startDateCur,
+      endDate: new Date(startDateCur.getTime() + 4 * 86400000),
+      formattedRange: '',
+    }
+
+    const nextDate = new Date(startDateCur)
+    nextDate.setDate(startDateCur.getDate() + 7)
+    const nextIso = getIsoWeekAndYear(nextDate)
+    const nextStartDate = getStartDateOfIsoWeek(nextIso.weekNumber, nextIso.year)
+    const nextPad = nextIso.weekNumber < 10 ? `0${nextIso.weekNumber}` : `${nextIso.weekNumber}`
+    const nextWeekRange: IsoWeekRange = {
+      key: `${nextIso.year}-W${nextPad}`,
+      label: `S${nextIso.weekNumber}`,
+      weekNumber: nextIso.weekNumber,
+      year: nextIso.year,
+      startDate: nextStartDate,
+      endDate: new Date(nextStartDate.getTime() + 4 * 86400000),
+      formattedRange: '',
+    }
+
+    return {
+      currentWeekObj: currentWeekRange,
+      nextWeekObj: nextWeekRange,
+    }
+  }, [])
 
   // Helper para nome de cliente
   const getClientName = (card: PcpCardItem) =>
@@ -87,11 +124,10 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
       const semProd = c.semana_planejada_producao
       if (!semProd) continue
 
-      const weekNum = parseWeekNumber(semProd)
-      if (weekNum === null) continue
-
       // Agendados para a semana atual ou próxima
-      const isSemanaAlvo = weekNum === currentWeek.weekNumber || weekNum === nextWeekNum
+      const isSemanaAlvo =
+        matchWeek(semProd, currentWeekObj, c.semana_producao_inicio) ||
+        matchWeek(semProd, nextWeekObj, c.semana_producao_inicio)
       if (!isSemanaAlvo) continue
 
       // Prontidão da Análise abaixo de 100%
@@ -117,7 +153,7 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
     })
 
     return result
-  }, [cards, currentWeek.weekNumber, nextWeekNum])
+  }, [cards, currentWeekObj, nextWeekObj])
 
   // =========================================================================
   // 🟡 ALERTA 2: SOBRECARGA DE CAPACIDADE
@@ -201,11 +237,18 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
       const semMontagem = c.semana_planejada_montagem
       if (!semMontagem || !semMontagem.trim()) continue
 
-      const weekNum = parseWeekNumber(semMontagem)
-      if (weekNum === null) continue
+      // A semana de montagem já passou (atrasado)
+      let isAtrasado = false
+      if (c.semana_montagem_inicio) {
+        isAtrasado = c.semana_montagem_inicio < inicioSemanaStr(currentWeekObj)
+      } else {
+        const weekNum = parseWeekNumber(semMontagem)
+        if (weekNum !== null && weekNum < currentWeekObj.weekNumber) {
+          isAtrasado = true
+        }
+      }
 
-      // A semana de montagem já passou
-      if (weekNum < currentWeek.weekNumber) {
+      if (isAtrasado) {
         result.push({
           card: c,
           clienteNome: getClientName(c),
@@ -224,7 +267,7 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
     })
 
     return result
-  }, [cards, currentWeek.weekNumber])
+  }, [cards, currentWeekObj])
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
@@ -250,7 +293,9 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
             className="text-xs px-2.5 py-1 bg-muted/40 border-border font-semibold"
           >
             Semana Atual:{' '}
-            <span className="text-primary font-bold ml-1 font-mono">{currentWeek.label}</span>
+            <span className="text-primary font-bold ml-1 font-mono">
+              {semanaLabelComAno(currentWeekObj)}
+            </span>
           </Badge>
 
           <Button
@@ -283,7 +328,8 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                       🔴 ALERTA 1: Pendência Técnica
                     </CardTitle>
                     <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">
-                      Na semana atual ({currentWeek.label}) ou próxima (S{nextWeekNum}) &lt; 100%
+                      Na semana atual ({semanaLabelComAno(currentWeekObj)}) ou próxima (
+                      {semanaLabelComAno(nextWeekObj)}) &lt; 100%
                     </p>
                   </div>
                 </div>
@@ -309,7 +355,8 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                     Nenhuma pendência técnica crítica
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Todos os cards para {currentWeek.label} e S{nextWeekNum} estão liberados.
+                    Todos os cards para {semanaLabelComAno(currentWeekObj)} e{' '}
+                    {semanaLabelComAno(nextWeekObj)} estão liberados.
                   </p>
                 </div>
               ) : (

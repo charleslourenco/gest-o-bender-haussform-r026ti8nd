@@ -7,7 +7,7 @@ import {
   getProntidaoTecnica,
   PcpLinhaOperacao,
 } from '@/services/pcp-planejamento'
-import { formatBRL, IsoWeekRange } from '@/lib/pcp-capacity'
+import { formatBRL, IsoWeekRange, semanaLabelComAno } from '@/lib/pcp-capacity'
 import { formatSafeDate } from '@/lib/date-utils'
 import {
   Sheet,
@@ -349,8 +349,8 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                     <SelectContent>
                       <SelectItem value="none">-- Não agendado --</SelectItem>
                       {availableWeeks.map((w) => (
-                        <SelectItem key={w.key} value={w.label}>
-                          {w.label} ({w.formattedRange})
+                        <SelectItem key={w.key} value={semanaLabelComAno(w)}>
+                          {semanaLabelComAno(w)} ({w.formattedRange})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -382,8 +382,8 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                     <SelectContent>
                       <SelectItem value="none">-- Não agendado --</SelectItem>
                       {availableWeeks.map((w) => (
-                        <SelectItem key={w.key} value={w.label}>
-                          {w.label} ({w.formattedRange})
+                        <SelectItem key={w.key} value={semanaLabelComAno(w)}>
+                          {semanaLabelComAno(w)} ({w.formattedRange})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -415,8 +415,8 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                     <SelectContent>
                       <SelectItem value="none">-- Não agendado --</SelectItem>
                       {availableWeeks.map((w) => (
-                        <SelectItem key={w.key} value={w.label}>
-                          {w.label} ({w.formattedRange})
+                        <SelectItem key={w.key} value={semanaLabelComAno(w)}>
+                          {semanaLabelComAno(w)} ({w.formattedRange})
                         </SelectItem>
                       ))}
                     </SelectContent>

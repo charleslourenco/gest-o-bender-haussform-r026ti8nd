@@ -14,6 +14,7 @@ import {
   avaliarCapacidadeFinanceiraMensal,
   somarCargaProducaoMes,
   somarCargaTodasLinhasMes,
+  semanaLabelComAno,
 } from '@/lib/pcp-capacity'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpGradeSemanal } from './PcpGradeSemanal'

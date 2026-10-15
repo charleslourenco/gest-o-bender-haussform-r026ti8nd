@@ -974,6 +974,7 @@ export function getDiasSemanaIndustrial(week: IsoWeekRange): DiaSemanaIndustrial
 export function calcularDatasDerivadasPcp(dataBase: string | Date): {
   dataLimiteAnalise: string
   dataObraMontagem: string
+  semanaPlanejada: string
 } {
   const base = typeof dataBase === 'string' ? new Date(`${dataBase}T12:00:00`) : new Date(dataBase)
 
@@ -982,6 +983,9 @@ export function calcularDatasDerivadasPcp(dataBase: string | Date): {
 
   const obraMontagem = new Date(base)
   obraMontagem.setDate(base.getDate() + 28)
+
+  const { weekNumber, year } = getIsoWeekAndYear(base)
+  const semanaPlanejada = `S${String(weekNumber).padStart(2, '0')}/${year}`
 
   const fmt = (d: Date) => {
     const yyyy = d.getFullYear()
@@ -993,6 +997,7 @@ export function calcularDatasDerivadasPcp(dataBase: string | Date): {
   return {
     dataLimiteAnalise: fmt(limiteAnalise),
     dataObraMontagem: fmt(obraMontagem),
+    semanaPlanejada,
   }
 }
 

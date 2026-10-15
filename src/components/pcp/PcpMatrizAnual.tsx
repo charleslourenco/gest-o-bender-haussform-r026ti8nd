@@ -7,7 +7,7 @@ import {
   updateCardSemanaPlanejada,
   PcpLinhaOperacao,
 } from '@/services/pcp-planejamento'
-import { formatBRL, getIsoWeeksForMonth } from '@/lib/pcp-capacity'
+import { formatBRL, getIsoWeeksForMonth, semanaLabelComAno } from '@/lib/pcp-capacity'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpGradeAnual, matchMonth } from './PcpGradeAnual'
 import { PcpSideDrawer } from './PcpSideDrawer'
@@ -191,7 +191,6 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     }
   }
 
-  // Arrastar e soltar em coluna de Mês com suporte a Card Pai (aloca pai + subcards) ou Subcard isolado
   const handleDropCard = async (
     cardId: string,
     targetLinha: PcpLinhaOperacao,

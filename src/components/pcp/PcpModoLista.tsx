@@ -9,7 +9,7 @@ import {
   getProntidaoTecnica,
   PcpLinhaOperacao,
 } from '@/services/pcp-planejamento'
-import { formatBRL, getIsoWeeksForMonth } from '@/lib/pcp-capacity'
+import { formatBRL, getIsoWeeksForMonth, semanaLabelComAno } from '@/lib/pcp-capacity'
 import { PcpSideDrawer } from './PcpSideDrawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -899,8 +899,12 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                             <SelectContent>
                               <SelectItem value="none">--</SelectItem>
                               {availableWeeks.map((w) => (
-                                <SelectItem key={w.key} value={w.label} className="text-xs">
-                                  {w.label}
+                                <SelectItem
+                                  key={w.key}
+                                  value={semanaLabelComAno(w)}
+                                  className="text-xs"
+                                >
+                                  {semanaLabelComAno(w)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -943,8 +947,12 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                             <SelectContent>
                               <SelectItem value="none">--</SelectItem>
                               {availableWeeks.map((w) => (
-                                <SelectItem key={w.key} value={w.label} className="text-xs">
-                                  {w.label}
+                                <SelectItem
+                                  key={w.key}
+                                  value={semanaLabelComAno(w)}
+                                  className="text-xs"
+                                >
+                                  {semanaLabelComAno(w)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -989,8 +997,12 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
                             <SelectContent>
                               <SelectItem value="none">--</SelectItem>
                               {availableWeeks.map((w) => (
-                                <SelectItem key={w.key} value={w.label} className="text-xs">
-                                  {w.label}
+                                <SelectItem
+                                  key={w.key}
+                                  value={semanaLabelComAno(w)}
+                                  className="text-xs"
+                                >
+                                  {semanaLabelComAno(w)}
                                 </SelectItem>
                               ))}
                             </SelectContent>

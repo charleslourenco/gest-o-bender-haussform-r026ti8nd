@@ -30,10 +30,12 @@ export interface CardData {
   card_pai_id?: string | null
   cor_vinculo?: string | null
   semana_planejada_producao?: string | null
+  semana_producao_inicio?: string | null
   card_pai?: {
     id: string
     nome_produto: string
     status_analise?: string
     semana_planejada_producao?: string | null
+    semana_producao_inicio?: string | null
   } | null
 }

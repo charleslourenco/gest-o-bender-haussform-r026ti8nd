@@ -1,6 +1,12 @@
 import React, { useState } from 'react'
 import { PcpCardItem, PcpLinhaOperacao } from '@/services/pcp-planejamento'
-import { IsoWeekRange, avaliarCapacidadeFinanceira, matchWeek, formatBRL } from '@/lib/pcp-capacity'
+import {
+  IsoWeekRange,
+  avaliarCapacidadeFinanceira,
+  matchWeek,
+  formatBRL,
+  semanaLabelComAno,
+} from '@/lib/pcp-capacity'
 import { PcpCard } from './PcpCard'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -67,7 +73,8 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
           ? 'semana_planejada_producao'
           : 'semana_planejada_montagem'
 
-    return cards.filter((c) => c && matchWeek(c[field], week))
+    const inicioField = field.replace('semana_planejada_', 'semana_') + '_inicio'
+    return cards.filter((c) => c && matchWeek(c[field], week, (c as any)[inicioField]))
   }
 
   // Soma de R$ para qualquer linha em cada semana sem dupla contagem:
@@ -126,7 +133,7 @@ export const PcpGradeSemanal: React.FC<PcpGradeSemanalProps> = ({
       }
     }
     if (cardId) {
-      onDropCard(cardId, linha, week.label, subcardIds)
+      onDropCard(cardId, linha, semanaLabelComAno(week), subcardIds)
     }
   }
 

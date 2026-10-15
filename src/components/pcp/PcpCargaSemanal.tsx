@@ -74,7 +74,7 @@ export const PcpCargaSemanal: React.FC<PcpCargaSemanalProps> = ({
       const weekCards = cards.filter((c) => {
         if (!c) return false
         // Verificar semana_planejada_producao
-        return matchWeek(c.semana_planejada_producao, week)
+        return matchWeek(c.semana_planejada_producao, week, c.semana_producao_inicio)
       })
 
       // Identificar pais com filhos valorados nesta semana
