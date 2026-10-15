@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -37,6 +38,7 @@ const PROJECT_COLUMNS = [
 ]
 
 export function AnaliseProjetoKanbanBoard() {
+  const { isAdmin } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -439,39 +441,41 @@ export function AnaliseProjetoKanbanBoard() {
                           </AlertDialog>
                         )}
 
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <button
-                              className="text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded hover:bg-destructive/10"
-                              onClick={(e) => e.stopPropagation()}
-                              title="Excluir Projeto"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir este projeto? Todo o formulário
-                                comercial e seus itens serão removidos. O cadastro do cliente
-                                permanecerá intacto.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDeleteProject(project.id)
-                                }}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+                        {isAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <button
+                                className="text-muted-foreground hover:text-destructive transition-colors p-1.5 rounded hover:bg-destructive/10"
+                                onClick={(e) => e.stopPropagation()}
+                                title="Excluir Projeto"
                               >
-                                Confirmar Exclusão
-                              </AlertDialogAction>
-                            </AlertDialogFooter>{' '}
-                          </AlertDialogContent>
-                        </AlertDialog>
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Projeto?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Só é possível excluir projetos sem venda registrada, sem
+                                  financeiro e sem produção iniciada; nos demais casos use Arquivar.
+                                  O cadastro do cliente permanece.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteProject(project.id)
+                                  }}
+                                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+                                >
+                                  Confirmar Exclusão
+                                </AlertDialogAction>
+                              </AlertDialogFooter>{' '}
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
 
                       {badgeProgramacao && (

@@ -382,7 +382,8 @@ Deno.serve(async (req) => {
           .update(leadUpdatePayload)
           .eq('id', lead.id)
 
-        if (leadUpdateErr) throw new Error('Erro ao atualizar lead (fromMe): ' + leadUpdateErr.message)
+        if (leadUpdateErr)
+          throw new Error('Erro ao atualizar lead (fromMe): ' + leadUpdateErr.message)
       }
 
       // Sessão de WhatsApp (apenas se houver telefone válido)
@@ -445,7 +446,8 @@ Deno.serve(async (req) => {
       )
 
       // Responde erro para a falha aparecer e a mensagem não se perder em silêncio (erro 1.3)
-      if (insertAnaErr) throw new Error('Erro ao inserir mensagem da Equipe: ' + insertAnaErr.message)
+      if (insertAnaErr)
+        throw new Error('Erro ao inserir mensagem da Equipe: ' + insertAnaErr.message)
 
       return new Response('Outbound logged (manual mode)', { status: 200 })
     }
@@ -644,7 +646,8 @@ Deno.serve(async (req) => {
         .update(updatePayload)
         .eq('id', lead.id)
 
-      if (leadUpdateErr) throw new Error('Erro ao atualizar lead (inbound): ' + leadUpdateErr.message)
+      if (leadUpdateErr)
+        throw new Error('Erro ao atualizar lead (inbound): ' + leadUpdateErr.message)
     }
 
     // Inbound customer message — gravada por último: se algo antes falhar, a resposta é erro
@@ -666,7 +669,8 @@ Deno.serve(async (req) => {
     )
 
     // Responde erro para a falha aparecer e a mensagem não se perder em silêncio (erro 1.3)
-    if (insertClientErr) throw new Error('Erro ao inserir mensagem do Cliente: ' + insertClientErr.message)
+    if (insertClientErr)
+      throw new Error('Erro ao inserir mensagem do Cliente: ' + insertClientErr.message)
 
     return new Response('Inbound logged (manual mode)', { status: 200 })
   } catch (e: any) {

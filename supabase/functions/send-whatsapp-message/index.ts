@@ -106,10 +106,13 @@ Deno.serve(async (req) => {
     // Se a Z-API não aceitou, NÃO grava a mensagem como enviada e devolve erro para a tela
     // mostrar a falha e manter o texto digitado (erro 1.4)
     if (!zapi.ok) {
-      return new Response(JSON.stringify({ error: zapi.error || 'Falha ao enviar pelo WhatsApp' }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ error: zapi.error || 'Falha ao enviar pelo WhatsApp' }),
+        {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     const externalId = zapi.messageId || fallbackExternalId
