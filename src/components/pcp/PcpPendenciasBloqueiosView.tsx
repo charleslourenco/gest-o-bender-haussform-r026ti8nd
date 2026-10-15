@@ -44,6 +44,7 @@ interface AlertaTecnicoItem {
   semana: string
   statusAnalise: string
   prontidaoLabel: string
+  atrasado: boolean
 }
 
 interface AlertaSobrecargaItem {
@@ -124,16 +125,18 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
       const semProd = c.semana_planejada_producao
       if (!semProd) continue
 
-      // Agendados para a semana atual ou próxima
-      const isSemanaAlvo =
-        matchWeek(semProd, currentWeekObj, c.semana_producao_inicio) ||
-        matchWeek(semProd, nextWeekObj, c.semana_producao_inicio)
+      // O card entra se estiver ATRASADO, na semana atual ou na próxima:
+      const inicio = c.semana_producao_inicio ? c.semana_producao_inicio.slice(0, 10) : null
+      const isSemanaAlvo = inicio
+        ? inicio <= inicioSemanaStr(nextWeekObj)
+        : matchWeek(semProd, currentWeekObj, null) || matchWeek(semProd, nextWeekObj, null)
       if (!isSemanaAlvo) continue
 
       // Prontidão da Análise abaixo de 100%
       const concluida = isAnaliseTecnicaConcluida(c.status_analise)
       if (!concluida) {
         const prontInfo = getProntidaoTecnica(c)
+        const atrasado = !!inicio && inicio < inicioSemanaStr(currentWeekObj)
         result.push({
           card: c,
           clienteNome: getClientName(c),
@@ -141,15 +144,19 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
           semana: semProd,
           statusAnalise: c.status_analise || 'iniciar',
           prontidaoLabel: prontInfo.label,
+          atrasado,
         })
       }
     }
 
-    // Ordenar por semana (mais próxima primeiro)
+    // Ordenar por semana_producao_inicio crescente (string 'yyyy-MM-dd'; sem a coluna, vai para o fim)
     result.sort((a, b) => {
-      const wA = parseWeekNumber(a.semana) || 0
-      const wB = parseWeekNumber(b.semana) || 0
-      return wA - wB
+      const iniA = a.card.semana_producao_inicio ? a.card.semana_producao_inicio.slice(0, 10) : null
+      const iniB = b.card.semana_producao_inicio ? b.card.semana_producao_inicio.slice(0, 10) : null
+      if (iniA && iniB) return iniA.localeCompare(iniB)
+      if (iniA && !iniB) return -1
+      if (!iniA && iniB) return 1
+      return 0
     })
 
     return result
@@ -328,8 +335,8 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                       🔴 ALERTA 1: Pendência Técnica
                     </CardTitle>
                     <p className="text-[11px] text-rose-700/80 dark:text-rose-300/80">
-                      Na semana atual ({semanaLabelComAno(currentWeekObj)}) ou próxima (
-                      {semanaLabelComAno(nextWeekObj)}) &lt; 100%
+                      Atrasados, semana atual ({semanaLabelComAno(currentWeekObj)}) ou próxima (
+                      {semanaLabelComAno(nextWeekObj)}) com análise &lt; 100%
                     </p>
                   </div>
                 </div>
@@ -355,8 +362,8 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                     Nenhuma pendência técnica crítica
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Todos os cards para {semanaLabelComAno(currentWeekObj)} e{' '}
-                    {semanaLabelComAno(nextWeekObj)} estão liberados.
+                    Nenhum card atrasado ou das semanas {semanaLabelComAno(currentWeekObj)} e{' '}
+                    {semanaLabelComAno(nextWeekObj)} com análise análise pendente.
                   </p>
                 </div>
               ) : (
@@ -375,12 +382,19 @@ export const PcpPendenciasBloqueiosView: React.FC<PcpPendenciasBloqueiosViewProp
                             {item.produtoNome}
                           </span>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className="font-mono text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border border-primary/20 shrink-0"
-                        >
-                          {item.semana}
-                        </Badge>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {item.atrasado && (
+                            <span className="bg-rose-600 text-white text-[10px] px-1.5 rounded font-bold">
+                              ATRASADO
+                            </span>
+                          )}
+                          <Badge
+                            variant="secondary"
+                            className="font-mono text-[10px] font-bold px-1.5 py-0 bg-primary/10 text-primary border border-primary/20 shrink-0"
+                          >
+                            {item.semana}
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50 text-[11px]">

@@ -7,6 +7,7 @@ import {
   updateCardSemanaPlanejada,
   updateCardMesPlanejado,
   getProntidaoTecnica,
+  getProntidaoPercentual,
   PcpLinhaOperacao,
 } from '@/services/pcp-planejamento'
 import { formatBRL, getIsoWeeksForMonth, semanaLabelComAno } from '@/lib/pcp-capacity'
@@ -153,38 +154,6 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
     card.formulario?.cliente?.nome ||
     card.formulario?.nome_cliente ||
     'Cliente não informado'
-
-  // Helper para porcentagem de prontidão técnica
-  const getProntidaoPercentual = (card: PcpCardItem): { pct: number; label: string } => {
-    const st = card.status_analise || 'iniciar'
-    if (st === 'pendencia') return { pct: 0, label: 'Pendência (0%)' }
-    if (card.is_outsourced && !card.terceirizado_validado) {
-      return { pct: 25, label: 'Terceirizado (25%)' }
-    }
-    switch (st) {
-      case 'iniciar':
-      case 'aguardando_liberacao':
-        return { pct: 15, label: '15%' }
-      case 'medida_fina':
-        return { pct: 35, label: '35%' }
-      case 'reuniao_analise':
-        return { pct: 50, label: '50%' }
-      case 'alteracao_projeto':
-        return { pct: 60, label: '60%' }
-      case 'lista_materiais':
-        return { pct: 75, label: '75%' }
-      case 'aguardando_plano_corte':
-      case 'caderno_tecnico':
-      case 'router':
-      case 'coladeira':
-      case 'bancada':
-      case 'embalagem':
-      case 'concluido':
-        return { pct: 100, label: '100% (Pronto)' }
-      default:
-        return { pct: 20, label: '20%' }
-    }
-  }
 
   // Determinar status real no Kanban
   const getStatusRealKanban = (card: PcpCardItem) => {

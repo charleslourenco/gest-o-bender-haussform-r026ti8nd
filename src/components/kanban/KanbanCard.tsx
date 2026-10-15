@@ -153,7 +153,11 @@ export function KanbanCard({
 
   // Spec Etapa 4: Trava de Portão de Prontidão na /producao
   const portaoProntidao = isProducao
-    ? avaliarPortaoProntidaoProducao(semanaEfetiva, statusAnaliseEfetivo)
+    ? avaliarPortaoProntidaoProducao(
+        semanaEfetiva,
+        statusAnaliseEfetivo,
+        card.semana_producao_inicio || card.card_pai?.semana_producao_inicio,
+      )
     : 'normal'
 
   return (

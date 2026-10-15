@@ -101,27 +101,14 @@ export function getBadgeProgramacaoSemana(
   return { label, isCurrent, weekNum }
 }
 
+import { isAnaliseConcluidaPorFase } from './pcp-fases'
+
 /**
  * Status de conclusão da Análise Técnica:
- * Na análise técnica o card transita por: iniciar -> aguardando_liberacao -> medida_fina ->
- * reuniao_analise -> caderno_tecnico -> alteracao_projeto -> lista_materiais -> aguardando_plano_corte.
- * 'aguardando_plano_corte' representa 100% (concluído / pronto para corte).
+ * Análise técnica concluída = fase com pct 100 (de aguardando_plano_corte em diante)
  */
 export function isAnaliseTecnicaConcluida(statusAnalise?: string | null): boolean {
-  if (!statusAnalise) return false
-  const s = statusAnalise.trim().toLowerCase()
-  // Se for aguardando_plano_corte ou qualquer status avançado de produção/montagem ou concluido
-  const statusAvancados = new Set([
-    'aguardando_plano_corte',
-    'concluido',
-    'router',
-    'coladeira',
-    'bancada',
-    'embalagem',
-    'aguardando_agenda',
-    'montagem',
-  ])
-  return statusAvancados.has(s)
+  return isAnaliseConcluidaPorFase(statusAnalise)
 }
 
 /**
@@ -134,13 +121,27 @@ export function isAnaliseTecnicaConcluida(statusAnalise?: string | null): boolea
 export function avaliarPortaoProntidaoProducao(
   semanaPlanejada: string | null | undefined,
   statusAnalise: string | null | undefined,
+  inicio?: string | null,
 ): 'bloqueado' | 'liberado' | 'normal' {
-  const weekNum = parseWeekNumber(semanaPlanejada)
-  if (weekNum === null) return 'normal'
-
   const current = getCurrentIsoWeek()
-  // A semana de produção chegou se weekNum <= semana atual
-  const chegouSemana = weekNum <= current.weekNumber
+
+  let chegouSemana = false
+  if (inicio && typeof inicio === 'string') {
+    const currentWeekRange = getIsoWeeksForYear(current.year).find(
+      (w) => w.weekNumber === current.weekNumber,
+    )
+    if (currentWeekRange) {
+      chegouSemana = inicio.slice(0, 10) <= inicioSemanaStr(currentWeekRange)
+    } else {
+      const weekNum = parseWeekNumber(semanaPlanejada)
+      chegouSemana = weekNum !== null && weekNum <= current.weekNumber
+    }
+  } else {
+    const weekNum = parseWeekNumber(semanaPlanejada)
+    if (weekNum === null) return 'normal'
+    chegouSemana = weekNum <= current.weekNumber
+  }
+
   if (!chegouSemana) return 'normal'
 
   const analiseConcluida = isAnaliseTecnicaConcluida(statusAnalise)

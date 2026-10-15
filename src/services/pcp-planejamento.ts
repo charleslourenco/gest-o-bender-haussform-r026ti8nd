@@ -1,6 +1,9 @@
 // Validação de integridade da Matriz PCP
 import { supabase } from '@/lib/supabase/client'
 import { calcularDatasDerivadasPcp } from '@/lib/pcp-capacity'
+import { getFaseFluxo } from '@/lib/pcp-fases'
+
+export { getProntidaoPercentual } from '@/lib/pcp-fases'
 
 export type PcpLinhaOperacao = 'analise' | 'producao' | 'montagem'
 
@@ -775,17 +778,8 @@ export function getProntidaoTecnica(card: PcpCardItem): ProntidaoInfo {
     }
   }
 
-  if (
-    st === 'aguardando_plano_corte' ||
-    st === 'caderno_tecnico' ||
-    st === 'router' ||
-    st === 'coladeira' ||
-    st === 'bancada' ||
-    st === 'embalagem' ||
-    st === 'aguardando_agenda' ||
-    st === 'montagem' ||
-    st === 'concluido'
-  ) {
+  const fase = getFaseFluxo(st)
+  if (fase && fase.pct === 100) {
     return {
       status: 'pronto',
       label: 'Prontidão Aprovada',
@@ -796,12 +790,7 @@ export function getProntidaoTecnica(card: PcpCardItem): ProntidaoInfo {
     }
   }
 
-  if (
-    st === 'medida_fina' ||
-    st === 'reuniao_analise' ||
-    st === 'alteracao_projeto' ||
-    st === 'lista_materiais'
-  ) {
+  if (fase && fase.ordem >= 2) {
     return {
       status: 'em_analise',
       label: 'Engenharia em Andamento',
