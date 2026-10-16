@@ -55,6 +55,12 @@ export const PcpMatrizAnual: React.FC<PcpMatrizAnualProps> = ({ onNavigateToMont
     loadCards()
   }, [loadCards])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const fresh = cards.find((c) => c.id === selectedCard.id)
+    if (fresh && fresh !== selectedCard) setSelectedCard(fresh)
+  }, [cards])
+
   // Subscrição Real-Time
   useEffect(() => {
     const channel = supabase

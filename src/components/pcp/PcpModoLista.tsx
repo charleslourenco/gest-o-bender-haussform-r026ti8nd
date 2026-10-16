@@ -126,6 +126,12 @@ export const PcpModoLista: React.FC<PcpModoListaProps> = ({ initialZoom = 'mensa
     loadCards()
   }, [loadCards])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const fresh = cards.find((c) => c.id === selectedCard.id)
+    if (fresh && fresh !== selectedCard) setSelectedCard(fresh)
+  }, [cards])
+
   // Real-Time
   useEffect(() => {
     const channel = supabase

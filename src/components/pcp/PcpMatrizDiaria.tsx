@@ -80,6 +80,12 @@ export const PcpMatrizDiaria: React.FC = () => {
     loadCards()
   }, [loadCards])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const fresh = cards.find((c) => c.id === selectedCard.id)
+    if (fresh && fresh !== selectedCard) setSelectedCard(fresh)
+  }, [cards])
+
   // Realtime
   useEffect(() => {
     const channel = supabase

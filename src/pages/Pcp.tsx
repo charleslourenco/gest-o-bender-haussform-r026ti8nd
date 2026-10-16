@@ -92,6 +92,12 @@ export function PcpPlanejamentoView() {
     }
   }, [viewMode, loadCards])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const fresh = cards.find((c) => c.id === selectedCard.id)
+    if (fresh && fresh !== selectedCard) setSelectedCard(fresh)
+  }, [cards])
+
   const handleOpenDrawer = (card: PcpCardItem) => {
     setSelectedCard(card)
     setDrawerOpen(true)

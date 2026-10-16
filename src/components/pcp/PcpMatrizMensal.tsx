@@ -95,6 +95,12 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     loadCards()
   }, [loadCards])
 
+  useEffect(() => {
+    if (!selectedCard) return
+    const fresh = cards.find((c) => c.id === selectedCard.id)
+    if (fresh && fresh !== selectedCard) setSelectedCard(fresh)
+  }, [cards])
+
   // Subscrição Real-Time para manter sincrono entre múltiplos usuários
   useEffect(() => {
     const channel = supabase
@@ -362,23 +368,32 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
           ...c,
           [fieldMap[linha]]: novaSemana,
         }
-        // Se desagendou (novaSemana é null ou ''), e a linha for produção, limpar também o mês caso estivesse vinculado
-        if (!novaSemana && linha === 'producao') {
-          updated.mes_planejado_producao = null
+        if (linha === 'producao') {
+          updated.data_planejada_producao = null
+          // Se desagendou (novaSemana é null ou ''), limpar também o mês caso estivesse vinculado
+          if (!novaSemana) {
+            updated.mes_planejado_producao = null
+          }
         }
         return updated
       }),
     )
 
     if (selectedCard && selectedCard.id === cardId) {
-      setSelectedCard((prev) =>
-        prev
-          ? {
-              ...prev,
-              [fieldMap[linha]]: novaSemana,
-            }
-          : null,
-      )
+      setSelectedCard((prev) => {
+        if (!prev) return null
+        const updated: PcpCardItem = {
+          ...prev,
+          [fieldMap[linha]]: novaSemana,
+        }
+        if (linha === 'producao') {
+          updated.data_planejada_producao = null
+          if (!novaSemana) {
+            updated.mes_planejado_producao = null
+          }
+        }
+        return updated
+      })
     }
 
     try {

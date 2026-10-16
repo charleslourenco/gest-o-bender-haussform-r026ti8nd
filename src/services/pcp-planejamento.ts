@@ -269,9 +269,15 @@ export async function updateCardSemanaPlanejada(
     if (extraDates.dataObraMontagem !== undefined) {
       updatePayload.data_obra_montagem = extraDates.dataObraMontagem
     }
-    if (extraDates.dataPlanejada !== undefined && linha === 'producao') {
-      updatePayload.data_planejada_producao = extraDates.dataPlanejada
+    if (linha === 'producao') {
+      if (extraDates.dataPlanejada !== undefined) {
+        updatePayload.data_planejada_producao = extraDates.dataPlanejada
+      } else {
+        updatePayload.data_planejada_producao = null
+      }
     }
+  } else if (linha === 'producao') {
+    updatePayload.data_planejada_producao = null
   }
 
   // 1. Atualizar a coluna aditiva do card
@@ -343,9 +349,15 @@ export async function updateMultipleCardsSemanaPlanejada(
     if (extraDates.dataObraMontagem !== undefined) {
       updatePayload.data_obra_montagem = extraDates.dataObraMontagem
     }
-    if (extraDates.dataPlanejada !== undefined && linha === 'producao') {
-      updatePayload.data_planejada_producao = extraDates.dataPlanejada
+    if (linha === 'producao') {
+      if (extraDates.dataPlanejada !== undefined) {
+        updatePayload.data_planejada_producao = extraDates.dataPlanejada
+      } else {
+        updatePayload.data_planejada_producao = null
+      }
     }
+  } else if (linha === 'producao') {
+    updatePayload.data_planejada_producao = null
   }
 
   const { error: updateErr } = await supabase
