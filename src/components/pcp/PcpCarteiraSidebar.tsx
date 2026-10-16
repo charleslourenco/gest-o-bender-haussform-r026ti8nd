@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { PcpCardItem, PcpLinhaOperacao } from '@/services/pcp-planejamento'
 import { formatBRL } from '@/lib/pcp-capacity'
+import { isCardParaAgendar } from '@/lib/pcp-carteira'
 import { safeFormatDatePtBr } from '@/lib/date-utils'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -143,62 +144,9 @@ export const PcpCarteiraSidebar: React.FC<PcpCarteiraSidebarProps> = ({
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({})
   const [isDragOverCollapsed, setIsDragOverCollapsed] = useState(false)
   const [isDragOverSidebar, setIsDragOverSidebar] = useState(false)
-  // Status de execução ou conclusão que NÃO podem aparecer na fila de agendamento (mesmo sem datas)
-  const STATUS_EXCLUIDOS_CARTEIRA = [
-    'aguardando_plano_corte',
-    'router',
-    'coladeira',
-    'bancada',
-    'embalagem',
-    'aguardando_agenda',
-    'montagem',
-    'inicio_montagem',
-    'item_terceirizado',
-    'pendencia',
-    'concluido',
-  ] as const
-
-  // Critério de permanência na carteira ("Projetos para Agendar"):
-  // 1. visivel_pcp !== false
-  // 2. !arquivado_* e !excluido_*
-  // 3. NENHUMA das 6 datas preenchida (critério de datas atual mantido)
-  // 4. status_analise NÃO pertence à lista de execução/conclusão (permanecem status de análise: iniciar, reuniao_analise, medida_fina, aguardando_liberacao, alteracao_projeto, aguardando_consultor e similares)
-  // 5. Aplicável identicamente a pai, pai virtual e subcards
-  const isCardAptoParaAgendar = (c: PcpCardItem): boolean => {
-    if (!c) return false
-    if (c.visivel_pcp === false) return false
-    if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
-    if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
-
-    // Exclusão por status_analise de execução/conclusão (com safe check para não quebrar se for null/undefined/number)
-    const st = typeof c.status_analise === 'string' ? c.status_analise.toLowerCase().trim() : ''
-    if (st && (STATUS_EXCLUIDOS_CARTEIRA as readonly string[]).includes(st)) {
-      return false
-    }
-
-    const temAgendaAnalise = Boolean(
-      (typeof c.semana_planejada_analise === 'string' &&
-        c.semana_planejada_analise.trim() !== '') ||
-      (typeof c.data_planejada_analise === 'string' && c.data_planejada_analise.trim() !== ''),
-    )
-    const temAgendaProducao = Boolean(
-      (typeof c.semana_planejada_producao === 'string' &&
-        c.semana_planejada_producao.trim() !== '') ||
-      (typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim() !== ''),
-    )
-    const temAgendaMontagem = Boolean(
-      (typeof c.semana_planejada_montagem === 'string' &&
-        c.semana_planejada_montagem.trim() !== '') ||
-      (typeof c.data_planejada_montagem === 'string' && c.data_planejada_montagem.trim() !== ''),
-    )
-
-    if (temAgendaAnalise || temAgendaProducao || temAgendaMontagem) return false
-
-    return true
-  }
 
   // Alias para manter compatibilidade com verificações internas
-  const isCardPending = isCardAptoParaAgendar
+  const isCardPending = isCardParaAgendar
 
   // Helper para obter nome do cliente de um card
   const getCardClientName = (c: PcpCardItem): string => {

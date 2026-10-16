@@ -1,17 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import {
-  Calendar as CalendarIcon,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  Search,
-  RefreshCw,
-  Layers,
-  ArrowUpDown,
-  AlertTriangle,
-  CheckCircle2,
-  Lock,
-} from 'lucide-react'
+import { Calendar as CalendarIcon, Search, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +32,7 @@ import {
   matchWeek,
   semanaLabelComAno,
 } from '@/lib/pcp-capacity'
+import { contarCardsParaAgendar } from '@/lib/pcp-carteira'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpSideDrawer } from './PcpSideDrawer'
 import { PcpCard } from './PcpCard'
@@ -401,38 +390,7 @@ export const PcpGradeIndustrial: React.FC = () => {
     }
   }
 
-  // Contagem de pendentes na carteira (sem data e sem semana de produção, excluindo status de execução/conclusão)
-  const unassignedCount = useMemo(() => {
-    if (!cards || !Array.isArray(cards) || cards.length === 0) return 0
-    const STATUS_EXCLUIDOS = new Set([
-      'aguardando_plano_corte',
-      'router',
-      'coladeira',
-      'bancada',
-      'embalagem',
-      'aguardando_agenda',
-      'montagem',
-      'inicio_montagem',
-      'item_terceirizado',
-      'pendencia',
-      'concluido',
-    ])
-    return cards.filter((c) => {
-      if (!c || c.visivel_pcp === false) return false
-      if (c.arquivado_producao || c.excluido_producao) return false
-      const temSemana = Boolean(
-        typeof c.semana_planejada_producao === 'string' &&
-        c.semana_planejada_producao.trim() !== '',
-      )
-      const temData = Boolean(
-        typeof c.data_planejada_producao === 'string' && c.data_planejada_producao.trim() !== '',
-      )
-      if (temSemana || temData) return false
-      const st = typeof c.status_analise === 'string' ? c.status_analise.toLowerCase().trim() : ''
-      if (st && STATUS_EXCLUIDOS.has(st)) return false
-      return true
-    }).length
-  }, [cards])
+  const unassignedCount = useMemo(() => contarCardsParaAgendar(cards), [cards])
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">

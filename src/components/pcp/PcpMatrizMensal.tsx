@@ -16,12 +16,13 @@ import {
   somarCargaTodasLinhasMes,
   semanaLabelComAno,
 } from '@/lib/pcp-capacity'
+import { contarCardsParaAgendar } from '@/lib/pcp-carteira'
 import { PcpCarteiraSidebar } from './PcpCarteiraSidebar'
 import { PcpGradeSemanal } from './PcpGradeSemanal'
 import { PcpSideDrawer } from './PcpSideDrawer'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, RefreshCw, Layers } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -409,41 +410,7 @@ export const PcpMatrizMensal: React.FC<PcpMatrizMensalProps> = ({
     return avaliarCapacidadeFinanceiraMensal(cargaConsolidadaMes.totalGeral)
   }, [cargaConsolidadaMes.totalGeral])
 
-  // Contagem de pendentes na carteira (sem semana e sem mês de produção, e aptos para agendar)
-  const unassignedCount = useMemo(() => {
-    if (!cards || !Array.isArray(cards)) return 0
-    const STATUS_BLOQUEADOS = new Set([
-      'aguardando_plano_corte',
-      'router',
-      'coladeira',
-      'bancada',
-      'embalagem',
-      'expedicao',
-      'aguardando_agenda',
-      'montagem',
-      'item_terceirizado',
-      'pendencia',
-      'concluido',
-      'iniciar',
-      'reuniao_analise',
-    ])
-    return cards.filter((c) => {
-      if (!c) return false
-      if (c.visivel_pcp === false) return false
-      if (c.arquivado_analise || c.arquivado_producao || c.arquivado_montagem) return false
-      if (c.excluido_analise || c.excluido_producao || c.excluido_montagem) return false
-      const temSemana = Boolean(
-        c.semana_planejada_producao && String(c.semana_planejada_producao).trim() !== '',
-      )
-      const temMes = Boolean(
-        c.mes_planejado_producao && String(c.mes_planejado_producao).trim() !== '',
-      )
-      if (temSemana || temMes) return false
-      const st = (c.status_analise || '').toLowerCase().trim()
-      if (STATUS_BLOQUEADOS.has(st)) return false
-      return true
-    }).length
-  }, [cards])
+  const unassignedCount = useMemo(() => contarCardsParaAgendar(cards), [cards])
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
