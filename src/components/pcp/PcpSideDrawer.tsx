@@ -470,6 +470,10 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                         <span className="text-muted-foreground">
                           {h.semana_anterior ? (
                             <strong className="text-foreground">{h.semana_anterior}</strong>
+                          ) : h.data_anterior ? (
+                            <strong className="text-foreground">
+                              {formatSafeDate(h.data_anterior, 'dd/MM/yyyy')}
+                            </strong>
                           ) : h.mes_anterior ? (
                             <strong className="text-foreground">{h.mes_anterior}</strong>
                           ) : (
@@ -480,6 +484,10 @@ export const PcpSideDrawer: React.FC<PcpSideDrawerProps> = ({
                         <span>
                           {h.semana_nova ? (
                             <strong className="text-primary">{h.semana_nova}</strong>
+                          ) : h.data_nova ? (
+                            <strong className="text-primary">
+                              {formatSafeDate(h.data_nova, 'dd/MM/yyyy')}
+                            </strong>
                           ) : h.mes_novo ? (
                             <strong className="text-primary">{h.mes_novo}</strong>
                           ) : (

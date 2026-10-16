@@ -246,67 +246,32 @@ export async function updateCardSemanaPlanejada(
     dataPlanejada?: string | null
   },
 ): Promise<void> {
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'semana_planejada_analise' | 'semana_planejada_producao' | 'semana_planejada_montagem'
-  > = {
-    analise: 'semana_planejada_analise',
-    producao: 'semana_planejada_producao',
-    montagem: 'semana_planejada_montagem',
-  }
-
-  const colName = columnMap[linha]
-
-  const updatePayload: Record<string, any> = {
-    [colName]: semanaNova,
-    atualizado_em: new Date().toISOString(),
+  const campos: Record<string, any> = {
+    semana: semanaNova,
   }
 
   if (extraDates) {
     if (extraDates.dataLimiteAnalise !== undefined) {
-      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+      campos.data_limite_analise = extraDates.dataLimiteAnalise
     }
     if (extraDates.dataObraMontagem !== undefined) {
-      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+      campos.data_obra_montagem = extraDates.dataObraMontagem
     }
-    if (linha === 'producao') {
-      if (extraDates.dataPlanejada !== undefined) {
-        updatePayload.data_planejada_producao = extraDates.dataPlanejada
-      } else {
-        updatePayload.data_planejada_producao = null
-      }
+    if (extraDates.dataPlanejada !== undefined) {
+      campos.data = extraDates.dataPlanejada
     }
-  } else if (linha === 'producao') {
-    updatePayload.data_planejada_producao = null
   }
 
-  // 1. Atualizar a coluna aditiva do card
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update(updatePayload as any)
-    .eq('id', cardId)
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: [cardId],
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-  if (updateErr) {
-    console.error('Erro ao atualizar semana planejada:', updateErr)
-    throw updateErr
-  }
-
-  // 2. Registrar no histórico de reprogramação
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
-
-    await supabase.from('pcp_reprogramacao_historico').insert({
-      card_id: cardId,
-      linha_operacao: linha,
-      tipo_planejamento: 'semana',
-      semana_anterior: semanaAnterior || null,
-      semana_nova: semanaNova || null,
-      motivo: motivo || (semanaAnterior ? 'Reprogramação temporal' : 'Alocação inicial de semana'),
-      usuario_id: userId,
-    } as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico de reprogramação (não impeditivo):', histErr)
+  if (error) {
+    console.error('Erro ao atualizar semana planejada via RPC:', error)
+    throw error
   }
 }
 
@@ -327,67 +292,32 @@ export async function updateMultipleCardsSemanaPlanejada(
 ): Promise<void> {
   if (cardIds.length === 0) return
 
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'semana_planejada_analise' | 'semana_planejada_producao' | 'semana_planejada_montagem'
-  > = {
-    analise: 'semana_planejada_analise',
-    producao: 'semana_planejada_producao',
-    montagem: 'semana_planejada_montagem',
-  }
-  const colName = columnMap[linha]
-
-  const updatePayload: Record<string, any> = {
-    [colName]: semanaNova,
-    atualizado_em: new Date().toISOString(),
+  const campos: Record<string, any> = {
+    semana: semanaNova,
   }
 
   if (extraDates) {
     if (extraDates.dataLimiteAnalise !== undefined) {
-      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+      campos.data_limite_analise = extraDates.dataLimiteAnalise
     }
     if (extraDates.dataObraMontagem !== undefined) {
-      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
+      campos.data_obra_montagem = extraDates.dataObraMontagem
     }
-    if (linha === 'producao') {
-      if (extraDates.dataPlanejada !== undefined) {
-        updatePayload.data_planejada_producao = extraDates.dataPlanejada
-      } else {
-        updatePayload.data_planejada_producao = null
-      }
+    if (extraDates.dataPlanejada !== undefined) {
+      campos.data = extraDates.dataPlanejada
     }
-  } else if (linha === 'producao') {
-    updatePayload.data_planejada_producao = null
   }
 
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update(updatePayload as any)
-    .in('id', cardIds)
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: cardIds,
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-  if (updateErr) {
-    console.error('Erro ao atualizar lote de semanas planejadas:', updateErr)
-    throw updateErr
-  }
-
-  // Histórico para cada um
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
-
-    const logs = cardIds.map((id) => ({
-      card_id: id,
-      linha_operacao: linha,
-      tipo_planejamento: 'semana',
-      semana_anterior: null,
-      semana_nova: semanaNova,
-      motivo: motivo || 'Alocação em lote (Projeto Pai + Ambientes)',
-      usuario_id: userId,
-    }))
-
-    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico em lote:', histErr)
+  if (error) {
+    console.error('Erro ao atualizar lote de semanas planejadas via RPC:', error)
+    throw error
   }
 }
 
@@ -402,43 +332,20 @@ export async function updateMultipleCardsMesPlanejado(
 ): Promise<void> {
   if (cardIds.length === 0) return
 
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
-  > = {
-    analise: 'mes_planejado_analise',
-    producao: 'mes_planejado_producao',
-    montagem: 'mes_planejado_montagem',
-  }
-  const colName = columnMap[linha]
-
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update({ [colName]: mesNovo, atualizado_em: new Date().toISOString() } as any)
-    .in('id', cardIds)
-
-  if (updateErr) {
-    console.error('Erro ao atualizar lote de meses planejados:', updateErr)
-    throw updateErr
+  const campos: Record<string, any> = {
+    mes: mesNovo,
   }
 
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: cardIds,
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-    const logs = cardIds.map((id) => ({
-      card_id: id,
-      linha_operacao: linha,
-      tipo_planejamento: 'mes',
-      mes_anterior: null,
-      mes_novo: mesNovo,
-      motivo: motivo || 'Alocação mensal em lote (Projeto Pai + Ambientes)',
-      usuario_id: userId,
-    }))
-
-    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico mensal em lote:', histErr)
+  if (error) {
+    console.error('Erro ao atualizar lote de meses planejados via RPC:', error)
+    throw error
   }
 }
 
@@ -458,60 +365,32 @@ export async function updateMultipleCardsDataPlanejada(
 ): Promise<void> {
   if (cardIds.length === 0) return
 
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'data_planejada_analise' | 'data_planejada_producao' | 'data_planejada_montagem'
-  > = {
-    analise: 'data_planejada_analise',
-    producao: 'data_planejada_producao',
-    montagem: 'data_planejada_montagem',
-  }
-  const colName = columnMap[linha]
-
-  const updatePayload: Record<string, any> = {
-    [colName]: dataNova,
-    atualizado_em: new Date().toISOString(),
+  const campos: Record<string, any> = {
+    data: dataNova,
   }
 
   if (extraDates) {
+    if (extraDates.semanaPlanejada !== undefined) {
+      campos.semana = extraDates.semanaPlanejada
+    }
     if (extraDates.dataLimiteAnalise !== undefined) {
-      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+      campos.data_limite_analise = extraDates.dataLimiteAnalise
     }
     if (extraDates.dataObraMontagem !== undefined) {
-      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
-    }
-    if (extraDates.semanaPlanejada !== undefined && linha === 'producao') {
-      updatePayload.semana_planejada_producao = extraDates.semanaPlanejada
+      campos.data_obra_montagem = extraDates.dataObraMontagem
     }
   }
 
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update(updatePayload as any)
-    .in('id', cardIds)
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: cardIds,
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-  if (updateErr) {
-    console.error('Erro ao atualizar lote de datas planejadas:', updateErr)
-    throw updateErr
-  }
-
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
-
-    const logs = cardIds.map((id) => ({
-      card_id: id,
-      linha_operacao: linha,
-      tipo_planejamento: 'dia',
-      data_anterior: null,
-      data_nova: dataNova,
-      motivo: motivo || 'Alocação diária em lote (Projeto Pai + Ambientes)',
-      usuario_id: userId,
-    }))
-
-    await supabase.from('pcp_reprogramacao_historico').insert(logs as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico diário em lote:', histErr)
+  if (error) {
+    console.error('Erro ao atualizar lote de datas planejadas via RPC:', error)
+    throw error
   }
 }
 
@@ -527,42 +406,20 @@ export async function updateCardMesPlanejado(
   mesAnterior: string | null,
   motivo?: string,
 ): Promise<void> {
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'mes_planejado_analise' | 'mes_planejado_producao' | 'mes_planejado_montagem'
-  > = {
-    analise: 'mes_planejado_analise',
-    producao: 'mes_planejado_producao',
-    montagem: 'mes_planejado_montagem',
+  const campos: Record<string, any> = {
+    mes: mesNovo,
   }
 
-  const colName = columnMap[linha]
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: [cardId],
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update({ [colName]: mesNovo, atualizado_em: new Date().toISOString() } as any)
-    .eq('id', cardId)
-
-  if (updateErr) {
-    console.error('Erro ao atualizar mês planejado:', updateErr)
-    throw updateErr
-  }
-
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
-
-    await supabase.from('pcp_reprogramacao_historico').insert({
-      card_id: cardId,
-      linha_operacao: linha,
-      tipo_planejamento: 'mes',
-      mes_anterior: mesAnterior || null,
-      mes_novo: mesNovo || null,
-      motivo: motivo || (mesAnterior ? 'Reprogramação mensal' : 'Alocação inicial de mês'),
-      usuario_id: userId,
-    } as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico de reprogramação mensal:', histErr)
+  if (error) {
+    console.error('Erro ao atualizar mês planejado via RPC:', error)
+    throw error
   }
 }
 
@@ -582,59 +439,32 @@ export async function updateCardDataPlanejada(
     semanaPlanejada?: string | null
   },
 ): Promise<void> {
-  const columnMap: Record<
-    PcpLinhaOperacao,
-    'data_planejada_analise' | 'data_planejada_producao' | 'data_planejada_montagem'
-  > = {
-    analise: 'data_planejada_analise',
-    producao: 'data_planejada_producao',
-    montagem: 'data_planejada_montagem',
-  }
-
-  const colName = columnMap[linha]
-
-  const updatePayload: Record<string, any> = {
-    [colName]: dataNova,
-    atualizado_em: new Date().toISOString(),
+  const campos: Record<string, any> = {
+    data: dataNova,
   }
 
   if (extraDates) {
+    if (extraDates.semanaPlanejada !== undefined) {
+      campos.semana = extraDates.semanaPlanejada
+    }
     if (extraDates.dataLimiteAnalise !== undefined) {
-      updatePayload.data_limite_analise = extraDates.dataLimiteAnalise
+      campos.data_limite_analise = extraDates.dataLimiteAnalise
     }
     if (extraDates.dataObraMontagem !== undefined) {
-      updatePayload.data_obra_montagem = extraDates.dataObraMontagem
-    }
-    if (extraDates.semanaPlanejada !== undefined && linha === 'producao') {
-      updatePayload.semana_planejada_producao = extraDates.semanaPlanejada
+      campos.data_obra_montagem = extraDates.dataObraMontagem
     }
   }
 
-  const { error: updateErr } = await supabase
-    .from('produtos_servicos_projeto')
-    .update(updatePayload as any)
-    .eq('id', cardId)
+  const { error } = await supabase.rpc('pcp_reprogramar_cards' as any, {
+    p_card_ids: [cardId],
+    p_linha: linha,
+    p_campos: campos,
+    p_motivo: motivo ?? null,
+  })
 
-  if (updateErr) {
-    console.error('Erro ao atualizar data planejada:', updateErr)
-    throw updateErr
-  }
-
-  try {
-    const { data: authData } = await supabase.auth.getUser()
-    const userId = authData?.user?.id || null
-
-    await supabase.from('pcp_reprogramacao_historico').insert({
-      card_id: cardId,
-      linha_operacao: linha,
-      tipo_planejamento: 'dia',
-      data_anterior: dataAnterior || null,
-      data_nova: dataNova || null,
-      motivo: motivo || (dataAnterior ? 'Reprogramação diária' : 'Alocação diária'),
-      usuario_id: userId,
-    } as any)
-  } catch (histErr) {
-    console.warn('Aviso ao registrar histórico de reprogramação diária:', histErr)
+  if (error) {
+    console.error('Erro ao atualizar data planejada via RPC:', error)
+    throw error
   }
 }
 
@@ -645,7 +475,11 @@ export async function fetchReprogramacaoHistorico(cardId: string): Promise<PcpRe
   const { data, error } = await supabase
     .from('pcp_reprogramacao_historico')
     .select(`
-      id, card_id, linha_operacao, semana_anterior, semana_nova, motivo, usuario_id, criado_em,
+      id, card_id, linha_operacao, tipo_planejamento,
+      semana_anterior, semana_nova,
+      mes_anterior, mes_novo,
+      data_anterior, data_nova,
+      motivo, usuario_id, criado_em,
       usuario:users!usuario_id(id, nome, email)
     `)
     .eq('card_id', cardId)

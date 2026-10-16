@@ -354,15 +354,6 @@ export const PcpGradeIndustrial: React.FC = () => {
 
     try {
       if (allAffectedIds.length > 1) {
-        await updateMultipleCardsDataPlanejada(
-          allAffectedIds,
-          'producao',
-          null,
-          'Retornado para a Carteira',
-          {
-            semanaPlanejada: null,
-          },
-        )
         await updateMultipleCardsSemanaPlanejada(
           allAffectedIds,
           'producao',
@@ -373,14 +364,6 @@ export const PcpGradeIndustrial: React.FC = () => {
           `Grupo [${card?.nome_produto || 'Projeto'}] e ${childrenIds.length} ambiente(s) retornados para a Carteira!`,
         )
       } else {
-        await updateCardDataPlanejada(
-          cardId,
-          'producao',
-          null,
-          card?.data_planejada_producao || null,
-          'Retornado para a Carteira',
-          { semanaPlanejada: null },
-        )
         await updateCardSemanaPlanejada(
           cardId,
           'producao',
