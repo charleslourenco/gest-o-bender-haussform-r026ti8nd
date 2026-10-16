@@ -12,10 +12,12 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { runWithAuthRecovery } from '@/lib/supabase/auth-recovery'
+import { buscarTodasPaginas } from '@/lib/supabase/buscar-todas-paginas'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -53,15 +55,16 @@ interface FilterOption {
   nome: string
 }
 
-interface LeadRelation {
+interface VendaResumo {
   id: string
+  cliente_id: string
+  lead_id: string | null
+  valor_total: number | null
+  data_venda: string | null
+  criado_em: string | null
   consultor_id: string | null
-  consultor: { id: string; nome: string } | null
-  formulario_comercial: {
-    id: string
-    valor_total: number | null
-    data_venda: string | null
-  } | null
+  consultor_nome: string | null
+  dossie_id: string | null
 }
 
 interface ClienteRow {
@@ -69,8 +72,12 @@ interface ClienteRow {
   nome: string
   email: string
   telefone: string
-  leads: LeadRelation | null
-  dossies: { id: string; status: string; criado_em: string }[] | null
+  vendas: VendaResumo[]
+  numVendas: number
+  ultimaDataVenda: string | null
+  valorTotal: number
+  consultorNome: string
+  dossieId: string
 }
 
 interface ClientesListProps {
@@ -146,27 +153,24 @@ const PERIOD_PRESETS: PeriodPreset[] = [
   },
 ]
 
-function normalizeLead(raw: any): LeadRelation | null {
-  if (!raw) return null
-  const lead = Array.isArray(raw) ? raw[0] : raw
-  if (!lead) return null
-  const consultor = Array.isArray(lead.consultor) ? lead.consultor[0] : lead.consultor
-  const form = Array.isArray(lead.formulario_comercial)
-    ? lead.formulario_comercial[0]
-    : lead.formulario_comercial
-  const datas = form?.datas as { data_venda?: string } | null | undefined
+function parseVendaItem(raw: any): VendaResumo {
+  const cliente = Array.isArray(raw.cliente) ? raw.cliente[0] : raw.cliente
+  const lead = Array.isArray(raw.lead) ? raw.lead[0] : raw.lead
+  const consultor = Array.isArray(lead?.consultor) ? lead?.consultor[0] : lead?.consultor
+  const dossies = Array.isArray(raw.dossies) ? raw.dossies : raw.dossies ? [raw.dossies] : []
+  const datas = raw.datas as { data_venda?: string } | null | undefined
   const dataVenda = datas?.data_venda || null
+
   return {
-    id: lead.id,
-    consultor_id: lead.consultor_id,
-    consultor: consultor || null,
-    formulario_comercial: form
-      ? {
-          id: form.id,
-          valor_total: form.valor_total,
-          data_venda: dataVenda,
-        }
-      : null,
+    id: raw.id,
+    cliente_id: raw.cliente_id || cliente?.id,
+    lead_id: raw.lead_id || lead?.id || null,
+    valor_total: raw.valor_total != null ? Number(raw.valor_total) : 0,
+    data_venda: dataVenda,
+    criado_em: raw.criado_em || null,
+    consultor_id: lead?.consultor_id || consultor?.id || null,
+    consultor_nome: consultor?.nome?.trim() || null,
+    dossie_id: dossies[0]?.id || null,
   }
 }
 
@@ -225,72 +229,179 @@ export function ClientesList({ onSelect }: ClientesListProps) {
       setLoading(true)
       setSummaryLoading(true)
       try {
-        const result = await runWithAuthRecovery<any[]>(() => {
-          let query = supabase.from('clientes').select(`
-              id, nome, email, telefone,
-              leads!lead_id(
-                id, consultor_id,
-                consultor:users!leads_consultor_id_fkey(id, nome),
-                formulario_comercial!lead_id(id, valor_total, datas)
-              ),
-              dossies(id, status, criado_em)
+        const leadEmbed =
+          consultorFilter !== 'all'
+            ? 'lead:leads!lead_id!inner(id, consultor_id, consultor:users!leads_consultor_id_fkey(id, nome))'
+            : 'lead:leads!lead_id(id, consultor_id, consultor:users!leads_consultor_id_fkey(id, nome))'
+
+        const vendasResult = await runWithAuthRecovery<{ data: any[]; error: any }>(() =>
+          buscarTodasPaginas(() => {
+            let query = supabase.from('formulario_comercial').select(`
+              id,
+              cliente_id,
+              lead_id,
+              valor_total,
+              datas,
+              criado_em,
+              cliente:clientes!cliente_id!inner(id, nome, email, telefone, excluido),
+              ${leadEmbed},
+              dossies!formulario_comercial_id(id, status, criado_em)
             `)
 
-          query = query.eq('excluido' as any, false)
+            query = query.eq('cliente.excluido', false)
 
-          if (clienteFilter !== 'all') {
-            query = query.eq('id', clienteFilter)
+            if (clienteFilter !== 'all') {
+              query = query.eq('cliente_id', clienteFilter)
+            }
+            if (consultorFilter !== 'all') {
+              query = query.eq('lead.consultor_id', consultorFilter)
+            }
+            if (dataVendaDe) {
+              query = query.gte('datas->>data_venda', dataVendaDe)
+            }
+            if (dataVendaAte) {
+              query = query.lte('datas->>data_venda', dataVendaAte)
+            }
+
+            return query
+          }),
+        )
+
+        if (vendasResult.error) throw vendasResult.error
+        const rawVendas = (vendasResult.data as any[]) || []
+
+        // Agrupamento por cliente_id
+        const clientesMap = new Map<
+          string,
+          {
+            cliente: { id: string; nome: string; email: string; telefone: string }
+            vendas: VendaResumo[]
           }
-          if (consultorFilter !== 'all') {
-            query = query.eq('leads.consultor_id', consultorFilter)
+        >()
+
+        for (const item of rawVendas) {
+          const cli = Array.isArray(item.cliente) ? item.cliente[0] : item.cliente
+          if (!cli || !cli.id) continue
+          const vendaParsed = parseVendaItem(item)
+
+          if (!clientesMap.has(cli.id)) {
+            clientesMap.set(cli.id, {
+              cliente: {
+                id: cli.id,
+                nome: cli.nome || 'Sem nome',
+                email: cli.email || '',
+                telefone: cli.telefone || '',
+              },
+              vendas: [],
+            })
           }
+          clientesMap.get(cli.id)!.vendas.push(vendaParsed)
+        }
 
-          return query.order('nome')
-        })
-
-        if (result.error) throw result.error
-        const data = result.data
-
-        const rawData = (data as any[]) || []
-
-        const normalized: ClienteRow[] = rawData.map((c) => ({
-          id: c.id,
-          nome: c.nome,
-          email: c.email,
-          telefone: c.telefone,
-          leads: normalizeLead(c.leads),
-          dossies: Array.isArray(c.dossies) ? c.dossies : c.dossies ? [c.dossies] : [],
-        }))
-
-        const clientsWithForm = normalized.filter((c) => c.leads?.formulario_comercial)
-
-        // Quando há filtro de período, vendas sem data_venda são excluídas;
-        // quando não há filtro, mantém o comportamento atual (inclui todas).
+        // Buscar clientes sem nenhuma venda quando NÃO há filtro de período nem de consultor
         const hasPeriodFilter = !!(dataVendaDe || dataVendaAte)
+        const hasConsultorFilter = consultorFilter !== 'all'
+        const canIncludeClientesSemVenda = !hasPeriodFilter && !hasConsultorFilter
 
-        const formInPeriod = clientsWithForm.filter((c) => {
-          const dv = c.leads?.formulario_comercial?.data_venda
-          if (!dv) return !hasPeriodFilter
-          if (dataVendaDe && dv < dataVendaDe) return false
-          if (dataVendaAte && dv > dataVendaAte) return false
-          return true
-        })
+        let clientesSemVendaRows: ClienteRow[] = []
+        if (canIncludeClientesSemVenda) {
+          const clientesRes = await runWithAuthRecovery<{ data: any[]; error: any }>(() =>
+            buscarTodasPaginas(() => {
+              let query = supabase
+                .from('clientes')
+                .select('id, nome, email, telefone')
+                .eq('excluido' as any, false)
 
-        // Sem filtro de período: tabela mostra todos os clientes (comportamento padrão).
-        // Com filtro de período: tabela mostra apenas clientes com vendas no período.
-        setClientesData(hasPeriodFilter ? formInPeriod : normalized)
+              if (clienteFilter !== 'all') {
+                query = query.eq('id', clienteFilter)
+              }
 
-        const formIds = new Set<string>()
-        let total = 0
-        formInPeriod.forEach((c) => {
-          const f = c.leads!.formulario_comercial!
-          if (f.id && !formIds.has(f.id)) {
-            formIds.add(f.id)
-            total += f.valor_total || 0
+              return query
+            }),
+          )
+
+          if (clientesRes.error) throw clientesRes.error
+          const allClientes = (clientesRes.data as any[]) || []
+
+          for (const c of allClientes) {
+            if (!clientesMap.has(c.id)) {
+              clientesSemVendaRows.push({
+                id: c.id,
+                nome: c.nome || 'Sem nome',
+                email: c.email || '',
+                telefone: c.telefone || '',
+                vendas: [],
+                numVendas: 0,
+                ultimaDataVenda: null,
+                valorTotal: 0,
+                consultorNome: '—',
+                dossieId: c.id,
+              })
+            }
           }
-        })
-        setTotalVendido(total)
-        setNumVendas(formIds.size)
+        }
+
+        const rowsComVendas: ClienteRow[] = []
+        for (const { cliente, vendas } of clientesMap.values()) {
+          // Ordenar vendas do cliente por data_venda desc, fallback criado_em desc
+          const sortedVendas = [...vendas].sort((a, b) => {
+            const dateA = a.data_venda || a.criado_em || ''
+            const dateB = b.data_venda || b.criado_em || ''
+            return dateB.localeCompare(dateA)
+          })
+
+          const vendaMaisRecente = sortedVendas[0]
+
+          // Última data de venda: maior datas.data_venda
+          let ultimaDataVenda: string | null = null
+          for (const v of vendas) {
+            if (v.data_venda) {
+              if (!ultimaDataVenda || v.data_venda > ultimaDataVenda) {
+                ultimaDataVenda = v.data_venda
+              }
+            }
+          }
+
+          // Consultor: da venda mais recente; se houver consultores distintos nas vendas, "Nome +1"
+          const consultoresDistintos = new Set(
+            vendas.map((v) => v.consultor_nome).filter((nome): nome is string => !!nome),
+          )
+          const consultorRecenteNome = vendaMaisRecente?.consultor_nome || '—'
+          let consultorDisplay = consultorRecenteNome
+          if (consultoresDistintos.size > 1 && consultorRecenteNome !== '—') {
+            consultorDisplay = `${consultorRecenteNome} +${consultoresDistintos.size - 1}`
+          }
+
+          const dossieId = vendaMaisRecente?.dossie_id || cliente.id
+          const valorTotalCliente = vendas.reduce((sum, v) => sum + (v.valor_total || 0), 0)
+
+          rowsComVendas.push({
+            id: cliente.id,
+            nome: cliente.nome,
+            email: cliente.email,
+            telefone: cliente.telefone,
+            vendas,
+            numVendas: vendas.length,
+            ultimaDataVenda,
+            valorTotal: valorTotalCliente,
+            consultorNome: consultorDisplay,
+            dossieId,
+          })
+        }
+
+        const todosOsClientes = [...rowsComVendas, ...clientesSemVendaRows]
+        todosOsClientes.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+
+        setClientesData(todosOsClientes)
+
+        // Resumo (VendasSummaryCard):
+        // numVendas = total de vendas que passaram nos filtros (soma dos numVendas)
+        // totalVendido = soma dos valorTotal (clientes sem venda não entram pois têm valorTotal 0)
+        const totalVendidoSum = rowsComVendas.reduce((acc, c) => acc + c.valorTotal, 0)
+        const numVendasSum = rowsComVendas.reduce((acc, c) => acc + c.numVendas, 0)
+
+        setTotalVendido(totalVendidoSum)
+        setNumVendas(numVendasSum)
       } catch (e: any) {
         toast.error('Erro ao buscar dados: ' + e.message)
         setClientesData([])
@@ -609,21 +720,22 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Consultor</TableHead>
-                <TableHead>Data Venda</TableHead>
-                <TableHead className="text-right">Valor Total</TableHead>
+                <TableHead className="text-center">Vendas</TableHead>
+                <TableHead>Última venda</TableHead>
+                <TableHead className="text-right">Valor total</TableHead>
                 <TableHead className="w-[100px] text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                     Carregando clientes...
                   </TableCell>
                 </TableRow>
               ) : clientesData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-40 text-center">
+                  <TableCell colSpan={7} className="h-40 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <Users className="w-8 h-8 mb-2 opacity-20" />
                       <p>Nenhum cliente encontrado com os filtros aplicados.</p>
@@ -632,7 +744,9 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                 </TableRow>
               ) : (
                 clientesData.map((cliente) => {
-                  const dossieId = cliente.dossies?.[0]?.id || cliente.id
+                  const dossieId = cliente.dossieId || cliente.id
+                  const temRecompra = cliente.numVendas >= 2
+
                   return (
                     <TableRow
                       key={cliente.id}
@@ -656,23 +770,28 @@ export function ClientesList({ onSelect }: ClientesListProps) {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200">
-                        {cliente.leads?.consultor?.nome || '-'}
+                        {cliente.consultorNome}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge
+                          variant={temRecompra ? 'default' : 'secondary'}
+                          title={temRecompra ? 'Cliente com recompra' : undefined}
+                          className="font-semibold"
+                        >
+                          {cliente.numVendas}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground group-hover:text-foreground/80 transition-colors duration-200">
-                        {cliente.leads?.formulario_comercial?.data_venda
+                        {cliente.ultimaDataVenda
                           ? format(
-                              new Date(
-                                cliente.leads.formulario_comercial.data_venda + 'T12:00:00Z',
-                              ),
+                              new Date(cliente.ultimaDataVenda + 'T12:00:00Z'),
                               "dd 'de' MMM, yyyy",
                               { locale: ptBR },
                             )
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right font-medium group-hover:text-primary transition-colors duration-200">
-                        {cliente.leads?.formulario_comercial?.valor_total != null
-                          ? formatCurrency(cliente.leads.formulario_comercial.valor_total)
-                          : '-'}
+                        {cliente.numVendas > 0 ? formatCurrency(cliente.valorTotal) : '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
