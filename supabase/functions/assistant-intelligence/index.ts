@@ -110,19 +110,74 @@ Mencione algum lead ou cliente recente como exemplo de "vamos dar atenção espe
     }
 
     if (character === 'Zenaide') {
-      const { data: estoque } = await supabase
+      // 3.7: estoque resumido (não a tabela inteira) + itens citados na pergunta
+      const compactar = (rows: any[] | null) =>
+        (rows || []).map((e: any) => ({
+          nome: e.nome,
+          qtd: Number(e.quantidade ?? 0),
+          un: e.unidade,
+          min: e.estoque_minimo ?? null,
+          marca: e.marca ?? null,
+          fornecedor: e.fornecedor ?? null,
+        }))
+
+      const { count: totalEstoque } = await supabase
         .from('estoque_itens')
-        .select('nome, quantidade, unidade, fornecedor, terceirizado')
+        .select('id', { count: 'exact', head: true })
+
+      const { data: estoqueBaixo } = await supabase
+        .from('estoque_itens')
+        .select('nome, quantidade, unidade, estoque_minimo, marca, fornecedor')
+        .not('estoque_minimo', 'is', null)
+        .gt('estoque_minimo', 0)
+        .order('nome')
+        .limit(300)
+      const abaixoDoMinimo = compactar(estoqueBaixo)
+        .filter((e: any) => e.min !== null && e.qtd <= Number(e.min))
+        .slice(0, 80)
+
+      // Itens citados na pergunta do usuário (palavras com 4+ letras)
+      const palavras = Array.from(
+        new Set(
+          String(userMessage || '')
+            .toLowerCase()
+            .split(/[^a-zà-ú0-9]+/i)
+            .filter((w) => w.length >= 4),
+        ),
+      ).slice(0, 6)
+      let estoqueCitado: any[] = []
+      if (palavras.length > 0) {
+        const { data: citados } = await supabase
+          .from('estoque_itens')
+          .select('nome, quantidade, unidade, estoque_minimo, marca, fornecedor')
+          .or(palavras.map((w) => `nome.ilike.%${w.replace(/[%,()]/g, '')}%`).join(','))
+          .order('nome')
+          .limit(40)
+        estoqueCitado = compactar(citados)
+      }
+
+      // Listas de materiais ficam em documentos_cliente (tipo lista_materiais), como arquivos
       const { data: listas } = await supabase
-        .from('listas_materiais')
-        .select('id, cliente_id, clientes!inner(nome), itens, status')
-        .eq('status', 'pendente')
+        .from('documentos_cliente')
+        .select('id, template_nome, status, criado_em, clientes!inner(nome)')
+        .eq('tipo', 'lista_materiais')
+        .order('criado_em', { ascending: false })
+        .limit(10)
+      const listasResumo = (listas || []).map((l: any) => ({
+        cliente: l.clientes?.nome,
+        arquivo: l.template_nome,
+        status: l.status,
+        data: l.criado_em ? String(l.criado_em).slice(0, 10) : null,
+      }))
 
       extraContext = `
 [DADOS DE ESTOQUE E COMPRAS EM TEMPO REAL]
 Hoje é ${new Date().toLocaleDateString('pt-BR')}.
-Estoque Atual: ${JSON.stringify(estoque || [])}
-Listas de Materiais Pendentes: ${JSON.stringify(listas || [])}
+Itens cadastrados no estoque: ${totalEstoque ?? 'desconhecido'}.
+Itens abaixo do estoque mínimo: ${JSON.stringify(abaixoDoMinimo)}
+Itens do estoque relacionados à pergunta: ${JSON.stringify(estoqueCitado)}
+Últimas listas de materiais enviadas (arquivos; o conteúdo não está disponível aqui): ${JSON.stringify(listasResumo)}
+Se o usuário pedir a conferência de uma lista, peça que cole os itens e quantidades no chat.
 
 [IDENTIDADE E DIRETRIZES DA ZENAIDE ZELOSA]
 Identidade: Você é Zenaide Zelosa, a mestre de estoque e compras da Bender Haussform. Seu zelo é o que garante que a fábrica nunca pare.
@@ -200,7 +255,7 @@ ${extraContext}`
       model: 'gpt-4o-mini',
       messages: messages,
       temperature: 0.7,
-      max_tokens: 250,
+      max_tokens: 700,
     })
 
     const message = completion.choices[0].message.content
